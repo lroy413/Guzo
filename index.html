@@ -140,7 +140,9 @@ input[type=number]{-moz-appearance:textfield}
   letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums;
   height:23px;display:flex;align-items:baseline;justify-content:center}
 .day-v.empty{color:var(--line);font-weight:500}
-.day-u{font-size:11px;font-weight:500;color:var(--muted);margin-left:1px;letter-spacing:0}
+/* An 11px unit suffix is one or two thin glyphs; --muted measures 5.5:1 on
+   paper and lands at 4.5 once antialiased, so the token is lifted here. */
+.day-u{font-size:11px;font-weight:600;color:#98a2ae;margin-left:1px;letter-spacing:0}
 .day-k{font-size:11px;font-weight:650;letter-spacing:.12em;text-transform:uppercase;
   color:var(--muted);margin-top:3px}
 .day-note{flex:1 0 100%;text-align:center;font-size:11.5px;color:var(--faint);
@@ -285,7 +287,10 @@ button.recall:active{transform:scale(.99)}
 .pick-dot.legs{background:var(--teal)}
 .pick-dot.core{background:var(--muted)}
 .pick-n{font-family:var(--fm);font-size:12.5px;color:var(--muted);flex:none}
-.pick-chev{color:var(--muted);font-size:16px;flex:none;width:14px;text-align:center;line-height:1}
+/* The chevron is the only thing saying a row opens, so it is drawn heavier
+   and lighter than --muted: a hairline glyph antialiases well below the
+   contrast its colour promises. */
+.pick-chev{color:#b6bfca;font-weight:700;font-size:16px;flex:none;width:14px;text-align:center;line-height:1}
 .pick-list{border:1px solid var(--line);border-top:0;
   border-bottom-left-radius:var(--r);border-bottom-right-radius:var(--r);
   background:var(--surface);overflow:hidden}
@@ -324,6 +329,36 @@ button.recall:active{transform:scale(.99)}
 .fuel-chip-t{font-size:13px;font-weight:600;color:var(--text);line-height:1.25}
 .fuel-chip-b{font-size:11.5px;color:var(--muted)}
 
+/* ---------- fuel ---------- */
+.fuel-week{background:linear-gradient(180deg,var(--surface) 0%, #10141a 100%);
+  border:1px solid var(--ember-line);border-radius:var(--r-xl);padding:18px;
+  box-shadow:var(--shadow-sm),var(--inset)}
+.fuel-avg{font-size:38px;font-weight:700;letter-spacing:-.04em;line-height:1.05;color:var(--text)}
+/* The number is monospaced so it doesn't jitter as it changes; the unit
+   beside it is prose and should not inherit that. */
+.fuel-of{font-family:var(--ff);font-size:14px;font-weight:600;color:var(--muted);margin-left:8px;letter-spacing:0}
+.fuel-sub{font-size:13px;color:var(--muted);margin-top:3px}
+.fuel-bars{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end}
+.fuel-bar{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:44px;padding:2px 0}
+.fuel-bar-track{width:100%;height:46px;border-radius:6px;background:var(--surface-3);
+  display:flex;align-items:flex-end;overflow:hidden}
+.fuel-bar-fill{width:100%;background:var(--ember);border-radius:6px;min-height:2px;
+  transition:height .3s ease}
+.fuel-bar.today .fuel-bar-fill{background:var(--ember-2)}
+.fuel-bar.on .fuel-bar-track{outline:1px solid var(--ember-line);outline-offset:1px}
+.fuel-bar-d{font-size:10.5px;font-weight:650;color:var(--muted)}
+.fuel-day-card{background:var(--surface);border:1px solid var(--line-soft);
+  border-radius:var(--r-lg);padding:17px;box-shadow:var(--shadow-sm),var(--inset)}
+.fuel-day-v{font-size:32px;font-weight:700;letter-spacing:-.035em;line-height:1.05;color:var(--text)}
+/* Deliberately lighter than --muted: at 11.5px the painted glyph never
+   reaches its nominal colour, so a token that measures 5.5:1 in theory
+   lands near 4:1 on screen. */
+.fuel-day-k{font-size:11.5px;color:#98a2ae;margin-top:2px}
+.fuel-burn{text-align:right}
+.fuel-macros{display:flex;flex-direction:column;gap:12px}
+.fuel-actions{margin-top:16px}
+.chip-grid.c4{grid-template-columns:repeat(4,1fr)}
+
 /* ---------- cards ---------- */
 .card{
   background:linear-gradient(180deg,var(--surface) 0%, #10141a 100%);
@@ -352,6 +387,13 @@ button.recall:active{transform:scale(.99)}
   box-shadow:0 8px 24px rgba(233,180,76,.26),inset 0 1px 0 rgba(255,255,255,.22)}
 .btn.ghost{background:transparent;border-color:var(--line)}
 .btn.quiet{background:transparent;border-color:transparent;color:var(--muted);padding:12px;min-width:44px;min-height:46px}
+/* A back control drawn as a stroked path rather than a “←” glyph: at 12px a
+   text arrow antialiases down to roughly half the contrast of the colour it
+   was given, which is how it was failing a pixel-sampled check while passing
+   an inspection of the CSS. */
+.btn.back{background:var(--surface-3);border-color:var(--line);color:var(--text);
+  padding:0;width:38px;min-width:38px;height:38px;min-height:38px;border-radius:12px}
+.btn.back svg{width:18px;height:18px}
 .btn.teal{background:linear-gradient(180deg,#5bdcb0,#38bd90);color:#03201a;border-color:transparent}
 .btn.danger{background:transparent;border-color:rgba(242,114,111,.4);color:var(--rose)}
 .btn.block{display:flex;width:100%}
@@ -473,7 +515,31 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   transition:transform .12s ease,border-color .18s ease;box-shadow:var(--inset)}
 .lrow:active{transform:scale(.99)}
 .lrow.on{border-color:var(--ember-line);background:linear-gradient(180deg,rgba(233,180,76,.06),transparent)}
-.lrow .ico{width:36px;height:36px;border-radius:10px;background:var(--surface-3);display:flex;align-items:center;justify-content:center;flex:none;font-size:15px}
+/* Explicit, not inherited: these tiles carry a single glyph, and a single
+   thin glyph is exactly where an inherited colour quietly under-delivers. */
+.lrow .ico{width:36px;height:36px;border-radius:10px;background:var(--surface-3);display:flex;align-items:center;justify-content:center;flex:none;font-size:15px;color:var(--text)}
+/* ---- the week's order ---- */
+.ord-list{display:flex;flex-direction:column;gap:8px}
+.ord{display:flex;align-items:center;gap:12px;padding:10px 13px;min-height:60px;
+  background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r-md)}
+.ord.spent{opacity:.55}
+.ord-d{flex:none;width:38px;text-align:center}
+.ord-d .n{display:block;font-size:10px;font-weight:700;letter-spacing:.1em;color:#98a2ae}
+.ord-d .v{display:block;font-family:var(--fm);font-size:17px;font-weight:650;color:var(--text);line-height:1.15}
+.ord-main{flex:1 1 auto;min-width:0;text-align:left;background:none;border:0;padding:6px 0;min-height:44px}
+.ord-main:disabled{opacity:1}
+.ord-t{display:block;font-size:15px;font-weight:650;color:var(--text);letter-spacing:-.01em}
+.ord-s{display:block;font-size:11.5px;color:#98a2ae;margin-top:2px}
+.ord-lock{flex:none;width:44px;text-align:center;color:var(--teal);font-size:15px;font-weight:700}
+/* Stacked arrows, sized for a thumb rather than a cursor. */
+.ord-ctl{flex:none;display:flex;flex-direction:column;gap:3px}
+.ord-ctl button{width:44px;height:28px;min-height:28px;padding:0;display:flex;align-items:center;justify-content:center;
+  background:var(--surface-3);border:1px solid var(--line);border-radius:9px;color:var(--text);line-height:1}
+.ord-ctl button svg{width:15px;height:15px}
+.ord-ctl button:disabled{opacity:.3}
+.ord-ctl button:active:not(:disabled){transform:scale(.94)}
+/* The row chevron: an affordance, so drawn heavier and lighter than body grey. */
+.chev{font-size:16px;font-weight:700;color:#b6bfca;flex:none;line-height:1}
 .divide{height:1px;background:var(--line-soft);margin:16px 0}
 
 /* ---------- sheet / modal ---------- */
@@ -2552,6 +2618,10 @@ function dk(d) {
 }
 function fromKey(k) { const p = k.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+/* addDays returns a Date; every store in the app is keyed by 'YYYY-MM-DD'.
+   Passing one where the other is expected fails silently — the lookup just
+   misses — so anything that takes a date key normalises through here. */
+function key(k) { return typeof k === 'string' ? k : dk(k); }
 function today() { return dk(); }
 function weekStart(d) {
   d = d || new Date();
@@ -2561,7 +2631,26 @@ function weekStart(d) {
   x.setHours(0,0,0,0);
   return x;
 }
-function daysBetween(a, b) { return Math.round((fromKey(b) - fromKey(a)) / 86400000); }
+/* Signed, and defensive about rubbish input.
+   ------------------------------------------------------------------
+   There used to be a second copy of this in the plate module, added to stop
+   a malformed date from crashing the whole train screen. It clamped the
+   result with Math.max(0, ...) so "how long ago" could never come out
+   negative — and because that file loads later, ITS declaration won for the
+   entire app. Every past-or-future test in the codebase silently lost the
+   ability to see the past: relDate called every old date "Today", and the
+   catch-up sheet offered days that had not happened yet.
+
+   One definition. Defensive, because the crash it was guarding against was
+   real — but signed, because direction is the whole point of the function.
+   Callers that genuinely want a non-negative age clamp at the call site. */
+function daysBetween(a, b) {
+  try {
+    if (typeof a !== 'string' || typeof b !== 'string') return 0;
+    const d = (fromKey(b) - fromKey(a)) / 86400000;
+    return isNaN(d) ? 0 : Math.round(d);
+  } catch (e) { return 0; }
+}
 function prettyDate(k) { const d = fromKey(k); return DAYNAMES[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()]; }
 function relDate(k) {
   const diff = daysBetween(today(), k);
@@ -2687,6 +2776,15 @@ function dayConstraint(key) {
   const c = (S.week.days || {})[key];
   if (c) return c;
   return { avail:'normal', env: S.profile.envs[0] || 'full', note:'' };
+}
+
+/* One writer for a day's availability, so the three places that change it
+   cannot drift apart. */
+function setDayAvail(k, avail) {
+  const kk = key(k);
+  if (!S.week.days) S.week.days = {};
+  S.week.days[kk] = Object.assign(dayConstraint(kk), { avail });
+  return S.week.days[kk];
 }
 
 /* ============================================================
@@ -3032,11 +3130,53 @@ function buildWeekPlan(force) {
   const n = Math.min(prog.target, scored.filter(s => s.mins >= minUsable).length || scored.length);
   const chosen = scored.slice(0, n).map(s => s.k).sort();
 
-  // space them out where possible
+  /* Anything you decided yourself, and anything already spent, survives a
+     rebuild. The app arranges the days you have not had an opinion about
+     and no others — otherwise setting Friday to Back and then changing
+     Tuesday's availability would quietly undo Friday. */
+  const inWeek = new Set(keys);
+  const keep = {};
+  Object.keys(S.week.plan || {}).forEach(k => {
+    const e = S.week.plan[k];
+    /* Confined to this week's seven days. A stray key from a clock change or
+       a restored backup would otherwise be carried forward for ever. */
+    if (!inWeek.has(k)) return;
+    if (e && (e.pinned || e.done || e.elsewhere)) keep[k] = e;
+  });
+
+  /* Walk the week in order and resync the rotation each time a kept day
+     goes past, so a Monday pinned to Pull leaves Wednesday on Legs rather
+     than opening on Push again. Resyncing as we go — rather than picking
+     one anchor up front — is what makes a kept day in the middle of the
+     week behave the same as one at the start. */
   const plan = {};
+  const days = [...new Set(chosen.concat(Object.keys(keep)))].sort();
+  const taken = {};
+  Object.values(keep).forEach(e => { if (e && !e.routineId) taken[e.type] = (taken[e.type] || 0) + 1; });
+  const room = {};
+  prog.cycle.forEach(t => { room[t] = (room[t] || 0) + 1; });
+
   let ci = 0;
-  chosen.forEach(k => {
-    plan[k] = { type: prog.cycle[ci % prog.cycle.length], done:false };
+  days.forEach(k => {
+    if (keep[k]) {
+      plan[k] = keep[k];
+      const at = keep[k].routineId ? -1 : prog.cycle.indexOf(keep[k].type);
+      if (at >= 0) ci = at + 1;
+      return;
+    }
+    if (chosen.indexOf(k) < 0) return;
+    /* Step past anything the pinned days have already used up. Without this
+       a week with three days pinned lands a duplicate on the fourth and
+       drops a whole movement pattern for the week — the rotation resyncs
+       correctly and still ends up with two Lower days and no Pull. */
+    for (let n = 0; n < prog.cycle.length; n++) {
+      const t = prog.cycle[((ci % prog.cycle.length) + prog.cycle.length) % prog.cycle.length];
+      if ((taken[t] || 0) < room[t]) break;
+      ci++;
+    }
+    const type = prog.cycle[((ci % prog.cycle.length) + prog.cycle.length) % prog.cycle.length];
+    taken[type] = (taken[type] || 0) + 1;
+    plan[k] = { type, done:false };
     ci++;
   });
   S.week.plan = plan;
@@ -3400,7 +3540,7 @@ function ensureDaily() {
 
 function dailyOn(date) {
   ensureDaily();
-  return S.daily[date] || null;
+  return S.daily[key(date)] || null;
 }
 
 function dailyToday() { return dailyOn(today()); }
@@ -3409,7 +3549,8 @@ function stepsOn(date) { const d = dailyOn(date); return d && d.steps > 0 ? d.st
 function sleepOn(date) { const d = dailyOn(date); return d && d.sleepH > 0 ? d.sleepH : null; }
 
 /* ---------- writing ---------- */
-function setDaily(date, field, value, src) {
+function setDaily(dateIn, field, value, src) {
+  const date = key(dateIn);
   if (!DAILY_LIMITS[field]) return false;
   const n = parseFloat(value);
   if (isNaN(n)) return false;
@@ -3437,7 +3578,8 @@ function setDaily(date, field, value, src) {
   return true;
 }
 
-function clearDaily(date, field) {
+function clearDaily(dateIn, field) {
+  const date = key(dateIn);
   const rec = dailyOn(date);
   if (!rec) return;
   delete rec[field];
@@ -3453,7 +3595,7 @@ function stepsBaseline(days) {
   const n = days || 14;
   const vals = [];
   for (let i = 1; i <= n; i++) {
-    const s = stepsOn(addDays(today(), -i));
+    const s = stepsOn(dk(addDays(today(), -i)));
     if (s) vals.push(s);
   }
   if (vals.length < 3) return null;
@@ -3478,7 +3620,7 @@ function stepsRead(n) {
 function stepDays(n) {
   const out = [];
   for (let i = n - 1; i >= 0; i--) {
-    const d = addDays(today(), -i);
+    const d = dk(addDays(today(), -i));
     out.push({ d, v: stepsOn(d) });
   }
   return out;
@@ -3768,7 +3910,9 @@ function lastPerformance(exId, beforeDate) {
     if (!item) continue;
     const sets = item.sets.filter(x => x.done);
     if (!sets.length) continue;
-    return { date: s.date, sets, daysAgo: daysBetween(s.date, today()) };
+    /* Clamped here rather than inside daysBetween: an age is never negative,
+       but the shared helper has to stay signed for everything else. */
+    return { date: s.date, sets, daysAgo: Math.max(0, daysBetween(s.date, today())) };
   }
   return null;
 }
@@ -3776,15 +3920,6 @@ function lastPerformance(exId, beforeDate) {
 /* Defensive on purpose: this runs inside the render path for every card on
    the training screen. One malformed date in the history should cost you a
    "last time" line, not the whole session. */
-function daysBetween(a, b) {
-  try {
-    if (typeof a !== 'string' || typeof b !== 'string') return 0;
-    const d = (fromKey(b) - fromKey(a)) / 86400000;
-    if (isNaN(d)) return 0;
-    return Math.max(0, Math.round(d));
-  } catch (e) { return 0; }
-}
-
 function agoLabel(days) {
   if (days <= 0) return 'earlier today';
   if (days === 1) return 'yesterday';
@@ -3949,7 +4084,10 @@ function routineSummary(r) {
    downstream — progression, calories, plate lines, form guides, the
    last-time recall — works on a routine session without knowing it
    came from one. */
-function buildRoutineSession(id) {
+/* `asPlanned` is the difference between "I did my abs thing at 11pm on top
+   of everything" and "my abs thing IS Wednesday's session". The first must
+   never discharge the week's commitment; the second is the commitment. */
+function buildRoutineSession(id, asPlanned) {
   const r = routineById(id);
   if (!r || !r.items.length) return null;
   const c = dayConstraint(today());
@@ -3979,7 +4117,7 @@ function buildRoutineSession(id) {
     type: 'custom',
     routineId: r.id,
     routineName: r.name,
-    extra: true,               // never discharges the week's planned session
+    extra: !asPlanned,         // an extra never discharges the week's planned session
     env, rung: 'full',
     planMins: routineMins(r),
     exercises,
@@ -4157,6 +4295,719 @@ function energyTargets() {
   const f = Math.round((kcal * 0.27) / 9);
   const c = Math.max(0, Math.round((kcal - p * 4 - f * 9) / 4));
   return { kcal, p, c, f, basis, maint, bmr: bmr() };
+}
+/* ============================================================
+   FOOD MODEL
+   ------------------------------------------------------------
+   No barcode scanner and no licensed food database — a single
+   HTML file cannot carry USDA's six gigabytes, and the branded
+   half of that data is inconsistent anyway. What it carries
+   instead is ~110 whole foods and staples at real per-100g
+   values, plus anything you save yourself. That covers the
+   things people eat repeatedly, which is where a logger earns
+   its keep; the long tail goes in as a custom entry once and
+   then lives in your own library.
+
+   Values are per 100g for anything you weigh and per item for
+   anything you count, drawn from USDA reference (Foundation /
+   SR Legacy) figures rather than crowd-sourced branded entries.
+   ============================================================ */
+
+/* n | unit | portion the macros describe | kcal | protein | carbs | fat | group */
+const FOODDATA = `
+Chicken breast, cooked|g|100|165|31|0|3.6|meat
+Chicken thigh, cooked|g|100|209|26|0|11|meat
+Turkey breast, cooked|g|100|135|30|0|1|meat
+Beef mince 5%, cooked|g|100|176|26|0|8|meat
+Beef mince 20%, cooked|g|100|254|26|0|17|meat
+Steak, sirloin, cooked|g|100|206|30|0|9|meat
+Pork loin, cooked|g|100|196|28|0|9|meat
+Bacon, grilled|g|100|541|37|1|42|meat
+Lamb, cooked|g|100|258|25|0|17|meat
+Ham, sliced|g|100|107|17|2|3|meat
+Salmon, cooked|g|100|206|22|0|13|fish
+Tuna, tinned in water|g|100|116|26|0|1|fish
+Cod, cooked|g|100|105|23|0|1|fish
+Prawns, cooked|g|100|99|24|0|0.3|fish
+Mackerel, cooked|g|100|262|24|0|18|fish
+Egg, whole, large|ea|1|72|6.3|0.4|4.8|egg
+Egg white, large|ea|1|17|3.6|0.2|0.1|egg
+Greek yoghurt 0%|g|100|59|10|3.6|0.4|dairy
+Greek yoghurt 5%|g|100|97|9|4|5|dairy
+Skyr|g|100|63|11|4|0.2|dairy
+Cottage cheese|g|100|98|11|3.4|4.3|dairy
+Milk, whole|ml|100|61|3.2|4.8|3.3|dairy
+Milk, semi-skimmed|ml|100|47|3.4|4.8|1.7|dairy
+Milk, skimmed|ml|100|34|3.4|5|0.1|dairy
+Cheddar|g|100|403|25|1.3|33|dairy
+Mozzarella|g|100|280|28|3.1|17|dairy
+Feta|g|100|264|14|4.1|21|dairy
+Parmesan|g|100|392|36|3.2|25|dairy
+Butter|g|100|717|0.9|0.1|81|dairy
+Whey protein|scoop|1|120|24|3|2|supp
+Casein protein|scoop|1|120|24|3|1|supp
+Plant protein|scoop|1|120|21|4|2|supp
+Rice, white, cooked|g|100|130|2.7|28|0.3|carb
+Rice, brown, cooked|g|100|123|2.7|26|1|carb
+Pasta, cooked|g|100|158|5.8|31|0.9|carb
+Potato, boiled|g|100|87|2|20|0.1|carb
+Sweet potato, baked|g|100|90|2|21|0.1|carb
+Bread, white|slice|1|79|2.7|15|1|carb
+Bread, wholemeal|slice|1|82|4|14|1.1|carb
+Bagel|ea|1|245|10|48|1.5|carb
+Tortilla wrap|ea|1|218|6|36|5|carb
+Oats, dry|g|100|389|17|66|7|carb
+Couscous, cooked|g|100|112|3.8|23|0.2|carb
+Quinoa, cooked|g|100|120|4.4|21|1.9|carb
+Noodles, egg, cooked|g|100|138|4.5|25|2.1|carb
+Cornflakes|g|100|357|7|84|0.4|carb
+Granola|g|100|471|10|64|20|carb
+Banana, medium|ea|1|105|1.3|27|0.4|fruit
+Apple, medium|ea|1|95|0.5|25|0.3|fruit
+Orange, medium|ea|1|62|1.2|15|0.2|fruit
+Berries, mixed|g|100|57|0.7|14|0.3|fruit
+Grapes|g|100|69|0.7|18|0.2|fruit
+Avocado, half|ea|1|161|2|9|15|fruit
+Mango|g|100|60|0.8|15|0.4|fruit
+Pineapple|g|100|50|0.5|13|0.1|fruit
+Dates, dried|ea|1|66|0.4|18|0|fruit
+Raisins|g|100|299|3.1|79|0.5|fruit
+Broccoli, cooked|g|100|35|2.4|7|0.4|veg
+Spinach, raw|g|100|23|2.9|3.6|0.4|veg
+Carrot, raw|g|100|41|0.9|10|0.2|veg
+Peas, cooked|g|100|84|5.4|16|0.2|veg
+Green beans, cooked|g|100|35|1.9|8|0.1|veg
+Tomato|g|100|18|0.9|3.9|0.2|veg
+Cucumber|g|100|15|0.7|3.6|0.1|veg
+Mixed salad|g|100|17|1.4|2.9|0.2|veg
+Mushrooms, cooked|g|100|28|2.2|5.3|0.5|veg
+Onion, raw|g|100|40|1.1|9.3|0.1|veg
+Pepper, bell|g|100|31|1|6|0.3|veg
+Sweetcorn|g|100|86|3.3|19|1.4|veg
+Lentils, cooked|g|100|116|9|20|0.4|plant
+Chickpeas, cooked|g|100|164|9|27|2.6|plant
+Black beans, cooked|g|100|132|9|24|0.5|plant
+Baked beans|g|100|94|4.8|17|0.4|plant
+Tofu, firm|g|100|144|17|3|9|plant
+Tempeh|g|100|192|20|8|11|plant
+Edamame|g|100|121|12|9|5|plant
+Hummus|g|100|166|8|14|10|plant
+Peanut butter|g|100|588|25|20|50|fat
+Almonds|g|100|579|21|22|50|fat
+Walnuts|g|100|654|15|14|65|fat
+Cashews|g|100|553|18|30|44|fat
+Olive oil|ml|10|88|0|0|10|fat
+Mixed seeds|g|100|559|19|18|48|fat
+Dark chocolate 70%|g|100|598|7.8|46|43|treat
+Milk chocolate|g|100|535|7.6|59|30|treat
+Ice cream|g|100|207|3.5|24|11|treat
+Biscuit, digestive|ea|1|71|1|9.5|3.2|treat
+Crisps, packet|ea|1|170|2|15|11|treat
+Flapjack|ea|1|340|4|45|16|treat
+Protein bar|ea|1|210|20|21|6|treat
+Doughnut|ea|1|253|4|31|13|treat
+Beer, pint|ea|1|208|1.8|17|0|drink
+Wine, glass 175ml|ea|1|159|0.1|4.9|0|drink
+Spirits, single 25ml|ea|1|56|0|0|0|drink
+Coffee, black|ea|1|2|0.3|0|0|drink
+Coffee, flat white|ea|1|120|7|9|6|drink
+Tea with milk|ea|1|25|1.3|2|1.1|drink
+Orange juice|ml|100|45|0.7|10|0.2|drink
+Cola|ml|100|42|0|11|0|drink
+Diet cola|ml|100|0.4|0|0|0|drink
+Sports drink|ml|100|24|0|6|0|drink
+Sandwich, shop-bought|ea|1|420|20|42|18|meal
+Meal deal, full|ea|1|700|24|80|30|meal
+Burrito|ea|1|620|28|70|24|meal
+Pizza, 2 slices|ea|1|570|24|64|22|meal
+Burger and chips|ea|1|920|35|85|48|meal
+Curry with rice|ea|1|780|32|92|30|meal
+Sushi, 8 pieces|ea|1|380|14|64|6|meal
+Crew catering plate|ea|1|750|35|70|35|meal
+Fry-up, full|ea|1|850|38|55|50|meal
+Salad with chicken|ea|1|420|38|18|22|meal
+Porridge with milk|ea|1|280|12|42|7|meal
+Protein shake, made up|ea|1|170|26|10|3|meal
+`.trim();
+
+const FOODS = FOODDATA.split('\n').map((line, i) => {
+  const p = line.split('|');
+  return { id: 'f' + i, n: p[0], u: p[1], per: +p[2],
+           kcal: +p[3], p: +p[4], c: +p[5], f: +p[6], g: p[7] };
+});
+
+const FOOD_GROUPS = [
+  { k:'meal',  label:'Meals & takeaway' },
+  { k:'meat',  label:'Meat' },
+  { k:'fish',  label:'Fish' },
+  { k:'egg',   label:'Eggs' },
+  { k:'dairy', label:'Dairy' },
+  { k:'supp',  label:'Protein powder' },
+  { k:'carb',  label:'Carbs & grains' },
+  { k:'plant', label:'Beans, pulses & tofu' },
+  { k:'veg',   label:'Vegetables' },
+  { k:'fruit', label:'Fruit' },
+  { k:'fat',   label:'Nuts, oils & fats' },
+  { k:'treat', label:'Snacks & sweets' },
+  { k:'drink', label:'Drinks' }
+];
+
+/* ---------- your own foods ---------- */
+function customFoods() {
+  if (!Array.isArray(S.nutrition.custom)) S.nutrition.custom = [];
+  return S.nutrition.custom;
+}
+
+function saveCustomFood(food) {
+  const list = customFoods();
+  const f = {
+    id: 'c' + Date.now().toString(36),
+    n: String(food.n || '').trim().slice(0, 50),
+    u: food.u || 'ea', per: +food.per || 1,
+    kcal: Math.max(0, +food.kcal || 0), p: Math.max(0, +food.p || 0),
+    c: Math.max(0, +food.c || 0), f: Math.max(0, +food.f || 0),
+    g: 'mine'
+  };
+  if (!f.n || f.kcal > 5000) return null;
+  list.push(f); save(true);
+  return f;
+}
+
+function deleteCustomFood(id) {
+  const list = customFoods();
+  const i = list.findIndex(f => f.id === id);
+  if (i < 0) return false;
+  list.splice(i, 1); save(true); return true;
+}
+
+function foodById(id) {
+  return FOODS.find(f => f.id === id) || customFoods().find(f => f.id === id) || null;
+}
+
+function allFoods() { return customFoods().concat(FOODS); }
+
+function foodSearch(q) {
+  const s = (q || '').trim().toLowerCase();
+  if (!s) return [];
+  const words = s.split(/\s+/).filter(Boolean);
+  return allFoods().filter(f => {
+    const hay = (f.n + ' ' + (FOOD_GROUPS.find(g => g.k === f.g) || {}).label).toLowerCase();
+    return words.every(w => hay.indexOf(w) >= 0);
+  }).slice(0, 40);
+}
+
+/* ---------- portions ---------- */
+function unitLabel(u) {
+  return u === 'g' ? 'g' : u === 'ml' ? 'ml' : u === 'scoop' ? 'scoop' :
+         u === 'slice' ? 'slice' : u === 'tbsp' ? 'tbsp' : '';
+}
+
+/* The step a portion moves in. Weighing things in 5g increments is what
+   a kitchen scale actually does; counting eggs in half-eggs is not. */
+function portionStep(u) { return (u === 'g' || u === 'ml') ? 10 : 1; }
+
+function scaleFood(food, qty) {
+  const ratio = qty / (food.per || 1);
+  const r = v => Math.round(v * ratio * 10) / 10;
+  return {
+    kcal: Math.round(food.kcal * ratio),
+    p: r(food.p), c: r(food.c), f: r(food.f)
+  };
+}
+
+function portionLabel(food, qty) {
+  const u = unitLabel(food.u);
+  if (food.u === 'ea') return qty === 1 ? '1' : qty + '×';
+  return qty + u + (food.u === 'scoop' && qty !== 1 ? 's' : '');
+}
+
+/* ---------- logging ---------- */
+function logFood(foodId, qty, dateKey) {
+  const food = foodById(foodId);
+  if (!food) return false;
+  const q = Math.max(0, parseFloat(qty) || 0);
+  if (!q) return false;
+  const m = scaleFood(food, q);
+  const d = nutDay(dateKey || today());
+  d.items.push({
+    id: 'e' + Date.now().toString(36) + d.items.length,
+    foodId: food.id, n: food.n, qty: q, u: food.u,
+    kcal: m.kcal, p: m.p, c: m.c, f: m.f,
+    at: new Date().toISOString()
+  });
+  save(true);
+  return true;
+}
+
+function updateEntry(dateKey, entryId, qty) {
+  const d = nutDay(dateKey);
+  const e = d.items.find(x => x.id === entryId);
+  if (!e) return false;
+  const food = e.foodId ? foodById(e.foodId) : null;
+  const q = Math.max(0, parseFloat(qty) || 0);
+  if (!q) return false;
+  if (food) {
+    const m = scaleFood(food, q);
+    e.qty = q; e.kcal = m.kcal; e.p = m.p; e.c = m.c; e.f = m.f;
+  } else {
+    const ratio = q / (e.qty || 1);
+    e.kcal = Math.round(e.kcal * ratio);
+    e.p = Math.round(e.p * ratio * 10) / 10;
+    e.c = Math.round(e.c * ratio * 10) / 10;
+    e.f = Math.round(e.f * ratio * 10) / 10;
+    e.qty = q;
+  }
+  save(true); return true;
+}
+
+function deleteEntry(dateKey, entryId) {
+  const d = nutDay(dateKey);
+  const i = d.items.findIndex(x => x.id === entryId);
+  if (i < 0) return false;
+  d.items.splice(i, 1); save(true); return true;
+}
+
+function copyDay(fromKey, toKey) {
+  const from = (S.nutrition.days[fromKey] || {}).items || [];
+  if (!from.length) return 0;
+  const to = nutDay(toKey || today());
+  from.forEach((e, i) => to.items.push({ ...e, id: 'e' + Date.now().toString(36) + '_' + i, at: new Date().toISOString() }));
+  save(true);
+  return from.length;
+}
+
+/* The most-used foods from the last fortnight. This is the thing that
+   actually saves time — people eat the same twenty things. */
+function recentFoods(limit) {
+  const counts = {};
+  for (let i = 0; i < 14; i++) {
+    const k = dk(addDays(today(), -i));
+    ((S.nutrition.days[k] || {}).items || []).forEach(e => {
+      if (!e.foodId) return;
+      const key = e.foodId + '|' + e.qty;
+      counts[key] = counts[key] || { foodId: e.foodId, qty: e.qty, n: 0 };
+      counts[key].n++;
+    });
+  }
+  return Object.values(counts)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, limit || 8)
+    .map(r => ({ ...r, food: foodById(r.foodId) }))
+    .filter(r => r.food);
+}
+
+/* ============================================================
+   ADAPTIVE EXPENDITURE
+   ------------------------------------------------------------
+   A formula estimate is a population average with wide error
+   bars on any one person. Your own weight change against your
+   own logged intake is a direct measurement of the same thing.
+
+   TDEE = mean intake − (change in stored energy ÷ days)
+
+   Weight is trended with an exponential moving average first,
+   because day-to-day scale movement is mostly water and gut
+   content. 7,700 kcal per kg of body mass is the conventional
+   figure; it is an approximation that assumes the change is
+   mostly fat, so it drifts during rapid gain or a first week
+   of glycogen loading.
+
+   Honest about the evidence: MacroFactor popularised this and
+   publishes accuracy data showing it beats formula estimates,
+   but that analysis is theirs and has not been independently
+   replicated. The logic is sound — a measurement should beat an
+   average — so this is offered alongside the formula rather
+   than silently replacing it.
+   ============================================================ */
+
+const KCAL_PER_KG = 7700;
+const ADAPT_MIN_DAYS = 10;      // below this the noise swamps the signal
+
+/* Weights are logged irregularly. Fill forward, then smooth. */
+function trendedWeights(days) {
+  const out = [];
+  let last = null;
+  const log = (S.profile.bodyweight || []).slice().sort((a, b) => a.d < b.d ? -1 : 1);
+  const byDate = {};
+  log.forEach(e => { byDate[e.d] = e.w; });
+  for (let i = days - 1; i >= 0; i--) {
+    const k = dk(addDays(today(), -i));
+    if (byDate[k] != null) last = byDate[k];
+    out.push({ d: k, raw: byDate[k] != null ? byDate[k] : null, w: last });
+  }
+  if (out.every(x => x.w == null)) return [];
+  /* backfill the head so the series starts somewhere real */
+  const firstReal = out.find(x => x.w != null);
+  out.forEach(x => { if (x.w == null) x.w = firstReal.w; });
+  /* EMA — recent days weighted more, without chasing a single bad morning */
+  const a = 0.25;
+  let ema = out[0].w;
+  out.forEach(x => { ema = a * x.w + (1 - a) * ema; x.trend = Math.round(ema * 100) / 100; });
+  return out;
+}
+
+function intakeOn(kIn) {
+  const d = S.nutrition.days[key(kIn)];
+  if (!d || !d.items || !d.items.length) return null;
+  return d.items.reduce((a, i) => a + (+i.kcal || 0), 0);
+}
+
+/* Always returns a verdict object — never null — because every caller
+   wants to know *why* it can't say anything yet, and a null forces each
+   of them to invent that answer separately. */
+function adaptiveTdee(windowDays) {
+  const days = windowDays || 21;
+  const w = trendedWeights(days);
+
+  const logged = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const k = dk(addDays(today(), -i));
+    const kcal = intakeOn(k);
+    if (kcal != null && kcal > 500) logged.push({ d: k, kcal });
+  }
+  if (logged.length < ADAPT_MIN_DAYS) {
+    return { ready: false, have: logged.length, need: ADAPT_MIN_DAYS, noWeight: !w.length };
+  }
+  /* Food alone isn't enough — the whole method is intake measured against
+     what the scale did, so with no weigh-ins there is nothing to measure. */
+  if (!w.length) {
+    return { ready: false, have: logged.length, need: ADAPT_MIN_DAYS, noWeight: true };
+  }
+
+  const first = w[0], last = w[w.length - 1];
+  if (first.trend == null || last.trend == null) return { ready: false, have: logged.length, need: ADAPT_MIN_DAYS };
+
+  const kgPerUnit = S.profile.units === 'lb' ? 0.45359237 : 1;
+  const deltaKg = (last.trend - first.trend) * kgPerUnit;
+  const span = days - 1;
+  const meanIntake = logged.reduce((a, x) => a + x.kcal, 0) / logged.length;
+  const storedPerDay = (deltaKg * KCAL_PER_KG) / span;
+  const est = Math.round((meanIntake - storedPerDay) / 10) * 10;
+
+  /* Refuse to report a physiologically silly answer — that means the inputs
+     are wrong (missed logging days, a scale change), not that you burn 900. */
+  if (est < 1000 || est > 6000) {
+    return { ready: false, have: logged.length, need: ADAPT_MIN_DAYS, implausible: est, why: 'range' };
+  }
+
+  /* And refuse when the measurement disagrees violently with the formula.
+     Mifflin-St Jeor is only good to about ±10% on an individual, so a gap
+     this wide is not a person with an unusual metabolism — it is almost
+     always under-logging, which the self-report literature finds runs at
+     roughly 20–30% and is the single most common fault in food diaries.
+     Reporting 1,040 kcal with a straight face would send someone to eat
+     less on the strength of days they simply forgot to finish. */
+  const formula = tdee();
+  if (formula && Math.abs(est - formula) / formula > 0.35) {
+    return {
+      ready: false, have: logged.length, need: ADAPT_MIN_DAYS,
+      implausible: est, why: est < formula ? 'under-logging' : 'over-logging', formula
+    };
+  }
+
+  return {
+    ready: true, tdee: est, days: span, loggedDays: logged.length,
+    meanIntake: Math.round(meanIntake),
+    weightChange: Math.round((last.trend - first.trend) * 100) / 100,
+    coverage: Math.round(logged.length / days * 100)
+  };
+}
+
+/* ---------- weekly framing ----------
+   Daily totals invite a perfect-adherence mindset that the eating-behaviour
+   literature associates with rigid restraint. The week is the unit that
+   actually determines an outcome, so it is the unit shown first. */
+function weekIntake(offset) {
+  const start = -(offset || 0) * 7;
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const k = dk(addDays(today(), start - i));
+    const kcal = intakeOn(k);
+    const d = S.nutrition.days[k];
+    const p = d && d.items ? d.items.reduce((a, x) => a + (+x.p || 0), 0) : 0;
+    days.push({ d: k, kcal, p: Math.round(p), logged: kcal != null });
+  }
+  const withData = days.filter(x => x.logged);
+  return {
+    days,
+    loggedDays: withData.length,
+    avgKcal: withData.length ? Math.round(withData.reduce((a, x) => a + x.kcal, 0) / withData.length) : null,
+    avgP: withData.length ? Math.round(withData.reduce((a, x) => a + x.p, 0) / withData.length) : null
+  };
+}
+
+/* ---------- protein-first mode ----------
+   Morton et al. 2018 (49 studies, 1,863 trained participants) put the
+   plateau for resistance-training gains at about 1.6 g/kg/day, with the
+   confidence interval reaching 2.2. It is the single most outcome-relevant
+   number for someone training to gain muscle.
+
+   Hiding calories entirely is offered because clinicians and users have
+   asked other apps for exactly this and been given half-measures. The
+   evidence on tracking and disordered eating is a consistent association
+   with weak causal support — but the RCTs that found no harm all excluded
+   people already at risk, which is precisely the group that matters here.
+   Making it one switch is cheap insurance. */
+function proteinOnly() { return !!(S.settings && S.settings.proteinOnly); }
+
+function proteinTarget() {
+  const kg = bodyKg();
+  if (!kg) return null;
+  const tg = S.nutrition.targets || {};
+  if (tg.p > 0) return tg.p;
+  const e = energyTargets();
+  return e ? e.p : Math.round(kg * 1.6);
+}
+
+/* ============================================================
+   THE ORDER OF THE WEEK
+   ------------------------------------------------------------
+   Until now the plan decided which session landed on which day
+   and the answer was final. That is wrong for two reasons.
+
+   The first is ordinary: your body knows what it did yesterday
+   and the app does not. If today is your back day, today is your
+   back day.
+
+   The second is the one that actually prompted this. Somebody
+   installing the app on a Thursday has already trained three
+   times that week somewhere else. The plan cheerfully opens on
+   session one of the cycle and is out of phase with their life
+   from the first screen. There is a catch-up for that below.
+
+   Three rules hold the whole thing together:
+
+     1. A day you set yourself is PINNED. Rebuilding the week
+        never overwrites it. The app gets to arrange the days you
+        have not had an opinion about, and no others.
+
+     2. Changing a day asks what to do with the rest, and only
+        when there is genuinely something to decide. Swapping is
+        offered when another day already holds the session you
+        just picked, because otherwise you would train it twice
+        and skip something else. Re-flowing is offered when there
+        are later days to re-lay. Neither is ever silent.
+
+     3. Nothing here can put a mark against you. Days that have
+        already gone, and days already logged, are not moved.
+   ============================================================ */
+
+/* Every split the app can generate, in the order people think of them. */
+const PLAN_TYPES = ['full', 'upper', 'lower', 'push', 'pull', 'legs',
+                    'chest', 'back', 'delts', 'arms', 'cardio'];
+
+/* A plan entry is {type, done, pinned?, routineId?, elsewhere?}. Routines
+   carry a routineId and keep type 'custom' so nothing downstream has to
+   special-case them to render a label. */
+function planEntry(k) { return S.week.plan[key(k)] || null; }
+
+function planLabel(e) {
+  if (!e) return '';
+  if (e.routineId) {
+    const r = routineById(e.routineId);
+    return r ? r.name : 'Deleted routine';
+  }
+  return typeLabel(e.type);
+}
+
+function planShortLabel(e) {
+  if (!e) return '';
+  if (e.routineId) {
+    const r = routineById(e.routineId);
+    return r ? r.name.split(' ')[0] : 'Routine';
+  }
+  return e.type === 'micro' ? '3 min' : typeLabel(e.type).split(' ')[0];
+}
+
+/* Sorted, because an object's key order is not a promise worth relying on. */
+function planDays() { return Object.keys(S.week.plan || {}).sort(); }
+
+/* A day is settled once it has gone or once something has been logged on
+   it. Settled days are shown but never rearranged. */
+function planDaySettled(k) {
+  const e = planEntry(k);
+  if (!e) return false;
+  if (e.done || e.elsewhere) return true;
+  if (plannedDoneOn(key(k))) return true;
+  return daysBetween(key(k), today()) > 0;
+}
+
+/* ---------- changing one day ---------- */
+
+/* Which other day this week is currently holding `spec`, if any. Used to
+   offer a swap rather than silently creating a duplicate. */
+function planConflict(k, spec) {
+  const me = key(k);
+  return planDays().find(d => {
+    if (d === me || planDaySettled(d)) return false;
+    const e = planEntry(d);
+    if (!e) return false;
+    return spec.routineId ? e.routineId === spec.routineId
+                          : (!e.routineId && e.type === spec.type);
+  }) || null;
+}
+
+/* Every day of this week still ahead of you, planned or not — the order
+   list offers all of them, because an empty Saturday is a day you might
+   want to train on, not a day you are forbidden from training on. */
+function planCandidateDays() {
+  const ws = weekStart();
+  const upcoming = Array.from({ length: 7 }, (_, i) => dk(addDays(ws, i)))
+    .filter(d => daysBetween(d, today()) <= 0);
+  return [...new Set(planDays().concat(upcoming))].sort();
+}
+
+/* Days after this one that the app is still free to arrange. */
+function planDaysAfter(k) {
+  const me = key(k);
+  return planDays().filter(d => d > me && !planDaySettled(d));
+}
+
+/* What the caller should be asked before a change is applied. An empty
+   list means just do it — there is nothing to decide. */
+function planChangeOptions(k, spec) {
+  const cur = planEntry(k);
+  const same = cur && (spec.routineId ? cur.routineId === spec.routineId
+                                      : (!cur.routineId && cur.type === spec.type));
+  if (same) return [];
+  const opts = [];
+  /* A swap needs something to swap. Adding a session to an empty day takes
+     nothing away from anywhere, so there is nothing to trade. */
+  const clash = cur ? planConflict(k, spec) : null;
+  if (clash) opts.push({ mode: 'swap', with: clash });
+  if (planDaysAfter(k).length) opts.push({ mode: 'reflow' });
+  return opts;
+}
+
+function specOf(e) {
+  return e && e.routineId ? { routineId: e.routineId } : { type: (e && e.type) || 'full' };
+}
+
+/* `pin` marks a day as YOUR decision, which later rearrangements must not
+   overwrite. It is deliberately not set on the far side of a swap: you
+   chose Saturday, and the app moved Tuesday to make room. Pinning Tuesday
+   too would freeze a day you never expressed an opinion about, and the
+   next re-flow would then step around it and leave you training the same
+   thing twice. */
+function applySpec(k, spec, pin) {
+  const kk = key(k);
+  const e = S.week.plan[kk] || { done: false };
+  if (spec.routineId) { e.routineId = spec.routineId; e.type = 'custom'; }
+  else { delete e.routineId; e.type = spec.type; }
+  if (pin) e.pinned = true;
+  S.week.plan[kk] = e;
+}
+
+/* mode: 'only' | 'swap' | 'reflow'
+   A day with nothing on it is a legitimate target. Saturday having no
+   session is the app's arrangement, not a rule — and "I'm training today
+   whatever the plan says" is the most ordinary thing a person can want. */
+function setPlanDay(k, spec, mode) {
+  const kk = key(k);
+  if (planDaySettled(kk)) return false;
+  if (daysBetween(kk, today()) > 0) return false;
+
+  const existed = !!S.week.plan[kk];
+  const old = existed ? specOf(planEntry(kk)) : null;
+
+  /* Placing a session on a day you had written off un-writes it off —
+     silently leaving it at "not happening" would mean the session you just
+     asked for never appears. */
+  if (dayConstraint(kk).avail === 'none') setDayAvail(kk, 'normal');
+
+  if (mode === 'swap' && old) {
+    const other = planConflict(kk, spec);
+    if (other) applySpec(other, old, false);
+  }
+
+  applySpec(kk, spec, true);
+
+  if (mode === 'reflow') reflowFrom(kk);
+
+  save(true);
+  return true;
+}
+
+/* Re-lay the programme's rotation across every unsettled day AFTER k,
+   continuing from whatever k now holds. A routine has no place in a
+   rotation, so a routine day re-starts the cycle from the top. */
+function reflowFrom(k) {
+  const cycle = programOf().cycle;
+  const here = planEntry(k);
+  let i = (here && !here.routineId) ? cycle.indexOf(here.type) : -1;
+  planDaysAfter(k).forEach(d => {
+    const e = S.week.plan[d];
+    if (e.pinned) return;               // a day you chose is never re-laid
+    i++;
+    e.type = cycle[((i % cycle.length) + cycle.length) % cycle.length];
+    delete e.routineId;
+  });
+}
+
+/* ---------- moving a session to another day ---------- */
+
+/* Swaps this day's session with the next unsettled planned day in that
+   direction. Moving is the same operation as swapping, which keeps the
+   count of sessions in the week constant — you cannot lose one by
+   fumbling an arrow. */
+function movePlanDay(k, dir) {
+  const kk = key(k);
+  const open = planDays().filter(d => !planDaySettled(d));
+  const i = open.indexOf(kk);
+  if (i < 0) return false;
+  const j = i + (dir < 0 ? -1 : 1);
+  if (j < 0 || j >= open.length) return false;
+
+  const a = S.week.plan[kk], b = S.week.plan[open[j]];
+  const aSpec = specOf(a), bSpec = specOf(b);
+  /* Both ends are pinned here: dragging a session onto a day is an opinion
+     about both days, unlike a swap that happens as a side effect. */
+  applySpec(kk, bSpec, true);
+  applySpec(open[j], aSpec, true);
+  save(true);
+  return true;
+}
+
+/* ---------- joining mid-week ---------- */
+
+/* Sessions done somewhere else, before the app existed for you. They are
+   recorded on the plan, not in S.sessions, on purpose: they mark the day
+   as spent and put the rotation back in phase, but they invent no sets,
+   no tonnage and no learned weights. The app should never claim to know
+   what it was not there for. */
+function markTrainedElsewhere(k, spec) {
+  const kk = key(k);
+  if (daysBetween(kk, today()) < 0) return false;      // not the future
+  const e = S.week.plan[kk] || { done: false };
+  if (spec.routineId) { e.routineId = spec.routineId; e.type = 'custom'; }
+  else { delete e.routineId; e.type = spec.type; }
+  e.done = true; e.elsewhere = true; e.pinned = true;
+  S.week.plan[kk] = e;
+  save(true);
+  return true;
+}
+
+function clearElsewhere(k) {
+  const e = planEntry(k);
+  if (!e || !e.elsewhere) return false;
+  delete e.elsewhere; e.done = false;
+  save(true);
+  return true;
+}
+
+function elsewhereDays() { return planDays().filter(d => (planEntry(d) || {}).elsewhere); }
+
+/* ---------- back to the app's own arrangement ---------- */
+function planIsCustom() { return planDays().some(d => (planEntry(d) || {}).pinned); }
+
+function resetPlanOrder() {
+  planDays().forEach(d => {
+    const e = S.week.plan[d];
+    if (e.elsewhere) return;                    // history is not an opinion
+    delete e.pinned; delete e.routineId;
+  });
+  buildWeekPlan(true);
+  save(true);
 }
 /* ============================================================
    ONBOARDING
@@ -4871,6 +5722,11 @@ function renderToday() {
     const rungDef = RUNGS.find(r => r.k === suggested);
     const type = plan ? plan.type : nextType();
     const note = heroNote();
+    /* A routine can be the planned session now, so the hero has to be able
+       to start one — and the size ladder makes no sense against a routine,
+       whose sets you already wrote down yourself. */
+    const rt = plan && plan.routineId ? routineById(plan.routineId) : null;
+    const title = rt ? rt.name : typeLabel(type);
     html += `<div class="hero">
       <div class="hero-glow"></div>
       <div class="hero-in">
@@ -4878,20 +5734,22 @@ function renderToday() {
           <span class="hero-eyebrow">Today${plan ? '' : ' <span class="hero-tag">unplanned</span>'}</span>
           <span class="pill em">${ENVS[c.env] ? ENVS[c.env].short : 'Gym'}</span>
         </div>
-        <h1 class="hero-title">${typeLabel(type)}</h1>
+        <h1 class="hero-title">${h(title)}</h1>
         <div class="hero-meta">
-          <span class="hm"><span class="hm-v">${rungMinsLabel(suggested).replace('~','')}</span><span class="hm-k">planned</span></span>
+          <span class="hm"><span class="hm-v">${rt ? routineMins(rt) + ' min' : rungMinsLabel(suggested).replace('~','')}</span><span class="hm-k">planned</span></span>
           <span class="hm-div"></span>
-          <span class="hm"><span class="hm-v">${rungDef.label}</span><span class="hm-k">size</span></span>
+          <span class="hm"><span class="hm-v">${rt ? rt.items.length + ' moves' : rungDef.label}</span><span class="hm-k">${rt ? 'yours' : 'size'}</span></span>
         </div>
-        <p class="hero-sub">${heroReason(rd, band, suggested, rungDef)}</p>
-        ${rd ? '' : `<button class="hero-checkin" data-act="open-readiness">
+        <p class="hero-sub">${rt ? 'Your own routine, on the week&rsquo;s plan. Finishing it marks today done.' : heroReason(rd, band, suggested, rungDef)}</p>
+        ${rd || rt ? '' : `<button class="hero-checkin" data-act="open-readiness">
           <span class="hero-checkin-d">◐</span>
           <span class="grow">Check in first &mdash; it sizes this session</span>
           <span class="strip-chev">›</span>
         </button>`}
-        <button class="btn primary block lg mt" data-act="start-session" data-type="${type}" data-rung="${suggested}">Start</button>
-        <button class="btn quiet block" data-act="open-ladder" data-type="${type}">Choose a different size</button>
+        ${rt ? `<button class="btn primary block lg mt" data-act="routine-start" data-v="${h(rt.id)}" data-planned="1">Start</button>`
+             : `<button class="btn primary block lg mt" data-act="start-session" data-type="${type}" data-rung="${suggested}">Start</button>
+        <button class="btn quiet block" data-act="open-ladder" data-type="${type}">Choose a different size</button>`}
+        ${plan ? `<button class="btn quiet block" data-act="plan-day" data-k="${today()}">Doing something else today?</button>` : ''}
         ${note ? `<button class="hero-note" data-act="coach-note" data-v="${note.k}">
           <span class="grow">${note.short}</span>
           <span class="hero-note-a">Why ›</span>
@@ -5007,11 +5865,13 @@ function weekStripHTML() {
     else if (p && past) cls += ' miss';
     const shortType = t => t === 'micro' ? '3 min' : typeLabel(t).split(' ')[0];
     let sub = '';
-    if (done) sub = shortType(done.type);
+    if (done) sub = done.routineName ? done.routineName.split(' ')[0] : shortType(done.type);
+    else if (p && p.elsewhere) sub = planShortLabel(p);
     else if (c.avail === 'none') sub = 'Off';
     else if (p && past) sub = '—';
-    else if (p) sub = shortType(p.type);
+    else if (p) sub = planShortLabel(p);
     else sub = availOf(c.avail).label;
+    if (p && p.elsewhere) cls += ' done';
     html += `<div class="${cls}" data-act="day-tap" data-k="${k}">
       <div class="dn">${DAYNAMES[d.getDay()].toUpperCase()}</div>
       <div class="dd">${d.getDate()}</div>
@@ -5473,17 +6333,22 @@ function sparkHTML(vals) {
 /* ============================================================
    NUTRITION (optional module — deliberately non-blocking)
    ============================================================ */
-function nutDay(k) {
-  k = k || today();
+function nutDay(kIn) {
+  const k = key(kIn || today());
   if (!S.nutrition.days[k]) S.nutrition.days[k] = { items: [] };
   return S.nutrition.days[k];
 }
-function nutTotals(k) {
-  const d = nutDay(k);
-  return d.items.reduce((a, i) => ({
+/* Rounded at the source. Each entry's macros are already stored to a tenth,
+   and summing ten of those in binary floating point produces 252.70000000000002
+   — which is exactly what the day card rendered before this existed. */
+function nutTotals(kIn) {
+  const d = nutDay(kIn);
+  const t = d.items.reduce((a, i) => ({
     kcal: a.kcal + (+i.kcal || 0), p: a.p + (+i.p || 0),
     c: a.c + (+i.c || 0), f: a.f + (+i.f || 0)
   }), { kcal:0, p:0, c:0, f:0 });
+  const r = v => Math.round(v * 10) / 10;
+  return { kcal: Math.round(t.kcal), p: r(t.p), c: r(t.c), f: r(t.f) };
 }
 function nutritionTileHTML() {
   const t = nutTotals();
@@ -5517,40 +6382,11 @@ const QUICKFOODS = [
   { n:'Coffee, black',       kcal:5,   p:0,  c:0,  f:0 }
 ];
 
+/* The old sheet is gone — Fuel is a screen now. This keeps any stale
+   entry point working rather than dead-ending. */
 function sheetNutrition() {
-  const t = nutTotals();
-  const tg = S.nutrition.targets;
-  const d = nutDay();
-  openSheet(`
-    <div class="row between mb">
-      <h2 class="h1">Fuel</h2>
-      <button class="btn xs quiet" data-act="close">Done</button>
-    </div>
-    <div class="tiles mb">
-      <div class="tile"><div class="v">${t.kcal}</div><div class="k">kcal</div></div>
-      <div class="tile"><div class="v" style="color:var(--teal)">${t.p}</div><div class="k">protein</div></div>
-      <div class="tile"><div class="v">${t.c}</div><div class="k">carbs</div></div>
-      <div class="tile"><div class="v">${t.f}</div><div class="k">fat</div></div>
-    </div>
-    <div class="bar teal mb-s"><i style="width:${Math.min(100, Math.round(t.p/(tg.p||1)*100))}%"></i></div>
-    <p class="tiny mb">Protein ${t.p}g of ${tg.p}g target · ${t.kcal} of ${tg.kcal} kcal${kcalOnDate(today()) ? ` · ~${kcalOnDate(today())} burned training` : ''}</p>
-
-    <div class="eyebrow mb-s">Quick add</div>
-    <div class="chip-grid c2 mb">
-      ${QUICKFOODS.map((f, i) => `<div class="chip" data-act="nut-quick" data-i="${i}" style="text-align:left;font-size:12.5px;line-height:1.3">${h(f.n)}<br><span class="tiny">${f.kcal} kcal · ${f.p}p</span></div>`).join('')}
-    </div>
-
-    <button class="btn ghost block mb" data-act="nut-custom">+ Custom entry</button>
-
-    ${d.items.length ? `<div class="eyebrow mb-s">Today</div><div class="list mb">
-      ${d.items.map((i, ix) => `<div class="lrow">
-        <div class="grow"><div class="h3" style="font-size:14px">${h(i.n)}</div><div class="tiny mt-s">${i.kcal} kcal · ${i.p}p ${i.c}c ${i.f}f</div></div>
-        <button class="btn xs quiet" data-act="nut-del" data-i="${ix}">✕</button>
-      </div>`).join('')}
-    </div>` : ''}
-
-    <button class="btn quiet block" data-act="nut-targets">Adjust targets</button>
-  `);
+  if (!fuelOn()) { S.settings.nutrition = true; save(true); syncNav(); }
+  closeSheet(); go('fuel');
 }
 
 /* ============================================================
@@ -5572,37 +6408,37 @@ function renderMore() {
 
   const jst = journeyStats();
   html += `<div class="eyebrow mb-s">Your journey</div><div class="list mb">
-    <div class="lrow" data-act="open-journey"><div class="ico">🧭</div><div class="grow"><div class="h3">Day ${jst.day} of your guzo</div><div class="tiny mt-s">${milestonesReached().length} of ${MILESTONES.length} markers reached · ${(jst.kcal/1000).toFixed(1)}k kcal estimated</div></div><span class="small">›</span></div>
+    <div class="lrow" data-act="open-journey"><div class="ico">🧭</div><div class="grow"><div class="h3">Day ${jst.day} of your guzo</div><div class="tiny mt-s">${milestonesReached().length} of ${MILESTONES.length} markers reached · ${(jst.kcal/1000).toFixed(1)}k kcal estimated</div></div><span class="chev">›</span></div>
   </div>`;
 
   html += `<div class="eyebrow mb-s">Guides</div><div class="list mb">
-    <div class="lrow" data-act="open-help"><div class="ico">🧭</div><div class="grow"><div class="h3">Help &amp; guides</div><div class="tiny mt-s">How it works, form diagrams, terms, backups</div></div><span class="small">›</span></div>
-    <div class="lrow" data-act="help-form-list"><div class="ico">📐</div><div class="grow"><div class="h3">Form guides</div><div class="tiny mt-s">${Object.keys(FORMS).length} lifts with diagrams and cues</div></div><span class="small">›</span></div>
+    <div class="lrow" data-act="open-help"><div class="ico">🧭</div><div class="grow"><div class="h3">Help &amp; guides</div><div class="tiny mt-s">How it works, form diagrams, terms, backups</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="help-form-list"><div class="ico">📐</div><div class="grow"><div class="h3">Form guides</div><div class="tiny mt-s">${Object.keys(FORMS).length} lifts with diagrams and cues</div></div><span class="chev">›</span></div>
   </div>`;
 
   html += `<div class="eyebrow mb-s">Setup</div><div class="list mb">
-    <div class="lrow" data-act="edit-profile"><div class="ico">👤</div><div class="grow"><div class="h3">Profile</div><div class="tiny mt-s">${h(p.name||'No name')} · ${p.units}</div></div><span class="small">›</span></div>
-    <div class="lrow" data-act="open-program"><div class="ico">▲</div><div class="grow"><div class="h3">Structure</div><div class="tiny mt-s">${programOf().name} · ${programOf().target}×/wk</div></div><span class="small">›</span></div>
-    <div class="lrow" data-act="edit-envs"><div class="ico">📍</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${p.envs.map(e=>ENVS[e]?ENVS[e].label:e).join(', ')}</div></div><span class="small">›</span></div>
-    <div class="lrow" data-act="open-week"><div class="ico">📅</div><div class="grow"><div class="h3">Shape this week</div><div class="tiny mt-s">Availability, equipment, expected chaos</div></div><span class="small">›</span></div>
+    <div class="lrow" data-act="edit-profile"><div class="ico">👤</div><div class="grow"><div class="h3">Profile</div><div class="tiny mt-s">${h(p.name||'No name')} · ${p.units}</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="open-program"><div class="ico">▲</div><div class="grow"><div class="h3">Structure</div><div class="tiny mt-s">${programOf().name} · ${programOf().target}×/wk</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="edit-envs"><div class="ico">📍</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${p.envs.map(e=>ENVS[e]?ENVS[e].label:e).join(', ')}</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="open-week"><div class="ico">📅</div><div class="grow"><div class="h3">Shape this week</div><div class="tiny mt-s">Availability, equipment, expected chaos</div></div><span class="chev">›</span></div>
   </div>`;
 
   html += `<div class="eyebrow mb-s">Modules</div><div class="list mb">
     <div class="lrow" data-act="toggle-fuel">
       <div class="ico">🔥</div>
       <div class="grow"><div class="h3">Fuel <span class="pro-tag">PRO</span></div><div class="tiny mt-s">${fuelOn() ? 'On &mdash; it has its own tab, and Route moves here' : 'Protein and calorie targets, worked out from your body data'}</div></div>
-      <span class="small">${fuelOn() ? '✓' : ''}</span>
+      <span class="chev em">${fuelOn() ? '✓' : ''}</span>
     </div>
-    ${S.settings.nutrition ? `<div class="lrow" data-act="open-nutrition"><div class="ico">📊</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="small">›</span></div>` : ''}
+    ${S.settings.nutrition ? `<div class="lrow" data-act="open-nutrition"><div class="ico">📊</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">›</span></div>` : ''}
     <div class="lrow" data-act="toggle-warmup">
       <div class="ico">🤸</div>
       <div class="grow"><div class="h3">Mobility warm-up</div><div class="tiny mt-s">Adds one short mobility movement to the start of full sessions</div></div>
       <div class="switch ${S.settings.warmup?'on':''}"></div>
     </div>
-    ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">🗺</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="small">›</span></div>` : ''}
-    <div class="lrow" data-act="routines"><div class="ico">🧩</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="small">›</span></div>
-    <div class="lrow" data-act="plate-settings"><div class="ico">🏋️</div><div class="grow"><div class="h3">Bar and plates</div><div class="tiny mt-s">${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand</div></div><span class="small">›</span></div>
-    <div class="lrow" data-act="rest-settings"><div class="ico">⏱</div><div class="grow"><div class="h3">Rest timers</div><div class="tiny mt-s">${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest?'on':'off'}</div></div><span class="small">›</span></div>
+    ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">🗺</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="chev">›</span></div>` : ''}
+    <div class="lrow" data-act="routines"><div class="ico">🧩</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="plate-settings"><div class="ico">🏋️</div><div class="grow"><div class="h3">Bar and plates</div><div class="tiny mt-s">${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="rest-settings"><div class="ico">⏱</div><div class="grow"><div class="h3">Rest timers</div><div class="tiny mt-s">${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest?'on':'off'}</div></div><span class="chev">›</span></div>
   </div>`;
 
   html += `<div class="eyebrow mb-s">Membership</div>
@@ -5613,9 +6449,9 @@ function renderMore() {
   </div>`;
 
   html += `<div class="eyebrow mb-s">Your data</div><div class="list mb">
-    <div class="lrow" data-act="export"><div class="ico">↓</div><div class="grow"><div class="h3">Export backup</div><div class="tiny mt-s">A JSON file of everything. Do this weekly.</div></div><span class="small">›</span></div>
-    <div class="lrow" data-act="import"><div class="ico">↑</div><div class="grow"><div class="h3">Restore from backup</div><div class="tiny mt-s">Replaces everything on this device</div></div><span class="small">›</span></div>
-    <div class="lrow" data-act="reset"><div class="ico">⚠</div><div class="grow"><div class="h3" style="color:var(--rose)">Reset everything</div><div class="tiny mt-s">Cannot be undone</div></div><span class="small">›</span></div>
+    <div class="lrow" data-act="export"><div class="ico">⬇️</div><div class="grow"><div class="h3">Export backup</div><div class="tiny mt-s">A JSON file of everything. Do this weekly.</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="import"><div class="ico">⬆️</div><div class="grow"><div class="h3">Restore from backup</div><div class="tiny mt-s">Replaces everything on this device</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="reset"><div class="ico">⚠</div><div class="grow"><div class="h3" style="color:var(--rose)">Reset everything</div><div class="tiny mt-s">Cannot be undone</div></div><span class="chev">›</span></div>
   </div>`;
 
   html += `<div class="card flat">
@@ -5749,7 +6585,11 @@ function sheetWeek() {
 
     <div class="banner soft mb">A day set to <strong>Not happening</strong> comes off the route completely. It never counts as missed and never puts a mark against you.</div>
 
-    <button class="btn primary block lg" data-act="wk-save">${isNext ? 'Save next week' : 'Set my week'}</button>
+    ${!isNext ? `<div class="sec-head"><span class="sec-t">The order</span></div>
+      <p class="small" style="margin:-2px 0 14px">Tap a session to change it, or move it to another day. A day you set yourself stays put when the rest of the week gets rearranged.</p>
+      ${planOrderHTML()}` : ''}
+
+    <button class="btn primary block lg mt" data-act="wk-save">${isNext ? 'Save next week' : 'Set my week'}</button>
   `);
 }
 
@@ -6045,7 +6885,7 @@ function sheetHelp() {
             <div class="h3">${HELP_PAGES[k].title}</div>
             <div class="tiny mt-s">${HELP_PAGES[k].sub}</div>
           </div>
-          <span class="small">›</span>
+          <span class="chev">›</span>
         </button>`).join('')}
     </div>
     <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta<br>ጉዞ · Amharic for “journey” · guzofit.com</p>
@@ -6073,7 +6913,7 @@ function sheetFormList(query) {
             <div class="h3" style="font-size:14.5px">${FORMS[id].name}</div>
             <div class="tiny mt-s">${EX[id] ? EX[id].primary + ' · ' + EX[id].eq : ''}</div>
           </div>
-          <span class="small">›</span>
+          <span class="chev">›</span>
         </button>`).join('')}
     </div>
     ${ids.length ? '' : '<div class="empty"><div class="big">🔍</div>No diagram for that yet.<br>Every lift still has muscle targets and rep ranges in the picker.</div>'}
@@ -6753,7 +7593,7 @@ function sheetRoutines() {
           <div class="h3">${h(r.name)}</div>
           <div class="tiny mt-s">${h(routineSummary(r))}${r.uses ? ' · used ' + r.uses + '×' : ''}</div>
         </div>
-        <span class="small">›</span>
+        <span class="chev">›</span>
       </button>`).join('')}
     </div>` : `<div class="note mb"><p class="note-t">Nothing built yet.</p><p class="note-b">A routine is just a list of movements you want to be able to start in one tap.</p></div>`}
 
@@ -6904,13 +7744,13 @@ function sheetProfile() {
     <div class="eyebrow mt-l mb-s">Training</div>
     <div class="list mb">
       <button class="lrow" data-act="open-program" style="width:100%;text-align:left">
-        <div class="ico">📋</div><div class="grow"><div class="h3">Split</div><div class="tiny mt-s">${h(programOf().label)}</div></div><span class="small">›</span></button>
+        <div class="ico">📋</div><div class="grow"><div class="h3">Split</div><div class="tiny mt-s">${h(programOf().label)}</div></div><span class="chev">›</span></button>
       <button class="lrow" data-act="open-envs" style="width:100%;text-align:left">
-        <div class="ico">📍</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${(S.profile.envs||[]).map(k=>ENVS[k]?ENVS[k].label:k).join(', ') || 'Not set'}</div></div><span class="small">›</span></button>
+        <div class="ico">📍</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${(S.profile.envs||[]).map(k=>ENVS[k]?ENVS[k].label:k).join(', ') || 'Not set'}</div></div><span class="chev">›</span></button>
       <button class="lrow" data-act="pf-session" style="width:100%;text-align:left">
-        <div class="ico">⏱</div><div class="grow"><div class="h3">A normal session</div><div class="tiny mt-s">${S.profile.sessionMins || 60} minutes &mdash; everything scales from this</div></div><span class="small">›</span></button>
+        <div class="ico">⏱</div><div class="grow"><div class="h3">A normal session</div><div class="tiny mt-s">${S.profile.sessionMins || 60} minutes &mdash; everything scales from this</div></div><span class="chev">›</span></button>
       <button class="lrow" data-act="pf-sleep" style="width:100%;text-align:left">
-        <div class="ico">🌙</div><div class="grow"><div class="h3">A normal night</div><div class="tiny mt-s">${S.profile.sleepNorm || 7.5}h &mdash; readiness is scored against this, not against eight</div></div><span class="small">›</span></button>
+        <div class="ico">🌙</div><div class="grow"><div class="h3">A normal night</div><div class="tiny mt-s">${S.profile.sleepNorm || 7.5}h &mdash; readiness is scored against this, not against eight</div></div><span class="chev">›</span></button>
     </div>
 
     <div class="field mb">
@@ -6991,12 +7831,19 @@ function sheetSleepNorm() {
   `);
 }
 /* ============================================================
-   FUEL — the nutrition screen
+   FUEL — the nutrition surface
    ------------------------------------------------------------
-   Off by default. Turned on, it earns a place in the tab bar and
-   Route steps out of it: six tabs is one too many on a phone, and
-   shaping the week is a weekly decision reachable from Today,
-   while eating is a daily one.
+   Two decisions shape this screen, and both are deliberate.
+
+   The week leads, not the day. MacroFactor argues — and the
+   eating-behaviour literature on rigid restraint supports the
+   reasoning, if not the specific UX claim — that chasing a
+   perfect daily number is the failure mode. Guzo already refuses
+   to draw a red mark on a missed training day; it would be
+   incoherent to draw one on a Tuesday you ate 400 over.
+
+   And nothing here ever goes red. Over target reads as a fact,
+   not a verdict.
    ============================================================ */
 
 function fuelOn() { return !!(S.settings && S.settings.nutrition); }
@@ -7008,107 +7855,694 @@ function syncNav() {
   if (!fuel || !plan) return;
   fuel.classList.toggle('hide', !fuelOn());
   plan.classList.toggle('hide', fuelOn());
-  if (fuelOn() && SCREEN === 'plan') { /* still reachable, just not from the bar */ }
 }
 
+let fuelDate = null;              // which day the log is showing
+function fuelDay() { return fuelDate || today(); }
+
 function renderFuel() {
-  const t = nutTotals();
+  const k = fuelDay();
+  const t = nutTotals(k);
   const e = energyTargets();
   const tg = S.nutrition.targets || {};
-  const burned = kcalOnDate(today());
-  const gaps = bodyGaps();
+  const wk = weekIntake(0);
+  const pOnly = proteinOnly();
 
   const kcalTarget = tg.kcal || (e && e.kcal) || 0;
-  const pTarget = tg.p || (e && e.p) || 0;
-  const kPct = kcalTarget ? Math.min(100, Math.round(t.kcal / kcalTarget * 100)) : 0;
-  const pPct = pTarget ? Math.min(100, Math.round(t.p / pTarget * 100)) : 0;
-  const left = Math.max(0, kcalTarget - t.kcal);
+  const pTarget = proteinTarget() || 0;
+  const burned = kcalOnDate(k);
 
   let html = '';
 
-  html += `<div class="fuel-hero">
-    <div class="row between">
-      <span class="eyebrow">Today</span>
-      ${burned ? `<span class="pill em">+${burned} burned</span>` : ''}
+  /* ── the week, first ─────────────────────────────────────── */
+  html += `<div class="fuel-week">
+    <div class="row between mb-s">
+      <span class="eyebrow">This week</span>
+      <span class="tiny">${wk.loggedDays} of 7 days logged</span>
     </div>
-    <div class="fuel-big mono">${t.kcal}<span class="fuel-of">/ ${kcalTarget || '—'}</span></div>
-    <div class="fuel-sub">${kcalTarget ? (left ? fmtW(left) + ' kcal left' : 'target met') : 'No target set yet'}</div>
-    <div class="bar mt"><i style="width:${kPct}%"></i></div>
-  </div>`;
-
-  html += `<div class="fuel-macros">
-    ${[['Protein', t.p, pTarget, 'teal'], ['Carbs', t.c, tg.c || (e && e.c) || 0, ''], ['Fat', t.f, tg.f || (e && e.f) || 0, '']]
-      .map(([k, v, target, tone]) => {
-        const pct = target ? Math.min(100, Math.round(v / target * 100)) : 0;
-        return `<div class="fuel-macro">
-          <div class="row between"><span class="small">${k}</span><span class="tiny mono">${v}g / ${target || '—'}g</span></div>
-          <div class="bar thin ${tone} mt-s"><i style="width:${pct}%"></i></div>
-        </div>`;
+    <div class="fuel-avg mono">${pOnly
+      ? (wk.avgP != null ? wk.avgP + '<span class="fuel-of">g protein a day</span>' : '—')
+      : (wk.avgKcal != null ? wk.avgKcal + '<span class="fuel-of">kcal a day</span>' : '—')}</div>
+    <div class="fuel-sub">${weekReadout(wk, pOnly, kcalTarget, pTarget)}</div>
+    <div class="fuel-bars mt">
+      ${wk.days.map(d => {
+        const val = pOnly ? d.p : d.kcal;
+        const target = pOnly ? pTarget : kcalTarget;
+        const pct = target && val ? Math.min(140, Math.round(val / target * 100)) : 0;
+        const isToday = d.d === today();
+        return `<button class="fuel-bar ${isToday ? 'today' : ''} ${d.d === k ? 'on' : ''}" data-act="fuel-day" data-v="${d.d}">
+          <span class="fuel-bar-track"><span class="fuel-bar-fill" style="height:${Math.min(100, pct)}%"></span></span>
+          <span class="fuel-bar-d">${DAYNAMES[fromKey(d.d).getDay()].slice(0,1)}</span>
+        </button>`;
       }).join('')}
+    </div>
   </div>`;
 
-  html += `<p class="tiny mt">Protein is the number that decides whether the training turns into muscle. The rest is a rounding error by comparison.</p>`;
+  /* ── the day being viewed ────────────────────────────────── */
+  const isToday = k === today();
+  html += `<div class="sec-head"><span class="sec-t">${isToday ? 'Today' : prettyDate(k)}</span>
+    ${!isToday ? `<button class="sec-a" data-act="fuel-day" data-v="${today()}">Back to today</button>` : ''}</div>`;
 
-  if (gaps.length) {
-    html += `<button class="note mt-l" data-act="open-profile" style="width:100%;text-align:left">
-      <p class="note-t">Your targets are a rough guess</p>
-      <p class="note-b">Add ${gaps.join(', ')} and Guzo works out your resting rate properly instead of estimating from bodyweight. It moves the number by a few hundred calories either way.</p>
-    </button>`;
-  } else if (e) {
-    html += `<div class="card mt-l">
-      <div class="eyebrow">Where the target comes from</div>
-      <div class="row between mt-s"><span class="small">Resting rate</span><span class="mono">${e.bmr} kcal</span></div>
-      <div class="row between mt-s"><span class="small">Your day job</span><span class="mono">×${activityFactor()}</span></div>
-      <div class="row between mt-s"><span class="small">Maintenance</span><span class="mono">${e.maint} kcal</span></div>
-      <div class="row between mt-s"><span class="small"><strong>Target</strong></span><span class="mono em">${e.kcal} kcal</span></div>
-      <p class="tiny mt-s">Accurate to about &plusmn;10% for any one person. Move it based on what the scale does over a month, not what it does tomorrow.</p>
-    </div>`;
+  html += `<div class="fuel-day-card">
+    <div class="row between">
+      <div>
+        <div class="fuel-day-v mono">${pOnly ? Math.round(t.p) + 'g' : t.kcal}</div>
+        <div class="fuel-day-k">${pOnly ? 'protein' : 'kcal'}${(pOnly ? pTarget : kcalTarget) ? ' of ' + (pOnly ? pTarget + 'g' : kcalTarget) : ''}</div>
+      </div>
+      ${burned && !pOnly ? `<div class="fuel-burn"><span class="mono em">+${burned}</span><span class="fuel-day-k">burned training</span></div>` : ''}
+    </div>
+    <div class="bar mt"><i style="width:${pctOf(pOnly ? t.p : t.kcal, pOnly ? pTarget : kcalTarget)}%"></i></div>
+    ${!pOnly ? `<div class="fuel-macros mt">
+      ${[['Protein', t.p, pTarget, 'teal'], ['Carbs', t.c, tg.c || (e && e.c) || 0, ''], ['Fat', t.f, tg.f || (e && e.f) || 0, '']]
+        .map(([label, v, target, tone]) => `<div class="fuel-macro">
+          <div class="row between"><span class="small">${label}</span><span class="tiny mono">${Math.round(v)}g${target ? ' / ' + target + 'g' : ''}</span></div>
+          <div class="bar thin ${tone} mt-s"><i style="width:${pctOf(v, target)}%"></i></div>
+        </div>`).join('')}
+    </div>` : `<p class="tiny mt">Calories are switched off. Protein is the number with the strongest evidence behind it for building muscle &mdash; everything else is being logged, just not shown.</p>`}
+  </div>`;
+
+  /* ── add ─────────────────────────────────────────────────── */
+  html += `<div class="fuel-actions">
+    <button class="btn primary block lg" data-act="fuel-search">Add food</button>
+    <div class="btn-row mt-s">
+      <button class="btn ghost grow" data-act="fuel-quick-sheet">Recent</button>
+      <button class="btn ghost grow" data-act="fuel-copy">Copy a day</button>
+    </div>
+  </div>`;
+
+  /* ── what's logged ───────────────────────────────────────── */
+  const items = nutDay(k).items;
+  if (items.length) {
+    html += `<div class="sec-head"><span class="sec-t">Logged</span><span class="tiny">${items.length} item${items.length===1?'':'s'}</span></div>
+      <div class="list mb">
+        ${items.map(it => `<button class="lrow" data-act="fuel-edit" data-v="${h(it.id)}" style="width:100%;text-align:left">
+          <div class="grow">
+            <div class="h3" style="font-size:14.5px">${h(it.n)}</div>
+            <div class="tiny mt-s">${it.qty ? h(String(it.qty)) + (unitLabel(it.u) || '×') + ' · ' : ''}${pOnly ? Math.round(it.p) + 'g protein' : it.kcal + ' kcal · ' + Math.round(it.p) + 'p ' + Math.round(it.c) + 'c ' + Math.round(it.f) + 'f'}</div>
+          </div>
+          <span class="chev">›</span>
+        </button>`).join('')}
+      </div>`;
+  } else {
+    html += `<div class="note mb"><p class="note-t">Nothing logged ${isToday ? 'yet today' : 'that day'}.</p><p class="note-b">A week with four honest days on it is worth more than a week with seven guessed ones.</p></div>`;
   }
 
-  html += `<div class="sec-head"><span class="sec-t">Add quickly</span><button class="sec-a" data-act="open-nutrition">Everything</button></div>
-    <div class="fuel-quick">
-      ${QUICKFOODS.slice(0, 6).map((f, i) => `<button class="fuel-chip" data-act="nut-quick" data-i="${i}">
-        <span class="fuel-chip-t">${h(f.n)}</span>
-        <span class="fuel-chip-b mono">${f.kcal} · ${f.p}g p</span>
-      </button>`).join('')}
-    </div>`;
+  /* ── where the target comes from ─────────────────────────── */
+  html += energyPanelHTML(e, pOnly);
 
-  html += `<button class="btn ghost block mt-l" data-act="open-nutrition">Log something else</button>
-    <button class="btn quiet block mt-s" data-act="open-nut-targets">Adjust targets</button>`;
+  html += `<button class="btn quiet block mt" data-act="open-nut-targets">Targets and settings</button>`;
 
   const el = document.getElementById('fuel-body');
   if (el) el.innerHTML = html;
 }
 
-/* Targets: shown as what the body data implies, with room to overrule. */
+/* Protein-only gets its own reasoning panel. Same honesty, one number. */
+function proteinPanelHTML() {
+  const kg = bodyKg();
+  const p = proteinTarget();
+  let html = `<div class="sec-head"><span class="sec-t">Where the target comes from</span></div>`;
+  if (!p || !kg) {
+    return html + `<button class="note" data-act="open-profile" style="width:100%;text-align:left">
+      <p class="note-t">No target yet</p>
+      <p class="note-b">Add your weight and Guzo can set a protein figure worth aiming at.</p>
+    </button>`;
+  }
+  const per = Math.round(p / kg * 100) / 100;
+  return html + `<div class="card">
+    <div class="eyebrow">The evidence</div>
+    <div class="row between mt-s"><span class="small">Your bodyweight</span><span class="mono">${Math.round(kg * 10) / 10} kg</span></div>
+    <div class="row between mt-s"><span class="small"><strong>Target</strong></span><span class="mono em">${p}g &middot; ${per} g/kg</span></div>
+    <p class="tiny mt-s">Morton and colleagues pooled 49 trials of 1,863 trained people and found the benefit to muscle gain flattening out around 1.6 g per kg a day, with the confidence interval reaching 2.2. Above that the evidence stops supporting more.</p>
+  </div>`;
+}
+
+function pctOf(v, target) {
+  if (!target) return 0;
+  return Math.min(100, Math.round(v / target * 100));
+}
+
+/* Never a verdict. "Over" is a fact about the week, not a failure. */
+function weekReadout(wk, pOnly, kcalTarget, pTarget) {
+  if (!wk.loggedDays) return 'Nothing logged this week yet';
+  const target = pOnly ? pTarget : kcalTarget;
+  const avg = pOnly ? wk.avgP : wk.avgKcal;
+  if (!target || avg == null) return wk.loggedDays + ' days logged';
+  const diff = avg - target;
+  const pct = Math.abs(diff) / target;
+  if (wk.loggedDays < 4) return 'Too few days to read anything into yet';
+  if (pct < 0.05) return 'Sitting on your target';
+  return (diff > 0 ? '+' : '') + Math.round(diff) + (pOnly ? 'g' : ' kcal') + ' a day against target';
+}
+
+/* The measured estimate sits next to the formula, not instead of it.
+   In protein-only mode none of it is drawn — a panel explaining how a
+   calorie target was arrived at is a calorie figure with extra steps. */
+function energyPanelHTML(e, pOnly) {
+  if (pOnly) return proteinPanelHTML();
+  const a = adaptiveTdee(21);
+  let html = `<div class="sec-head"><span class="sec-t">Where the target comes from</span></div>`;
+
+  if (a && a.ready) {
+    const formula = tdee();
+    html += `<div class="card accent mb">
+      <div class="eyebrow em">Measured from your own data</div>
+      <div class="row between mt-s"><span class="small">Your expenditure</span><span class="mono em">${a.tdee} kcal</span></div>
+      <div class="row between mt-s"><span class="small">Averaged intake</span><span class="mono">${a.meanIntake} kcal</span></div>
+      <div class="row between mt-s"><span class="small">Weight trend</span><span class="mono">${a.weightChange > 0 ? '+' : ''}${a.weightChange} ${unit()} over ${a.days} days</span></div>
+      ${formula ? `<div class="row between mt-s"><span class="small">Formula said</span><span class="mono">${formula} kcal</span></div>` : ''}
+      <p class="tiny mt-s">Worked out backwards from what you actually ate and what the scale actually did, over ${a.days} days with ${a.loggedDays} logged. A measurement of you beats an average of everybody &mdash; though the 7,700 kcal-per-kilo conversion is itself an approximation, so treat this as a better starting point rather than a fact.</p>
+    </div>`;
+  } else if (a && a.why === 'under-logging') {
+    /* Named plainly rather than hidden behind "not enough data". Someone
+       whose diary is missing a third of their food deserves to be told
+       that, not quietly kept on the formula. */
+    html += `<div class="note mb">
+      <p class="note-t">The numbers don&rsquo;t add up yet</p>
+      <p class="note-b">Working backwards from your log gives ${a.implausible} kcal, against ${a.formula} from the formula. A gap that size almost always means food is going unlogged rather than that your metabolism is unusual &mdash; the cooking oil, the bites while making dinner, the days that stop after lunch. Guzo is staying on the formula until the log closes the gap.</p>
+    </div>`;
+  } else if (a && a.why === 'over-logging') {
+    html += `<div class="note mb">
+      <p class="note-t">The numbers don&rsquo;t add up yet</p>
+      <p class="note-b">Working backwards from your log gives ${a.implausible} kcal, well above the ${a.formula} the formula expects. That usually means duplicated entries or a weigh-in that jumped. Guzo is staying on the formula for now.</p>
+    </div>`;
+  } else if (a && !a.ready) {
+    html += `<div class="note mb">
+      <p class="note-t">Not enough logged days yet</p>
+      <p class="note-b">With ${a.need} days of food logged and a few weigh-ins, Guzo stops using a formula and works your expenditure out backwards from what you actually ate and what the scale did. ${a.have} of ${a.need} so far.${a.implausible ? ' The current numbers give an implausible answer, which usually means some days are only partly logged.' : ''}</p>
+    </div>`;
+  }
+
+  if (e) {
+    html += `<div class="card">
+      <div class="eyebrow">The formula</div>
+      ${e.bmr ? `<div class="row between mt-s"><span class="small">Resting rate</span><span class="mono">${e.bmr} kcal</span></div>` : ''}
+      <div class="row between mt-s"><span class="small">Your day job</span><span class="mono">×${activityFactor()}</span></div>
+      ${e.maint ? `<div class="row between mt-s"><span class="small">Maintenance</span><span class="mono">${e.maint} kcal</span></div>` : ''}
+      <div class="row between mt-s"><span class="small"><strong>Target</strong></span><span class="mono em">${e.kcal} kcal · ${e.p}g protein</span></div>
+      <p class="tiny mt-s">${e.basis === 'from your resting rate'
+        ? 'Mifflin-St Jeor, adjusted for how you spend the day. Accurate to about &plusmn;10% for any one person.'
+        : 'Estimated from bodyweight alone &mdash; fill in your height and age and this gets considerably better.'}</p>
+    </div>`;
+  } else {
+    html += `<button class="note" data-act="open-profile" style="width:100%;text-align:left">
+      <p class="note-t">No target yet</p>
+      <p class="note-b">Add your height, weight and age and Guzo can work out a real resting rate.</p>
+    </button>`;
+  }
+  return html;
+}
+
+/* ============================================================
+   THE LOGGING LOOP
+   ------------------------------------------------------------
+   Search → portion → log. Three taps for a food you have eaten
+   before, because the fastest logger is the only one anybody
+   keeps using past week two.
+   ============================================================ */
+
+let foodQ = '';
+let foodGroupOpen = null;
+let portionQty = 0;
+let portionFood = null;
+
+function foodRowHTML(f, qty) {
+  const q = qty != null ? qty : (f.u === 'g' || f.u === 'ml' ? f.per : 1);
+  const m = scaleFood(f, q);
+  return `<div class="lrow pick-row">
+    <button class="grow" data-act="food-pick" data-v="${h(f.id)}" ${qty != null ? `data-q="${qty}"` : ''} style="text-align:left">
+      <div class="h3" style="font-size:14.5px">${h(f.n)}</div>
+      <div class="tiny mt-s">${h(portionLabel(f, q))} · ${m.kcal} kcal · ${Math.round(m.p)}g protein</div>
+    </button>
+    <button class="btn xs icon pick-add" data-act="food-pick" data-v="${h(f.id)}" ${qty != null ? `data-q="${qty}"` : ''} aria-label="Add ${h(f.n)}">+</button>
+  </div>`;
+}
+
+function sheetFoodSearch(q) {
+  if (q != null) foodQ = q;
+  const query = (foodQ || '').trim();
+
+  let body = '';
+
+  if (query) {
+    const hits = foodSearch(query);
+    body = hits.length
+      ? `<div class="list mb">${hits.map(f => foodRowHTML(f, null)).join('')}</div>`
+      : `<div class="note mb"><p class="note-t">Nothing matches &ldquo;${h(query)}&rdquo;.</p>
+         <p class="note-b">The library is deliberately small and generic &mdash; whole foods, not brands. If you eat something often, save it once and it is yours forever.</p></div>`;
+  } else {
+    const rec = recentFoods(8);
+    if (rec.length) {
+      body += `<div class="sec-head"><span class="sec-t">What you actually eat</span></div>
+        <div class="list mb">${rec.map(r => foodRowHTML(r.food, r.qty)).join('')}</div>`;
+    }
+    const mine = customFoods();
+    const groups = FOOD_GROUPS.slice();
+    if (mine.length) groups.unshift({ k: 'mine', label: 'Your foods' });
+
+    body += groups.map(g => {
+      const list = g.k === 'mine' ? mine : FOODS.filter(f => f.g === g.k);
+      if (!list.length) return '';
+      const open = foodGroupOpen === g.k;
+      return `<div class="pick-group${open ? ' open' : ''}">
+        <button class="pick-head" data-act="food-group" data-v="${h(g.k)}">
+          <span class="pick-dot ${g.k === 'mine' ? 'push' : foodTone(g.k)}"></span>
+          <span class="grow pick-head-t">${h(g.label)}</span>
+          <span class="pick-n">${list.length}</span>
+          <span class="pick-chev">${open ? '⌄' : '›'}</span>
+        </button>
+        ${open ? `<div class="list pick-list">${list.map(f => foodRowHTML(f, null)).join('')}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  openSheet(`
+    <h2 class="h1 mb" style="padding-right:44px">Add food</h2>
+    <input class="input mb-s" id="food-q" placeholder="Search &mdash; chicken, oats, milk&hellip;" value="${h(query)}"
+           autocomplete="off" enterkeyhint="search" inputmode="search">
+    <button class="btn ghost block mb" data-act="food-new">Save a food of your own</button>
+    ${body}
+  `);
+
+  const qi = document.getElementById('food-q');
+  if (qi) {
+    qi.addEventListener('input', ev => {
+      const v = ev.target.value;
+      const pos = ev.target.selectionStart;
+      foodQ = v;
+      sheetFoodSearch(null);
+      const n = document.getElementById('food-q');
+      if (n) { n.focus(); try { n.setSelectionRange(pos, pos); } catch (e) {} }
+    });
+  }
+}
+
+/* Protein-forward colours: the groups that carry it read warm. */
+function foodTone(k) {
+  if (/protein|dairy|mine/.test(k)) return 'push';
+  if (/carb|grain|fruit/.test(k)) return 'legs';
+  if (/veg/.test(k)) return 'pull';
+  return 'core';
+}
+
+/* ---------- portion ---------- */
+function sheetPortion(foodId, qty) {
+  const f = foodById(foodId);
+  if (!f) { toast('That food has gone missing'); return; }
+  portionFood = f;
+  portionQty = qty != null ? qty : (f.u === 'g' || f.u === 'ml' ? (f.per || 100) : 1);
+  openSheet('<div id="portion-body"></div>');
+  renderPortion();
+}
+
+function renderPortion() {
+  const f = portionFood;
+  if (!f) return;
+  const el = document.getElementById('portion-body');
+  if (!el) return;
+
+  const step = portionStep(f.u);
+  const m = scaleFood(f, portionQty);
+  const gram = f.u === 'g' || f.u === 'ml';
+  const presets = gram ? [50, 100, 150, 200, 250] : [1, 2, 3];
+
+  el.innerHTML = `
+    <div class="row gap-s mb" style="align-items:center">
+      <button class="btn xs back" data-act="fuel-search" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <h2 class="h1 grow" style="padding-right:44px">${h(f.n)}</h2>
+    </div>
+
+    <div class="fuel-day-card mb">
+      <div class="row between">
+        <div>
+          <div class="fuel-day-v mono">${h(portionLabel(f, portionQty))}</div>
+          <div class="fuel-day-k">portion</div>
+        </div>
+        <div style="text-align:right">
+          <div class="fuel-day-v mono">${m.kcal}</div>
+          <div class="fuel-day-k">kcal</div>
+        </div>
+      </div>
+      <div class="fuel-macros mt">
+        <div class="row between"><span class="small">Protein</span><span class="mono em">${Math.round(m.p * 10) / 10}g</span></div>
+        <div class="row between"><span class="small">Carbs</span><span class="mono">${Math.round(m.c * 10) / 10}g</span></div>
+        <div class="row between"><span class="small">Fat</span><span class="mono">${Math.round(m.f * 10) / 10}g</span></div>
+      </div>
+    </div>
+
+    <div class="row gap-s mb" style="align-items:center">
+      <button class="btn icon lg" data-act="portion-adj" data-v="${-step}" aria-label="Less">−</button>
+      <div class="grow" style="text-align:center">
+        <div class="mono" style="font-size:26px;font-weight:700;letter-spacing:-.03em">${portionQty}</div>
+        <div class="tiny">${h(unitLabel(f.u) || 'servings')}</div>
+      </div>
+      <button class="btn icon lg" data-act="portion-adj" data-v="${step}" aria-label="More">+</button>
+    </div>
+
+    <div class="chip-grid c3 mb">
+      ${presets.map(p => `<div class="chip ${portionQty === p ? 'on' : ''}" data-act="portion-set" data-v="${p}">${p}${gram ? unitLabel(f.u) : '×'}</div>`).join('')}
+    </div>
+
+    <button class="btn primary block lg" data-act="portion-log">Log it</button>
+    <p class="tiny mt-s">Per ${f.per}${gram ? unitLabel(f.u) : ' serving'}: ${f.kcal} kcal · ${f.p}p ${f.c}c ${f.f}f. Reference values, not a brand&rsquo;s label &mdash; close enough to steer by, not a measurement.</p>
+  `;
+}
+
+/* ---------- editing what is already down ---------- */
+function sheetEntryEdit(entryId) {
+  const k = fuelDay();
+  const e = nutDay(k).items.find(x => x.id === entryId);
+  if (!e) { closeSheet(); return; }
+  const f = e.foodId ? foodById(e.foodId) : null;
+  const step = f ? portionStep(f.u) : 1;
+
+  openSheet(`
+    <div class="row between mb"><h2 class="h1">${h(e.n)}</h2></div>
+    <div class="fuel-day-card mb">
+      <div class="row between">
+        <div><div class="fuel-day-v mono">${e.kcal}</div><div class="fuel-day-k">kcal</div></div>
+        <div style="text-align:right"><div class="fuel-day-v mono">${Math.round(e.p)}g</div><div class="fuel-day-k">protein</div></div>
+      </div>
+    </div>
+    <div class="row gap-s mb" style="align-items:center">
+      <button class="btn icon lg" data-act="entry-adj" data-v="${h(entryId)}" data-d="${-step}" aria-label="Less">−</button>
+      <div class="grow" style="text-align:center">
+        <div class="mono" style="font-size:26px;font-weight:700;letter-spacing:-.03em">${e.qty || 1}</div>
+        <div class="tiny">${h(unitLabel(e.u) || 'servings')}</div>
+      </div>
+      <button class="btn icon lg" data-act="entry-adj" data-v="${h(entryId)}" data-d="${step}" aria-label="More">+</button>
+    </div>
+    <button class="btn block" data-act="close">Done</button>
+    <button class="btn quiet block mt-s" data-act="entry-del" data-v="${h(entryId)}">Remove from the day</button>
+  `);
+}
+
+/* ---------- your own foods ---------- */
+function sheetNewFood() {
+  window._nfUnit = window._nfUnit || 'ea';
+  const u = window._nfUnit;
+  openSheet(`
+    <div class="row gap-s mb" style="align-items:center">
+      <button class="btn xs back" data-act="fuel-search" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <h2 class="h1 grow" style="padding-right:44px">New food</h2>
+    </div>
+    <div class="field mb"><div class="label">What is it</div>
+      <input class="input" id="nf-n" placeholder="Crew burrito" autocomplete="off"></div>
+
+    <div class="label mb-s">Measured in</div>
+    <div class="chip-grid c3 mb">
+      <div class="chip ${u==='ea'?'on':''}" id="nf-u-ea" data-act="nf-unit" data-v="ea">Each</div>
+      <div class="chip ${u==='g'?'on':''}" id="nf-u-g" data-act="nf-unit" data-v="g">Per 100g</div>
+      <div class="chip ${u==='ml'?'on':''}" id="nf-u-ml" data-act="nf-unit" data-v="ml">Per 100ml</div>
+    </div>
+
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">kcal</div><input class="input" id="nf-kcal" type="number" inputmode="numeric"></div>
+      <div class="field grow"><div class="label">Protein</div><input class="input" id="nf-p" type="number" inputmode="decimal"></div>
+    </div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">Carbs</div><input class="input" id="nf-c" type="number" inputmode="decimal"></div>
+      <div class="field grow"><div class="label">Fat</div><input class="input" id="nf-f" type="number" inputmode="decimal"></div>
+    </div>
+
+    <button class="btn primary block" data-act="nf-save">Save and log it</button>
+    <p class="tiny mt-s">Copy the numbers off the packet. Saved foods stay on this device and appear in search from now on.</p>
+  `);
+}
+
+/* ---------- copy a day ---------- */
+function sheetCopyDay() {
+  const k = fuelDay();
+  const cands = [];
+  for (let i = 1; i <= 14; i++) {
+    const d = dk(addDays(today(), -i));
+    if (d === k) continue;
+    const kc = intakeOn(d);
+    if (kc != null) cands.push({ d, kcal: kc, n: nutDay(d).items.length });
+  }
+
+  openSheet(`
+    <div class="row between mb"><h2 class="h1">Copy a day</h2></div>
+    ${cands.length ? `<p class="small mb">Everything from that day gets added to ${k === today() ? 'today' : prettyDate(k)}. Nothing is replaced.</p>
+      <div class="list">${cands.map(c => `<button class="lrow" data-act="fuel-copy-from" data-v="${c.d}" style="width:100%;text-align:left">
+        <div class="grow">
+          <div class="h3" style="font-size:14.5px">${prettyDate(c.d)}</div>
+          <div class="tiny mt-s">${c.n} item${c.n === 1 ? '' : 's'} · ${c.kcal} kcal</div>
+        </div><span class="chev">›</span>
+      </button>`).join('')}</div>`
+    : `<div class="note"><p class="note-t">No earlier days to copy from yet.</p>
+       <p class="note-b">Once a fortnight of days is on record this becomes the fastest way to log a repeat.</p></div>`}
+  `);
+}
+
+/* ---------- targets ---------- */
 function sheetNutTargets() {
   const e = energyTargets();
   const tg = S.nutrition.targets || {};
-  const cur = { kcal: tg.kcal || (e && e.kcal) || 0, p: tg.p || (e && e.p) || 0 };
-  openSheet(`
-    <h2 class="h1">Targets</h2>
-    <p class="small mt-s mb">${e && e.basis === 'from your resting rate'
-      ? 'Worked out from your height, weight, age and how you spend the day. Overrule anything that does not match what you see on the scale.'
-      : 'Estimated from bodyweight alone &mdash; fill in the rest of your profile and these get considerably better.'}</p>
+  const a = adaptiveTdee(21);
+  const pOnly = proteinOnly();
+  const kg = bodyKg();
+  const pTarget = proteinTarget();
 
-    <div class="field mb">
-      <div class="row between"><div class="label">Calories</div><div class="tiny mono">${cur.kcal} kcal</div></div>
-      <div class="stepper">
-        <button data-act="nut-target-adj" data-f="kcal" data-v="-50">&minus;</button>
-        <input type="text" value="${cur.kcal}" readonly>
-        <button data-act="nut-target-adj" data-f="kcal" data-v="50">+</button>
+  const row = (label, field, val, suffix) => `<div class="mb">
+    <div class="row between mb-s"><span class="small">${label}</span><span class="mono em">${val}${suffix}</span></div>
+    <div class="row gap-s">
+      <button class="btn grow" data-act="nut-target-adj" data-f="${field}" data-v="${field === 'kcal' ? -50 : -5}">−</button>
+      <button class="btn grow" data-act="nut-target-adj" data-f="${field}" data-v="${field === 'kcal' ? 50 : 5}">+</button>
+    </div>
+  </div>`;
+
+  openSheet(`
+    <h2 class="h1 mb">Targets and settings</h2>
+
+    ${a && a.ready ? `<div class="card accent mb">
+      <div class="eyebrow em">Measured expenditure</div>
+      <div class="row between mt-s"><span class="small">From your own ${a.days} days</span><span class="mono em">${a.tdee} kcal</span></div>
+      <button class="btn block mt-s" data-act="nut-target-measured">Set my target from this</button>
+    </div>` : ''}
+
+    ${!pOnly ? `<div class="card mb">
+      <div class="eyebrow mb-s">Daily targets</div>
+      ${row('Calories', 'kcal', (tg.kcal || (e && e.kcal) || 0), ' kcal')}
+      ${row('Protein', 'p', (pTarget || 0), 'g')}
+      ${row('Carbs', 'c', (tg.c || (e && e.c) || 0), 'g')}
+      ${row('Fat', 'f', (tg.f || (e && e.f) || 0), 'g')}
+      ${e ? `<button class="btn quiet block" data-act="nut-target-reset">Back to what Guzo worked out</button>` : ''}
+    </div>` : `<div class="card mb">
+      <div class="eyebrow mb-s">Daily protein target</div>
+      ${row('Protein', 'p', (pTarget || 0), 'g')}
+      ${kg ? `<p class="tiny">That is ${Math.round((pTarget || 0) / kg * 100) / 100} g per kg of you. Morton and colleagues, pooling 49 studies, put the point where extra protein stops adding anything at about 1.6 &mdash; with the confidence interval reaching 2.2.</p>` : ''}
+    </div>`}
+
+    <button class="lrow" data-act="toggle-protein-only" style="width:100%;text-align:left">
+      <div class="grow">
+        <div class="h3" style="font-size:14.5px">Protein only</div>
+        <div class="tiny mt-s">Hide calorie figures everywhere and track protein alone. Everything carries on being recorded &mdash; it just stops being shown.</div>
+      </div>
+      <div class="switch ${pOnly ? "on" : ""}"></div>
+    </button>
+
+    <button class="btn quiet block mt" data-act="open-profile">Height, weight and age</button>
+  `);
+}
+
+/* ============================================================
+   THE ORDER — screens for rearranging the week
+   ============================================================ */
+
+/* Stroked paths rather than ↑ and ↓ characters. A hairline arrow glyph
+   antialiases down to roughly half the contrast its colour promises, which
+   is how it failed a pixel-sampled check while passing a look at the CSS. */
+const ORD_ARROW = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+
+/* The ordered list that sits inside Your week. Settled days are shown
+   greyed rather than hidden: seeing that Monday is already spent is the
+   context that makes the remaining order make sense. */
+function planOrderHTML() {
+  /* Every day still ahead of you appears, whether the app put a session on
+     it or not. An empty Saturday is a day you might decide to train on. */
+  const days = planCandidateDays();
+  if (!days.length) {
+    return `<div class="note mb"><p class="note-t">This week has already gone.</p>
+      <p class="note-b">Switch to next week above and set the order there.</p></div>`;
+  }
+  const open = planDays().filter(d => !planDaySettled(d));
+
+  const rows = days.map(k => {
+    const e = planEntry(k);
+    const d = fromKey(k);
+    const settled = planDaySettled(k);
+    const i = open.indexOf(k);
+    const canUp = i > 0, canDown = i >= 0 && i < open.length - 1;
+    const off = !e && dayConstraint(k).avail === 'none';
+
+    let state = '';
+    if (!e) state = off ? 'You said this one is not happening' : 'Nothing placed — tap to add one';
+    else if (e.elsewhere) state = 'Already done elsewhere';
+    else if (e.done || plannedDoneOn(k)) state = 'Logged';
+    else if (settled) state = 'Day has gone';
+    else if (k === today()) state = 'Today';
+
+    return `<div class="ord ${settled || !e ? 'spent' : ''}">
+      <div class="ord-d">
+        <span class="n">${DAYNAMES[d.getDay()].slice(0,3).toUpperCase()}</span>
+        <span class="v">${d.getDate()}</span>
+      </div>
+      <button class="ord-main" data-act="plan-day" data-k="${k}" ${settled ? 'disabled' : ''}>
+        <span class="ord-t">${e ? h(planLabel(e)) + (e.routineId ? ' <span class="pill" style="font-size:10px;padding:2px 7px">yours</span>' : '') : '<span style="color:#98a2ae">Free</span>'}</span>
+        ${state ? `<span class="ord-s">${state}</span>` : ''}
+      </button>
+      ${settled ? '<span class="ord-lock">✓</span>' : (e ? `<div class="ord-ctl">
+        <button data-act="plan-move" data-k="${k}" data-d="-1" aria-label="Move ${h(planLabel(e))} earlier"${canUp ? '' : ' disabled'}>${ORD_ARROW('M18 15l-6-6-6 6')}</button>
+        <button data-act="plan-move" data-k="${k}" data-d="1" aria-label="Move ${h(planLabel(e))} later"${canDown ? '' : ' disabled'}>${ORD_ARROW('M6 9l6 6 6-6')}</button>
+      </div>` : '<span class="ord-lock" style="color:#98a2ae;font-weight:400">+</span>')}
+    </div>`;
+  }).join('');
+
+  const el = elsewhereDays().length;
+
+  return `<div class="ord-list mb">${rows}</div>
+    <button class="btn ghost block mb-s" data-act="plan-elsewhere">
+      ${el ? el + ' session' + (el === 1 ? '' : 's') + ' already done elsewhere' : 'I already trained this week'}
+    </button>
+    ${planIsCustom() ? `<button class="btn quiet block" data-act="plan-reset">Back to the app&rsquo;s own order</button>` : ''}`;
+}
+
+/* ---------- picking what a day is ---------- */
+function sheetPlanDay(k) {
+  if (daysBetween(k, today()) > 0 || planDaySettled(k)) { closeSheet(); sheetWeek(); return; }
+  const e = planEntry(k) || {};
+  const d = fromKey(k);
+  const cycle = [...new Set(programOf().cycle)];
+  const others = PLAN_TYPES.filter(t => cycle.indexOf(t) < 0);
+  const routines = ensureRoutines().filter(r => r.items.length);
+  const isCur = spec => spec.routineId ? e.routineId === spec.routineId
+                                       : (!!e.type && !e.routineId && e.type === spec.type);
+
+  const chip = t => `<div class="chip ${isCur({type:t}) ? 'on' : ''}" data-act="plan-set" data-k="${k}" data-v="${t}">${typeLabel(t)}</div>`;
+
+  openSheet(`
+    <div class="row gap-s mb" style="align-items:center">
+      <button class="btn xs back" data-act="open-week" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <h2 class="h1 grow" style="padding-right:44px">${DAYNAMES[d.getDay()]} ${d.getDate()}</h2>
+    </div>
+    <p class="small mb">${planEntry(k) ? 'What are you actually doing that day? Your body knows what it did yesterday and the app doesn&rsquo;t &mdash; if today is your back day, make it your back day.'
+      : 'Nothing is placed here. Pick a session and it goes on, whatever the app had arranged around it.'}</p>
+
+    <div class="eyebrow mb-s">${h(programOf().name)} rotation</div>
+    <div class="chip-grid c3 mb">${cycle.map(chip).join('')}</div>
+
+    <div class="eyebrow mb-s">Anything else</div>
+    <div class="chip-grid c3 mb">${others.map(chip).join('')}</div>
+
+    ${routines.length ? `<div class="eyebrow mb-s">Your routines</div>
+      <div class="list mb">
+        ${routines.map(r => `<button class="lrow ${isCur({routineId:r.id}) ? 'on' : ''}" data-act="plan-set" data-k="${k}" data-r="${h(r.id)}" style="width:100%;text-align:left">
+          <div class="ico">${r.emoji}</div>
+          <div class="grow">
+            <div class="h3" style="font-size:14.5px">${h(r.name)}</div>
+            <div class="tiny mt-s">${r.items.length} movement${r.items.length===1?'':'s'} · about ${routineMins(r)} min</div>
+          </div>
+          <span class="chev">›</span>
+        </button>`).join('')}
+      </div>
+      <p class="tiny mb">A routine put on a planned day counts as that day&rsquo;s session. Run one on any other day and it stays what it has always been &mdash; an extra, on top.</p>`
+    : ''}
+
+    <button class="btn quiet block" data-act="day-edit" data-k="${k}">Time and place for this day</button>
+  `);
+}
+
+/* ---------- and what that means for the rest ---------- */
+function sheetPlanApply(k, spec) {
+  const opts = planChangeOptions(k, spec);
+  if (!opts.length) {
+    setPlanDay(k, spec, 'only');
+    closeSheet(); sheetWeek(); render(); buzz();
+    toast('Set', true);
+    return;
+  }
+
+  const d = fromKey(k);
+  const label = spec.routineId ? (routineById(spec.routineId) || {}).name : typeLabel(spec.type);
+  const swap = opts.find(o => o.mode === 'swap');
+  const after = planDaysAfter(k).length;
+  const enc = spec.routineId ? `data-r="${h(spec.routineId)}"` : `data-v="${h(spec.type)}"`;
+
+  openSheet(`
+    <h2 class="h1 mb">${DAYNAMES[d.getDay()]} is ${h(label)}</h2>
+    <p class="small mb">And the rest of the week?</p>
+    <div class="opts">
+      ${swap ? `<div class="opt" data-act="plan-apply" data-k="${k}" ${enc} data-m="swap">
+        <div class="opt-ico">⇄</div>
+        <div class="grow">
+          <div class="opt-t">Swap with ${DAYNAMES[fromKey(swap.with).getDay()]}</div>
+          <div class="opt-d">${DAYNAMES[fromKey(swap.with).getDay()]} already has ${h(label)} on it, so the two trade places. The week keeps the same mix &mdash; nothing gets trained twice and nothing gets dropped.</div>
+        </div>
+      </div>` : ''}
+      ${after ? `<div class="opt" data-act="plan-apply" data-k="${k}" ${enc} data-m="reflow">
+        <div class="opt-ico">↻</div>
+        <div class="grow">
+          <div class="opt-t">Carry on from here</div>
+          <div class="opt-d">The ${after} remaining day${after===1?'':'s'} re-lay in rotation after this one. Days you have already set yourself are left alone.</div>
+        </div>
+      </div>` : ''}
+      <div class="opt" data-act="plan-apply" data-k="${k}" ${enc} data-m="only">
+        <div class="opt-ico">·</div>
+        <div class="grow">
+          <div class="opt-t">Just this day</div>
+          <div class="opt-d">Everything else stays exactly where it is.${swap ? ' You would then have ' + h(label) + ' twice this week.' : ''}</div>
+        </div>
       </div>
     </div>
-    <div class="field mb">
-      <div class="row between"><div class="label">Protein</div><div class="tiny mono">${cur.p} g</div></div>
-      <div class="stepper">
-        <button data-act="nut-target-adj" data-f="p" data-v="-5">&minus;</button>
-        <input type="text" value="${cur.p}" readonly>
-        <button data-act="nut-target-adj" data-f="p" data-v="5">+</button>
-      </div>
+  `);
+}
+
+/* ---------- what you already did before the app existed for you ---------- */
+function sheetElsewhere() {
+  const ws = weekStart();
+  const rows = Array.from({length:7}, (_, i) => dk(addDays(ws, i)))
+    .filter(k => daysBetween(k, today()) >= 0)          // today and earlier
+    .map(k => {
+      const e = planEntry(k);
+      const d = fromKey(k);
+      const logged = plannedDoneOn(k);
+      const on = e && e.elsewhere;
+      return `<button class="lrow ${on ? 'on' : ''}" data-act="${logged ? 'noop' : (on ? 'elsewhere-clear' : 'elsewhere-pick')}" data-k="${k}"
+        style="width:100%;text-align:left" ${logged ? 'disabled' : ''}>
+        <div class="grow">
+          <div class="h3" style="font-size:14.5px">${DAYNAMES[d.getDay()]} ${d.getDate()}</div>
+          <div class="tiny mt-s">${logged ? 'Logged in the app' : on ? h(planLabel(e)) + ' · done elsewhere' : e ? 'Planned: ' + h(planLabel(e)) : 'Nothing planned'}</div>
+        </div>
+        <span class="chev">${on ? '✕' : '›'}</span>
+      </button>`;
+    }).join('');
+
+  openSheet(`
+    <div class="row gap-s mb" style="align-items:center">
+      <button class="btn xs back" data-act="open-week" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <h2 class="h1 grow" style="padding-right:44px">Already trained</h2>
     </div>
-    ${e ? `<button class="btn ghost block mt" data-act="nut-target-reset">Back to the suggestion (${e.kcal} kcal · ${e.p}g)</button>` : ''}
-    <p class="tiny center mt-l">Carbs and fat fill whatever is left. Nothing here ever blocks a session.</p>
+    <p class="small mb">If you started using Guzo partway through your week, say what you already did. The app marks those days spent and picks the rotation up from the right place, instead of opening on session one while you are three deep.</p>
+    <div class="list mb">${rows}</div>
+    <p class="tiny">These record the session and nothing else &mdash; no sets, no weights, no tonnage. Guzo will not claim to know what it wasn&rsquo;t there for, so none of it feeds progression.</p>
+  `);
+}
+
+function sheetElsewherePick(k) {
+  const d = fromKey(k);
+  const cycle = [...new Set(programOf().cycle)];
+  const others = PLAN_TYPES.filter(t => cycle.indexOf(t) < 0);
+  const chip = t => `<div class="chip" data-act="elsewhere-set" data-k="${k}" data-v="${t}">${typeLabel(t)}</div>`;
+  openSheet(`
+    <div class="row gap-s mb" style="align-items:center">
+      <button class="btn xs back" data-act="plan-elsewhere" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <h2 class="h1 grow" style="padding-right:44px">${DAYNAMES[d.getDay()]} ${d.getDate()}</h2>
+    </div>
+    <p class="small mb">What did you train?</p>
+    <div class="eyebrow mb-s">${h(programOf().name)} rotation</div>
+    <div class="chip-grid c3 mb">${cycle.map(chip).join('')}</div>
+    <div class="eyebrow mb-s">Anything else</div>
+    <div class="chip-grid c3">${others.map(chip).join('')}</div>
   `);
 }
 /* ============================================================
@@ -7481,7 +8915,7 @@ document.addEventListener('click', ev => {
     case 'day-edit': sheetDayEdit(t.dataset.k); break;
     case 'wk-avail': {
       const k = t.dataset.k;
-      S.week.days[k] = Object.assign(dayConstraint(k), { avail:v });
+      setDayAvail(k, v);
       save(); buzz(); sheetDayEdit(k); break;
     }
     case 'wk-env': {
@@ -7502,7 +8936,52 @@ document.addEventListener('click', ev => {
       save(true); closeSheet(); render();
       break;
     }
-    case 'day-tap': sheetDayEdit(t.dataset.k); break;
+    case 'day-tap': {
+      /* From Today's strip: if there is a session on that day, go straight
+         to what it is. Time-and-place is one tap further in, because
+         "what am I doing" is the question people actually arrive with. */
+      const k = t.dataset.k;
+      if (planEntry(k) && !planDaySettled(k)) sheetPlanDay(k); else sheetDayEdit(k);
+      break;
+    }
+
+    /* ---- the order of the week ---- */
+    case 'plan-day': sheetPlanDay(t.dataset.k); break;
+    case 'plan-move': {
+      if (movePlanDay(t.dataset.k, +t.dataset.d)) { sheetWeek(); render(); buzz(); }
+      break;
+    }
+    case 'plan-set': {
+      const spec = t.dataset.r ? { routineId: t.dataset.r } : { type: v };
+      sheetPlanApply(t.dataset.k, spec);
+      break;
+    }
+    case 'plan-apply': {
+      const spec = t.dataset.r ? { routineId: t.dataset.r } : { type: v };
+      setPlanDay(t.dataset.k, spec, t.dataset.m);
+      closeSheet(); sheetWeek(); render(); buzz();
+      toast('Week updated', true);
+      break;
+    }
+    case 'plan-reset': {
+      resetPlanOrder(); sheetWeek(); render();
+      toast('Back to the app\u2019s order', true);
+      break;
+    }
+    case 'plan-elsewhere': sheetElsewhere(); break;
+    case 'elsewhere-pick': sheetElsewherePick(t.dataset.k); break;
+    case 'elsewhere-set': {
+      markTrainedElsewhere(t.dataset.k, { type: v });
+      /* Put the rotation back in phase with what actually happened. */
+      reflowFrom(t.dataset.k); save(true);
+      sheetElsewhere(); render(); buzz();
+      break;
+    }
+    case 'elsewhere-clear': {
+      clearElsewhere(t.dataset.k); sheetElsewhere(); render();
+      break;
+    }
+    case 'noop': break;
 
     /* ---- ladder / start ---- */
     case 'open-ladder': sheetLadder(t.dataset.type || nextType()); break;
@@ -7680,6 +9159,83 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'open-nut-targets': sheetNutTargets(); break;
+
+    /* ---- fuel: the logging loop ---- */
+    case 'fuel-day': { fuelDate = (v === today() ? null : v); closeSheet(); renderFuel(); break; }
+    case 'fuel-search': { foodQ = ''; foodGroupOpen = null; sheetFoodSearch(''); break; }
+    case 'fuel-quick-sheet': { foodQ = ''; foodGroupOpen = null; sheetFoodSearch(''); break; }
+    case 'food-group': { foodGroupOpen = (foodGroupOpen === v) ? null : v; sheetFoodSearch(); break; }
+    case 'food-pick': { sheetPortion(v, t.dataset.q ? parseFloat(t.dataset.q) : null); break; }
+    case 'portion-adj': {
+      const step = parseFloat(v);
+      const min = portionFood && (portionFood.u === 'g' || portionFood.u === 'ml') ? 10 : 1;
+      portionQty = Math.max(min, Math.round((portionQty + step) * 100) / 100);
+      renderPortion(); break;
+    }
+    case 'portion-set': { portionQty = parseFloat(v); renderPortion(); break; }
+    case 'portion-log': {
+      if (!portionFood || !logFood(portionFood.id, portionQty, fuelDay())) { toast('Could not log that'); return; }
+      closeSheet(); renderFuel(); buzz();
+      toast(portionFood.n + ' logged', true);
+      break;
+    }
+    case 'fuel-edit': sheetEntryEdit(v); break;
+    case 'entry-adj': {
+      const e = nutDay(fuelDay()).items.find(x => x.id === v);
+      if (!e) break;
+      const next = Math.max(0.5, (e.qty || 1) + parseFloat(t.dataset.d));
+      updateEntry(fuelDay(), v, next);
+      sheetEntryEdit(v); renderFuel(); break;
+    }
+    case 'entry-del': {
+      deleteEntry(fuelDay(), v);
+      closeSheet(); renderFuel(); toast('Removed', true); break;
+    }
+    case 'food-new': sheetNewFood(); break;
+    case 'nf-unit': {
+      window._nfUnit = v;
+      ['ea','g','ml'].forEach(u => {
+        const el = document.getElementById('nf-u-' + u);
+        if (el) el.classList.toggle('on', u === v);
+      });
+      break;
+    }
+    case 'nf-save': {
+      const val = id => (($('#' + id) || {}).value || '').trim();
+      const u = window._nfUnit || 'ea';
+      const f = saveCustomFood({
+        n: val('nf-n'), u, per: u === 'ea' ? 1 : 100,
+        kcal: val('nf-kcal'), p: val('nf-p'), c: val('nf-c'), f: val('nf-f')
+      });
+      if (!f) { toast('It needs a name and a calorie figure'); return; }
+      closeSheet(); sheetPortion(f.id, null); toast('Saved to your foods', true);
+      break;
+    }
+    case 'fuel-copy': sheetCopyDay(); break;
+    case 'fuel-copy-from': {
+      const n = copyDay(v, fuelDay());
+      closeSheet(); renderFuel();
+      toast(n ? n + ' items copied' : 'Nothing to copy', !!n);
+      break;
+    }
+    case 'toggle-protein-only': {
+      S.settings.proteinOnly = !S.settings.proteinOnly;
+      save(true); sheetNutTargets();
+      if (SCREEN === 'fuel') renderFuel();
+      break;
+    }
+    case 'nut-target-measured': {
+      const a = adaptiveTdee(21);
+      if (a && a.ready) {
+        const goals = S.profile.goals || [];
+        const adj = goals.includes('muscle') ? 250 : 0;
+        S.nutrition.targets.kcal = a.tdee + adj;
+        save(true); sheetNutTargets();
+        if (SCREEN === 'fuel') renderFuel();
+        toast('Target set from your own data', true);
+      }
+      break;
+    }
     case 'nut-target-adj': {
       const e = energyTargets();
       const f = t.dataset.f;
@@ -7710,7 +9266,7 @@ document.addEventListener('click', ev => {
     case 'nut-del': { nutDay().items.splice(i, 1); save(); sheetNutrition(); break; }
     case 'nut-custom': {
       openSheet(`
-        <div class="row between mb"><h2 class="h1">Custom entry</h2><button class="btn xs quiet" data-act="open-nutrition">←</button></div>
+        <div class="row gap-s mb" style="align-items:center"><button class="btn xs back" data-act="open-nutrition" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button><h2 class="h1 grow" style="padding-right:44px">Custom entry</h2></div>
         <div class="field mb"><div class="label">What</div><input class="input" id="nc-n" placeholder="Curry from the truck"></div>
         <div class="row gap-s mb">
           <div class="field grow"><div class="label">kcal</div><input class="input" id="nc-k" type="number" inputmode="numeric"></div>
@@ -7732,7 +9288,7 @@ document.addEventListener('click', ev => {
     case 'nut-targets': {
       const tg = S.nutrition.targets;
       openSheet(`
-        <div class="row between mb"><h2 class="h1">Targets</h2><button class="btn xs quiet" data-act="open-nutrition">←</button></div>
+        <div class="row gap-s mb" style="align-items:center"><button class="btn xs back" data-act="open-nutrition" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button><h2 class="h1 grow" style="padding-right:44px">Targets</h2></div>
         <p class="small mb">For gaining muscle while training hard, roughly 1.6–2.2 g of protein per kg of bodyweight is the evidence-backed range. Calories slightly above maintenance.</p>
         <div class="row gap-s mb">
           <div class="field grow"><div class="label">kcal</div><input class="input" id="tg-k" type="number" value="${tg.kcal}"></div>
@@ -7877,7 +9433,7 @@ document.addEventListener('click', ev => {
     }
     case 'routine-start': {
       if (S.active) { toast('Finish the session you are in first'); go('train'); return; }
-      const sess = buildRoutineSession(v);
+      const sess = buildRoutineSession(v, t.dataset.planned === '1');
       if (!sess) { toast('Add something to it first'); sheetRoutineEdit(v); return; }
       sess.started = Date.now();
       const rd = S.readiness[today()];
