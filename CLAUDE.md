@@ -1,0 +1,231 @@
+# Guzo Fit — CLAUDE.md
+
+> Handoff document. Written at the point development moved into Claude Code.
+> Everything here was verified against the code, not remembered.
+
+---
+
+## What it is
+
+Guzo Fit is a strength-and-health training app for people whose hours change week to week — it was built for a camera operator working long, unpredictable shoot days. It plans a week of training around the time you actually expect to have, shrinks each session to fit the day you actually got, and never punishes you for a day that didn't happen. It is a single self-contained HTML file that runs as an offline PWA with all data on the device.
+
+`ጉዞ (guzo)` is Amharic for "journey"; `የእግር ጉዞ` ("foot journey") is the everyday word for hiking. The whole product metaphor — the route, waypoints, distance covered, base camp — comes from that.
+
+---
+
+## Stack
+
+There is no framework, no bundler, no package manager, and no server.
+
+| Layer | What it actually is |
+|---|---|
+| App | One HTML file: inline `<style>`, inline `<script>`, no external requests |
+| Language | ES2020 vanilla JS, `'use strict'`, one global script scope |
+| Persistence | `localStorage`, single key `guzo.v1` |
+| Build | `build.sh` — `cat` of ordered part files |
+| Tests | Playwright (headless Chromium) driving the built file over a local `http.createServer` |
+| Native shell | Capacitor 8 (iOS), in `guzo-native/` — scaffolded, not yet wired |
+
+**The only network code in the entire app** is a service worker that caches the app shell (`p7_events.js`, around line 1108). Nothing else fetches anything, ever. This is deliberate — see `docs/decisions.md`.
+
+---
+
+## File structure and how it connects
+
+```
+/
+├── build.sh                  ← the build. PARTS order IS the load order.
+├── GuzoFit.html              ← build output
+├── index.html                ← identical copy; this is what gets deployed
+├── build/
+│   ├── p1_head.html          ← <head> + ALL CSS (~63 KB). Design tokens at the top.
+│   ├── p2_body.html          ← all screen markup, nav, sheet container, boot fallback
+│   ├── p3_data.js            ← constants, 236 exercises, 6 programmes, copy strings
+│   ├── p3b_intake.js         ← onboarding question definitions
+│   ├── p3c_form.js           ← 45 hand-built SVG form diagrams
+│   ├── p4_engine.js          ← state, dates, units, readiness, session generation, week plan
+│   ├── p4b_journey.js        ← milestones, MET calorie estimates, bodyweight
+│   ├── p4c_daily.js          ← steps / sleep / weight, wake lock
+│   ├── p4d_plates.js         ← barbell plate maths, last-time recall
+│   ├── p4e_routines.js       ← user-built routines
+│   ├── p4f_body.js           ← height/age/sex/activity, Mifflin-St Jeor BMR, TDEE
+│   ├── p4g_food.js           ← 113-food library, portions, logging
+│   ├── p4h_energy.js         ← adaptive TDEE, weekly intake, protein targets
+│   ├── p4i_order.js          ← week ordering: pin / swap / reflow / trained-elsewhere
+│   ├── p5a_onboard.js        ← onboarding flow
+│   ├── p5_ui.js              ← render(), Today, Plan, Train, Progress + shared helpers
+│   ├── p6_more.js            ← More screen, week sheet, exercise picker
+│   ├── p6b_help.js           ← help and guide sheets
+│   ├── p6c_daily.js          ← daily-metrics sheets
+│   ├── p6d_routines.js       ← routine sheets
+│   ├── p6e_profile.js        ← profile sheet
+│   ├── p6f_fuel.js           ← Fuel screen + all food sheets
+│   ├── p6g_order.js          ← week-order sheets
+│   ├── p7_events.js          ← ONE delegated click listener, input listeners, SW registration
+│   └── p8_tail.html          ← closing tags
+├── docs/
+│   ├── decisions.md
+│   └── status.md
+├── guzo-native/              ← Capacitor iOS wrapper (scaffold, not wired)
+└── *.mjs                     ← test instruments (see below)
+```
+
+**How the pieces connect.** There is no module system. Every part file contributes top-level functions to one shared scope, and later files can call earlier ones freely (function declarations hoist, so order only matters for `const`/`let` at module top level). The flow is:
+
+```
+user tap
+  → p7_events.js delegated listener reads data-act
+  → calls a mutator in p4*  (which calls save())
+  → calls render() or a sheetX() in p5/p6
+  → innerHTML into a #*-body div
+```
+
+There is no virtual DOM and no reactive binding. **Everything is a full innerHTML re-render of one container.** State changes do not automatically redraw; the event handler must call `render()` (or the specific `renderX()`) itself.
+
+`S` is the single global state object. `save()` debounces a `JSON.stringify(S)` into `localStorage`; `save(true)` writes immediately.
+
+---
+
+## Data and persistence — THERE IS NO SUPABASE
+
+**Read this before looking for a database.** This project has no Supabase, no Postgres, no backend, no API, no auth, and no user accounts. Nothing is synced or uploaded. There are no tables, no columns, no foreign keys and no RLS policies, because there is no server-side anything. If a future document or prompt refers to "the Supabase schema" for this project, that document is wrong.
+
+What exists instead is one JSON blob in `localStorage`.
+
+- **Key:** `guzo.v1` (`KEY` in `p3_data.js`)
+- **Schema version:** `VERSION = '1.1.0'` — note `guzo-native/package.json` independently says `1.2.0`; they are not kept in sync
+- **Legacy migration:** `LEGACY_KEYS = ['fittrek.v1']` — on load, if the current key is missing *or holds an empty state*, a meaningful legacy blob is copied across. The "or holds an empty state" part is deliberate: opening the app once before restoring would otherwise orphan the old save behind a blank one.
+
+### State shape (`blank()` in `p4_engine.js`)
+
+| Key | Shape | Notes |
+|---|---|---|
+| `v` | string | schema version stamp |
+| `onboarded` | bool | gates the onboarding screen |
+| `profile` | object | `name, units('kg'\|'lb'), goals[], level, envs[], programId, bodyweight[{d,w}], injuries[], priorities[], sleepNorm, sessionMins, cardio{}, gear{}, heightCm, birthYear, sex, activity` |
+| `settings` | object | `nutrition, proteinOnly, restMain, restAcc, autoRest, warmup, lineIdx` |
+| `week` | object | `{ start:'YYYY-MM-DD', days:{}, plan:{} }` — see below |
+| `readiness` | map | date key → `{sleepH, sleepQ, energy, sore, stress, score}` |
+| `sessions` | array | completed sessions, append-only |
+| `active` | object\|null | the in-progress session |
+| `lifts` | map | exercise id → learned working weight / progression state |
+| `nutrition` | object | `{ targets:{kcal,p,c,f}, days:{ dateKey:{items:[]} }, custom:[] }` |
+| `billing` | object | `{pro, plan, trialStart}` — scaffolding only, nothing enforces it |
+| `journey` | object | `{ reached:{} }` milestone flags |
+| `daily` | map | date key → `{steps, sleepH, weight, src}` |
+| `videos` | map | exercise id → user-supplied form video URL |
+| `routines` | array | user-built session templates |
+| `meta` | object | `{created, lastOpen}` |
+
+### The two maps inside `week`
+
+`week.days[dateKey]` — **your constraints.** `{ avail:'long'\|'normal'\|'short'\|'micro'\|'none', env:'full'\|'hotel'\|'bw', note }`. Absent means the default (`normal`, first env).
+
+`week.plan[dateKey]` — **the schedule.** `{ type, done, pinned?, routineId?, elsewhere? }`
+
+- `type` — one of `PLAN_TYPES`, or `'custom'` when a routine is assigned
+- `done` — the planned session is discharged
+- `pinned` — **you** chose this day; rebuilds and reflows must not overwrite it
+- `routineId` — a routine is standing in as this day's session
+- `elsewhere` — trained before the app existed for you; marks the day spent without inventing a session record
+
+### Relationships (all by string key, all client-side)
+
+```
+week.plan[date].routineId ──→ routines[].id
+sessions[].exercises[].exId ──→ EX[id]   (static catalogue, not user data)
+lifts[exId] ──────────────────→ EX[id]
+nutrition.days[date].items[].foodId ──→ FOODS[].id or nutrition.custom[].id
+profile.programId ────────────→ PROGRAMS[id]
+```
+
+Nothing enforces referential integrity. Deleting a routine leaves a dangling `routineId`; `planLabel()` renders `"Deleted routine"` rather than crashing, which is the pattern to copy.
+
+### If you ever add a backend
+
+The blob is already the natural sync unit. The honest shape would be one `profiles` row per user plus an append-only `sessions` table, with everything else staying local. Do not migrate `week.days` / `week.plan` to a server — they are re-derived constantly and would generate enormous write traffic for no benefit. Whatever you do, the app must keep working with the network off; that is a product promise, not a nice-to-have.
+
+---
+
+## Conventions actually in use
+
+**Dates.** Every store in the app is keyed `'YYYY-MM-DD'`. `dk(date)` makes a key, `fromKey(k)` makes a Date, `addDays(d, n)` returns a **Date**, and `key(k)` normalises either into a key. **Any function that accepts a date must pass it through `key()` first.** This has already caused one silent class of bug (see `docs/decisions.md`).
+
+**Naming.**
+- `sheetX()` opens a modal sheet. `renderX()` writes into a screen container.
+- `S` is state. `A` is `S.active` inside session code.
+- Date variables are `k` (a key) or `d` (a Date). Never mix.
+- Predicates read as questions: `fuelOn()`, `hasForm()`, `planDaySettled()`.
+- Data files use compact pipe-delimited template strings parsed at load (`EXDATA`, `FOODDATA`), not JSON arrays. It keeps the single file small and diffs readable.
+
+**Events.** One delegated `click` listener in `p7_events.js` with a giant `switch` on `data-act`. Parameters ride on `data-v`, `data-k`, `data-i`, `data-r`, `data-m`, `data-d`. **Never add an inline `onclick`.** New interactive elements need a `data-act` and a `case`.
+
+**Escaping.** `h()` escapes anything user-supplied going into a template string. Routine names, profile names and custom food names must always be wrapped.
+
+**CSS.** All in `p1_head.html`. Design tokens at the top (`--ember:#E9B44C` is the brand accent). Utility classes (`row`, `between`, `grow`, `mb`, `mt-s`, `tiny`, `small`, `mono`, `em`) plus component classes namespaced by feature (`.fuel-*`, `.ord-*`, `.pick-*`, `.rt-*`, `.pf-*`). Minimum touch target is 44px; nothing renders below 11px.
+
+**Comments.** Non-obvious code carries a comment explaining *why*, especially where a naive implementation would be wrong. This is load-bearing — several comments record bugs that were expensive to find. Do not strip them.
+
+**Tone.** Copy never shames. There is no streak counter, nothing goes red, a missed day is free. If you write UI text, match that.
+
+---
+
+## Fragile areas
+
+**1. `build.sh` PARTS order is the load order.** Two part files declaring the same top-level name is legal JavaScript and completely silent — the later one wins app-wide. This already happened: a defensive copy of `daysBetween` in `p4d_plates.js` clamped its result to `Math.max(0, …)`, and because that file loads later, *every past-or-future check in the app lost the ability to see the past.* `dupes.mjs` now runs inside `build.sh` and fails the build on any duplicate. Do not remove that check.
+
+**2. `addDays()` returns a Date, stores are keyed by string.** Passing one where the other is expected fails silently — the lookup just misses, no error. Six call sites had this bug; two shipped. Normalise through `key()` at every store boundary.
+
+**3. `render()` is not automatic.** Mutate state and forget to call `render()` and the screen is simply stale. There is no reactivity to save you.
+
+**4. The boot fallback panel.** `#s-boot` is visible in raw markup and switched off by the *first executable line* of the script. The nav starts `hide`. This exists because iOS refuses to run JS in a file opened from storage, and the app would otherwise be a black rectangle. Do not "clean up" the default-visible panel or the default-hidden nav.
+
+**5. `lastPerformance()` runs inside the train render path.** A malformed date in `S.sessions` there takes down the whole Train screen. Keep it defensive.
+
+**6. Weight formatting.** `fmtW()` rounds to 1 decimal, which turns 1.25 kg into "1.3". On a plate list that sends you to the wrong plate. `fmtP()` (2 decimals) exists for plate maths. Use the right one.
+
+**7. Exercise field is `eq`, not `equipment`.** Silent `undefined` if you get it wrong.
+
+**8. Hairline glyphs fail pixel-sampled contrast.** `↑ ↓ ← ✓ ›` at small sizes antialias to roughly half the contrast their colour promises. They pass a CSS inspection and fail the real check. Use stroked SVG paths for arrows and chevrons.
+
+**9. The nav has exactly five tabs.** Turning Fuel on hides Route and shows Fuel (`syncNav()`). Tests must navigate via `go()` or scope selectors to `#nav`, because `[data-go="plan"]` also matches a row on the More screen.
+
+---
+
+## Running it locally
+
+```sh
+./build.sh                  # → GuzoFit.html and index.html (~490 KB)
+python3 -m http.server 8000 # then open http://localhost:8000/index.html
+```
+
+**It must be served over http.** Opening the file with `file://` will not run in Safari at all, and the service worker needs a real origin.
+
+### Test instruments
+
+Run from the repo root, against the built file. Each spins up its own server and headless Chromium.
+
+| Command | What it proves |
+|---|---|
+| `node test.mjs` | 146 functional checks end to end, plus zero console errors |
+| `node audit.mjs` | every sheet dismisses four ways; no dead ends; every button fires |
+| `node collide.mjs` | overlap / zero-gap / spill / offscreen / clipped, across 3 devices × 3 states × 6 screens × 49 sheets |
+| `node contrast.mjs` | pixel-sampled WCAG AA on every screen text node |
+| `node sheetcontrast.mjs` | the same for all 25 sheets |
+| `node ux.mjs` | touch targets, font floors, input modes, reachability |
+| `node knees.mjs` | anatomical check on the SVG form diagrams |
+| `node dupes.mjs` | duplicate top-level declarations (also runs in `build.sh`) |
+
+`png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.
+
+The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping.
+
+---
+
+## Deployment
+
+**Today:** upload `index.html` to any static host — Cloudflare Pages, GitHub Pages, Netlify. One file. Updates are a single file replacement. Then on the phone: Safari → Share → Add to Home Screen.
+
+**Domain:** `guzo.app` was already taken, which is why the product is "Guzo Fit". No domain is wired up yet.
+
+**Native (iOS):** `guzo-native/` holds a Capacitor 8 scaffold — `capacitor.config.json` (`appId: com.guzofit.app`), a `package.json` pinning `@capacitor/ios`, `@capacitor/haptics`, `@capacitor/local-notifications`, `@capacitor/preferences` and `@capgo/capacitor-health`, and a GitHub Actions workflow (`.github/workflows/ios.yml`) that builds on a macOS runner using an App Store Connect API key, so no Mac is required. The web build must be copied to `guzo-native/www/index.html` before `cap sync`. **None of the native plugins are wired into the app yet** — no HealthKit reads, no notifications. The full plan is in `guzo-native-wrap-plan.md`.
