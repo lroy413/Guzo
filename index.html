@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-visual">
 <title>Guzo Fit</title>
 <meta name="theme-color" content="#0a0c0f">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -28,8 +28,8 @@
   --inset:inset 0 1px 0 rgba(255,255,255,.045);
   --text:#e9edf2;
   --text-dim:#aab4c0;
-  --muted:#7d8894;
-  --faint:#5a636e;
+  --muted:#848f9b;   /* 4.5:1 on every surface in the app */
+  --faint:#868f9a;   /* was #5a636e — 2.98:1, unreadable in daylight */
 
   --ember:#E9B44C;
   --ember-2:#F4D08C;
@@ -87,7 +87,7 @@ input[type=number]{-moz-appearance:textfield}
 .eyebrow{font-size:11px;font-weight:650;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .lede{font-size:15px;color:var(--text-dim);line-height:1.5}
 .small{font-size:13px;color:var(--muted);line-height:1.45}
-.tiny{font-size:11.5px;color:var(--faint);line-height:1.4}
+.tiny{font-size:12px;color:var(--faint);line-height:1.45}
 .mono{font-family:var(--fm);font-variant-numeric:tabular-nums}
 .em{color:var(--ember)}
 .tl{color:var(--teal)}
@@ -126,6 +126,71 @@ input[type=number]{-moz-appearance:textfield}
 .boot-step b{color:var(--ember-2);font-weight:650}
 .boot-note{font-size:12.5px;line-height:1.6;color:var(--faint);margin-top:18px;padding:0 6px}
 
+/* ---------- daily metrics strip ---------- */
+.day-strip{display:flex;align-items:center;gap:0;width:100%;padding:12px 6px;margin-bottom:12px;
+  background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r-lg);
+  box-shadow:var(--shadow-sm),var(--inset);text-align:left;flex-wrap:wrap;
+  transition:transform .12s ease}
+.day-strip:active{transform:scale(.99)}
+.day-cell{flex:1 1 0;min-width:0;text-align:center;padding:0 4px;
+  border-right:1px solid var(--line-soft)}
+.day-cell:nth-child(3){border-right:0}
+.day-v{font-family:var(--fm);font-size:19px;font-weight:650;color:var(--text);
+  letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+.day-v.empty{color:var(--line);font-weight:500}
+.day-u{font-size:11px;font-weight:500;color:var(--muted);margin-left:1px;letter-spacing:0}
+.day-k{font-size:11px;font-weight:650;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);margin-top:3px}
+.day-note{flex:1 0 100%;text-align:center;font-size:11.5px;color:var(--faint);
+  margin-top:11px;padding-top:10px;border-top:1px solid var(--line-soft)}
+.src-chip{display:inline-block;font-size:11px;font-weight:650;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ember);background:var(--ember-dim);
+  border:1px solid var(--ember-line);border-radius:100px;padding:2px 7px;
+  margin-left:7px;vertical-align:1px}
+
+/* ---------- last time & plate line ---------- */
+.recall{display:flex;align-items:center;gap:9px;width:100%;padding:8px 12px;margin:0 0 8px;
+  background:var(--surface-2);border:1px solid var(--line-soft);border-radius:11px;text-align:left}
+button.recall{min-height:44px;transition:transform .12s ease}
+button.recall:active{transform:scale(.99)}
+.recall-k{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);flex:none}
+.recall-v{font-size:13px;color:var(--text-dim);flex:1;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;font-variant-numeric:tabular-nums}
+.recall-ago{font-size:11px;color:var(--faint);flex:none}
+.recall-chev{color:var(--muted);font-size:16px;flex:none;line-height:1}
+.recall.plates{border-color:var(--ember-line);background:var(--ember-dim)}
+.recall.plates .recall-k{color:var(--ember-2)}
+.recall.plates .recall-v{color:var(--ember-2);font-weight:650}
+
+/* ---------- plate calculator ---------- */
+.plate-total{font-size:46px;font-weight:700;letter-spacing:-.04em;line-height:1.05;color:var(--text)}
+.plate-unit{font-size:19px;font-weight:600;color:var(--muted);margin-left:3px;letter-spacing:0}
+.plate-figure{display:flex;justify-content:center;padding:22px 0 6px}
+.plate-stack{display:flex;align-items:center;gap:2px;position:relative;padding-left:34px}
+.plate-sleeve{position:absolute;left:0;top:50%;transform:translateY(-50%);
+  width:46px;height:9px;border-radius:4px;background:var(--surface-3);border:1px solid var(--line)}
+.plate{border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,.45);position:relative;z-index:1;
+  border:1px solid rgba(0,0,0,.35)}
+.plate-collar{width:7px;height:22px;border-radius:2px;background:var(--surface-3);
+  border:1px solid var(--line);margin-left:2px;z-index:1}
+.plate-list{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--r);
+  padding:4px 14px}
+.plate-row{display:flex;align-items:center;gap:10px;padding:11px 0;font-size:14px;
+  border-bottom:1px solid var(--line-soft);color:var(--text-dim)}
+.plate-row:last-child{border-bottom:0}
+.plate-row.total{color:var(--text);font-weight:650}
+.plate-dot{width:11px;height:16px;border-radius:2px;flex:none;border:1px solid rgba(0,0,0,.4)}
+.plate-picker{display:flex;flex-wrap:wrap;gap:8px}
+.plate-chip{display:flex;align-items:center;gap:7px;padding:11px 13px;min-height:44px;
+  border-radius:11px;background:var(--surface-2);border:1px solid var(--line);
+  color:var(--muted);font-size:13.5px;font-weight:650;font-family:var(--fm)}
+.plate-chip.on{background:var(--ember-dim);border-color:var(--ember-line);color:var(--ember-2)}
+.plate-chip:active{transform:scale(.95)}
+
+/* the next exercise should land under the header, not behind it */
+.ex-card{scroll-margin-top:12px}
+
 /* ---------- cards ---------- */
 .card{
   background:linear-gradient(180deg,var(--surface) 0%, #10141a 100%);
@@ -153,12 +218,21 @@ input[type=number]{-moz-appearance:textfield}
 .btn.primary{background:linear-gradient(180deg,#F2C468,#DCA236);color:#1F1704;border-color:transparent;
   box-shadow:0 8px 24px rgba(233,180,76,.26),inset 0 1px 0 rgba(255,255,255,.22)}
 .btn.ghost{background:transparent;border-color:var(--line)}
-.btn.quiet{background:transparent;border-color:transparent;color:var(--muted);padding:10px 12px}
+.btn.quiet{background:transparent;border-color:transparent;color:var(--muted);padding:12px;min-width:44px;min-height:46px}
 .btn.teal{background:linear-gradient(180deg,#5bdcb0,#38bd90);color:#03201a;border-color:transparent}
 .btn.danger{background:transparent;border-color:rgba(242,114,111,.4);color:var(--rose)}
 .btn.block{display:flex;width:100%}
-.btn.sm{padding:9px 13px;font-size:13.5px;border-radius:11px}
-.btn.xs{padding:9px 12px;font-size:12.5px;border-radius:10px;min-height:36px}
+.btn.sm{padding:9px 13px;font-size:13.5px;border-radius:11px;min-height:44px}
+.btn.xs{padding:11px 12px;font-size:12.5px;border-radius:10px;min-height:44px}
+.btn.icon{padding:0;width:44px;min-width:44px;height:44px;min-height:44px;border-radius:12px;
+  background:var(--ember-dim);border-color:var(--ember-line);color:var(--ember-2)}
+.btn.icon svg{width:17px;height:17px}
+.btn.icon:active{transform:scale(.92)}
+
+/* ---------- exercise video slot ---------- */
+.vid-box{background:var(--surface-2);border:1px solid var(--line-soft);
+  border-radius:var(--r-lg);padding:15px 16px}
+.vid-box a.btn{text-decoration:none}
 .btn.lg{padding:17px 22px;font-size:16.5px;border-radius:16px}
 .btn[disabled]{opacity:.4;pointer-events:none}
 .btn-row{display:flex;gap:10px}
@@ -226,7 +300,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   width:22px;height:2px;border-radius:100px;background:var(--ember);transition:transform .28s cubic-bezier(.3,1.3,.5,1)}
 .nav-btn.on::before{transform:translateX(-50%) scaleX(1)}
 .nav-btn svg{width:22px;height:22px;stroke-width:1.8}
-.nav-btn span{font-size:10.5px;font-weight:600;letter-spacing:.02em}
+.nav-btn span{font-size:11px;font-weight:600;letter-spacing:.02em}
 
 /* ---------- header ---------- */
 .hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
@@ -321,7 +395,8 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 @keyframes exIn{from{opacity:0;transform:translateY(-4px) scale(.995)}to{opacity:1;transform:none}}
 
 .ex-head{padding:13px 14px;display:flex;align-items:center;gap:11px}
-.ex-num-btn{flex:none;display:flex}
+.ex-num-btn{flex:none;display:flex;align-items:center;justify-content:center;
+  min-width:44px;min-height:44px;margin:-7px}
 .ex-num{
   width:30px;height:30px;border-radius:9px;flex:none;
   display:flex;align-items:center;justify-content:center;
@@ -330,11 +405,11 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 }
 .ex-num.ok{background:rgba(79,209,165,.16);color:var(--teal)}
 .ex-num svg{width:15px;height:15px;stroke-width:3}
-.ex-title{text-align:left;min-width:0}
+.ex-title{text-align:left;min-width:0;min-height:44px;display:flex;flex-direction:column;justify-content:center;padding:4px 0}
 .ex-name{font-size:15.5px;font-weight:650;letter-spacing:-.015em;line-height:1.25}
 .ex-meta{font-size:11.5px;color:var(--faint);margin-top:3px;letter-spacing:.01em}
 .ex-sum{font-size:12.5px;color:var(--teal);margin-top:3px;font-family:var(--fm);letter-spacing:-.01em}
-.ex-flag{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ember-2);
+.ex-flag{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ember-2);
   background:var(--ember-dim);border:1px solid var(--ember-line);padding:2px 6px;border-radius:5px;margin-left:7px;vertical-align:middle}
 .ex-collapsed{display:flex;align-items:center;gap:11px;width:100%;padding:13px 14px;text-align:left}
 .ex-chev{color:var(--faint);font-size:15px;flex:none;transform:rotate(-90deg);display:inline-block}
@@ -347,25 +422,25 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .ex-target strong{font-family:var(--fm);font-weight:700;color:var(--text-dim);font-size:13px;letter-spacing:-.01em}
 .ex-target-sub{font-size:11px;color:var(--faint);font-family:var(--fm)}
 
-.set-row{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(0,1fr) 50px 42px;gap:8px;
+.set-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) 52px 46px;gap:7px;
   align-items:center;padding:4px 4px;border-radius:12px;position:relative;transition:background .22s ease}
 .set-row.done{background:var(--teal-dim)}
-.set-row .sn{font-size:12px;font-weight:700;color:var(--faint);text-align:center;font-family:var(--fm);transition:color .2s ease}
+.set-row .sn{font-size:13px;font-weight:700;color:var(--muted);text-align:center;font-family:var(--fm);transition:color .2s ease}
 .set-row.done .sn{color:var(--teal)}
-.set-in{width:100%;padding:10px 4px;border-radius:10px;background:var(--surface-2);
+.set-in{width:100%;padding:12px 4px;min-height:44px;border-radius:10px;background:var(--surface-2);
   border:1px solid transparent;text-align:center;font-family:var(--fm);font-weight:650;font-size:15px;
   letter-spacing:-.02em;transition:border-color .18s ease,background .22s ease,color .22s ease}
 .set-in::placeholder{color:var(--faint);font-weight:500}
 .set-in:focus{outline:none;border-color:var(--ember);background:var(--surface-3)}
 .set-row.done .set-in{background:transparent;color:var(--teal-soft)}
-.tick{width:100%;height:38px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);
+.tick{width:100%;height:44px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;color:var(--faint);
   transition:background .2s ease,border-color .2s ease,color .2s ease,transform .12s ease}
 .tick:active{transform:scale(.9)}
 .tick.on{background:rgba(79,209,165,.9);border-color:transparent;color:#06251d}
 .tick svg{width:16px;height:16px;stroke-width:3.2}
-.set-head{display:grid;grid-template-columns:26px minmax(0,1fr) minmax(0,1fr) 50px 42px;gap:8px;padding:0 4px 6px;
-  font-size:9.5px;color:var(--faint);text-transform:uppercase;letter-spacing:.11em;font-weight:700;text-align:center;opacity:.75}
+.set-head{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) 52px 46px;gap:7px;padding:0 4px 7px;
+  font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:700;text-align:center}
 .ghost-note{font-size:11.5px;color:var(--faint);font-family:var(--fm);text-align:center;padding:2px 0 6px}
 
 /* ---------- rest timer ---------- */
@@ -388,7 +463,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .chart .b{flex:1;background:linear-gradient(180deg,var(--ember),rgba(233,180,76,.25));border-radius:5px 5px 2px 2px;min-height:3px;position:relative;transition:height .5s ease}
 .chart .b.dim{background:linear-gradient(180deg,var(--surface-3),var(--surface-2))}
 .chart-x{display:flex;gap:5px;margin-top:7px}
-.chart-x span{flex:1;text-align:center;font-size:9.5px;color:var(--faint);font-weight:600}
+.chart-x span{flex:1;text-align:center;font-size:11px;color:var(--muted);font-weight:600}
 .spark{width:100%;height:56px;display:block}
 
 /* ---------- ladder ---------- */
@@ -410,7 +485,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .day.miss{border-style:dashed;border-color:var(--line);background:transparent;opacity:.62}
 .day .dn{font-size:10px;font-weight:700;color:var(--faint);letter-spacing:.06em}
 .day .dd{font-size:15px;font-weight:700;font-family:var(--fm)}
-.day .dt{font-size:9px;color:var(--muted);font-weight:600;line-height:1.1}
+.day .dt{font-size:11px;color:var(--muted);font-weight:600;line-height:1.1}
 .day.done .dt{color:var(--teal)}
 
 /* ---------- misc ---------- */
@@ -422,7 +497,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .src{font-size:11px;color:var(--faint);font-style:italic;margin-top:7px;display:block}
 .empty{text-align:center;padding:44px 20px;color:var(--muted)}
 .empty .big{font-size:34px;margin-bottom:12px;opacity:.5}
-.pro-tag{font-size:9px;font-weight:700;letter-spacing:.09em;padding:2px 6px;border-radius:5px;background:var(--ember-dim);color:var(--ember-2);border:1px solid var(--ember-line);vertical-align:middle}
+.pro-tag{font-size:11px;font-weight:700;letter-spacing:.09em;padding:2px 6px;border-radius:5px;background:var(--ember-dim);color:var(--ember-2);border:1px solid var(--ember-line);vertical-align:middle}
 .seg{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
 .seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:13px;font-weight:650;color:var(--muted);transition:all .15s ease}
 .seg button.on{background:var(--surface-3);color:var(--text)}
@@ -436,7 +511,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   background:linear-gradient(180deg,rgba(233,180,76,.13),rgba(233,180,76,.04));
   border:1px solid var(--ember-line);box-shadow:var(--inset)}
 .streak-n{font-family:var(--fm);font-size:22px;font-weight:700;color:var(--ember);letter-spacing:-.04em;line-height:1}
-.streak-l{font-size:9px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);line-height:1.25}
+.streak-l{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);line-height:1.25}
 
 /* hero */
 .hero{position:relative;border-radius:24px;overflow:hidden;margin-bottom:12px;
@@ -451,12 +526,12 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .hero-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ember-2);
   display:inline-flex;align-items:center;gap:7px}
 .hero-eyebrow.tl{color:var(--teal)}
-.hero-tag{font-size:9px;font-weight:700;letter-spacing:.1em;padding:2px 6px;border-radius:5px;
+.hero-tag{font-size:11px;font-weight:700;letter-spacing:.1em;padding:2px 6px;border-radius:5px;
   background:rgba(255,255,255,.06);color:var(--muted);margin-left:5px}
 
 /* training header — leaving is a first-class action, discarding is not */
 .train-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:18px}
-.train-back{width:38px;height:38px;border-radius:12px;flex:none;margin-left:-4px;
+.train-back{width:44px;height:44px;border-radius:12px;flex:none;margin-left:-6px;
   display:flex;align-items:center;justify-content:center;
   background:var(--surface-2);border:1px solid var(--line);color:var(--text-dim);
   transition:all .16s ease}
@@ -506,7 +581,8 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 /* section headers */
 .sec-head{display:flex;align-items:baseline;justify-content:space-between;margin:26px 0 11px}
 .sec-t{font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
-.sec-a{font-size:12px;font-weight:650;color:var(--ember);letter-spacing:-.01em}
+.sec-a{font-size:12.5px;font-weight:650;color:var(--ember);letter-spacing:-.01em;
+  padding:11px 4px;margin:-11px -4px;min-height:44px;display:inline-flex;align-items:center}
 
 /* the creed — a designed sign-off, not stray italics */
 .creed{margin:36px 0 6px;text-align:center;padding:0 8px}
@@ -539,6 +615,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .fg-bench{fill:var(--surface-3);stroke:var(--line);stroke-width:1}
 .fg-bench-leg{stroke:var(--line);stroke-width:2.5;stroke-linecap:round}
 .fg-rack{stroke:var(--surface-3);stroke-width:4;stroke-linecap:round}
+.fg-pad{stroke:var(--surface-3);stroke-width:7;stroke-linecap:round}
 .fg-cable{stroke:var(--ember);stroke-width:1.6;stroke-dasharray:3 3}
 .fg-guide{stroke:var(--teal);stroke-width:1.4;stroke-dasharray:4 4;opacity:.6}
 
@@ -701,6 +778,20 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .dayrow-bar.l2{background:var(--ember)}
 .dayrow-bar.l1{background:rgba(233,180,76,.5)}
 .dayrow-bar.l0{background:var(--surface-3)}
+
+/* ---------- reduced motion ----------
+   Someone who has asked their phone to stop animating things has asked for a
+   reason. Keep every state change, drop every transition. */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms!important;
+    animation-iteration-count:1!important;
+    transition-duration:.01ms!important;
+    scroll-behavior:auto!important;
+  }
+  .screen{animation:none!important}
+  .sheet{transition:none!important}
+}
 </style>
 </head>
 <body>
@@ -1515,7 +1606,19 @@ const KIT = {
     <line x1="${x}" y1="${y}" x2="${hx}" y2="${hy}" class="fg-cable"/>`,
   guide: (a, b) => `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" class="fg-guide"/>`,
   dipBars: y => `<line x1="30" y1="${y}" x2="30" y2="140" class="fg-rack"/><line x1="90" y1="${y}" x2="90" y2="140" class="fg-rack"/>
-    <line x1="26" y1="${y}" x2="94" y2="${y}" class="fg-bar"/>`
+    <line x1="26" y1="${y}" x2="94" y2="${y}" class="fg-bar"/>`,
+  /* An angled pad or platform — incline bench back, leg-press footplate. */
+  pad: (x1, y1, x2, y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="fg-pad"/>`,
+  /* A pulley at floor height, cable running out to the hands. */
+  cableLow: (x, y, hx, hy) => `<line x1="${x}" y1="140" x2="${x}" y2="${y}" class="fg-rack"/>
+    <line x1="${x}" y1="${y}" x2="${hx}" y2="${hy}" class="fg-cable"/>`,
+  /* Two uprights carrying an angled sled, for the leg press. */
+  sledRails: (x1, y1, x2, y2) => `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="fg-rack"/>`,
+  /* Uprights running DOWN to the floor — a bar set low in a rack, rather
+     than one hanging from the ceiling. */
+  rackLow: y => `<line x1="24" y1="${y}" x2="24" y2="140" class="fg-rack"/>
+    <line x1="96" y1="${y}" x2="96" y2="140" class="fg-rack"/>
+    <line x1="18" y1="${y}" x2="102" y2="${y}" class="fg-bar"/>`
 };
 
 function formSVG(frame) {
@@ -1550,8 +1653,8 @@ const FORMS = {
     frames: [
       { hip:[48,98], sh:[66,66], hand:[68,101], ank:[62,140], toe:[76,142], kneeBend:-1, elbowBend:-1,
         kit:[KIT.floor(), KIT.barH(68,101,26)] },
-      { hip:[60,80], sh:[60,44], hand:[62,88], ank:[60,140], toe:[74,142], elbowBend:-1,
-        kit:[KIT.floor(), KIT.barH(62,88,26)] }
+      { hip:[60,80], sh:[60,44], hand:[62,80], ank:[60,140], toe:[74,142], elbowBend:-1,
+        kit:[KIT.floor(), KIT.barH(62,80,26)] }
     ],
     setup: 'Bar over mid-foot, roughly an inch from your shins. Grip just outside your legs. Pull the slack out of the bar before you pull the weight.',
     cues: ['Chest up, lats engaged — imagine squeezing oranges in your armpits',
@@ -1567,8 +1670,8 @@ const FORMS = {
     frames: [
       { hip:[78,90], sh:[44,88], hand:[46,66], ank:[106,140], toe:[116,142], kneeBend:-1, elbowBend:1,
         kit:[KIT.floor(), KIT.bench(24,94,88,104), KIT.barEnd(46,66)] },
-      { hip:[78,90], sh:[44,88], hand:[47,44], ank:[106,140], toe:[116,142], kneeBend:-1, elbowBend:1,
-        kit:[KIT.floor(), KIT.bench(24,94,88,104), KIT.barEnd(47,44)] }
+      { hip:[78,90], sh:[44,88], hand:[47,52], ank:[106,140], toe:[116,142], kneeBend:-1, elbowBend:1,
+        kit:[KIT.floor(), KIT.bench(24,94,88,104), KIT.barEnd(47,52)] }
     ],
     setup: 'Shoulder blades pulled back and down into the bench, slight arch, feet planted. Grip roughly 1.5× shoulder width.',
     cues: ['Elbows at about 45° to your body, not flared to 90°',
@@ -1613,8 +1716,8 @@ const FORMS = {
   'bb-rdl': {
     name: 'Romanian Deadlift', labels: ['Top', 'Stretch'],
     frames: [
-      { hip:[60,80], sh:[60,44], hand:[62,86], ank:[60,140], toe:[74,142], elbowBend:-1,
-        kit:[KIT.floor(), KIT.barH(62,86,26)] },
+      { hip:[60,80], sh:[60,44], hand:[62,80], ank:[60,140], toe:[74,142], elbowBend:-1,
+        kit:[KIT.floor(), KIT.barH(62,80,26)] },
       { hip:[70,84], sh:[46,66], hand:[46,101], ank:[62,140], toe:[76,142], kneeBend:-1, elbowBend:-1,
         kit:[KIT.floor(), KIT.barH(46,101,26)] }
     ],
@@ -1629,7 +1732,7 @@ const FORMS = {
   'bw-pullup': {
     name: 'Pull-Up', labels: ['Hang', 'Top'],
     frames: [
-      { hip:[60,80], sh:[60,44], hand:[60,18], ank:[62,136], toe:[76,138], elbowBend:1,
+      { hip:[60,80], sh:[60,44], hand:[60,18], ank:[62,136], toe:[76,138], kneeBend:-1, elbowBend:1,
         kit:[KIT.pullBar(16)] },
       { hip:[60,66], sh:[60,32], hand:[60,18], ank:[64,122], toe:[78,124], kneeBend:-1, elbowBend:1,
         kit:[KIT.pullBar(16)] }
@@ -1645,10 +1748,10 @@ const FORMS = {
   'bw-pushup': {
     name: 'Push-Up', labels: ['Top', 'Bottom'],
     frames: [
-      { hip:[74,110], sh:[44,100], hand:[34,140], ank:[108,130], toe:[116,140], kneeBend:-1, elbowBend:-1,
-        kit:[KIT.floor(), KIT.guide([30,96],[112,132])] },
-      { hip:[74,120], sh:[44,124], hand:[34,140], ank:[108,136], toe:[116,142], kneeBend:-1, elbowBend:-1,
-        kit:[KIT.floor(), KIT.guide([30,120],[112,138])] }
+      { hip:[62,116], sh:[30,105], hand:[20,140], ank:[116,132], toe:[118,142], kneeBend:1, elbowBend:-1,
+        ant:[0,1], kit:[KIT.floor(), KIT.guide([16,101],[118,134])] },
+      { hip:[62,126], sh:[30,126], hand:[20,140], ank:[116,136], toe:[118,142], kneeBend:1, elbowBend:-1,
+        ant:[0,1], kit:[KIT.floor(), KIT.guide([16,124],[118,138])] }
     ],
     setup: 'Hands just outside shoulder width, fingers spread. Body in one straight line from heels to head.',
     cues: ['Squeeze glutes and brace the abs so the hips do not sag',
@@ -1678,8 +1781,8 @@ const FORMS = {
     frames: [
       { hip:[78,90], sh:[44,88], hand:[40,70], ank:[106,140], toe:[116,142], kneeBend:-1, elbowBend:1,
         kit:[KIT.floor(), KIT.bench(24,94,88,104), KIT.db(40,70)] },
-      { hip:[78,90], sh:[44,88], hand:[47,46], ank:[106,140], toe:[116,142], kneeBend:-1, elbowBend:1,
-        kit:[KIT.floor(), KIT.bench(24,94,88,104), KIT.db(47,46)] }
+      { hip:[78,90], sh:[44,88], hand:[47,53], ank:[106,140], toe:[116,142], kneeBend:-1, elbowBend:1,
+        kit:[KIT.floor(), KIT.bench(24,94,88,104), KIT.db(47,53)] }
     ],
     setup: 'Kick the dumbbells up with your knees. Shoulder blades set, wrists stacked over elbows.',
     cues: ['Lower until you feel a stretch across the chest, roughly level with the torso',
@@ -1724,10 +1827,10 @@ const FORMS = {
   'bw-plank': {
     name: 'Plank', labels: ['Correct', 'Hips sagging'],
     frames: [
-      { hip:[76,104], sh:[50,102], hand:[44,140], ank:[108,120], toe:[116,140], kneeBend:1, elbowBend:1,
-        kit:[KIT.floor()] },
-      { hip:[76,122], sh:[50,104], hand:[44,140], ank:[108,118], toe:[116,140], kneeBend:1, elbowBend:1,
-        kit:[KIT.floor()] }
+      { hip:[64,108], sh:[34,106], hand:[28,140], ank:[118,124], toe:[118,140], kneeBend:1, elbowBend:1,
+        ant:[0,1], kit:[KIT.floor()] },
+      { hip:[64,126], sh:[34,108], hand:[28,140], ank:[118,128], toe:[118,142], kneeBend:1, elbowBend:1,
+        ant:[0,1], kit:[KIT.floor()] }
     ],
     setup: 'Elbows under shoulders, forearms flat. Feet hip-width. One straight line from heels through head.',
     cues: ['Squeeze glutes hard — this is what stops the hips dropping',
@@ -1756,6 +1859,453 @@ const FORMS = {
 };
 
 function hasForm(exId) { return !!FORMS[exId]; }
+
+/* ---------- batch two ---------- */
+Object.assign(FORMS, {
+  'bb-front-squat': {
+    name: 'Front Squat', labels: ['Standing', 'Bottom'],
+    frames: [
+      { hip:[60,80], sh:[60,44], hand:[70,48], ank:[60,140], toe:[74,142], elbowBend:1,
+        kit:[KIT.floor(), KIT.barH(68,48,28)] },
+      { hip:[54,106], sh:[58,70], hand:[68,72], ank:[60,140], toe:[74,142], kneeBend:-1, elbowBend:1,
+        kit:[KIT.floor(), KIT.barH(66,72,28)] }
+    ],
+    setup: 'Bar across the front delts, not held in the hands. Elbows up high and kept there — the shelf is your shoulders, the fingers are only a strap.',
+    cues: ['Elbows stay pointed forward and high the entire set',
+           'More upright than a back squat — the torso barely leans',
+           'Sit straight down between the feet',
+           'If the elbows drop, the bar rolls forward and the rep is over'],
+    faults: ['Elbows dropping under fatigue and dumping the bar',
+             'Gripping the bar in the palms instead of resting it on the delts',
+             'Leaning forward as if it were a back squat']
+  },
+  'db-goblet-squat': {
+    name: 'Goblet Squat', labels: ['Standing', 'Bottom'],
+    frames: [
+      { hip:[60,80], sh:[60,44], hand:[70,58], ank:[60,140], toe:[74,142], elbowBend:-1,
+        kit:[KIT.floor(), KIT.db(70,58)] },
+      { hip:[54,106], sh:[58,70], hand:[70,84], ank:[60,140], toe:[74,142], kneeBend:-1, elbowBend:-1,
+        kit:[KIT.floor(), KIT.db(70,84)] }
+    ],
+    setup: 'Hold one dumbbell or kettlebell vertically against the chest, elbows tucked underneath it. The weight in front is what keeps you upright.',
+    cues: ['Elbows brush the inside of the knees at the bottom',
+           'Chest stays tall — the counterweight makes this easier than a back squat',
+           'Sit down between the feet rather than folding forward',
+           'Pause a beat at the bottom before standing'],
+    faults: ['Letting the weight drift away from the chest',
+             'Rounding forward as the set gets hard',
+             'Cutting the depth short when the counterweight would allow more']
+  },
+  'mach-leg-press': {
+    name: 'Leg Press', labels: ['Bottom', 'Extended'],
+    frames: [
+      { hip:[36,116], sh:[18,90], hand:[46,110], ank:[66,84], toe:[70,72], kneeBend:1, elbowBend:-1,
+        kit:[KIT.floor(), KIT.pad(10,80,40,124), KIT.pad(58,70,78,96)] },
+      { hip:[36,116], sh:[18,90], hand:[46,110], ank:[90,90], toe:[95,78], kneeBend:1, elbowBend:-1,
+        kit:[KIT.floor(), KIT.pad(10,80,40,124), KIT.pad(82,76,102,102)] }
+    ],
+    setup: 'Back and hips flat against the pad, feet about shoulder width on the platform. Never let the lower back peel away from the pad.',
+    cues: ['Lower until the knees reach roughly 90°, or wherever your back stays flat',
+           'Push through the whole foot, not just the toes',
+           'Leave a soft bend at the top — do not slam the knees straight',
+           'Control the negative; this is the machine people load stupidly'],
+    faults: ['Going so deep the hips curl off the pad and round the lower back',
+             'Locking the knees out hard at the top',
+             'Hands on the knees pushing them through — use the handles']
+  },
+  'db-bulgarian': {
+    name: 'Bulgarian Split Squat', labels: ['Top', 'Bottom'],
+    frames: [
+      { hip:[56,86], sh:[56,50], hand:[46,85], ank:[46,140], toe:[34,142], ank2:[96,112], toe2:[106,116],
+        kneeBend:1, kneeBend2:1, elbowBend:-1,
+        kit:[KIT.floor(), KIT.bench(84,112,116,120), KIT.db(46,85)] },
+      { hip:[56,106], sh:[56,70], hand:[46,105], ank:[46,140], toe:[34,142], ank2:[96,112], toe2:[106,116],
+        kneeBend:1, kneeBend2:1, elbowBend:-1,
+        kit:[KIT.floor(), KIT.bench(84,112,116,120), KIT.db(46,105)] }
+    ],
+    setup: 'Back foot resting on a bench roughly knee height. Front foot far enough forward that the shin stays near vertical at the bottom.',
+    cues: ['All the weight lives in the front foot — the back leg only balances',
+           'Torso upright, or hinged slightly forward for more glute',
+           'Back knee travels straight down',
+           'Find the stride length once, then keep it identical every rep'],
+    faults: ['Stride too short, so the front knee runs way past the toes',
+             'Pushing off the back foot to help',
+             'Front knee caving inwards as fatigue arrives']
+  },
+  'db-lunge': {
+    name: 'Dumbbell Lunge', labels: ['Standing', 'Bottom'],
+    frames: [
+      { hip:[60,80], sh:[60,44], hand:[70,78], ank:[60,140], toe:[74,142], elbowBend:-1,
+        kit:[KIT.floor(), KIT.db(70,78)] },
+      { hip:[56,102], sh:[56,66], hand:[68,100], ank:[42,140], toe:[30,142], ank2:[96,140], toe2:[106,142],
+        kneeBend:1, kneeBend2:1, elbowBend:-1,
+        kit:[KIT.floor(), KIT.db(68,100)] }
+    ],
+    setup: 'Dumbbells hanging at your sides, shoulders back. Step out far enough that the front shin finishes close to vertical.',
+    cues: ['Drop the back knee straight down towards the floor',
+           'Weight through the front heel and midfoot to stand up',
+           'Torso stays upright — do not lean over the front leg',
+           'Slow on the way down; that is where the balance is won'],
+    faults: ['Short stride, so the front knee travels well past the toes',
+             'Front knee collapsing inward',
+             'Rushing and falling into each rep instead of controlling it']
+  },
+  'bw-pistol': {
+    name: 'Pistol Squat', labels: ['Standing', 'Bottom'],
+    frames: [
+      { hip:[58,80], sh:[58,44], hand:[86,50], ank:[58,140], toe:[72,142], ank2:[96,112], toe2:[108,110],
+        kneeBend2:-1, elbowBend:-1, kit:[KIT.floor()] },
+      { hip:[52,112], sh:[56,78], hand:[86,80], ank:[46,140], toe:[60,142], ank2:[110,106], toe2:[118,102],
+        kneeBend:-1, kneeBend2:1, elbowBend:-1, kit:[KIT.floor()] }
+    ],
+    setup: 'Stand on one leg with the other held out in front. Arms forward as a counterweight — that is not cheating, it is how the movement works.',
+    cues: ['Sit back and down slowly, free leg reaching forward',
+           'Keep the whole standing foot on the floor',
+           'Reach the arms out to stay balanced',
+           'If you cannot control the descent, hold a support or squat to a box'],
+    faults: ['Collapsing into the bottom rather than lowering under control',
+             'Heel lifting — usually ankle mobility',
+             'The standing knee caving inward at the bottom']
+  },
+  'db-rdl': {
+    name: 'Dumbbell RDL', labels: ['Top', 'Stretch'],
+    frames: [
+      { hip:[60,80], sh:[60,44], hand:[70,78], ank:[60,140], toe:[74,142], elbowBend:-1,
+        kit:[KIT.floor(), KIT.db(70,78)] },
+      { hip:[70,84], sh:[46,66], hand:[44,99], ank:[62,140], toe:[76,142], kneeBend:-1, elbowBend:-1,
+        kit:[KIT.floor(), KIT.db(44,99)] }
+    ],
+    setup: 'Dumbbells in front of the thighs, knees softly bent. That bend is set at the start and does not change for the whole set.',
+    cues: ['Push the hips back towards the wall behind you',
+           'Dumbbells stay close, brushing down the front of the legs',
+           'Stop where your hamstrings stop, not at a fixed height',
+           'Stand up by driving the hips forward'],
+    faults: ['Bending the knees more as you descend, turning it into a squat',
+             'Letting the dumbbells drift away from the body',
+             'Rounding the back to chase extra range']
+  },
+  'kb-swing': {
+    name: 'Kettlebell Swing', labels: ['Hike', 'Float'],
+    frames: [
+      { hip:[70,88], sh:[50,64], hand:[52,98], ank:[62,140], toe:[76,142], kneeBend:-1, elbowBend:-1,
+        kit:[KIT.floor(), KIT.db(52,98)] },
+      { hip:[60,80], sh:[60,44], hand:[96,50], ank:[60,140], toe:[74,142], elbowBend:-1,
+        kit:[KIT.floor(), KIT.db(96,50)] }
+    ],
+    setup: 'Bell a little in front of you. Hinge, not squat — the shins stay close to vertical and the bell passes high between the thighs.',
+    cues: ['Snap the hips forward; the arms are rope, not engine',
+           'The bell floats to chest height on its own — do not lift it',
+           'Squeeze glutes hard at the top, ribs down',
+           'Let the bell fall, then hinge to catch it'],
+    faults: ['Squatting the bell up instead of hinging',
+             'Lifting with the shoulders to reach chest height',
+             'Leaning back at the top and hanging off the lower back']
+  },
+  'bb-incline-bench': {
+    name: 'Incline Bench Press', labels: ['Chest', 'Lockout'],
+    frames: [
+      { hip:[86,104], sh:[52,84], hand:[74,84], ank:[104,140], toe:[114,142], kneeBend:-1, elbowBend:1,
+        kit:[KIT.floor(), KIT.pad(46,92,90,114), KIT.pad(90,112,116,116), KIT.barEnd(74,84)] },
+      { hip:[86,104], sh:[52,84], hand:[84,69], ank:[104,140], toe:[114,142], kneeBend:-1, elbowBend:1,
+        kit:[KIT.floor(), KIT.pad(46,92,90,114), KIT.pad(90,112,116,116), KIT.barEnd(84,69)] }
+    ],
+    setup: 'Bench set to roughly 30°. Higher than that and it turns into a shoulder press. Shoulder blades pinned back, feet planted.',
+    cues: ['Touch the bar to the upper chest, just below the collarbone',
+           'Elbows around 45°, not flared wide',
+           'Press up and slightly back over the shoulders',
+           'Keep the shoulder blades pulled back the entire set'],
+    faults: ['Bench angled too steep, turning it into an overhead press',
+             'Bar touching the throat instead of the upper chest',
+             'Shoulders rolling forward at the bottom']
+  },
+  'db-shoulder-press': {
+    name: 'Dumbbell Shoulder Press', labels: ['Bottom', 'Overhead'],
+    frames: [
+      { hip:[60,80], sh:[60,44], hand:[74,50], ank:[60,140], toe:[74,142], elbowBend:1,
+        kit:[KIT.floor(), KIT.db(74,50)] },
+      { hip:[60,80], sh:[60,44], hand:[63,14], ank:[60,140], toe:[74,142], elbowBend:1,
+        kit:[KIT.floor(), KIT.db(63,14)] }
+    ],
+    setup: 'Dumbbells at shoulder height, palms forward or slightly turned in. Ribs down and glutes tight before the first rep.',
+    cues: ['Press up and very slightly in, finishing over the middle of your head',
+           'Squeeze the glutes so the lower back does not arch',
+           'Lower to about ear height under control',
+           'Wrists stacked over the elbows, not bent back'],
+    faults: ['Arching the lower back to press a weight that is too heavy',
+             'Letting the dumbbells drift forward over the face',
+             'Clanging them together at the top']
+  },
+  'mach-cable-row': {
+    name: 'Seated Cable Row', labels: ['Stretch', 'Contracted'],
+    frames: [
+      { hip:[64,110], sh:[54,76], hand:[22,92], ank:[28,132], toe:[18,136], kneeBend:1, elbowBend:-1,
+        kit:[KIT.floor(), KIT.bench(50,110,100,118), KIT.cableLow(8,92,22,92)] },
+      { hip:[64,110], sh:[68,76], hand:[46,90], ank:[28,132], toe:[18,136], kneeBend:1, elbowBend:-1,
+        kit:[KIT.floor(), KIT.bench(50,110,100,118), KIT.cableLow(8,92,46,90)] }
+    ],
+    setup: 'Feet planted, soft knees, chest up. Let the shoulder blades travel forward at the stretch without rounding the lower back.',
+    cues: ['Start the pull by drawing the shoulder blades together',
+           'Pull the handle to the bottom of the ribs, not the collarbone',
+           'Elbows stay close to the body',
+           'Return under control — do not let the stack pull you forward'],
+    faults: ['Rocking the torso back and forth to move the weight',
+             'Rounding the lower back at the stretch',
+             'Shrugging the shoulders up towards the ears']
+  },
+  'bw-inverted-row': {
+    name: 'Inverted Row', labels: ['Hang', 'Chest to bar'],
+    frames: [
+      { hip:[66,116], sh:[30,102], hand:[30,68], ank:[118,134], toe:[118,122], kneeBend:-1, elbowBend:1,
+        kit:[KIT.floor(), KIT.rackLow(66)] },
+      { hip:[66,102], sh:[30,86], hand:[30,68], ank:[118,128], toe:[118,116], kneeBend:-1, elbowBend:1,
+        kit:[KIT.floor(), KIT.rackLow(66)] }
+    ],
+    setup: 'Bar at roughly hip height. Hang underneath it with the body in one straight line from heels to head — the lower the bar, the harder it gets.',
+    cues: ['Squeeze the glutes so the hips do not sag',
+           'Pull the chest to the bar, not the chin',
+           'Shoulder blades pull together at the top',
+           'Lower all the way to straight arms every rep'],
+    faults: ['Hips sagging so it becomes a half rep',
+             'Pulling with the arms while the shoulder blades never move',
+             'Cutting the range short at the top']
+  },
+  'bw-chinup': {
+    name: 'Chin-Up', labels: ['Hang', 'Top'],
+    frames: [
+      { hip:[60,80], sh:[60,44], hand:[54,18], ank:[62,136], toe:[76,138], kneeBend:-1, elbowBend:1,
+        kit:[KIT.pullBar(16)] },
+      { hip:[60,66], sh:[60,32], hand:[54,18], ank:[64,122], toe:[78,124], kneeBend:-1, elbowBend:1,
+        kit:[KIT.pullBar(16)] }
+    ],
+    setup: 'Palms facing you, hands about shoulder width — narrower than a pull-up. The underhand grip brings the biceps in, which is why most people can do more of these.',
+    cues: ['Pull the shoulder blades down before the elbows bend',
+           'Drive the elbows down and slightly forward',
+           'Chest towards the bar, chin clearing it as a consequence',
+           'Full hang at the bottom of every rep'],
+    faults: ['Kipping once the reps get hard',
+             'Stopping halfway down to avoid the hardest part',
+             'Elbows flaring wide instead of tracking down']
+  },
+  'db-curl': {
+    name: 'Dumbbell Curl', labels: ['Bottom', 'Top'],
+    frames: [
+      { hip:[60,80], sh:[60,44], hand:[70,78], ank:[60,140], toe:[74,142], elbowBend:-1,
+        kit:[KIT.floor(), KIT.db(70,78)] },
+      { hip:[60,80], sh:[60,44], hand:[72,54], ank:[60,140], toe:[74,142], elbowBend:-1,
+        kit:[KIT.floor(), KIT.db(72,54)] }
+    ],
+    setup: 'Standing tall, dumbbells at your sides, elbows pinned against the ribs. The elbow is the only joint that moves.',
+    cues: ['Curl without letting the elbow drift forward',
+           'Squeeze at the top for a beat',
+           'Lower all the way to a straight arm, slowly',
+           'Shoulders and hips stay completely still'],
+    faults: ['Swinging the body to start the rep',
+             'Elbows travelling forward, handing the work to the front delt',
+             'Half reps that never straighten the arm']
+  },
+  'cab-pushdown': {
+    name: 'Tricep Pushdown', labels: ['Start', 'Lockout'],
+    frames: [
+      { hip:[60,80], sh:[60,44], hand:[71,49], ank:[60,140], toe:[74,142], elbowBend:1,
+        kit:[KIT.floor(), KIT.cableTop(72,18,71,49)] },
+      { hip:[60,80], sh:[60,44], hand:[64,80], ank:[60,140], toe:[74,142], elbowBend:1,
+        kit:[KIT.floor(), KIT.cableTop(72,18,64,80)] }
+    ],
+    setup: 'Stand close to the stack with a slight forward lean. Upper arms locked against your sides and kept there for the whole set.',
+    cues: ['Only the forearms move — the elbows never travel',
+           'Push all the way to a straight arm and squeeze',
+           'Let the handle rise until you feel the stretch, no further',
+           'Keep the wrists straight, not curled under'],
+    faults: ['Leaning over the weight and turning it into a press',
+             'Elbows flaring out and drifting forward',
+             'Bouncing the stack at the top of each rep']
+  },
+  'bw-dead-hang': {
+    name: 'Dead Hang', labels: ['Full hang', 'Knees tucked'],
+    frames: [
+      { hip:[60,90], sh:[60,54], hand:[60,18], ank:[62,140], toe:[76,142], kneeBend:-1, elbowBend:1,
+        kit:[KIT.pullBar(16)] },
+      { hip:[60,90], sh:[60,54], hand:[60,18], ank:[88,110], toe:[98,104], kneeBend:-1, elbowBend:1,
+        kit:[KIT.pullBar(16)] }
+    ],
+    setup: 'Hang from a bar with a full grip, feet clear of the floor. Start relaxed, then pull the shoulders down away from your ears.',
+    cues: ['Start relaxed, then pull the shoulder blades down away from your ears',
+           'Tuck the knees up if the floor is in the way, or to make it harder',
+           'Ribs down — do not let the back arch',
+           'Build the time gradually; the grip usually gives out first'],
+    faults: ['Hanging completely slack in the shoulders for the whole set',
+             'Swinging instead of hanging still',
+             'Dropping off the bar rather than stepping down under control']
+  }
+});
+
+/* ============================================================
+   PATTERN GUIDANCE
+   ------------------------------------------------------------
+   Fourteen lifts have hand-built diagrams. The library has 236
+   movements. Rather than let the other 222 open an empty sheet,
+   every exercise falls back to guidance for its movement pattern
+   — which is where most of the useful instruction lives anyway,
+   because a dumbbell row and a cable row fail in the same ways.
+   ============================================================ */
+const PATTERN_GUIDE = {
+  'squat': {
+    setup: 'Feet about shoulder width, toes turned out a little. Brace as though you are about to be pushed, then sit down between your feet rather than folding forward over them.',
+    cues: ['Screw your feet into the floor — it stops the knees drifting in',
+           'Down under control, no bouncing out of the bottom',
+           'Knees track over the middle toes throughout',
+           'Chest stays proud; the bar or weight stays over midfoot'],
+    faults: ['Knees collapsing inward as you stand up',
+             'Heels lifting — usually ankle mobility, sometimes just too much weight',
+             'Hips shooting up first, turning it into a good morning']
+  },
+  'hinge': {
+    setup: 'Weight over midfoot, soft knees, and push the hips backwards rather than bending the knees. The shins stay close to vertical.',
+    cues: ['Long spine from head to tailbone the whole way',
+           'Drag the weight close to your legs',
+           'Feel it in the hamstrings, not the lower back',
+           'Finish by squeezing the glutes, not by leaning back'],
+    faults: ['Rounding the lower back under load — the one that actually hurts people',
+             'Turning it into a squat by bending the knees too early',
+             'Hyperextending at the top and stressing the spine']
+  },
+  'push-h': {
+    setup: 'Shoulder blades pulled back and down and kept there. Wrists stacked over elbows so the load runs through bone, not joint.',
+    cues: ['Elbows around 45° from the body, not flared to 90°',
+           'Lower under control — you own the weight on the way down',
+           'Push the floor away with your feet if you are on a bench',
+           'Full range, but stop short of the shoulder complaining'],
+    faults: ['Elbows flared straight out to the sides',
+             'Shoulders rolling forward off the bench at the bottom',
+             'Bouncing the weight off the chest']
+  },
+  'push-v': {
+    setup: 'Ribs down, glutes and abs tight. If your lower back arches to get the weight up, the weight is too heavy.',
+    cues: ['Press slightly back so the weight finishes over the middle of your head',
+           'Squeeze the glutes to stop the lower back arching',
+           'Bar or dumbbells travel in a straight line, not around your face',
+           'Shrug up at the top to finish the lockout'],
+    faults: ['Leaning back into a standing incline press',
+             'Flaring the ribs and losing the brace',
+             'Stopping short of full lockout every rep']
+  },
+  'pull-h': {
+    setup: 'Hinge to roughly 45° or brace against a bench. Set the shoulder blades before the first rep, not during it.',
+    cues: ['Lead with the elbow, not the hand',
+           'Pull to the bottom of the ribs, not the collarbone',
+           'Squeeze the shoulder blade at the end of each rep',
+           'Control the way back — that half is doing real work'],
+    faults: ['Yanking with the lower back and turning it into a deadlift',
+             'Pulling with the arms while the shoulder blade never moves',
+             'Dropping the weight rather than lowering it']
+  },
+  'pull-v': {
+    setup: 'Grip just outside shoulder width. Start from a full hang or full stretch — the bottom of the range is where the back grows.',
+    cues: ['Pull the shoulder blades down before the elbows bend',
+           'Drive the elbows down towards your back pockets',
+           'Chest towards the bar, not chin over it',
+           'Lower all the way, every rep'],
+    faults: ['Kipping and swinging once it gets hard',
+             'Shrugging up towards the ears instead of pulling down',
+             'Half reps from the halfway point']
+  },
+  'lunge': {
+    setup: 'Long enough stride that the front shin stays roughly vertical. Weight through the front heel and midfoot.',
+    cues: ['Torso upright, or hinged slightly forward for more glute',
+           'Back knee travels down, not forward',
+           'Push through the front foot to stand',
+           'Slow on the way down — that is where the balance is won'],
+    faults: ['Stride too short, so the front knee runs past the toes',
+             'Front knee caving inwards',
+             'Rushing and losing the balance instead of owning it']
+  },
+  'delts': {
+    setup: 'Light weight, long lever. This is the one where ego costs you the most and gains you the least.',
+    cues: ['Lead with the elbows, hands slightly behind them',
+           'Stop at shoulder height — higher becomes traps',
+           'Tiny forward tilt, as though pouring from a jug',
+           'Lower slowly; do not let gravity do the eccentric'],
+    faults: ['Swinging the whole body to start the rep',
+             'Going far too heavy and turning it into a shrug',
+             'Wrists bent back under the load']
+  },
+  'arms-bi': {
+    setup: 'Elbows pinned at your sides and kept there. The only joint that moves is the elbow.',
+    cues: ['Squeeze at the top without swinging',
+           'Lower under control through the full range',
+           'Wrists stay neutral, not curled back',
+           'Shoulders stay still — no rocking'],
+    faults: ['Elbows drifting forward, handing the work to the front delt',
+             'Using the lower back to swing the weight up',
+             'Half reps that never straighten the arm']
+  },
+  'arms-tri': {
+    setup: 'Upper arm fixed. Whether overhead, at your side or on a bench, the elbow is the hinge and nothing else moves.',
+    cues: ['Full lockout at the end of each rep',
+           'Keep the elbows in, not flaring out',
+           'Stretch at the bottom before reversing',
+           'Steady tempo — this is not a power movement'],
+    faults: ['Elbows flaring wide to move more weight',
+             'Turning it into a press with the shoulders',
+             'Bouncing out of the stretched position']
+  },
+  'core': {
+    setup: 'Brace as though you are about to be punched, then breathe shallowly into that brace. Quality beats duration every time.',
+    cues: ['Ribs down, pelvis slightly tucked',
+           'Breathe — holding your breath is not bracing',
+           'Move slowly and deliberately',
+           'Stop the set when the position breaks, not when the timer ends'],
+    faults: ['Lower back sagging or arching under fatigue',
+             'Holding the breath throughout',
+             'Chasing time while the position falls apart']
+  },
+  'calves': {
+    setup: 'Full range is the whole point — all the way down into the stretch, all the way up onto the toes.',
+    cues: ['Pause a beat at the bottom stretch',
+           'Rise all the way onto the toes',
+           'Slow and controlled, not bouncing on the tendon',
+           'Higher reps suit this one'],
+    faults: ['Tiny bouncing reps using tendon rebound',
+             'Cutting the bottom stretch short',
+             'Going so heavy the range collapses']
+  },
+  'carry': {
+    setup: 'Stand tall, shoulders back, weight hanging. Walk normally — do not lean away from the load.',
+    cues: ['Ribs down, brace the whole way',
+           'Even, deliberate steps',
+           'Shoulders stay level, especially one-sided',
+           'Grip is usually what fails first, and that is fine'],
+    faults: ['Leaning away from the weight on one-sided carries',
+             'Shoulders rolling forward',
+             'Rushing the steps']
+  },
+  'cardio': {
+    setup: 'Steady effort you could hold a broken conversation at, unless the session says otherwise.',
+    cues: ['Relaxed shoulders and jaw',
+           'Breathe in rhythm with the movement',
+           'Consistent pace beats a fast start',
+           'Finish able to say you could have done a little more'],
+    faults: ['Starting far too fast and fading',
+             'Gripping the handles and carrying tension in the upper body',
+             'Chasing a number instead of an effort']
+  },
+  'mobility': {
+    setup: 'Slow, controlled, and never into sharp pain. Stretch should feel like a strong pull, never a pinch.',
+    cues: ['Breathe out as you move deeper',
+           'Hold long enough to actually settle',
+           'Both sides, equal time',
+           'Ease off if anything sharpens'],
+    faults: ['Bouncing into the end range',
+             'Holding the breath',
+             'Pushing into pain rather than tension']
+  }
+};
+
+function guideFor(exId) {
+  const ex = EX[exId];
+  if (!ex) return null;
+  return PATTERN_GUIDE[ex.pattern] || null;
+}
 /* ============================================================
    STATE
    ============================================================ */
@@ -1780,6 +2330,8 @@ function blank() {
     nutrition: { targets:{ kcal:2600, p:170, c:280, f:80 }, days:{} },
     billing: { pro:false, plan:null, trialStart:null },
     journey: { reached:{} },
+    daily: {},
+    videos: {},
     meta: { created:new Date().toISOString(), lastOpen:null }
   };
 }
@@ -2666,6 +3218,462 @@ function completionLine(sess, st) {
   return 'Full session, finished. Bank it.';
 }
 /* ============================================================
+   DAILY METRICS — steps, sleep, bodyweight
+   ------------------------------------------------------------
+   Three numbers that describe the day around the training rather
+   than the training itself. They can arrive three ways:
+
+     manual    — typed in the sheet
+     shortcut  — handed over by an iOS Shortcut reading Apple Health
+     health    — read directly by the native build (later)
+
+   Every field records where it came from, because a number you
+   typed and a number a sensor produced deserve different trust,
+   and because the native migration later needs to know which
+   values it is allowed to overwrite.
+
+   Deliberately NOT wired into programming yet. The evidence that
+   occupational step volume impairs lower-body resistance training
+   is genuinely absent — the concurrent-training literature is
+   built on structured running, and step-REDUCTION studies point
+   the other way (cutting to ~1,200 steps/day dropped myofibrillar
+   protein synthesis ~27%). So it is collected and shown, and it
+   waits until there are months of real data to test against.
+   ============================================================ */
+
+const DAILY_FIELDS = ['steps', 'sleepH', 'bw'];
+
+const DAILY_LIMITS = {
+  steps:  { min: 0,  max: 200000, label: 'Steps' },
+  sleepH: { min: 0,  max: 24,     label: 'Sleep' },
+  bw:     { min: 20, max: 400,    label: 'Bodyweight' }
+};
+
+const SRC_LABEL = { manual: 'typed', shortcut: 'Shortcut', health: 'Apple Health', url: 'Shortcut' };
+
+function ensureDaily() {
+  if (!S.daily) S.daily = {};
+  return S.daily;
+}
+
+function dailyOn(date) {
+  ensureDaily();
+  return S.daily[date] || null;
+}
+
+function dailyToday() { return dailyOn(today()); }
+
+function stepsOn(date) { const d = dailyOn(date); return d && d.steps > 0 ? d.steps : null; }
+function sleepOn(date) { const d = dailyOn(date); return d && d.sleepH > 0 ? d.sleepH : null; }
+
+/* ---------- writing ---------- */
+function setDaily(date, field, value, src) {
+  if (!DAILY_LIMITS[field]) return false;
+  const n = parseFloat(value);
+  if (isNaN(n)) return false;
+  const lim = DAILY_LIMITS[field];
+  if (n < lim.min || n > lim.max) return false;
+
+  ensureDaily();
+  const rec = S.daily[date] || (S.daily[date] = { src: {} });
+  if (!rec.src) rec.src = {};
+  rec[field] = field === 'steps' ? Math.round(n) : Math.round(n * 10) / 10;
+  rec.src[field] = src || 'manual';
+  rec.at = new Date().toISOString();
+
+  /* Bodyweight also belongs in the profile log — that is what the
+     calorie maths and the bodyweight-exercise loads already read. */
+  if (field === 'bw') {
+    const list = S.profile.bodyweight || (S.profile.bodyweight = []);
+    const existing = list.find(e => e.d === date);
+    if (existing) existing.w = rec.bw;
+    else {
+      list.push({ d: date, w: rec.bw });
+      list.sort((a, b) => a.d < b.d ? -1 : 1);
+    }
+  }
+  return true;
+}
+
+function clearDaily(date, field) {
+  const rec = dailyOn(date);
+  if (!rec) return;
+  delete rec[field];
+  if (rec.src) delete rec.src[field];
+}
+
+/* ---------- baselines ----------
+   Compared against your own recent normal, never a target. A
+   10,000-step line drawn by a 1960s Japanese pedometer ad is not
+   a fact about your body. */
+function stepsBaseline(days) {
+  ensureDaily();
+  const n = days || 14;
+  const vals = [];
+  for (let i = 1; i <= n; i++) {
+    const s = stepsOn(addDays(today(), -i));
+    if (s) vals.push(s);
+  }
+  if (vals.length < 3) return null;
+  vals.sort((a, b) => a - b);
+  const mid = Math.floor(vals.length / 2);
+  return vals.length % 2 ? vals[mid] : Math.round((vals[mid - 1] + vals[mid]) / 2);
+}
+
+/* Returns a plain-language read of today against your own median.
+   No colour-coded judgement, no goal ring, no shortfall. */
+function stepsRead(n) {
+  const base = stepsBaseline();
+  if (!base || !n) return null;
+  const r = n / base;
+  if (r >= 1.6) return { k: 'high',  t: 'well above your usual day' };
+  if (r >= 1.25) return { k: 'up',   t: 'a busier day than usual' };
+  if (r <= 0.45) return { k: 'low',  t: 'a much quieter day than usual' };
+  if (r <= 0.75) return { k: 'down', t: 'a quieter day than usual' };
+  return { k: 'even', t: 'about your usual' };
+}
+
+function stepDays(n) {
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = addDays(today(), -i);
+    out.push({ d, v: stepsOn(d) });
+  }
+  return out;
+}
+
+/* ============================================================
+   INGEST
+   Two doors, because iOS may or may not hand a home-screen web app
+   a URL that a Shortcut opened. Whichever one works on your phone,
+   the other costs nothing to leave in place.
+   ============================================================ */
+
+/* Accepts, in rough order of how a Shortcut is likely to produce it:
+     guzo steps=12400 sleep=6.5 bw=82.1
+     steps=12400&sleep=6.5
+     {"steps":12400,"sleep":6.5}
+     12400                       ← a bare number means steps
+   Field aliases keep the Shortcut side forgiving. */
+function parseIngest(text) {
+  if (!text) return null;
+  const raw = String(text).trim();
+  if (!raw || raw.length > 400) return null;
+
+  const out = {};
+  const put = (key, val) => {
+    const map = { steps:'steps', step:'steps', s:'steps',
+                  sleep:'sleepH', sleeph:'sleepH', hours:'sleepH',
+                  bw:'bw', weight:'bw', bodyweight:'bw' };
+    const f = map[String(key).toLowerCase()];
+    if (!f) return;
+    const n = parseFloat(String(val).replace(/[^0-9.\-]/g, ''));
+    if (!isNaN(n)) out[f] = n;
+  };
+
+  /* bare number → steps */
+  if (/^\d{1,6}$/.test(raw)) { out.steps = parseInt(raw, 10); return out; }
+
+  /* JSON */
+  if (raw[0] === '{') {
+    try {
+      const o = JSON.parse(raw);
+      Object.keys(o).forEach(k => put(k, o[k]));
+      if (o.date && /^\d{4}-\d{2}-\d{2}$/.test(o.date)) out.date = o.date;
+      return Object.keys(out).length ? out : null;
+    } catch (e) { return null; }
+  }
+
+  /* key=value pairs, separated by spaces, & or , */
+  const pairs = raw.replace(/^guzo[:\s]*/i, '').split(/[\s&,]+/);
+  pairs.forEach(p => {
+    const m = p.split('=');
+    if (m.length === 2) put(m[0], m[1]);
+  });
+  const dm = raw.match(/date=(\d{4}-\d{2}-\d{2})/);
+  if (dm) out.date = dm[1];
+
+  return Object.keys(out).length ? out : null;
+}
+
+/* Applies a parsed payload. Returns a list of human-readable
+   descriptions of what actually landed, for the confirmation. */
+function applyIngest(parsed, src) {
+  if (!parsed) return [];
+  const date = parsed.date && /^\d{4}-\d{2}-\d{2}$/.test(parsed.date) ? parsed.date : today();
+  const done = [];
+  DAILY_FIELDS.forEach(f => {
+    if (parsed[f] == null) return;
+    if (setDaily(date, f, parsed[f], src || 'shortcut')) {
+      done.push(f === 'steps' ? fmtSteps(parsed.steps) + ' steps'
+              : f === 'sleepH' ? parsed.sleepH + 'h sleep'
+              : parsed.bw + ' ' + unit());
+    }
+  });
+  if (done.length) save(true);
+  return done;
+}
+
+/* Door one: a Shortcut opens https://…/?steps=12400&sleep=6.5
+   Absorbed at boot, then scrubbed from the address bar so a reload
+   can never double-apply it or leave your data sitting in history. */
+function ingestFromURL() {
+  try {
+    if (!location.search || location.search.length < 3) return [];
+    const q = new URLSearchParams(location.search);
+    const obj = {};
+    ['steps', 'sleep', 'sleepH', 'bw', 'weight', 'date'].forEach(k => {
+      if (q.has(k)) obj[k] = q.get(k);
+    });
+    if (!Object.keys(obj).length) return [];
+
+    const parsed = {};
+    if (obj.steps != null) parsed.steps = parseFloat(obj.steps);
+    if (obj.sleep != null || obj.sleepH != null) parsed.sleepH = parseFloat(obj.sleep != null ? obj.sleep : obj.sleepH);
+    if (obj.bw != null || obj.weight != null) parsed.bw = parseFloat(obj.bw != null ? obj.bw : obj.weight);
+    if (obj.date) parsed.date = obj.date;
+
+    const done = applyIngest(parsed, 'url');
+    history.replaceState(null, '', location.pathname);
+    return done;
+  } catch (e) { return []; }
+}
+
+/* Door two: the Shortcut copies the line, you tap Paste. iOS shows
+   its own paste confirmation — that prompt is the OS, not us. */
+function ingestFromClipboard() {
+  if (!navigator.clipboard || !navigator.clipboard.readText) {
+    toast('This browser will not hand over the clipboard');
+    return;
+  }
+  navigator.clipboard.readText().then(txt => {
+    const done = applyIngest(parseIngest(txt), 'shortcut');
+    if (!done.length) { toast('Nothing readable on the clipboard'); return; }
+    toast('Logged ' + done.join(', '), true);
+    sheetDaily();
+    render();
+  }).catch(() => toast('Clipboard was not shared'));
+}
+
+/* ---------- formatting ---------- */
+function fmtSteps(n) {
+  if (n == null) return '—';
+  return n >= 10000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n);
+}
+
+/* ============================================================
+   SCREEN WAKE LOCK
+   ------------------------------------------------------------
+   A phone that sleeps between sets is the single most irritating
+   thing about logging a workout on the web. The lock is dropped
+   by the browser whenever the page is hidden, so it has to be
+   re-taken every time you come back — answering a call, checking
+   a message, or just the screen timing out mid-rest.
+
+   Supported from Safari 16.4, but it silently did nothing inside
+   a home-screen web app until iOS 18.4. There is no way to detect
+   that from script: the promise resolves either way. So this is
+   best-effort, and the session screen says so rather than
+   promising something the OS may quietly refuse.
+   ============================================================ */
+let wakeSentinel = null;
+let wakeWanted = false;
+
+function wakeSupported() {
+  return !!(navigator.wakeLock && navigator.wakeLock.request);
+}
+
+async function wakeAcquire() {
+  if (!wakeWanted || !wakeSupported() || wakeSentinel) return;
+  try {
+    wakeSentinel = await navigator.wakeLock.request('screen');
+    wakeSentinel.addEventListener('release', () => { wakeSentinel = null; });
+  } catch (e) { wakeSentinel = null; }
+}
+
+function wakeOn() { wakeWanted = true; wakeAcquire(); }
+
+function wakeOff() {
+  wakeWanted = false;
+  if (wakeSentinel) { try { wakeSentinel.release(); } catch (e) {} }
+  wakeSentinel = null;
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') wakeAcquire();
+  else wakeSentinel = null;      // the browser has already dropped it
+});
+/* ============================================================
+   PLATE MATHS & LAST-TIME RECALL
+   ------------------------------------------------------------
+   Two small things that a logger is judged on, both of which
+   exist to stop you doing arithmetic while holding a bar.
+   ============================================================ */
+
+/* Plate weights need two decimals — fmtW rounds to one, which turns a
+   1.25kg change plate into "1.3" and has you reaching for the wrong one. */
+function fmtP(w) {
+  if (w == null || isNaN(w)) return '—';
+  return String(Math.round(w * 100) / 100);
+}
+
+/* ---------- what's on the rack ---------- */
+const PLATE_DEFAULTS = {
+  kg: { bar: 20, plates: [25, 20, 15, 10, 5, 2.5, 1.25] },
+  lb: { bar: 45, plates: [45, 35, 25, 10, 5, 2.5] }
+};
+
+/* Competition colours where they exist, because a red plate reads
+   faster than the number printed on it. The lb set has no agreed
+   standard, so it borrows the nearest kg equivalent. */
+const PLATE_COLOUR = {
+  kg: { 25:'#d94f4f', 20:'#4a7fd4', 15:'#e0c04a', 10:'#4fb372', 5:'#d8dde3', 2.5:'#b7452f', 1.25:'#9aa4b0', 0.5:'#7d8894' },
+  lb: { 45:'#4a7fd4', 35:'#e0c04a', 25:'#4fb372', 10:'#d8dde3', 5:'#4a7fd4', 2.5:'#b7452f' }
+};
+
+function plateCfg() {
+  const u = unit();
+  const d = PLATE_DEFAULTS[u] || PLATE_DEFAULTS.kg;
+  const s = S.settings || {};
+  const bar = s['bar' + u.toUpperCase()];
+  const plates = s['plates' + u.toUpperCase()];
+  return {
+    unit: u,
+    bar: typeof bar === 'number' && bar >= 0 ? bar : d.bar,
+    plates: Array.isArray(plates) && plates.length ? plates.slice().sort((a, b) => b - a) : d.plates,
+    defaults: d
+  };
+}
+
+function setBarWeight(w) {
+  const n = parseFloat(w);
+  if (isNaN(n) || n < 0 || n > 60) return false;
+  S.settings['bar' + unit().toUpperCase()] = Math.round(n * 100) / 100;
+  save(true);
+  return true;
+}
+
+function togglePlate(w) {
+  const cfg = plateCfg();
+  const key = 'plates' + cfg.unit.toUpperCase();
+  const cur = (S.settings[key] || cfg.defaults.plates).slice();
+  const i = cur.indexOf(w);
+  if (i >= 0) { if (cur.length <= 1) return false; cur.splice(i, 1); }
+  else cur.push(w);
+  S.settings[key] = cur.sort((a, b) => b - a);
+  save(true);
+  return true;
+}
+
+/* ---------- the maths ----------
+   Greedy from the heaviest plate down. With any real plate set that is
+   optimal, and where it cannot land exactly it reports the gap rather
+   than rounding silently — being told "2.5 short" is useful; being
+   quietly handed the wrong weight is not. */
+function platesFor(total) {
+  const cfg = plateCfg();
+  const t = parseFloat(total);
+  if (isNaN(t)) return null;
+  if (t < cfg.bar - 0.001) return { impossible: true, bar: cfg.bar, target: t, unit: cfg.unit };
+  if (Math.abs(t - cfg.bar) < 0.001) return { barOnly: true, bar: cfg.bar, target: t, achieved: cfg.bar, exact: true, perSide: [], unit: cfg.unit };
+
+  let perSideLeft = (t - cfg.bar) / 2;
+  const used = [];
+  cfg.plates.forEach(pw => {
+    const n = Math.floor((perSideLeft + 1e-6) / pw);
+    if (n > 0) { used.push({ w: pw, n }); perSideLeft -= n * pw; }
+  });
+  const loaded = used.reduce((a, p) => a + p.w * p.n, 0);
+  const achieved = cfg.bar + loaded * 2;
+  return {
+    bar: cfg.bar, target: t, perSide: used, unit: cfg.unit,
+    achieved: Math.round(achieved * 100) / 100,
+    exact: Math.abs(achieved - t) < 0.001,
+    short: Math.round((t - achieved) * 100) / 100
+  };
+}
+
+/* "20 + 10 + 2.5" — the line you read at the rack. */
+function plateLine(total) {
+  const r = platesFor(total);
+  if (!r || r.impossible) return null;
+  if (r.barOnly || !r.perSide.length) return 'bar only';
+  return r.perSide.map(p => (p.n > 1 ? p.n + '×' + fmtP(p.w) : fmtP(p.w))).join(' + ');
+}
+
+/* Only barbell work loads plates. A dumbbell press showing a plate
+   breakdown would be noise, and a machine one would be wrong. */
+function usesPlates(exId) {
+  const ex = EX[exId];
+  return !!(ex && ex.eq === 'Barbell');
+}
+
+/* ============================================================
+   LAST TIME
+   ------------------------------------------------------------
+   Read straight out of the session history rather than a separate
+   store, so it works retroactively on everything already logged
+   and can never drift out of step with what actually happened.
+   ============================================================ */
+function lastPerformance(exId, beforeDate) {
+  const list = S.sessions || [];
+  if (!exId) return null;
+  for (let i = list.length - 1; i >= 0; i--) {
+    const s = list[i];
+    if (!s.ended) continue;
+    if (beforeDate && s.date >= beforeDate) continue;
+    const item = (s.exercises || []).find(x => x.exId === exId);
+    if (!item) continue;
+    const sets = item.sets.filter(x => x.done);
+    if (!sets.length) continue;
+    return { date: s.date, sets, daysAgo: daysBetween(s.date, today()) };
+  }
+  return null;
+}
+
+/* Defensive on purpose: this runs inside the render path for every card on
+   the training screen. One malformed date in the history should cost you a
+   "last time" line, not the whole session. */
+function daysBetween(a, b) {
+  try {
+    if (typeof a !== 'string' || typeof b !== 'string') return 0;
+    const d = (fromKey(b) - fromKey(a)) / 86400000;
+    if (isNaN(d)) return 0;
+    return Math.max(0, Math.round(d));
+  } catch (e) { return 0; }
+}
+
+function agoLabel(days) {
+  if (days <= 0) return 'earlier today';
+  if (days === 1) return 'yesterday';
+  if (days < 7) return days + ' days ago';
+  if (days < 14) return 'last week';
+  if (days < 60) return Math.round(days / 7) + ' weeks ago';
+  return Math.round(days / 30) + ' months ago';
+}
+
+/* "82.5×8, 82.5×8, 80×6" — trimmed so it never wraps onto a third line. */
+function lastLine(exId, maxSets) {
+  let p = null;
+  try { p = lastPerformance(exId); } catch (e) { return null; }
+  if (!p) return null;
+  const cap = maxSets || 4;
+  const parts = p.sets.slice(0, cap).map(s => {
+    const w = (+s.w > 0) ? fmtW(+s.w) : '';
+    const r = s.r !== '' && s.r != null ? s.r : '–';
+    return w ? w + '×' + r : String(r);
+  });
+  const extra = p.sets.length - parts.length;
+  return { text: parts.join(', ') + (extra > 0 ? ' +' + extra : ''), ago: agoLabel(p.daysAgo), date: p.date };
+}
+
+/* The set you did in this slot last time, for the per-row hint. */
+function lastSetAt(exId, idx) {
+  const p = lastPerformance(exId);
+  if (!p || !p.sets[idx]) return null;
+  return p.sets[idx];
+}
+/* ============================================================
    ONBOARDING
    One decision per screen, grouped into four short chapters.
    Every question changes generated sessions — nothing is asked
@@ -3428,6 +4436,9 @@ function renderToday() {
     <span class="strip-chev">›</span>
   </button>`;
 
+  /* ── 3b. the day around the training ──────────────────────── */
+  html += dayStripHTML();
+
   /* ── 4. context: only when there's something to say ───────── */
   if (S.sessions.filter(s => s.ended).length === 0) {
     html += `<div class="note mt"><p class="note-t">Nothing logged yet.</p><p class="note-b">Pick any size you like — the smallest one counts exactly the same as the largest.</p></div>`;
@@ -3618,6 +4629,14 @@ function renderTrain() {
     <div class="bar"><i id="tp-fill" style="width:${pct}%"></i></div>
   </div>`;
 
+  /* Say so when the browser cannot hold the screen on. Silently failing to
+     keep the screen awake is worse than admitting it, because the fix — one
+     setting — takes ten seconds and the alternative is unlocking your phone
+     between every single set. */
+  if (!wakeSupported()) {
+    html += `<div class="banner soft mb"><strong>Your screen may sleep mid-set.</strong> This browser can't hold it awake. Settings &rarr; Display &amp; Brightness &rarr; Auto-Lock &rarr; Never for the session.</div>`;
+  }
+
   if (A.micro) {
     html += `<div class="banner warm mb">${EVIDENCE.micro}<span class="src">${EVIDENCE.microSrc}</span></div>`;
   }
@@ -3706,20 +4725,24 @@ function exCardHTML(item, ei) {
         <div class="ex-meta">${h(ex.primary)}${ex.sec && ex.sec.length ? ' · ' + h(ex.sec.join(', ')) : ''}</div>
       </button>
       <div class="row gap-s">
+        <button class="btn xs icon" data-act="ex-form" data-i="${ei}" data-v="${h(item.exId)}" aria-label="How to do it">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.4v.4"/><path d="M12 17h.01"/></svg>
+        </button>
         <button class="btn xs ghost" data-act="swap-ex" data-i="${ei}">Swap</button>
         <button class="btn xs quiet" data-act="ex-menu" data-i="${ei}">⋯</button>
       </div>
     </div>
     <div class="ex-body">
-      ${item.targetR ? `<div class="ex-target"><span>Target</span> <strong>${item.targetW != null && item.targetW !== '' ? fmtW(item.targetW) + unit() + ' × ' : ''}${item.targetR}${isTime?'s':''}</strong>${last && last.w ? `<span class="ex-target-sub">last ${fmtW(last.w)}${unit()}</span>` : ''}${item.deloaded ? '<span class="ex-target-sub">−10%</span>' : ''}${exerciseKcal(item) ? `<span class="ex-kcal">${exerciseKcal(item)} kcal</span>` : ''}</div>` : ''}
+      ${item.targetR ? `<div class="ex-target"><span>Target</span> <strong>${item.targetW != null && item.targetW !== '' ? fmtW(item.targetW) + unit() + ' × ' : ''}${item.targetR}${isTime?'s':''}</strong>${item.deloaded ? '<span class="ex-target-sub">−10%</span>' : ''}${exerciseKcal(item) ? `<span class="ex-kcal">${exerciseKcal(item)} kcal</span>` : ''}</div>` : ''}
+      ${recallRowHTML(item)}
       <div class="set-head"><span>SET</span><span>${item.load==='bw'?'ADDED':'WEIGHT'}</span><span>${unitLbl}</span><span>RPE</span><span></span></div>
       ${item.sets.map((st, si) => `
         <div class="set-row ${st.done?'done':''}">
           <div class="sn">${si+1}</div>
-          <input class="set-in" type="number" inputmode="decimal" step="0.5" placeholder="${item.targetW != null && item.targetW !== '' ? fmtW(item.targetW) : (item.load==='bw'?'0':'–')}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
-          <input class="set-in" type="number" inputmode="numeric" placeholder="${item.targetR||''}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
-          <input class="set-in" type="number" inputmode="decimal" step="0.5" min="1" max="10" placeholder="–" value="${st.rpe===''?'':h(st.rpe)}" data-set="rpe" data-i="${ei}" data-s="${si}">
-          <button class="tick ${st.done?'on':''}" data-act="toggle-set" data-i="${ei}" data-s="${si}">
+          <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${item.targetW != null && item.targetW !== '' ? fmtW(item.targetW) : (item.load==='bw'?'0':'–')}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
+          <input class="set-in" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" aria-label="${unitLbl==='REPS'?'Reps':unitLbl==='SECS'?'Seconds':'Minutes'}, set ${si+1}" placeholder="${item.targetR||''}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
+          <input class="set-in" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="RPE, set ${si+1}" placeholder="–" value="${st.rpe===''?'':h(st.rpe)}" data-set="rpe" data-i="${ei}" data-s="${si}">
+          <button class="tick ${st.done?'on':''}" data-act="toggle-set" data-i="${ei}" data-s="${si}" aria-label="${st.done?'Undo set':'Mark set'} ${si+1} ${st.done?'':'done'}" aria-pressed="${st.done?'true':'false'}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
           </button>
         </div>`).join('')}
@@ -3732,6 +4755,66 @@ function exCardHTML(item, ei) {
 }
 
 /* In-place progress update so logging never rebuilds the DOM under your thumb */
+/* The weight the plate line should describe: whatever is typed into the
+   first set if anything is, otherwise the prescription. A stale plate count
+   is worse than none — it would have you loading the wrong bar with
+   confidence. */
+function plateWeightFor(item) {
+  const typed = item.sets && item.sets.length ? parseFloat(item.sets[0].w) : NaN;
+  if (!isNaN(typed) && typed > 0) return typed;
+  const t = parseFloat(item.targetW);
+  return isNaN(t) ? 0 : t;
+}
+
+/* Updated in place while you type, so the keyboard never closes. */
+function refreshPlateRow(ei) {
+  if (!S.active) return;
+  const item = S.active.exercises[ei];
+  const card = document.querySelector('.ex-card[data-ei="' + ei + '"]');
+  if (!item || !card) return;
+  const row = card.querySelector('.recall.plates');
+  if (!row || !usesPlates(item.exId)) return;
+  const w = plateWeightFor(item);
+  const line = plateLine(w);
+  if (!line) return;
+  const r = platesFor(w);
+  row.dataset.v = w;
+  const v = row.querySelector('.recall-v');
+  const ago = row.querySelector('.recall-ago');
+  if (v) v.textContent = line;
+  if (ago) ago.textContent = r && !r.exact ? fmtP(r.achieved) + unit() : 'per side';
+}
+
+/* What you actually did last time, and what to hang on the bar today.
+   Both sit directly above the set rows, because that is where you look
+   between racking the weight and starting the set. */
+function recallRowHTML(item) {
+  const bits = [];
+
+  const L = lastLine(item.exId);
+  if (L) {
+    bits.push(`<div class="recall"><span class="recall-k">Last</span>
+      <span class="recall-v mono">${h(L.text)}</span>
+      <span class="recall-ago">${h(L.ago)}</span></div>`);
+  }
+
+  if (usesPlates(item.exId)) {
+    const w = plateWeightFor(item);
+    if (!(w > 0)) return bits.join('');
+    const line = plateLine(w);
+    const r = platesFor(w);
+    if (line) {
+      bits.push(`<button class="recall plates" data-act="plate-calc" data-v="${w}">
+        <span class="recall-k">Bar</span>
+        <span class="recall-v mono">${h(line)}</span>
+        <span class="recall-ago">${r && !r.exact ? fmtP(r.achieved) + unit() : 'per side'}</span>
+        <span class="recall-chev">›</span>
+      </button>`);
+    }
+  }
+  return bits.join('');
+}
+
 function updateTrainProgress() {
   const A = S.active;
   if (!A) return;
@@ -4010,6 +5093,7 @@ function renderMore() {
       <div class="grow"><div class="h3">Mobility warm-up</div><div class="tiny mt-s">Adds one short mobility movement to the start of full sessions</div></div>
       <div class="switch ${S.settings.warmup?'on':''}"></div>
     </div>
+    <div class="lrow" data-act="plate-settings"><div class="ico">🏋️</div><div class="grow"><div class="h3">Bar and plates</div><div class="tiny mt-s">${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand</div></div><span class="small">›</span></div>
     <div class="lrow" data-act="rest-settings"><div class="ico">⏱</div><div class="grow"><div class="h3">Rest timers</div><div class="tiny mt-s">${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest?'on':'off'}</div></div><span class="small">›</span></div>
   </div>`;
 
@@ -4044,7 +5128,9 @@ function renderMore() {
    SHEETS
    ============================================================ */
 function sheetReadiness(draft) {
-  const r = draft || window._rdDraft || S.readiness[today()] || { sleepH:7, sleepQ:3, energy:3, sore:3, stress:3 };
+  const pre = sleepPrefill();
+  const r = draft || window._rdDraft || S.readiness[today()] ||
+            { sleepH: pre ? pre.h : 7, sleepQ:3, energy:3, sore:3, stress:3 };
   const dots = (name, val, labels) => `
     <div class="field mt">
       <div class="row between"><div class="label">${name}</div><div class="tiny">${labels[val-1]}</div></div>
@@ -4056,9 +5142,10 @@ function sheetReadiness(draft) {
       
     </div>
     <p class="small mb">No wearable knows you did a fourteen-hour day on your feet, slept five hours in a hotel and are carrying a camera tomorrow. So it asks.</p>
+    ${pre && !S.readiness[today()] ? `<div class="banner soft mb">Sleep filled in from ${SRC_LABEL[pre.src] || pre.src}. Change it if it is wrong &mdash; you were there, it wasn't.</div>` : ''}
 
     <div class="field">
-      <div class="row between"><div class="label">Hours of sleep</div><div class="tiny mono">${r.sleepH}h</div></div>
+      <div class="row between"><div class="label">Hours of sleep${pre && !S.readiness[today()] ? `<span class="src-chip">${SRC_LABEL[pre.src] || pre.src}</span>` : ''}</div><div class="tiny mono">${r.sleepH}h</div></div>
       <div class="stepper">
         <button data-act="rd-sleep" data-v="-0.5">−</button>
         <input id="rd-sleepH" type="text" value="${r.sleepH}" readonly>
@@ -4373,6 +5460,7 @@ const HELP_PAGES = {
   terms: { ico:'📖', title:'Terms explained',   sub:'RPE, 1RM, double progression, deload, tonnage' },
   start: { ico:'▶️', title:'Getting started',   sub:'Your first week, and what to do on a bad one' },
   data:  { ico:'💾', title:'Install & backups', sub:'Home screen, exporting, restoring, resetting' },
+  shortcut: { ico:'📲', title:'Steps &amp; sleep from Health', sub:'Build the shortcut that hands Apple Health over' },
   why:   { ico:'🔬', title:'The evidence',      sub:'The research this app is built on' }
 };
 
@@ -4661,6 +5749,380 @@ function sheetJourney() {
     <div class="banner soft">ጉዞ · <em>guzo</em> · Amharic for journey. The markers are not goals and missing one costs nothing — they are just places worth noticing as you pass them.</div>
   `);
 }
+
+
+/* ---------- the Shortcut recipe ---------- */
+HELP_BODY.shortcut = () => `
+  <h2 class="h1">Steps &amp; sleep from Health</h2>
+  <p class="small mt-s mb">A web app cannot read Apple Health &mdash; no browser can, on any phone. But the Shortcuts app can, and it can hand the numbers to Guzo. Five minutes once, then a tap a day.</p>
+
+  <div class="note mb">
+    <p class="note-t">Build it</p>
+    <p class="note-b">Open <strong>Shortcuts</strong> &rarr; <strong>+</strong> &rarr; add these four actions in order:</p>
+  </div>
+
+  <div class="card flat mb">
+    <div class="eyebrow mb-s">1 &middot; Find Health Samples</div>
+    <p class="small">Set <strong>Type</strong> to <em>Steps</em>. Tap <strong>Sort by</strong> &rarr; <em>Start Date</em>. Add a filter: <strong>Start Date</strong> is <em>today</em>.</p>
+  </div>
+  <div class="card flat mb">
+    <div class="eyebrow mb-s">2 &middot; Calculate Statistics</div>
+    <p class="small">Operation <strong>Sum</strong>, over the Health Samples from step 1. This collapses the day's samples into one number.</p>
+  </div>
+  <div class="card flat mb">
+    <div class="eyebrow mb-s">3 &middot; Text</div>
+    <p class="small mono" style="font-size:12.5px">steps=<span class="em">[Statistics]</span></p>
+    <p class="tiny mt-s">Type the words, then insert the result from step 2 as a variable where the highlight is. To add sleep, repeat steps 1&ndash;2 with Type <em>Sleep Analysis</em> and make the line <span class="mono">steps=X sleep=Y</span>.</p>
+  </div>
+  <div class="card flat mb">
+    <div class="eyebrow mb-s">4 &middot; Copy to Clipboard</div>
+    <p class="small">Pass the Text from step 3 into it. Name the shortcut <strong>Guzo</strong> and save.</p>
+  </div>
+
+  <div class="note sky mb">
+    <p class="note-t">Use it</p>
+    <p class="note-b">Run the shortcut, open Guzo, tap the strip on Today, then <strong>Paste from Shortcut</strong>. iOS asks before sharing the clipboard &mdash; that prompt is the system, not this app.</p>
+  </div>
+
+  <div class="card flat mb">
+    <div class="eyebrow mb-s">The faster version</div>
+    <p class="small">Swap step 4 for <strong>Open URLs</strong> with <span class="mono" style="font-size:12px">https://your-address/?steps=X&amp;sleep=Y</span>. Guzo reads it on open and wipes it from the address bar. This skips the paste entirely &mdash; but if Guzo lives on your home screen, iOS may open that link in Safari instead, which is a separate copy of your data. Try it; if the number lands in the wrong place, use the clipboard version.</p>
+  </div>
+
+  <div class="card flat mb">
+    <div class="eyebrow mb-s">Make it automatic</div>
+    <p class="small">Shortcuts &rarr; <strong>Automation</strong> &rarr; <strong>+</strong> &rarr; <em>Time of Day</em>. Pick an hour you are usually finished &mdash; and set <strong>Run Immediately</strong> so it does not ask.</p>
+  </div>
+
+  <p class="small mt-l">Once Guzo is a native app, all of this disappears: it reads Health directly, in the background, with no shortcut and no tap. This is the bridge until then.</p>
+  <p class="tiny mt">None of these numbers change your programme yet. They are being collected so the question can eventually be answered with your training rather than an assumption.</p>
+`;
+
+/* ============================================================
+   EXERCISE GUIDE
+   ------------------------------------------------------------
+   One sheet, reachable from inside a session, that always has
+   something to say. Diagram if we drew one, pattern guidance if
+   we did not, and a slot for a video you trust more than either.
+   ============================================================ */
+
+function videoFor(exId) {
+  return (S.videos && S.videos[exId]) || null;
+}
+
+/* Only ever store a plain http(s) URL. Anything else — javascript:,
+   data:, a stray bit of markup — is refused outright rather than
+   sanitised, because a link you cannot trust is worth nothing. */
+function setVideo(exId, url) {
+  const u = String(url || '').trim();
+  if (!u) { if (S.videos) delete S.videos[exId]; save(true); return true; }
+  if (!/^https?:\/\/[^\s<>"']+$/i.test(u) || u.length > 500) return false;
+  if (!S.videos) S.videos = {};
+  S.videos[exId] = u;
+  save(true);
+  return true;
+}
+
+function videoSearchURL(name) {
+  return 'https://www.youtube.com/results?search_query=' +
+         encodeURIComponent(name + ' proper form technique');
+}
+
+function sheetExerciseGuide(exId, fromSession) {
+  const ex = EX[exId];
+  const F = FORMS[exId];
+  const G = guideFor(exId);
+  const name = F ? F.name : (ex ? ex.name : 'Exercise');
+  const vid = videoFor(exId);
+
+  if (!ex && !F) { toast('Nothing on file for that one'); return; }
+
+  const block = (title, items, cls) => !items || !items.length ? '' : `
+    <div class="eyebrow mt-l mb-s">${title}</div>
+    <div class="list">
+      ${items.map((c, i) => `<div class="lrow"><div class="${cls}">${cls === 'cue-x' ? '!' : i + 1}</div><div class="grow"><div class="small" style="color:var(--text-dim)">${h(c)}</div></div></div>`).join('')}
+    </div>`;
+
+  const setup = F ? F.setup : (G ? G.setup : null);
+  const cues  = F ? F.cues  : (G ? G.cues  : null);
+  const faults= F ? F.faults: (G ? G.faults: null);
+
+  openSheet(`
+    <h2 class="h1">${h(name)}</h2>
+    ${ex ? `<div class="row wrap gap-s mt-s">
+      <span class="pill">${h(ex.primary)}</span>
+      ${(ex.sec || []).map(m => `<span class="pill">${h(m)}</span>`).join('')}
+      <span class="pill">${ex.rl}–${ex.rh} reps</span>
+    </div>` : ''}
+
+    ${F ? `
+      <div class="formframes mt">
+        ${F.frames.map((fr, i) => `
+          <figure class="formframe">
+            <div class="formfig-wrap">${formSVG(fr)}</div>
+            <figcaption>${F.labels[i]}</figcaption>
+          </figure>`).join('')}
+      </div>` : `
+      <div class="banner soft mt">No diagram drawn for this one yet — the guidance below is for the ${h((PATTERN_LABEL[ex.pattern] || 'movement')).toLowerCase()} pattern it belongs to, which is where most of the useful instruction lives anyway.</div>`}
+
+    <!-- ---------- video ---------- -->
+    <div class="vid-box mt">
+      <div class="row between">
+        <div class="eyebrow">Video</div>
+        ${vid ? `<button class="btn xs quiet" data-act="vid-edit" data-v="${h(exId)}">Change</button>` : ''}
+      </div>
+      ${vid ? `
+        <a class="btn block mt-s" href="${h(vid)}" target="_blank" rel="noopener noreferrer">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 3l14 9-14 9V3z" stroke-linejoin="round"/></svg>
+          Watch your clip
+        </a>
+        <p class="tiny center mt-s">Opens outside the app. Your session stays exactly where you left it.</p>
+      ` : `
+        <p class="small mt-s">Link a clip you trust and it stays attached to this exercise, in every session it appears in.</p>
+        <div class="row gap-s mt-s">
+          <button class="btn sm grow" data-act="vid-edit" data-v="${h(exId)}">Link a video</button>
+          <a class="btn sm ghost grow" href="${h(videoSearchURL(name))}" target="_blank" rel="noopener noreferrer" style="text-align:center">Find one</a>
+        </div>
+      `}
+    </div>
+
+    ${setup ? `
+      <div class="card mt-l">
+        <div class="eyebrow">Set-up</div>
+        <p class="small mt-s" style="color:var(--text-dim)">${h(setup)}</p>
+      </div>` : ''}
+
+    ${block('Cues while you lift', cues, 'cue-n')}
+    ${block('Common faults', faults, 'cue-x')}
+
+    <div class="banner soft mt-l">Stylised diagrams and general cues, not a coaching qualification. If a lift hurts, stop — and flag the area in your profile so it stops being programmed.</div>
+    ${fromSession ? `<button class="btn primary block lg mt" data-act="close">Back to the session</button>` : ''}
+  `);
+}
+
+/* ---------- linking a video ---------- */
+function sheetVideoLink(exId) {
+  const ex = EX[exId];
+  const name = ex ? ex.name : 'this exercise';
+  const cur = videoFor(exId) || '';
+  openSheet(`
+    <h2 class="h1">Link a video</h2>
+    <p class="small mt-s mb">Paste a link to a clip that shows <strong>${h(name)}</strong> the way you want to do it. It stays attached to this exercise everywhere it turns up.</p>
+    <div class="field">
+      <div class="label">Address</div>
+      <input class="input" id="vid-url" type="url" inputmode="url" autocomplete="off"
+             placeholder="https://…" value="${h(cur)}">
+    </div>
+    <button class="btn primary block lg mt" data-act="vid-save" data-v="${h(exId)}">Save link</button>
+    ${cur ? `<button class="btn ghost block mt-s" data-act="vid-clear" data-v="${h(exId)}">Remove it</button>` : ''}
+    <a class="btn ghost block mt-s" href="${h(videoSearchURL(name))}" target="_blank" rel="noopener noreferrer" style="text-align:center">Search for one first</a>
+    <p class="tiny center mt">Only the address is stored, on this device. Nothing is downloaded and no video is played inside the app.</p>
+  `);
+}
+/* ============================================================
+   DAILY METRICS — interface
+   ============================================================ */
+
+/* The strip on Today. Three numbers, no rings, no targets, no red.
+   A blank field reads as "not known", never as "you failed to". */
+function dayStripHTML() {
+  const d = dailyToday() || {};
+  const st = d.steps || null;
+  const sl = d.sleepH || null;
+  const bw = bodyKg() != null && (S.profile.bodyweight || []).length
+             ? (S.profile.bodyweight[S.profile.bodyweight.length - 1].w) : null;
+  const read = st ? stepsRead(st) : null;
+
+  const cell = (val, key, dim) => `
+    <div class="day-cell">
+      <div class="day-v ${val == null ? 'empty' : ''}">${val == null ? '—' : val}${dim ? `<span class="day-u">${dim}</span>` : ''}</div>
+      <div class="day-k">${key}</div>
+    </div>`;
+
+  return `<button class="day-strip" data-act="daily">
+    ${cell(st != null ? fmtSteps(st) : null, 'Steps')}
+    ${cell(sl != null ? sl : null, 'Sleep', 'h')}
+    ${cell(bw != null ? bw : null, 'Weight', ' ' + unit())}
+    <div class="day-note">${read ? h(read.t) : 'Tap to log the day around it'}</div>
+  </button>`;
+}
+
+/* ---------- the sheet ---------- */
+function sheetDaily(date) {
+  const d = date || today();
+  const rec = dailyOn(d) || {};
+  const isToday = d === today();
+
+  const srcChip = f => {
+    const s = rec.src && rec.src[f];
+    if (!s || rec[f] == null) return '';
+    return `<span class="src-chip">${SRC_LABEL[s] || s}</span>`;
+  };
+
+  const field = (f, label, hint, step) => `
+    <div class="field mt">
+      <div class="row between">
+        <div class="label">${label} ${srcChip(f)}</div>
+        <div class="tiny">${hint}</div>
+      </div>
+      <input class="input mono" type="number" inputmode="decimal" step="${step}"
+             id="dm-${f}" data-dm="${f}" data-date="${d}"
+             value="${rec[f] != null ? rec[f] : ''}" placeholder="—">
+    </div>`;
+
+  const days = stepDays(7);
+  const vals = days.map(x => x.v).filter(Boolean);
+  const base = stepsBaseline();
+
+  openSheet(`
+    <div class="row between mb">
+      <h2 class="h1">The day around it</h2>
+    </div>
+    <p class="small mb">Steps, sleep and bodyweight for ${isToday ? 'today' : h(prettyDate(d))}. None of this changes your programme &mdash; it is being collected so that one day it can be tested against your own training instead of somebody's assumption.</p>
+
+    ${field('steps', 'Steps', 'whole number', '1')}
+    ${field('sleepH', 'Sleep', 'hours', '0.5')}
+    ${field('bw', 'Bodyweight', unit(), '0.1')}
+
+    <button class="btn block mt-l" data-act="daily-paste">
+      Paste from Shortcut
+    </button>
+    <p class="tiny center mt-s">Run your Health shortcut, then tap this. iOS will ask before sharing the clipboard &mdash; that prompt is the system, not Guzo.</p>
+
+    ${vals.length >= 3 ? `
+      <div class="card flat mt-l">
+        <div class="eyebrow mb-s">Last seven days</div>
+        ${sparkHTML(days.map(x => x.v || 0))}
+        <div class="row between mt-s">
+          <div class="tiny">${base ? 'Your usual: ' + fmtSteps(base) : ''}</div>
+          <div class="tiny">${vals.length} of 7 days logged</div>
+        </div>
+      </div>` : ''}
+
+    <button class="btn ghost block mt" data-act="help-open" data-v="shortcut">How to set up the shortcut</button>
+  `);
+}
+
+/* ---------- readiness prefill ----------
+   If sleep is already known for today, the check-in should not ask
+   again. It shows the number it has, says where it came from, and
+   lets you overrule it — a sensor that disagrees with you about
+   your own night should lose. */
+function sleepPrefill() {
+  const s = sleepOn(today());
+  if (s == null) return null;
+  const rec = dailyToday();
+  return { h: s, src: (rec.src && rec.src.sleepH) || 'manual' };
+}
+
+/* ============================================================
+   PLATE CALCULATOR
+   ============================================================ */
+
+/* A plate drawn to roughly the proportions of the real thing: taller
+   for heavier, and coloured the way a competition plate is, so the
+   stack is readable at arm's length without reading any numbers. */
+function plateStackHTML(perSide, unitKey) {
+  const cols = PLATE_COLOUR[unitKey] || {};
+  const max = perSide.length ? Math.max(...perSide.map(p => p.w)) : 1;
+  let html = '<div class="plate-stack"><div class="plate-sleeve"></div>';
+  perSide.forEach(p => {
+    for (let i = 0; i < p.n; i++) {
+      const hgt = 34 + Math.round((p.w / max) * 52);
+      const wide = p.w >= max * 0.5 ? 15 : 11;
+      html += `<div class="plate" style="height:${hgt}px;width:${wide}px;background:${cols[p.w] || '#8b95a1'}"></div>`;
+    }
+  });
+  html += '<div class="plate-collar"></div></div>';
+  return html;
+}
+
+function sheetPlateCalc(target) {
+  const t = parseFloat(target);
+  const r = platesFor(t);
+  const cfg = plateCfg();
+  const u = cfg.unit;
+
+  if (!r) { toast('No weight to work from'); return; }
+
+  let body;
+  if (r.impossible) {
+    body = `<div class="card accent center mt">
+      <p class="small">${fmtP(t)}${u} is less than the bar on its own (${fmtP(r.bar)}${u}).</p>
+      <p class="tiny mt-s">Use a lighter bar, or the dumbbell version of this movement.</p>
+    </div>`;
+  } else if (r.barOnly || !r.perSide.length) {
+    body = `<div class="card accent center mt"><p class="h2">Just the bar</p>
+      <p class="small mt-s">${fmtP(r.bar)}${u}, nothing on the sleeves.</p></div>`;
+  } else {
+    body = `
+      <div class="plate-figure">${plateStackHTML(r.perSide, u)}</div>
+      <div class="plate-list mt">
+        ${r.perSide.map(p => `<div class="plate-row">
+          <span class="plate-dot" style="background:${(PLATE_COLOUR[u] || {})[p.w] || '#8b95a1'}"></span>
+          <span class="grow">${fmtP(p.w)}${u}</span>
+          <span class="mono">× ${p.n}</span>
+        </div>`).join('')}
+        <div class="plate-row total">
+          <span class="grow">Each side</span>
+          <span class="mono">${fmtP((r.achieved - r.bar) / 2)}${u}</span>
+        </div>
+        <div class="plate-row">
+          <span class="grow">Bar</span>
+          <span class="mono">${fmtP(r.bar)}${u}</span>
+        </div>
+      </div>
+      ${!r.exact ? `<div class="banner warm mt">
+        Closest you can load is <strong>${fmtP(r.achieved)}${u}</strong> &mdash;
+        ${r.short > 0 ? fmtP(Math.abs(r.short)) + u + ' under' : fmtP(Math.abs(r.short)) + u + ' over'} the target.
+        Take it; the difference is smaller than day-to-day variation.
+      </div>` : ''}`;
+  }
+
+  openSheet(`
+    <div class="center">
+      <div class="eyebrow">Load the bar</div>
+      <div class="plate-total mono">${fmtP(r.impossible ? t : r.achieved)}<span class="plate-unit">${u}</span></div>
+    </div>
+    ${body}
+    <button class="btn ghost block mt-l" data-act="plate-settings">Bar and plates</button>
+  `);
+}
+
+function sheetPlateSettings() {
+  const cfg = plateCfg();
+  const u = cfg.unit;
+  const all = (PLATE_DEFAULTS[u] || PLATE_DEFAULTS.kg).plates
+    .concat(u === 'kg' ? [0.5] : [])
+    .filter((v, i, a) => a.indexOf(v) === i)
+    .sort((a, b) => b - a);
+
+  openSheet(`
+    <h2 class="h1">Bar and plates</h2>
+    <p class="small mt-s mb">What you actually have to work with. The calculator only ever suggests plates you have ticked.</p>
+
+    <div class="field">
+      <div class="row between"><div class="label">Bar weight</div><div class="tiny mono">${fmtP(cfg.bar)} ${u}</div></div>
+      <div class="stepper">
+        <button data-act="bar-adj" data-v="${u === 'kg' ? -2.5 : -5}">&minus;</button>
+        <input type="text" value="${fmtP(cfg.bar)}" readonly>
+        <button data-act="bar-adj" data-v="${u === 'kg' ? 2.5 : 5}">+</button>
+      </div>
+      <p class="tiny mt-s">Standard Olympic bars are ${u === 'kg' ? '20kg; women\’s bars are 15kg' : '45lb; women\’s bars are 35lb'}. Fixed and hotel bars vary &mdash; weigh yours once.</p>
+    </div>
+
+    <div class="eyebrow mt-l mb-s">Plates on hand</div>
+    <div class="plate-picker">
+      ${all.map(w => {
+        const on = cfg.plates.indexOf(w) >= 0;
+        return `<button class="plate-chip ${on ? 'on' : ''}" data-act="plate-toggle" data-v="${w}">
+          <span class="plate-dot" style="background:${(PLATE_COLOUR[u] || {})[w] || '#8b95a1'}"></span>${fmtP(w)}
+        </button>`;
+      }).join('')}
+    </div>
+    <p class="tiny mt">Pairs are assumed &mdash; a ticked plate means you have at least two.</p>
+  `);
+}
 /* ============================================================
    REST TIMER
    ============================================================ */
@@ -4704,6 +6166,7 @@ function startSession(type, rung) {
   sess.readiness = rd ? rd.score : null;
   S.active = sess;
   save(true);
+  wakeOn();
   go('train');
   buzz();
 }
@@ -4725,7 +6188,7 @@ function finishSession() {
   const anyDone = A.exercises.some(i => i.sets.some(s => s.done));
   if (!anyDone) {
     if (!confirm('Nothing is ticked off. Discard this session instead?')) return;
-    S.active = null; save(true); render(); return;
+    S.active = null; wakeOff(); save(true); render(); return;
   }
   A.ended = Date.now();
   A.dur = Math.max(1, Math.round((A.ended - A.started) / 60000));
@@ -4736,6 +6199,7 @@ function finishSession() {
   if (S.week.plan[A.date]) S.week.plan[A.date].done = true;
   S.active = null;
   stopRest();
+  wakeOff();
   save(true);
   const v = sessionVolume(A);
   const fresh = checkMilestones();
@@ -4827,6 +6291,7 @@ document.addEventListener('click', ev => {
   const NEEDS_ACTIVE = ['toggle-set','add-set','del-set','swap-ex','add-exercise','ex-menu',
                         'save-note','remove-ex','finish','abandon','toggle-collapse','pick-ex','leave-session'];
   if (a === 'help-form-session' && !S.active) { sheetForm(v, false); return; }
+  if (a === 'ex-form' && !S.active) { if (v) sheetExerciseGuide(v, false); return; }
   if (NEEDS_ACTIVE.includes(a) && !S.active) { render(); return; }
 
   switch (a) {
@@ -5049,7 +6514,7 @@ document.addEventListener('click', ev => {
           if (!S.active || SCREEN !== 'train') return;   // session may have ended in the meantime
           const nextIdx = S.active.exercises.findIndex(x => !isComplete(x));
           const el = nextIdx >= 0 ? document.querySelector('.ex-card[data-ei="' + nextIdx + '"]') : null;
-          if (el) el.scrollIntoView({ behavior:'smooth', block:'center' });
+          if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
         }, 260);
       }
       updateTrainProgress();
@@ -5268,6 +6733,27 @@ document.addEventListener('click', ev => {
 
     /* ---- data ---- */
     case 'open-journey': sheetJourney(); break;
+
+    /* ---- daily metrics ---- */
+    case 'daily': sheetDaily(v || null); break;
+    case 'daily-paste': ingestFromClipboard(); break;
+
+    /* ---- plate calculator ---- */
+    case 'plate-calc': sheetPlateCalc(v); break;
+    case 'plate-settings': sheetPlateSettings(); break;
+    case 'plate-toggle': {
+      if (!togglePlate(parseFloat(v))) { toast('Keep at least one plate'); return; }
+      sheetPlateSettings();
+      break;
+    }
+    case 'bar-adj': {
+      const cfg = plateCfg();
+      if (!setBarWeight(cfg.bar + parseFloat(v))) { toast('That is not a bar'); return; }
+      sheetPlateSettings();
+      break;
+    }
+    case 'help-open': openSheet(HELP_BODY[v] ? HELP_BODY[v]() : '<p>Missing page</p>'); break;
+
     case 'open-help': sheetHelp(); break;
     case 'help-page': {
       if (v === 'form') { sheetFormList(''); break; }
@@ -5277,6 +6763,29 @@ document.addEventListener('click', ev => {
     case 'help-form-list': sheetFormList(''); break;
     case 'help-form': sheetForm(v, false); break;
     case 'help-form-session': sheetForm(v, true); break;
+
+    /* ---- exercise guide + video ---- */
+    case 'ex-form': {
+      const it = S.active && S.active.exercises[i];
+      sheetExerciseGuide(it ? it.exId : v, !!it);
+      break;
+    }
+    case 'ex-guide': sheetExerciseGuide(v, false); break;
+    case 'vid-edit': sheetVideoLink(v); break;
+    case 'vid-save': {
+      const el = $('#vid-url');
+      const url = el ? el.value : '';
+      if (!setVideo(v, url)) { toast('That does not look like a web address'); return; }
+      toast(url.trim() ? 'Video linked' : 'Link removed', true);
+      sheetExerciseGuide(v, !!S.active);
+      break;
+    }
+    case 'vid-clear': {
+      setVideo(v, '');
+      toast('Link removed', true);
+      sheetExerciseGuide(v, !!S.active);
+      break;
+    }
     case 'toggle-warmup': {
       S.settings.warmup = !S.settings.warmup;
       save(true); render();
@@ -5328,15 +6837,59 @@ document.addEventListener('input', ev => {
   if (tag) tag.textContent = isOwn ? 'Yours' : (sug ? 'Suggested' : 'Enter one');
 });
 
-/* ---- set field input ---- */
+/* ---- set field input ----
+   Kept as type=text with an inputmode so the browser never silently blanks a
+   value it dislikes — a European keyboard producing "82,5" would do exactly
+   that under type=number, and losing a logged weight to a decimal separator
+   is not a trade worth making. */
 document.addEventListener('input', ev => {
   const el = ev.target;
   if (!el.dataset || !el.dataset.set || !S.active) return;
   const i = +el.dataset.i, si = +el.dataset.s, f = el.dataset.set;
   const item = S.active.exercises[i];
   if (!item || !item.sets[si]) return;
-  item.sets[si][f] = el.value;
+  let v = el.value.replace(',', '.').replace(/[^0-9.]/g, '');
+  if (v !== el.value) { const p = el.selectionStart; el.value = v; try { el.setSelectionRange(p, p); } catch (e) {} }
+  item.sets[si][f] = v;
+  if (f === 'w' && si === 0) refreshPlateRow(i);
   save();
+});
+
+/* ---- keyboard: weight → reps → RPE → out ----
+   iOS has no Tab key. Without this you have to reach up and tap each field
+   individually, which is the single most-complained-about thing in every
+   workout logger. */
+document.addEventListener('keydown', ev => {
+  if (ev.key !== 'Enter') return;
+  const el = ev.target;
+  if (!el.dataset || !el.dataset.set) return;
+  ev.preventDefault();
+  const order = ['w', 'r', 'rpe'];
+  const next = order[order.indexOf(el.dataset.set) + 1];
+  const row = el.closest('.set-row');
+  const nel = next && row ? row.querySelector('[data-set="' + next + '"]') : null;
+  if (nel) { nel.focus(); nel.select(); }
+  else el.blur();
+});
+
+/* Tapping a field that already holds a number should let you replace it
+   outright rather than fiddling a cursor into place with wet hands. */
+document.addEventListener('focusin', ev => {
+  const el = ev.target;
+  if (el.dataset && el.dataset.set && el.value) { try { el.select(); } catch (e) {} }
+});
+
+/* ---- daily metrics: write straight through, keyboard stays up ---- */
+document.addEventListener('input', ev => {
+  const el = ev.target;
+  if (!el.dataset || !el.dataset.dm) return;
+  const f = el.dataset.dm, d = el.dataset.date || today();
+  if (el.value === '') { clearDaily(d, f); save(); return; }
+  if (setDaily(d, f, el.value, 'manual')) {
+    save();
+    const chip = el.closest('.field').querySelector('.src-chip');
+    if (chip) chip.textContent = SRC_LABEL.manual;
+  }
 });
 
 /* ---- scrim / quick log ---- */
@@ -5356,6 +6909,7 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
   try {
     STORAGE_OK = storageProbe();
     const had = load();
+    const ingested = ingestFromURL();
     S.meta.lastOpen = new Date().toISOString();
 
     // roll the week over if needed
@@ -5364,8 +6918,19 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
     if (!S.onboarded) { $('#nav').classList.add('hide'); go('onboard'); }
     else go('today');
 
+    if (S.active) wakeOn();
     save();
     window.__guzoBooted = true;
+    if (ingested.length) setTimeout(() => toast('Logged ' + ingested.join(', '), true), 600);
+
+    /* Safari evicts storage for origins it thinks are stale, on a
+       least-recently-used basis. Persistent mode exempts this origin from
+       that sweep. Nobody should lose a year of training to a cache policy. */
+    if (navigator.storage && navigator.storage.persist) {
+      navigator.storage.persisted().then(already => {
+        if (!already) navigator.storage.persist().catch(() => {});
+      }).catch(() => {});
+    }
   } catch (err) {
     /* A crash while planning must never cost someone their history. Fall back
        to a plain state so the app still opens, and say so plainly. */
