@@ -127,22 +127,24 @@ input[type=number]{-moz-appearance:textfield}
 .boot-note{font-size:12.5px;line-height:1.6;color:var(--faint);margin-top:18px;padding:0 6px}
 
 /* ---------- daily metrics strip ---------- */
-.day-strip{display:flex;align-items:center;gap:0;width:100%;padding:12px 6px;margin-bottom:12px;
-  background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r-lg);
-  box-shadow:var(--shadow-sm),var(--inset);text-align:left;flex-wrap:wrap;
-  transition:transform .12s ease}
-.day-strip:active{transform:scale(.99)}
+.day-strip{display:flex;align-items:center;gap:0;width:100%;padding:13px 6px 12px;margin:14px 0 22px;
+  background:transparent;border:0;border-top:1px solid var(--line-soft);
+  border-bottom:1px solid var(--line-soft);border-radius:0;box-shadow:none;
+  text-align:left;flex-wrap:wrap;align-items:stretch;transition:opacity .12s ease}
+.day-strip:active{opacity:.65}
 .day-cell{flex:1 1 0;min-width:0;text-align:center;padding:0 4px;
+  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
   border-right:1px solid var(--line-soft)}
 .day-cell:nth-child(3){border-right:0}
 .day-v{font-family:var(--fm);font-size:19px;font-weight:650;color:var(--text);
-  letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+  letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums;
+  height:23px;display:flex;align-items:baseline;justify-content:center}
 .day-v.empty{color:var(--line);font-weight:500}
 .day-u{font-size:11px;font-weight:500;color:var(--muted);margin-left:1px;letter-spacing:0}
 .day-k{font-size:11px;font-weight:650;letter-spacing:.12em;text-transform:uppercase;
   color:var(--muted);margin-top:3px}
 .day-note{flex:1 0 100%;text-align:center;font-size:11.5px;color:var(--faint);
-  margin-top:11px;padding-top:10px;border-top:1px solid var(--line-soft)}
+  margin-top:10px;padding-top:9px;border-top:1px solid var(--line-soft)}
 .src-chip{display:inline-block;font-size:11px;font-weight:650;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ember);background:var(--ember-dim);
   border:1px solid var(--ember-line);border-radius:100px;padding:2px 7px;
@@ -190,6 +192,137 @@ button.recall:active{transform:scale(.99)}
 
 /* the next exercise should land under the header, not behind it */
 .ex-card{scroll-margin-top:12px}
+
+/* ---------- routines ---------- */
+.rt-strip{display:flex;gap:9px;overflow-x:auto;padding:1px 1px 10px;margin:0 -2px 4px;
+  scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.rt-chip{flex:0 0 auto;min-width:132px;max-width:190px;scroll-snap-align:start;
+  display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  padding:13px 14px;min-height:44px;border-radius:var(--r-lg);text-align:left;
+  background:var(--surface);border:1px solid var(--line-soft);box-shadow:var(--shadow-sm),var(--inset);
+  transition:transform .12s ease}
+.rt-chip:active{transform:scale(.97)}
+.rt-emoji{font-size:19px;line-height:1.2;margin-bottom:3px}
+.rt-chip-t{font-size:14.5px;font-weight:650;color:var(--text);letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.rt-chip-b{font-size:11.5px;color:var(--muted);font-family:var(--fm)}
+.rt-empty{display:flex;align-items:center;gap:13px;width:100%;padding:15px 16px;margin-bottom:12px;
+  border-radius:var(--r-lg);text-align:left;background:var(--surface);
+  border:1px dashed var(--line);transition:transform .12s ease}
+.rt-empty:active{transform:scale(.99)}
+.rt-plus{width:36px;height:36px;flex:none;border-radius:11px;background:var(--ember-dim);
+  border:1px solid var(--ember-line);color:var(--ember-2);font-size:20px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;line-height:1}
+.rt-empty-t{display:block;font-size:14.5px;font-weight:650;color:var(--text)}
+.rt-empty-b{display:block;font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35}
+.rt-item{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:var(--r);
+  padding:13px 14px;margin-bottom:9px}
+.rt-nums{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rt-num{min-width:0}
+.rt-num-k{font-size:11px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);margin-bottom:5px}
+/* the stepper must be allowed to shrink inside a grid cell, or its buttons
+   push the whole row off the right edge of a 393px screen */
+.stepper.sm{height:44px;min-width:0;width:100%}
+.stepper.sm button{width:38px;flex:none;font-size:19px}
+.stepper.sm input{font-size:15px;min-width:0;flex:1 1 auto}
+.rt-ctl{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+.rt-ctl button{min-height:44px;border-radius:10px;background:var(--surface-3);
+  border:1px solid var(--line);color:var(--text-dim);font-size:17px;font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:6px}
+.rt-ctl button:active{transform:scale(.95)}
+.rt-ctl .rt-del{color:var(--rose)}
+.rt-ctl-l{font-size:12.5px;font-weight:650}
+.rt-pos{flex:none;width:26px;height:26px;border-radius:8px;background:var(--surface-3);
+  color:var(--muted);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.rt-emoji-row{display:flex;flex-wrap:wrap;gap:7px}
+.rt-emoji-pick{width:44px;height:44px;border-radius:12px;font-size:19px;line-height:1;
+  background:var(--surface-2);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;transition:transform .12s ease}
+.rt-emoji-pick.on{background:var(--ember-dim);border-color:var(--ember-line);transform:scale(1.04)}
+.rt-emoji-pick:active{transform:scale(.92)}
+
+/* ---------- Today: week progress, hero reason, coaching ---------- */
+.home-day{font:inherit;color:var(--ember);text-decoration:underline;
+  text-decoration-color:var(--ember-line);text-underline-offset:3px;
+  padding:11px 6px;margin:-11px -6px;min-height:44px;display:inline-flex;align-items:center}
+.week-chip{display:flex;align-items:center;gap:9px;padding:9px 13px;min-height:44px;
+  border-radius:14px;background:var(--surface-2);border:1px solid var(--line);
+  transition:transform .12s ease}
+.week-chip:active{transform:scale(.96)}
+.week-chip-n{font-family:var(--fm);font-size:15px;color:var(--muted);letter-spacing:-.02em}
+.week-chip-n b{font-size:21px;font-weight:700;color:var(--ember);letter-spacing:-.03em}
+.week-chip-l{font-size:10.5px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--muted);line-height:1.25;text-align:left}
+
+/* the check-in prompt, folded into the hero it actually governs */
+.hero-checkin{display:flex;align-items:center;gap:11px;width:100%;margin-top:14px;
+  padding:12px 14px;min-height:44px;border-radius:13px;text-align:left;
+  background:rgba(233,180,76,.09);border:1px dashed var(--ember-line);
+  color:var(--ember-2);font-size:13.5px;font-weight:600}
+.hero-checkin:active{transform:scale(.99)}
+.hero-checkin-d{font-size:17px;flex:none;line-height:1}
+
+/* coaching attached to the decision it informs */
+.hero-note{display:flex;align-items:center;gap:10px;width:100%;margin-top:16px;
+  padding:13px 2px 0;min-height:44px;text-align:left;
+  border-top:1px solid var(--hairline);color:var(--text-dim);font-size:12.5px;line-height:1.4}
+.hero-note-a{flex:none;color:var(--ember);font-weight:650;font-size:12.5px}
+.hero-note:active{opacity:.7}
+
+/* ---------- exercise picker ---------- */
+.pick-group{margin-bottom:8px}
+.pick-head{display:flex;align-items:center;gap:11px;width:100%;padding:14px 15px;min-height:56px;
+  border-radius:var(--r);background:var(--surface-2);border:1px solid var(--line-soft);
+  text-align:left;transition:background .16s ease}
+.pick-group.open .pick-head{background:var(--surface-3);border-color:var(--line);
+  border-bottom-left-radius:0;border-bottom-right-radius:0}
+.pick-head:active{transform:scale(.995)}
+.pick-head-t{font-size:15.5px;font-weight:650;color:var(--text);letter-spacing:-.01em}
+.pick-dot{width:8px;height:22px;border-radius:3px;flex:none}
+.pick-dot.push{background:var(--ember)}
+.pick-dot.pull{background:var(--sky)}
+.pick-dot.legs{background:var(--teal)}
+.pick-dot.core{background:var(--muted)}
+.pick-n{font-family:var(--fm);font-size:12.5px;color:var(--muted);flex:none}
+.pick-chev{color:var(--muted);font-size:16px;flex:none;width:14px;text-align:center;line-height:1}
+.pick-list{border:1px solid var(--line);border-top:0;
+  border-bottom-left-radius:var(--r);border-bottom-right-radius:var(--r);
+  background:var(--surface);overflow:hidden}
+.pick-row.added{background:var(--teal-dim)}
+.pick-row.added .btn.icon{background:rgba(79,209,165,.16);border-color:rgba(79,209,165,.4);color:var(--teal)}
+.pick-add{font-size:19px;font-weight:500;line-height:1}
+/* the way out stays put while you keep choosing */
+.pick-done{position:sticky;bottom:0;margin:18px -2px -6px;padding:14px 2px calc(6px + var(--safe-b));
+  background:linear-gradient(180deg,rgba(18,22,28,0) 0%,var(--surface) 32%,var(--surface) 100%)}
+
+/* ---------- profile ---------- */
+.pf-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.pf-cell{display:flex;flex-direction:column;align-items:flex-start;gap:5px;
+  padding:13px 14px;min-height:66px;border-radius:var(--r);
+  background:var(--surface-2);border:1px solid var(--line-soft);text-align:left}
+.pf-cell:active{transform:scale(.97)}
+.pf-k{font-size:11px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.pf-v{font-family:var(--fm);font-size:17px;font-weight:650;color:var(--text);letter-spacing:-.02em}
+.pf-v.empty{color:var(--ember);font-weight:600;font-size:14px}
+.lrow.on{background:var(--ember-dim);border-color:var(--ember-line)}
+
+/* ---------- fuel ---------- */
+.fuel-hero{background:linear-gradient(180deg,var(--surface) 0%, #10141a 100%);
+  border:1px solid var(--ember-line);border-radius:var(--r-xl);padding:20px;
+  box-shadow:var(--shadow-sm),var(--inset)}
+.fuel-big{font-size:46px;font-weight:700;letter-spacing:-.045em;line-height:1.05;
+  color:var(--text);margin-top:6px}
+.fuel-of{font-size:19px;font-weight:600;color:var(--muted);margin-left:8px;letter-spacing:-.02em}
+.fuel-sub{font-size:13px;color:var(--muted);margin-top:3px}
+.fuel-macros{display:flex;flex-direction:column;gap:13px;margin-top:18px}
+.fuel-quick{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.fuel-chip{display:flex;flex-direction:column;align-items:flex-start;gap:3px;
+  padding:13px 14px;min-height:60px;border-radius:var(--r);text-align:left;
+  background:var(--surface-2);border:1px solid var(--line-soft)}
+.fuel-chip:active{transform:scale(.97)}
+.fuel-chip-t{font-size:13px;font-weight:600;color:var(--text);line-height:1.25}
+.fuel-chip-b{font-size:11.5px;color:var(--muted)}
 
 /* ---------- cards ---------- */
 .card{
@@ -475,7 +608,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .rung.on .n{background:var(--ember);color:#1F1704}
 
 /* ---------- week strip ---------- */
-.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.week{margin-bottom:12px;display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
 .day{padding:11px 3px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);text-align:center;transition:all .15s ease;min-height:76px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
 .day.today{border-color:var(--ember-line)}
 .day.done{background:var(--teal-dim);border-color:rgba(79,209,165,.35)}
@@ -579,7 +712,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .note-b{font-size:13px;color:var(--muted);line-height:1.5;margin:7px 0 0}
 
 /* section headers */
-.sec-head{display:flex;align-items:baseline;justify-content:space-between;margin:26px 0 11px}
+.sec-head{margin-top:26px;display:flex;align-items:baseline;justify-content:space-between;margin:26px 0 11px}
 .sec-t{font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
 .sec-a{font-size:12.5px;font-weight:650;color:var(--ember);letter-spacing:-.01em;
   padding:11px 4px;margin:-11px -4px;min-height:44px;display:inline-flex;align-items:center}
@@ -828,7 +961,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
         <div class="brand"><svg class="brand-mark" width="30" height="30" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#12161b"/><path d="M50 14c19.9 0 36 16.1 36 36S69.9 86 50 86 14 69.9 14 50" fill="none" stroke="#E9B44C" stroke-width="7.5" stroke-linecap="round"/><path d="M50 30c11 0 20 9 20 20s-9 20-20 20-20-9-20-20" fill="none" stroke="#E9B44C" stroke-width="7.5" stroke-linecap="round" opacity=".55"/><circle cx="50" cy="50" r="7.5" fill="#E9B44C"/></svg>
         <span class="brand-name">Gu<span class="k">z</span>o<span class="brand-suf">Fit</span></span></div>
       </div>
-      <button class="btn xs ghost" id="btn-quick-log">Quick log</button>
+      
     </div>
     <div id="today-body"></div>
   </section>
@@ -842,6 +975,12 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   <!-- ============ TRAIN ============ -->
   <section class="screen" id="s-train">
     <div id="train-body"></div>
+  </section>
+
+  <!-- ============ FUEL ============ -->
+  <section class="screen" id="s-fuel">
+    <div class="hdr"><h1 class="h1">Fuel</h1></div>
+    <div id="fuel-body"></div>
   </section>
 
   <!-- ============ PROGRESS ============ -->
@@ -871,8 +1010,10 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   <nav class="nav hide" id="nav">
     <button class="nav-btn on" data-go="today">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12l9-9 9 9M5 10v10h14V10" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Today</span></button>
-    <button class="nav-btn" data-go="plan">
+    <button class="nav-btn" data-go="plan" id="nav-plan">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 17l5-9 4 5 3-6 6 10z" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Route</span></button>
+    <button class="nav-btn hide" data-go="fuel" id="nav-fuel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3c0 4-4 5-4 9a4 4 0 0 0 8 0c0-4-4-5-4-9z" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21h6" stroke-linecap="round"/></svg><span>Fuel</span></button>
     <button class="nav-btn" data-go="train">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 9v6M19 9v6M8 7v10M16 7v10M8 12h8M2 11v2M22 11v2" stroke-linecap="round"/></svg><span>Train</span></button>
     <button class="nav-btn" data-go="progress">
@@ -2332,6 +2473,7 @@ function blank() {
     journey: { reached:{} },
     daily: {},
     videos: {},
+    routines: [],
     meta: { created:new Date().toISOString(), lastOpen:null }
   };
 }
@@ -3674,6 +3816,349 @@ function lastSetAt(exId, idx) {
   return p.sets[idx];
 }
 /* ============================================================
+   ROUTINES — your own sessions, on your own terms
+   ------------------------------------------------------------
+   The generated plan answers "what should I do this week". A
+   routine answers "I already know what I want to do, let me do
+   it" — abs before bed, a rehab circuit, a fifteen-minute arms
+   thing in a hotel room.
+
+   A routine is a template, never a schedule. It never competes
+   with the week's plan and it never marks a planned day as done,
+   because an extra thing you chose to do should not quietly
+   discharge the thing you committed to.
+   ============================================================ */
+
+const ROUTINE_EMOJI = ['🌙', '🔥', '🧘', '⚡', '🪨', '🎒', '🩹', '🏃', '💪', '⏱'];
+
+const ROUTINE_LIMITS = { name: 40, items: 24, sets: 12, reps: 300 };
+
+function ensureRoutines() {
+  if (!Array.isArray(S.routines)) S.routines = [];
+  return S.routines;
+}
+
+function routineById(id) {
+  return ensureRoutines().find(r => r.id === id) || null;
+}
+
+function newRoutine(name, emoji) {
+  const list = ensureRoutines();
+  const r = {
+    id: 'rt' + Date.now().toString(36) + Math.floor(list.length + 1),
+    name: String(name || 'New routine').slice(0, ROUTINE_LIMITS.name),
+    emoji: emoji || ROUTINE_EMOJI[list.length % ROUTINE_EMOJI.length],
+    items: [], created: today(), uses: 0, lastUsed: null
+  };
+  list.push(r);
+  save(true);
+  return r;
+}
+
+function renameRoutine(id, name) {
+  const r = routineById(id);
+  if (!r) return false;
+  const n = String(name || '').trim().slice(0, ROUTINE_LIMITS.name);
+  if (!n) return false;
+  r.name = n; save(true); return true;
+}
+
+function setRoutineEmoji(id, emoji) {
+  const r = routineById(id);
+  if (!r || ROUTINE_EMOJI.indexOf(emoji) < 0) return false;
+  r.emoji = emoji; save(true); return true;
+}
+
+function deleteRoutine(id) {
+  const list = ensureRoutines();
+  const i = list.findIndex(r => r.id === id);
+  if (i < 0) return false;
+  list.splice(i, 1); save(true); return true;
+}
+
+function addToRoutine(id, exId) {
+  const r = routineById(id);
+  const ex = EX[exId];
+  if (!r || !ex) return false;
+  if (r.items.length >= ROUTINE_LIMITS.items) return false;
+  const timed = ex.load === 'time' || ex.load === 'min';
+  r.items.push({ exId, sets: 3, reps: timed ? (ex.rl || 30) : (ex.rl || 8) });
+  save(true);
+  return true;
+}
+
+function removeFromRoutine(id, idx) {
+  const r = routineById(id);
+  if (!r || !r.items[idx]) return false;
+  r.items.splice(idx, 1); save(true); return true;
+}
+
+function moveInRoutine(id, idx, dir) {
+  const r = routineById(id);
+  if (!r) return false;
+  const j = idx + dir;
+  if (j < 0 || j >= r.items.length) return false;
+  const [it] = r.items.splice(idx, 1);
+  r.items.splice(j, 0, it);
+  save(true); return true;
+}
+
+function adjustRoutineItem(id, idx, field, delta) {
+  const r = routineById(id);
+  if (!r || !r.items[idx]) return false;
+  const it = r.items[idx];
+  const ex = EX[it.exId] || {};
+  const timed = ex.load === 'time' || ex.load === 'min';
+  if (field === 'sets') {
+    it.sets = Math.max(1, Math.min(ROUTINE_LIMITS.sets, (it.sets || 3) + delta));
+  } else {
+    const step = timed ? 5 : 1;
+    it.reps = Math.max(1, Math.min(ROUTINE_LIMITS.reps, (it.reps || 8) + delta * step));
+  }
+  save(true); return true;
+}
+
+/* A rough minute cost, so the card can say how long this takes without
+   pretending to a precision it does not have. */
+function routineMins(r) {
+  if (!r || !r.items.length) return 0;
+  let mins = 0;
+  r.items.forEach(it => {
+    const ex = EX[it.exId];
+    if (!ex) return;
+    const rest = (ex.tier <= 2 ? 2.4 : 1.4);
+    const work = (ex.load === 'time' || ex.load === 'min') ? (it.reps / 60) : (it.reps * 3.5 / 60);
+    mins += it.sets * (work + rest);
+  });
+  return Math.max(1, Math.round(mins));
+}
+
+function routineSummary(r) {
+  if (!r || !r.items.length) return 'Nothing in it yet';
+  const muscles = [];
+  r.items.forEach(it => {
+    const ex = EX[it.exId];
+    if (ex && muscles.indexOf(ex.primary) < 0) muscles.push(ex.primary);
+  });
+  const n = r.items.length;
+  return n + ' move' + (n === 1 ? '' : 's') + ' · ' + routineMins(r) + ' min · ' + muscles.slice(0, 3).join(', ');
+}
+
+/* ---------- turning one into a session ----------
+   Built to exactly the shape generateSession produces, so everything
+   downstream — progression, calories, plate lines, form guides, the
+   last-time recall — works on a routine session without knowing it
+   came from one. */
+function buildRoutineSession(id) {
+  const r = routineById(id);
+  if (!r || !r.items.length) return null;
+  const c = dayConstraint(today());
+  const env = c.env || (S.profile.envs && S.profile.envs[0]) || 'full';
+
+  const exercises = r.items.map(it => {
+    const ex = EX[it.exId];
+    if (!ex) return null;
+    const tg = targetFor(ex.id);
+    const timed = ex.load === 'time' || ex.load === 'min';
+    return {
+      exId: ex.id, name: ex.name, load: ex.load,
+      targetW: timed ? null : tg.w,
+      targetR: it.reps,
+      sets: Array.from({ length: it.sets }, () => ({
+        w: (!timed && tg.w != null) ? tg.w : '', r: '', rpe: '', done: false
+      })),
+      note: ''
+    };
+  }).filter(Boolean);
+
+  if (!exercises.length) return null;
+
+  return {
+    id: 'sx' + Date.now().toString(36),
+    date: today(),
+    type: 'custom',
+    routineId: r.id,
+    routineName: r.name,
+    extra: true,               // never discharges the week's planned session
+    env, rung: 'full',
+    planMins: routineMins(r),
+    exercises,
+    started: null, ended: null, dur: 0
+  };
+}
+
+/* ---------- what has already happened today ---------- */
+function sessionsOn(date) {
+  return (S.sessions || []).filter(s => s.ended && s.date === date);
+}
+
+function plannedDoneOn(date) {
+  return sessionsOn(date).some(s => !s.extra);
+}
+
+function sessionTitle(sess) {
+  if (!sess) return '';
+  if (sess.routineName) return sess.routineName;
+  return typeLabel(sess.type);
+}
+/* ============================================================
+   BODY DATA & ENERGY
+   ------------------------------------------------------------
+   Height, age and sex are not vanity fields. Without them a
+   calorie target is a guess dressed up as a number — the old one
+   was bodyweight × 33, which is the same answer for a 60-year-old
+   and a 20-year-old of the same weight.
+
+   With them, Mifflin-St Jeor gives a real resting rate. It is the
+   equation the American Dietetic Association found most accurate
+   for non-obese adults, and it is still roughly ±10% for any
+   individual — so it is presented as a starting point to adjust
+   from, never as a fact about you.
+   ============================================================ */
+
+const SEXES = [
+  { k:'m',  label:'Male',   note:'Used only for the energy equation' },
+  { k:'f',  label:'Female', note:'Used only for the energy equation' },
+  { k:'na', label:'Rather not say', note:'An average of both is used' }
+];
+
+/* The multiplier is about the day around the training, not the training.
+   A camera operator on their feet for fourteen hours is not "sedentary"
+   because they only lifted three times this week. */
+const ACTIVITY = [
+  { k:'desk',   label:'Mostly sitting',   f:1.25, note:'Desk work, driving, little walking' },
+  { k:'light',  label:'On and off',       f:1.40, note:'Some walking, some standing' },
+  { k:'onfeet', label:'On your feet',     f:1.55, note:'Standing or walking most of the day' },
+  { k:'heavy',  label:'Physical work',    f:1.75, note:'Carrying, climbing, long shifts' }
+];
+
+function profileNum(k) {
+  const v = S.profile ? S.profile[k] : null;
+  return typeof v === 'number' && !isNaN(v) ? v : null;
+}
+
+function setHeight(cm) {
+  const n = parseFloat(cm);
+  if (isNaN(n) || n < 120 || n > 230) return false;
+  S.profile.heightCm = Math.round(n * 10) / 10;
+  save(true); return true;
+}
+
+function setBirthYear(y) {
+  const n = parseInt(y, 10);
+  const now = new Date().getFullYear();
+  if (isNaN(n) || n < now - 100 || n > now - 13) return false;
+  S.profile.birthYear = n;
+  save(true); return true;
+}
+
+function setSex(k) {
+  if (!SEXES.some(x => x.k === k)) return false;
+  S.profile.sex = k; save(true); return true;
+}
+
+function setActivity(k) {
+  if (!ACTIVITY.some(x => x.k === k)) return false;
+  S.profile.activity = k; save(true); return true;
+}
+
+function ageYears() {
+  const y = profileNum('birthYear');
+  if (!y) return null;
+  return new Date().getFullYear() - y;
+}
+
+/* ---------- height display ---------- */
+function heightLabel() {
+  const cm = profileNum('heightCm');
+  if (!cm) return null;
+  if (S.profile.units === 'lb') {
+    const inches = cm / 2.54;
+    const ft = Math.floor(inches / 12);
+    const inch = Math.round(inches - ft * 12);
+    return inch === 12 ? (ft + 1) + '′ 0″' : ft + '′ ' + inch + '″';
+  }
+  return Math.round(cm) + ' cm';
+}
+
+/* ---------- Mifflin-St Jeor ---------- */
+function bmr() {
+  const kg = bodyKg();
+  const cm = profileNum('heightCm');
+  const age = ageYears();
+  if (!kg || !cm || !age) return null;
+  const base = 10 * kg + 6.25 * cm - 5 * age;
+  const sex = S.profile.sex;
+  const offset = sex === 'm' ? 5 : sex === 'f' ? -161 : -78;   // 'na' splits the difference
+  return Math.round(base + offset);
+}
+
+function activityFactor() {
+  const a = ACTIVITY.find(x => x.k === S.profile.activity);
+  return a ? a.f : 1.40;
+}
+
+function tdee() {
+  const b = bmr();
+  if (!b) return null;
+  return Math.round(b * activityFactor() / 10) * 10;
+}
+
+/* What is still missing before the energy numbers mean anything. */
+function bodyGaps() {
+  const gaps = [];
+  if (!bodyKg()) gaps.push('bodyweight');
+  if (!profileNum('heightCm')) gaps.push('height');
+  if (!ageYears()) gaps.push('age');
+  if (!S.profile.sex) gaps.push('sex');
+  return gaps;
+}
+
+function profileCompleteness() {
+  const checks = [
+    ['name',      !!(S.profile.name || '').trim()],
+    ['bodyweight', !!bodyKg()],
+    ['height',    !!profileNum('heightCm')],
+    ['age',       !!ageYears()],
+    ['sex',       !!S.profile.sex],
+    ['day job',   !!S.profile.activity],
+    ['sleep',     !!profileNum('sleepNorm')],
+    ['session length', !!profileNum('sessionMins')],
+    ['goals',     !!(S.profile.goals || []).length],
+    ['where you train', !!(S.profile.envs || []).length]
+  ];
+  const done = checks.filter(c => c[1]).length;
+  return { done, total: checks.length, missing: checks.filter(c => !c[1]).map(c => c[0]) };
+}
+
+/* ---------- targets, now actually personalised ----------
+   Protein is set per kilo of bodyweight because that is what the evidence
+   supports; energy comes off the measured resting rate rather than a flat
+   multiple of weight. */
+function energyTargets() {
+  const kg = bodyKg();
+  if (!kg) return null;
+  const goals = S.profile.goals || [];
+  const wantsMuscle = goals.includes('muscle');
+  const wantsLean = goals.includes('lean') || goals.includes('fatloss');
+
+  const p = Math.round(kg * (wantsMuscle ? 1.9 : 1.6));
+  const maint = tdee();
+  let kcal;
+  let basis;
+  if (maint) {
+    kcal = maint + (wantsMuscle ? 250 : 0) - (wantsLean ? 400 : 0);
+    basis = 'from your resting rate';
+  } else {
+    kcal = Math.round(kg * 33) + (wantsMuscle ? 250 : 0);
+    basis = 'estimated from bodyweight alone';
+  }
+  kcal = Math.max(1200, Math.round(kcal / 10) * 10);
+  const f = Math.round((kcal * 0.27) / 9);
+  const c = Math.max(0, Math.round((kcal - p * 4 - f * 9) / 4));
+  return { kcal, p, c, f, basis, maint, bmr: bmr() };
+}
+/* ============================================================
    ONBOARDING
    One decision per screen, grouped into four short chapters.
    Every question changes generated sessions — nothing is asked
@@ -4279,6 +4764,7 @@ function go(name) {
   if (el) el.classList.add('on');
   $$('.nav-btn').forEach(b => b.classList.toggle('on', b.dataset.go === name));
   $('#nav').classList.toggle('hide', name === 'onboard');
+  syncNav();
   render();
   if (el) el.scrollTop = 0;   // the screen scrolls, the page never does
 }
@@ -4289,6 +4775,7 @@ function render() {
   if (SCREEN === 'plan') renderPlan();
   if (SCREEN === 'train') renderTrain();
   if (SCREEN === 'progress') renderProgress();
+  if (SCREEN === 'fuel') renderFuel();
   if (SCREEN === 'more') renderMore();
 }
 
@@ -4308,28 +4795,35 @@ function renderToday() {
   const plan = plannedToday();
   const c = dayConstraint(today());
   const av = availOf(c.avail);
-  const miss = missState();
-  const dt = miss.since != null ? detrainingNote(miss.since) : null;
   const name = S.profile.name ? S.profile.name.split(' ')[0] : null;
   const hour = new Date().getHours();
   const greet = hour < 5 ? 'Still up' : hour < 12 ? 'Good morning' : hour < 17 ? 'Afternoon' : hour < 22 ? 'Evening' : 'Late one';
-  const stats = totalStats();
-  const streak = weekStreak();
+  const jst = journeyStats();
 
   let html = ephemeral;
 
-  /* ── 1. compact header: who, when, streak ─────────────────── */
+  /* ── 1. who, when, and how the week is actually going ───────
+     The old streak chip contradicted the product: this app argues that a
+     missed session is free and there is no streak to break, and then led
+     with a streak counter. Weeks-done-of-weeks-planned says the same
+     encouraging thing without the loss aversion. */
+  const wk = weekProgress();
   html += `<div class="home-top">
     <div>
       <div class="home-greet">${greet}${name ? ', ' + h(name) : ''}</div>
-      <div class="home-date"><span class="em">Day ${journeyStats().day}</span> · ${prettyDate(today())}</div>
+      <div class="home-date"><button class="home-day" data-act="open-journey">Day ${jst.day}</button> · ${prettyDate(today())}</div>
     </div>
-    ${streak ? `<button class="streak-chip" data-act="goto-progress">
-      <span class="streak-n">${streak}</span><span class="streak-l">week${streak===1?'':'s'}<br>running</span>
+    ${wk.planned ? `<button class="week-chip" data-act="open-week">
+      <span class="week-chip-n"><b>${wk.done}</b>/${wk.planned}</span>
+      <span class="week-chip-l">this<br>week</span>
     </button>` : ''}
   </div>`;
 
-  /* ── 2. THE HERO: what am I doing today ───────────────────── */
+  /* ── 2. THE HERO ────────────────────────────────────────────
+     One card that answers the whole question: what am I doing, how long,
+     why that size, and what the evidence says about where I am. Readiness
+     used to be a separate card competing with this one — but readiness is
+     not a peer of the session, it is the REASON the session is that size. */
   if (S.active) {
     const doneSets = S.active.exercises.reduce((a,i)=>a+i.sets.filter(s=>s.done).length,0);
     const allSets = S.active.exercises.reduce((a,i)=>a+i.sets.length,0);
@@ -4338,7 +4832,7 @@ function renderToday() {
       <div class="hero-glow"></div>
       <div class="hero-in">
         <div class="row between"><span class="hero-eyebrow"><span class="live-dot"></span>In progress</span><span class="pill em">${doneSets}/${allSets} sets</span></div>
-        <h1 class="hero-title">${typeLabel(S.active.type)}</h1>
+        <h1 class="hero-title">${h(sessionTitle(S.active))}</h1>
         <div class="bar mt"><i style="width:${pct}%"></i></div>
         <button class="btn primary block lg mt" data-act="goto-train">Back to the session</button>
       </div>
@@ -4355,13 +4849,13 @@ function renderToday() {
         </div>
       </div>
     </div>`;
-  } else if (S.sessions.some(s => s.ended && s.date === today())) {
-    const sess = S.sessions.filter(x => x.ended && x.date === today()).slice(-1)[0];
+  } else if (plannedDoneOn(today())) {
+    const sess = sessionsOn(today()).filter(x => !x.extra).slice(-1)[0] || sessionsOn(today()).slice(-1)[0];
     const v = sessionVolume(sess);
     html += `<div class="hero done">
       <div class="hero-in">
         <span class="hero-eyebrow tl">✓ Logged today</span>
-        <h1 class="hero-title">${typeLabel(sess.type)}</h1>
+        <h1 class="hero-title">${h(sessionTitle(sess))}</h1>
         <div class="hero-stats">
           <div><span class="hs-v">${v.sets}</span><span class="hs-k">sets</span></div>
           <div><span class="hs-v">${sess.dur||0}</span><span class="hs-k">min</span></div>
@@ -4376,11 +4870,12 @@ function renderToday() {
     const suggested = suggestRung(score, av.mins);
     const rungDef = RUNGS.find(r => r.k === suggested);
     const type = plan ? plan.type : nextType();
+    const note = heroNote();
     html += `<div class="hero">
       <div class="hero-glow"></div>
       <div class="hero-in">
         <div class="row between">
-          <span class="hero-eyebrow">Today’s session${plan ? '' : ' <span class="hero-tag">extra</span>'}</span>
+          <span class="hero-eyebrow">Today${plan ? '' : ' <span class="hero-tag">unplanned</span>'}</span>
           <span class="pill em">${ENVS[c.env] ? ENVS[c.env].short : 'Gym'}</span>
         </div>
         <h1 class="hero-title">${typeLabel(type)}</h1>
@@ -4388,96 +4883,107 @@ function renderToday() {
           <span class="hm"><span class="hm-v">${rungMinsLabel(suggested).replace('~','')}</span><span class="hm-k">planned</span></span>
           <span class="hm-div"></span>
           <span class="hm"><span class="hm-v">${rungDef.label}</span><span class="hm-k">size</span></span>
-          ${score != null ? `<span class="hm-div"></span><span class="hm"><span class="hm-v ${band.color==='rose'?'rs':band.color==='teal'?'tl':''}">${score}</span><span class="hm-k">readiness</span></span>` : ''}
         </div>
-        <p class="hero-sub">${rungDef.blurb}</p>
+        <p class="hero-sub">${heroReason(rd, band, suggested, rungDef)}</p>
+        ${rd ? '' : `<button class="hero-checkin" data-act="open-readiness">
+          <span class="hero-checkin-d">◐</span>
+          <span class="grow">Check in first &mdash; it sizes this session</span>
+          <span class="strip-chev">›</span>
+        </button>`}
         <button class="btn primary block lg mt" data-act="start-session" data-type="${type}" data-rung="${suggested}">Start</button>
         <button class="btn quiet block" data-act="open-ladder" data-type="${type}">Choose a different size</button>
+        ${note ? `<button class="hero-note" data-act="coach-note" data-v="${note.k}">
+          <span class="grow">${note.short}</span>
+          <span class="hero-note-a">Why ›</span>
+        </button>` : ''}
       </div>
     </div>`;
   }
 
-  /* ── 3. readiness: a strip, not a competing card ───────────── */
-  if (!rd) {
-    html += `<button class="strip cta" data-act="open-readiness">
-      <div class="strip-ico">◐</div>
-      <div class="grow" style="text-align:left">
-        <div class="strip-t">Check in before you train</div>
-        <div class="strip-s">Thirty seconds — sleep, energy, soreness. It sizes today's session.</div>
-      </div>
-      <span class="strip-chev">›</span>
-    </button>`;
-  } else {
-    const dash = 2 * Math.PI * 15;
-    html += `<button class="strip" data-act="open-readiness">
-      <svg class="ring" viewBox="0 0 36 36">
-        <circle cx="18" cy="18" r="15" class="ring-bg"/>
-        <circle cx="18" cy="18" r="15" class="ring-fg ${band.color}"
-                stroke-dasharray="${dash}" stroke-dashoffset="${dash * (1 - Math.min(100,score)/100)}"/>
-        <text x="18" y="22" class="ring-t">${score}</text>
-      </svg>
-      <div class="grow" style="text-align:left">
-        <div class="strip-t">${band.label}</div>
-        <div class="strip-s">${rd.sleepH}h sleep · energy ${rd.energy}/5 · soreness ${rd.sore}/5</div>
-      </div>
-      <span class="strip-chev">›</span>
-    </button>`;
-  }
-
-  /* ── 3b. the journey, under the action rather than above it ─ */
-  const jst = journeyStats();
-  const nxt = nextMilestone();
-  html += `<button class="journey-strip mt-s" data-act="open-journey">
-    <div class="journey-rings">${journeyRingSVG(jst, nxt)}</div>
-    <div class="grow" style="text-align:left">
-      <div class="journey-day">Day ${jst.day} of your guzo</div>
-      <div class="journey-sub">${jst.count ? `${jst.count} session${jst.count===1?'':'s'} · ${jst.streak} week${jst.streak===1?'':'s'} running` : 'Not started yet — the first step is the whole thing'}${nxt && nxt.left > 0 ? ` · ${nxt.left} ${nxt.unit} to ${nxt.title}` : ''}</div>
-    </div>
-    <span class="strip-chev">›</span>
-  </button>`;
-
-  /* ── 3b. the day around the training ──────────────────────── */
+  /* ── 3. the day around the training — one dense strip ─────── */
   html += dayStripHTML();
 
-  /* ── 4. context: only when there's something to say ───────── */
-  if (S.sessions.filter(s => s.ended).length === 0) {
-    html += `<div class="note mt"><p class="note-t">Nothing logged yet.</p><p class="note-b">Pick any size you like — the smallest one counts exactly the same as the largest.</p></div>`;
-  } else if (dt) {
-    html += `<div class="note sky mt"><div class="row between"><p class="note-t">${dt.t}</p><span class="pill sk">${miss.since} days</span></div><p class="note-b">${dt.b}</p><span class="src">${dt.s}</span></div>`;
-  } else if (miss.consecutive === 1) {
-    html += `<div class="note mt"><p class="note-t">One missed session.</p><p class="note-b">${EVIDENCE.oneMiss}</p><span class="src">${EVIDENCE.oneMissSrc}</span></div>`;
-  } else if (miss.consecutive >= 2) {
-    html += `<div class="note warm mt">
-      <p class="note-t">Two in a row.</p><p class="note-b">${EVIDENCE.twoMiss}</p><span class="src">${EVIDENCE.twoMissSrc}</span>
-      <div class="btn-row mt"><button class="btn sm ghost" data-act="open-week">Tell it what changed</button><button class="btn sm" data-act="quick-rung" data-v="short">Do the short one</button></div>
-    </div>`;
-  }
-
-  /* ── 5. the week ──────────────────────────────────────────── */
+  /* ── 4. the week ──────────────────────────────────────────── */
   html += `<div class="sec-head"><span class="sec-t">This week</span><button class="sec-a" data-act="open-week">Shape it</button></div>`;
   html += weekStripHTML();
+
+  /* ── 5. your own routines ─────────────────────────────────── */
+  html += routineStripHTML();
+  html += todaySessionsHTML();
 
   /* ── 6. optional modules ──────────────────────────────────── */
   if (S.settings.nutrition) html += nutritionTileHTML();
 
-  /* ── 7. the long view ─────────────────────────────────────── */
-  html += `<div class="sec-head"><span class="sec-t">The long view</span><button class="sec-a" data-act="goto-progress">All progress</button></div>
-  <div class="tiles">
-    <div class="tile"><div class="v">${stats.count}</div><div class="k">Sessions</div></div>
-    <div class="tile"><div class="v">${stats.sets}</div><div class="k">Hard sets</div></div>
-    <div class="tile"><div class="v">${stats.mins}</div><div class="k">Minutes</div></div>
-  </div>`;
-
-  /* ── 8. the creed ─────────────────────────────────────────── */
-  html += `<div class="creed">
-    <div class="creed-rule"></div>
-    <span class="creed-mark">&ldquo;</span>
-    <p class="creed-text">${dailyLine()}</p>
-    <span class="creed-tag">GUZO · ${prettyDate(today()).toUpperCase()}</span>
-    <div class="creed-rule"></div>
-  </div>`;
-
   $('#today-body').innerHTML = html;
+}
+
+/* How the week is actually going: sessions done against sessions planned.
+   Replaces the streak chip, which asked you to protect an unbroken run in an
+   app whose whole argument is that one missed session costs you nothing. */
+function weekProgress() {
+  const plan = buildWeekPlan();
+  const keys = Object.keys(plan);
+  const done = keys.filter(k => plan[k].done || sessionsOn(k).some(s => !s.extra)).length;
+  return { done, planned: keys.length };
+}
+
+/* The hero's one-line explanation of why today is the size it is. Without a
+   check-in it falls back to describing the size; with one it names the reason,
+   because "trimmed" is a decision and you are owed the reasoning behind it. */
+function heroReason(rd, band, suggested, rungDef) {
+  if (!rd) return rungDef.blurb;
+  const why = {
+    full:  'the whole plan looks right.',
+    trim:  'today&rsquo;s is trimmed to the compounds.',
+    short: 'today&rsquo;s is cut to two hard movements.',
+    micro: 'three minutes is the win today.'
+  }[suggested] || rungDef.blurb;
+  return `<strong class="${band.color === 'rose' ? 'rs' : band.color === 'amber' ? 'em' : 'tl'}">${band.label}</strong> after ${rd.sleepH}h &mdash; ${why}`;
+}
+
+/* Coaching that belongs next to the decision it informs, rather than seventh
+   down the page styled like a step counter. One line here, the research and
+   the citation behind a tap. */
+function heroNote() {
+  const miss = missState();
+  if (S.sessions.filter(s => s.ended).length === 0) {
+    return { k:'first', short:'Nothing logged yet &mdash; the smallest session counts the same as the largest' };
+  }
+  if (miss.since != null) {
+    const dt = detrainingNote(miss.since);
+    if (dt) return { k:'detrain', short: dt.t.replace(/[.\s]+$/, '') + ' &mdash; ' + miss.since + ' days off' };
+  }
+  if (miss.consecutive === 1) return { k:'one', short:'One missed session &mdash; that one is free' };
+  if (miss.consecutive >= 2) return { k:'two', short:'Two in a row &mdash; worth shrinking the next one' };
+  return null;
+}
+
+function sheetCoachNote(kind) {
+  const miss = missState();
+  let title = '', body = '', src = '', actions = '';
+  if (kind === 'first') {
+    title = 'Nothing logged yet';
+    body = 'Pick any size you like. The smallest one counts exactly the same as the largest &mdash; the app is built so that showing up is the thing being measured, not how big it was.';
+  } else if (kind === 'detrain') {
+    const dt = detrainingNote(miss.since) || {};
+    title = dt.t || 'Time off'; body = dt.b || ''; src = dt.s || '';
+  } else if (kind === 'one') {
+    title = 'One missed session';
+    body = EVIDENCE.oneMiss; src = EVIDENCE.oneMissSrc;
+  } else if (kind === 'two') {
+    title = 'Two in a row';
+    body = EVIDENCE.twoMiss; src = EVIDENCE.twoMissSrc;
+    actions = `<div class="btn-row mt-l">
+      <button class="btn ghost grow" data-act="open-week">Tell it what changed</button>
+      <button class="btn grow" data-act="quick-rung" data-v="short">Do the short one</button>
+    </div>`;
+  } else { return; }
+  openSheet(`
+    <h2 class="h1">${title}</h2>
+    <p class="lede mt">${body}</p>
+    ${src ? `<p class="tiny mt-l">${src}</p>` : ''}
+    ${actions}
+  `);
 }
 
 function weekStripHTML() {
@@ -5082,10 +5588,10 @@ function renderMore() {
   </div>`;
 
   html += `<div class="eyebrow mb-s">Modules</div><div class="list mb">
-    <div class="lrow" data-act="toggle-nutrition">
-      <div class="ico">🍽</div>
-      <div class="grow"><div class="h3">Nutrition <span class="pro-tag">PRO</span></div><div class="tiny mt-s">Protein and calorie targets. Optional, and it never blocks a workout.</div></div>
-      <div class="switch ${S.settings.nutrition?'on':''}"></div>
+    <div class="lrow" data-act="toggle-fuel">
+      <div class="ico">🔥</div>
+      <div class="grow"><div class="h3">Fuel <span class="pro-tag">PRO</span></div><div class="tiny mt-s">${fuelOn() ? 'On &mdash; it has its own tab, and Route moves here' : 'Protein and calorie targets, worked out from your body data'}</div></div>
+      <span class="small">${fuelOn() ? '✓' : ''}</span>
     </div>
     ${S.settings.nutrition ? `<div class="lrow" data-act="open-nutrition"><div class="ico">📊</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="small">›</span></div>` : ''}
     <div class="lrow" data-act="toggle-warmup">
@@ -5093,6 +5599,8 @@ function renderMore() {
       <div class="grow"><div class="h3">Mobility warm-up</div><div class="tiny mt-s">Adds one short mobility movement to the start of full sessions</div></div>
       <div class="switch ${S.settings.warmup?'on':''}"></div>
     </div>
+    ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">🗺</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="small">›</span></div>` : ''}
+    <div class="lrow" data-act="routines"><div class="ico">🧩</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="small">›</span></div>
     <div class="lrow" data-act="plate-settings"><div class="ico">🏋️</div><div class="grow"><div class="h3">Bar and plates</div><div class="tiny mt-s">${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand</div></div><span class="small">›</span></div>
     <div class="lrow" data-act="rest-settings"><div class="ico">⏱</div><div class="grow"><div class="h3">Rest timers</div><div class="tiny mt-s">${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest?'on':'off'}</div></div><span class="small">›</span></div>
   </div>`;
@@ -5344,37 +5852,98 @@ function sheetProgram() {
 let pickerFor = null; // {mode:'swap'|'add', i}
 function sheetExercisePicker(mode, i) {
   pickerFor = { mode, i };
+  pickerOpen = null; pickerAdded = [];
   const c = dayConstraint(today());
   const env = (S.active && S.active.env) || c.env || 'full';
   renderPicker('', env);
 }
+/* ============================================================
+   EXERCISE PICKER
+   ------------------------------------------------------------
+   236 movements is too many to scroll. It opens as ten collapsed
+   muscle groups instead — the way you actually think about it —
+   and only the group you tap unrolls. Searching cuts straight
+   through and matches muscle names as well as exercise names, so
+   typing "back" finds the whole back rather than nothing.
+
+   Building a routine is multi-select: the sheet stays open, each
+   add is confirmed in place, and you leave when you are done
+   rather than being thrown out after every single choice.
+   ============================================================ */
+let pickerOpen = null;      // which muscle group is unrolled
+let pickerAdded = [];       // what this visit has added, for the running count
+
+function pickerMatches(e, q) {
+  if (!q) return true;
+  const hay = (e.name + ' ' + e.primary + ' ' + (e.sec || []).join(' ') + ' ' +
+               e.eq + ' ' + (PATTERN_LABEL[e.pattern] || '')).toLowerCase();
+  return q.split(/\s+/).filter(Boolean).every(w => hay.indexOf(w) >= 0);
+}
+
 function renderPicker(query, env) {
   const flag = envFlag(env);
-  const q = (query || '').toLowerCase();
-  let pool = EXLIST.filter(e => e.env.indexOf(flag) >= 0);
-  if (q) pool = EXLIST.filter(e => (e.name + ' ' + e.primary + ' ' + e.eq).toLowerCase().includes(q));
-  pool = pool.slice(0, 60);
+  const q = (query || '').trim().toLowerCase();
+  const multi = pickerFor && (pickerFor.mode === 'routine' || pickerFor.mode === 'add');
+
+  const pool = EXLIST.filter(e => e.env.indexOf(flag) >= 0 && pickerMatches(e, q));
+
+  /* grouped in the order the body is usually thought about, not alphabetically */
+  const order = MUSCLES.concat(['Forearms']);
   const groups = {};
   pool.forEach(e => { (groups[e.primary] = groups[e.primary] || []).push(e); });
+  const keys = Object.keys(groups).sort((a, b) => {
+    const ia = order.indexOf(a), ib = order.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+  });
+
+  /* Searching opens everything — a closed accordion over search results is
+     just a list you have to tap twice to read. */
+  const openAll = !!q;
+  if (!openAll && pickerOpen && keys.indexOf(pickerOpen) < 0) pickerOpen = null;
+
+  const rowHTML = e => {
+    const added = pickerAdded.filter(x => x === e.id).length;
+    return `<div class="lrow pick-row${added ? ' added' : ''}">
+      <button class="grow" data-act="pick-ex" data-v="${e.id}" style="text-align:left">
+        <div class="h3" style="font-size:14.5px">${h(e.name)}</div>
+        <div class="tiny mt-s">${h(e.eq)} · ${e.rl}–${e.rh} ${e.load==='time'?'sec':e.load==='min'?'min':'reps'}${added ? ' · <span class="em">added' + (added > 1 ? ' ×' + added : '') + '</span>' : ''}</div>
+      </button>
+      ${hasForm(e.id) ? `<button class="btn xs ghost" data-act="help-form-session" data-v="${e.id}">Form</button>` : ''}
+      <button class="btn xs icon pick-add" data-act="pick-ex" data-v="${e.id}" aria-label="Add ${h(e.name)}">
+        ${added ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : '+'}
+      </button>
+    </div>`;
+  };
+
+  const body = keys.length ? keys.map(g => {
+    const open = openAll || pickerOpen === g;
+    return `<div class="pick-group${open ? ' open' : ''}">
+      <button class="pick-head" data-act="pick-group" data-v="${h(g)}">
+        <span class="pick-dot ${muscleTone(g)}"></span>
+        <span class="grow pick-head-t">${h(g)}</span>
+        <span class="pick-n">${groups[g].length}</span>
+        <span class="pick-chev">${open ? '⌄' : '›'}</span>
+      </button>
+      ${open ? `<div class="list pick-list">${groups[g].map(rowHTML).join('')}</div>` : ''}
+    </div>`;
+  }).join('') : `<div class="note"><p class="note-t">Nothing matches “${h(query || '')}”.</p><p class="note-b">Try a muscle — chest, back, quads — or an equipment name like dumbbell.</p></div>`;
+
   openSheet(`
-    <div class="row between mb"><h2 class="h1">${pickerFor && pickerFor.mode==='swap'?'Swap for':'Add exercise'}</h2></div>
-    <input class="input mb" id="pick-q" placeholder="Search exercises…" value="${h(query||'')}" autocomplete="off">
+    <div class="row between mb">
+      <h2 class="h1">${pickerFor && pickerFor.mode === 'swap' ? 'Swap for' : 'Add movements'}</h2>
+      ${multi && pickerAdded.length ? `<span class="pill em">${pickerAdded.length} added</span>` : ''}
+    </div>
+    <input class="input mb" id="pick-q" placeholder="Search by name, muscle or kit…" value="${h(query || '')}"
+           autocomplete="off" enterkeyhint="search" inputmode="search">
     <div class="chip-grid c3 mb">
       ${Object.values(ENVS).map(e => `<div class="chip ${env===e.k?'on':''}" data-act="pick-env" data-v="${e.k}" style="font-size:12.5px">${e.short}</div>`).join('')}
     </div>
-    ${Object.keys(groups).map(g => `
-      <div class="eyebrow mb-s mt">${h(g)}</div>
-      <div class="list">
-        ${groups[g].map(e => `<div class="lrow">
-          <button class="grow" data-act="pick-ex" data-v="${e.id}" style="text-align:left">
-            <div class="h3" style="font-size:14.5px">${h(e.name)}</div>
-            <div class="tiny mt-s">${h(e.eq)} · ${e.rl}–${e.rh} ${e.load==='time'?'sec':e.load==='min'?'min':'reps'}</div>
-          </button>
-          ${hasForm(e.id) ? `<button class="btn xs ghost" data-act="help-form-session" data-v="${e.id}">Form</button>` : ''}
-          <button class="btn xs quiet" data-act="pick-ex" data-v="${e.id}">+</button>
-        </div>`).join('')}
-      </div>`).join('')}
+    ${body}
+    ${multi ? `<div class="pick-done">
+      <button class="btn primary block lg" data-act="pick-finish">${pickerAdded.length ? 'Done · ' + pickerAdded.length + ' added' : 'Done'}</button>
+    </div>` : ''}
   `);
+
   const qi = document.getElementById('pick-q');
   if (qi) {
     qi.addEventListener('input', ev => {
@@ -5386,6 +5955,16 @@ function renderPicker(query, env) {
     });
   }
   window._pickEnv = env;
+  window._pickQ = query || '';
+}
+
+/* A quiet colour per region so the collapsed list is scannable without
+   reading every label. */
+function muscleTone(m) {
+  if (/Chest|Shoulders|Triceps/.test(m)) return 'push';
+  if (/Back|Biceps|Forearms/.test(m)) return 'pull';
+  if (/Quads|Hamstrings|Glutes|Calves/.test(m)) return 'legs';
+  return 'core';
 }
 
 function sheetEnvs() {
@@ -5414,17 +5993,7 @@ function sheetRest() {
     <button class="btn primary block mt" data-act="close">Done</button>`);
 }
 
-function sheetProfile() {
-  openSheet(`
-    <div class="row between mb"><h2 class="h1">Profile</h2></div>
-    <div class="field mb"><div class="label">Name</div><input class="input" id="pf-name" value="${h(S.profile.name)}" autocomplete="off"></div>
-    <div class="field mb"><div class="label">Units</div>
-      <div class="chip-grid c2">
-        <div class="chip ${S.profile.units==='kg'?'on':''}" data-act="set-units" data-v="kg">Kilograms</div>
-        <div class="chip ${S.profile.units==='lb'?'on':''}" data-act="set-units" data-v="lb">Pounds</div>
-      </div></div>
-    <button class="btn primary block" data-act="save-profile">Save</button>`);
-}
+/* sheetProfile now lives in p6e_profile.js */
 
 function sheetPaywall() {
   openSheet(`
@@ -6124,6 +6693,425 @@ function sheetPlateSettings() {
   `);
 }
 /* ============================================================
+   ROUTINES — interface
+   ============================================================ */
+
+/* The strip on Today. Quiet by design: your own routines are an
+   option, not a second set of obligations sitting under the first. */
+function routineStripHTML() {
+  const list = ensureRoutines().filter(r => r.items.length);
+  if (!list.length) {
+    return `<div class="sec-head"><span class="sec-t">Your routines</span></div>
+    <button class="rt-empty" data-act="routines">
+      <span class="rt-plus">+</span>
+      <span class="grow"><span class="rt-empty-t">Build your own routine</span>
+      <span class="rt-empty-b">Abs before bed, a rehab circuit, fifteen minutes of arms in a hotel room</span></span>
+    </button>`;
+  }
+  return `<div class="sec-head"><span class="sec-t">Your routines</span><button class="sec-a" data-act="routines">Manage</button></div>
+    <div class="rt-strip">
+      ${list.slice(0, 6).map(r => `<button class="rt-chip" data-act="routine-start" data-v="${h(r.id)}">
+        <span class="rt-emoji">${h(r.emoji)}</span>
+        <span class="rt-chip-t">${h(r.name)}</span>
+        <span class="rt-chip-b">${r.items.length} · ${routineMins(r)} min</span>
+      </button>`).join('')}
+    </div>`;
+}
+
+/* Everything logged today, once there is more than one thing. */
+function todaySessionsHTML() {
+  const list = sessionsOn(today());
+  if (list.length < 2) return '';
+  return `<div class="sec-head"><span class="sec-t">Logged today</span></div>
+    <div class="list mb">
+      ${list.map(s => {
+        const v = sessionVolume(s);
+        return `<div class="lrow">
+          <div class="ico">${s.extra ? h((routineById(s.routineId) || {}).emoji || '✓') : '✓'}</div>
+          <div class="grow">
+            <div class="h3">${h(sessionTitle(s))}</div>
+            <div class="tiny mt-s">${v.sets} sets · ${s.dur || 0} min${s.kcal ? ' · ' + s.kcal + ' kcal' : ''}${s.extra ? ' · extra' : ''}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+/* ---------- the list ---------- */
+function sheetRoutines() {
+  const list = ensureRoutines();
+  openSheet(`
+    <div class="row between mb">
+      <h2 class="h1">Your routines</h2>
+    </div>
+    <p class="small mb">Sessions you build yourself. They sit alongside the week's plan rather than replacing it &mdash; running one never marks a planned day as done.</p>
+
+    ${list.length ? `<div class="list mb">
+      ${list.map(r => `<button class="lrow" data-act="routine-edit" data-v="${h(r.id)}" style="width:100%;text-align:left">
+        <div class="ico">${h(r.emoji)}</div>
+        <div class="grow">
+          <div class="h3">${h(r.name)}</div>
+          <div class="tiny mt-s">${h(routineSummary(r))}${r.uses ? ' · used ' + r.uses + '×' : ''}</div>
+        </div>
+        <span class="small">›</span>
+      </button>`).join('')}
+    </div>` : `<div class="note mb"><p class="note-t">Nothing built yet.</p><p class="note-b">A routine is just a list of movements you want to be able to start in one tap.</p></div>`}
+
+    <button class="btn primary block lg" data-act="routine-new">New routine</button>
+  `);
+}
+
+/* ---------- the builder ---------- */
+function sheetRoutineEdit(id) {
+  const r = routineById(id);
+  if (!r) { sheetRoutines(); return; }
+
+  const rows = r.items.map((it, i) => {
+    const ex = EX[it.exId];
+    if (!ex) return '';
+    const timed = ex.load === 'time' || ex.load === 'min';
+    return `<div class="rt-item">
+      <div class="row between">
+        <div class="grow">
+          <div class="h3">${h(ex.name)}</div>
+          <div class="tiny mt-s">${h(ex.primary)}${usesPlates(it.exId) ? ' · barbell' : ''}</div>
+        </div>
+        <span class="rt-pos mono">${i + 1}</span>
+      </div>
+      <div class="rt-nums mt-s">
+        <div class="rt-num">
+          <div class="rt-num-k">Sets</div>
+          <div class="stepper sm">
+            <button data-act="rt-adj" data-v="${h(id)}" data-i="${i}" data-f="sets" data-d="-1">&minus;</button>
+            <input type="text" value="${it.sets}" readonly>
+            <button data-act="rt-adj" data-v="${h(id)}" data-i="${i}" data-f="sets" data-d="1">+</button>
+          </div>
+        </div>
+        <div class="rt-num">
+          <div class="rt-num-k">${timed ? 'Seconds' : 'Reps'}</div>
+          <div class="stepper sm">
+            <button data-act="rt-adj" data-v="${h(id)}" data-i="${i}" data-f="reps" data-d="-1">&minus;</button>
+            <input type="text" value="${it.reps}" readonly>
+            <button data-act="rt-adj" data-v="${h(id)}" data-i="${i}" data-f="reps" data-d="1">+</button>
+          </div>
+        </div>
+      </div>
+      <div class="rt-ctl">
+        <button data-act="rt-move" data-v="${h(id)}" data-i="${i}" data-d="-1" aria-label="Move ${h(ex.name)} up"${i === 0 ? ' disabled style="opacity:.35"' : ''}>↑</button>
+        <button data-act="rt-move" data-v="${h(id)}" data-i="${i}" data-d="1" aria-label="Move ${h(ex.name)} down"${i === r.items.length - 1 ? ' disabled style="opacity:.35"' : ''}>↓</button>
+        <button class="rt-del" data-act="rt-remove" data-v="${h(id)}" data-i="${i}" aria-label="Remove ${h(ex.name)}"><span class="rt-ctl-l">Remove</span></button>
+      </div>
+    </div>`;
+  }).join('');
+
+  openSheet(`
+    <div class="row between mb">
+      <h2 class="h1">${h(r.name)}</h2>
+      <span class="pill">${routineMins(r)} min</span>
+    </div>
+
+    <div class="field mb">
+      <div class="label">Name</div>
+      <input class="input" id="rt-name" value="${h(r.name)}" maxlength="${ROUTINE_LIMITS.name}"
+             autocomplete="off" enterkeyhint="done" data-rt-name="${h(id)}">
+    </div>
+
+    <div class="rt-emoji-row mb">
+      ${ROUTINE_EMOJI.map(e => `<button class="rt-emoji-pick ${r.emoji === e ? 'on' : ''}" data-act="rt-emoji" data-v="${h(id)}" data-e="${e}">${e}</button>`).join('')}
+    </div>
+
+    ${r.items.length ? rows : `<div class="note mb"><p class="note-t">Empty so far.</p><p class="note-b">Add the movements you want, in the order you want to do them.</p></div>`}
+
+    <button class="btn ghost block mt" data-act="rt-add" data-v="${h(id)}">+ Add a movement</button>
+    ${r.items.length ? `<button class="btn primary block lg mt" data-act="routine-start" data-v="${h(id)}">Start it now</button>` : ''}
+
+    <div class="divide"></div>
+    <button class="btn quiet block" data-act="rt-delete" data-v="${h(id)}" style="color:var(--rose)">Delete this routine</button>
+    <p class="tiny center mt-s">Weights come from what you have been lifting, the same as any other session. Deleting a routine never touches the sessions you did with it.</p>
+  `);
+}
+/* ============================================================
+   PROFILE — the whole picture
+   ============================================================ */
+
+function sheetProfile() {
+  const comp = profileCompleteness();
+  const kg = bodyKg();
+  const bw = (S.profile.bodyweight || []).slice(-1)[0];
+  const e = energyTargets();
+  const age = ageYears();
+  const hLabel = heightLabel();
+  const imperial = S.profile.units === 'lb';
+
+  openSheet(`
+    <div class="row between mb">
+      <h2 class="h1">Profile</h2>
+      <span class="pill ${comp.done === comp.total ? 'tl' : ''}">${comp.done}/${comp.total}</span>
+    </div>
+    ${comp.missing.length ? `<p class="small mb">Still missing: ${comp.missing.join(', ')}. Each one makes the plan or the numbers a little less of a guess.</p>`
+      : `<p class="small mb">Everything the app can use, it has.</p>`}
+
+    <div class="eyebrow mt-l mb-s">You</div>
+    <div class="field mb">
+      <div class="label">Name</div>
+      <input class="input" id="pf-name" value="${h(S.profile.name || '')}" autocomplete="given-name" enterkeyhint="done">
+    </div>
+
+    <div class="pf-grid mb">
+      <button class="pf-cell" data-act="pf-height">
+        <span class="pf-k">Height</span>
+        <span class="pf-v ${hLabel ? '' : 'empty'}">${hLabel || 'Add'}</span>
+      </button>
+      <button class="pf-cell" data-act="daily">
+        <span class="pf-k">Weight</span>
+        <span class="pf-v ${bw ? '' : 'empty'}">${bw ? fmtW(bw.w) + ' ' + unit() : 'Add'}</span>
+      </button>
+      <button class="pf-cell" data-act="pf-age">
+        <span class="pf-k">Age</span>
+        <span class="pf-v ${age ? '' : 'empty'}">${age || 'Add'}</span>
+      </button>
+    </div>
+
+    <div class="field mb">
+      <div class="label">Sex</div>
+      <div class="chip-grid c3">
+        ${SEXES.map(x => `<div class="chip ${S.profile.sex === x.k ? 'on' : ''}" data-act="pf-sex" data-v="${x.k}" style="font-size:12.5px">${x.label}</div>`).join('')}
+      </div>
+      <p class="tiny mt-s">Only used by the resting-energy equation. Nothing else in the app reads it.</p>
+    </div>
+
+    <div class="field mb">
+      <div class="label">Your day job</div>
+      <div class="list">
+        ${ACTIVITY.map(x => `<button class="lrow ${S.profile.activity === x.k ? 'on' : ''}" data-act="pf-activity" data-v="${x.k}" style="width:100%;text-align:left">
+          <div class="grow"><div class="h3" style="font-size:14.5px">${x.label}</div><div class="tiny mt-s">${x.note}</div></div>
+          <span class="small">${S.profile.activity === x.k ? '✓' : ''}</span>
+        </button>`).join('')}
+      </div>
+      <p class="tiny mt-s">Fourteen hours on your feet with a camera is not a sedentary day, whatever the training log says.</p>
+    </div>
+
+    ${e ? `<div class="card accent mt-l">
+      <div class="eyebrow em">Energy</div>
+      ${e.bmr ? `<div class="row between mt-s"><span class="small">Resting rate</span><span class="mono">${e.bmr} kcal</span></div>` : ''}
+      ${e.maint ? `<div class="row between mt-s"><span class="small">Maintenance</span><span class="mono">${e.maint} kcal</span></div>` : ''}
+      <div class="row between mt-s"><span class="small"><strong>Target</strong></span><span class="mono em">${e.kcal} kcal · ${e.p}g protein</span></div>
+      <p class="tiny mt-s">${e.basis === 'from your resting rate'
+        ? 'Mifflin-St Jeor, then adjusted for how you spend the day and what you are training for. Accurate to about &plusmn;10% for any one person &mdash; treat it as a starting point and move it based on what the scale actually does over a month.'
+        : 'Estimated from bodyweight alone. Add height and age and this gets meaningfully better.'}</p>
+    </div>` : `<div class="note mt-l"><p class="note-t">No energy estimate yet.</p><p class="note-b">Add ${bodyGaps().join(', ')} and Guzo can work out your resting rate rather than guessing from weight.</p></div>`}
+
+    <div class="eyebrow mt-l mb-s">Training</div>
+    <div class="list mb">
+      <button class="lrow" data-act="open-program" style="width:100%;text-align:left">
+        <div class="ico">📋</div><div class="grow"><div class="h3">Split</div><div class="tiny mt-s">${h(programOf().label)}</div></div><span class="small">›</span></button>
+      <button class="lrow" data-act="open-envs" style="width:100%;text-align:left">
+        <div class="ico">📍</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${(S.profile.envs||[]).map(k=>ENVS[k]?ENVS[k].label:k).join(', ') || 'Not set'}</div></div><span class="small">›</span></button>
+      <button class="lrow" data-act="pf-session" style="width:100%;text-align:left">
+        <div class="ico">⏱</div><div class="grow"><div class="h3">A normal session</div><div class="tiny mt-s">${S.profile.sessionMins || 60} minutes &mdash; everything scales from this</div></div><span class="small">›</span></button>
+      <button class="lrow" data-act="pf-sleep" style="width:100%;text-align:left">
+        <div class="ico">🌙</div><div class="grow"><div class="h3">A normal night</div><div class="tiny mt-s">${S.profile.sleepNorm || 7.5}h &mdash; readiness is scored against this, not against eight</div></div><span class="small">›</span></button>
+    </div>
+
+    <div class="field mb">
+      <div class="label">Units</div>
+      <div class="chip-grid c2">
+        <div class="chip ${S.profile.units==='kg'?'on':''}" data-act="set-units" data-v="kg">Kilograms</div>
+        <div class="chip ${S.profile.units==='lb'?'on':''}" data-act="set-units" data-v="lb">Pounds</div>
+      </div>
+    </div>
+    <button class="btn primary block lg" data-act="save-profile">Save</button>
+  `);
+}
+
+/* ---------- the small editors ---------- */
+function sheetHeight() {
+  const cm = profileNum('heightCm');
+  const imperial = S.profile.units === 'lb';
+  const inches = cm ? cm / 2.54 : null;
+  openSheet(`
+    <h2 class="h1">Height</h2>
+    <p class="small mt-s mb">Used for the resting-energy equation. It is the one body measurement that does not change, so it only ever needs entering once.</p>
+    ${imperial ? `
+      <div class="pf-grid mb">
+        <div class="field"><div class="label">Feet</div>
+          <input class="input mono" id="pf-ft" type="text" inputmode="numeric" value="${inches ? Math.floor(inches/12) : ''}" placeholder="5"></div>
+        <div class="field"><div class="label">Inches</div>
+          <input class="input mono" id="pf-in" type="text" inputmode="numeric" value="${inches ? Math.round(inches - Math.floor(inches/12)*12) : ''}" placeholder="10"></div>
+      </div>` : `
+      <div class="field mb"><div class="label">Centimetres</div>
+        <input class="input mono" id="pf-cm" type="text" inputmode="decimal" value="${cm || ''}" placeholder="178"></div>`}
+    <button class="btn primary block lg" data-act="pf-height-save">Save</button>
+  `);
+  setTimeout(() => { const el = document.getElementById(imperial ? 'pf-ft' : 'pf-cm'); if (el) el.focus(); }, 260);
+}
+
+function sheetAge() {
+  const y = profileNum('birthYear');
+  const now = new Date().getFullYear();
+  openSheet(`
+    <h2 class="h1">Year of birth</h2>
+    <p class="small mt-s mb">Resting energy falls with age &mdash; roughly 5 kcal a day per year in the equation. Without it the estimate drifts by a couple of hundred calories.</p>
+    <div class="field mb"><div class="label">Year</div>
+      <input class="input mono" id="pf-year" type="text" inputmode="numeric" maxlength="4" value="${y || ''}" placeholder="${now - 32}"></div>
+    <button class="btn primary block lg" data-act="pf-age-save">Save</button>
+  `);
+  setTimeout(() => { const el = document.getElementById('pf-year'); if (el) el.focus(); }, 260);
+}
+
+function sheetSessionMins() {
+  const m = S.profile.sessionMins || 60;
+  openSheet(`
+    <h2 class="h1">A normal session</h2>
+    <p class="small mt-s mb">Every other size is worked out from this one. Set it to what an ordinary day actually looks like, not what a good week looks like.</p>
+    <div class="field mb">
+      <div class="row between"><div class="label">Minutes</div><div class="tiny mono">${m}</div></div>
+      <div class="stepper">
+        <button data-act="pf-session-adj" data-v="-5">&minus;</button>
+        <input type="text" value="${m}" readonly>
+        <button data-act="pf-session-adj" data-v="5">+</button>
+      </div>
+    </div>
+  `);
+}
+
+function sheetSleepNorm() {
+  const n = S.profile.sleepNorm || 7.5;
+  openSheet(`
+    <h2 class="h1">A normal night</h2>
+    <p class="small mt-s mb">Readiness is scored against your normal, not against a textbook eight hours. Six is a catastrophe for one person and an ordinary Tuesday for another.</p>
+    <div class="field mb">
+      <div class="row between"><div class="label">Hours</div><div class="tiny mono">${n}h</div></div>
+      <div class="stepper">
+        <button data-act="pf-sleep-adj" data-v="-0.5">&minus;</button>
+        <input type="text" value="${n}" readonly>
+        <button data-act="pf-sleep-adj" data-v="0.5">+</button>
+      </div>
+    </div>
+  `);
+}
+/* ============================================================
+   FUEL — the nutrition screen
+   ------------------------------------------------------------
+   Off by default. Turned on, it earns a place in the tab bar and
+   Route steps out of it: six tabs is one too many on a phone, and
+   shaping the week is a weekly decision reachable from Today,
+   while eating is a daily one.
+   ============================================================ */
+
+function fuelOn() { return !!(S.settings && S.settings.nutrition); }
+
+/* Route leaves the bar when Fuel joins it, so the count stays at five. */
+function syncNav() {
+  const fuel = document.getElementById('nav-fuel');
+  const plan = document.getElementById('nav-plan');
+  if (!fuel || !plan) return;
+  fuel.classList.toggle('hide', !fuelOn());
+  plan.classList.toggle('hide', fuelOn());
+  if (fuelOn() && SCREEN === 'plan') { /* still reachable, just not from the bar */ }
+}
+
+function renderFuel() {
+  const t = nutTotals();
+  const e = energyTargets();
+  const tg = S.nutrition.targets || {};
+  const burned = kcalOnDate(today());
+  const gaps = bodyGaps();
+
+  const kcalTarget = tg.kcal || (e && e.kcal) || 0;
+  const pTarget = tg.p || (e && e.p) || 0;
+  const kPct = kcalTarget ? Math.min(100, Math.round(t.kcal / kcalTarget * 100)) : 0;
+  const pPct = pTarget ? Math.min(100, Math.round(t.p / pTarget * 100)) : 0;
+  const left = Math.max(0, kcalTarget - t.kcal);
+
+  let html = '';
+
+  html += `<div class="fuel-hero">
+    <div class="row between">
+      <span class="eyebrow">Today</span>
+      ${burned ? `<span class="pill em">+${burned} burned</span>` : ''}
+    </div>
+    <div class="fuel-big mono">${t.kcal}<span class="fuel-of">/ ${kcalTarget || '—'}</span></div>
+    <div class="fuel-sub">${kcalTarget ? (left ? fmtW(left) + ' kcal left' : 'target met') : 'No target set yet'}</div>
+    <div class="bar mt"><i style="width:${kPct}%"></i></div>
+  </div>`;
+
+  html += `<div class="fuel-macros">
+    ${[['Protein', t.p, pTarget, 'teal'], ['Carbs', t.c, tg.c || (e && e.c) || 0, ''], ['Fat', t.f, tg.f || (e && e.f) || 0, '']]
+      .map(([k, v, target, tone]) => {
+        const pct = target ? Math.min(100, Math.round(v / target * 100)) : 0;
+        return `<div class="fuel-macro">
+          <div class="row between"><span class="small">${k}</span><span class="tiny mono">${v}g / ${target || '—'}g</span></div>
+          <div class="bar thin ${tone} mt-s"><i style="width:${pct}%"></i></div>
+        </div>`;
+      }).join('')}
+  </div>`;
+
+  html += `<p class="tiny mt">Protein is the number that decides whether the training turns into muscle. The rest is a rounding error by comparison.</p>`;
+
+  if (gaps.length) {
+    html += `<button class="note mt-l" data-act="open-profile" style="width:100%;text-align:left">
+      <p class="note-t">Your targets are a rough guess</p>
+      <p class="note-b">Add ${gaps.join(', ')} and Guzo works out your resting rate properly instead of estimating from bodyweight. It moves the number by a few hundred calories either way.</p>
+    </button>`;
+  } else if (e) {
+    html += `<div class="card mt-l">
+      <div class="eyebrow">Where the target comes from</div>
+      <div class="row between mt-s"><span class="small">Resting rate</span><span class="mono">${e.bmr} kcal</span></div>
+      <div class="row between mt-s"><span class="small">Your day job</span><span class="mono">×${activityFactor()}</span></div>
+      <div class="row between mt-s"><span class="small">Maintenance</span><span class="mono">${e.maint} kcal</span></div>
+      <div class="row between mt-s"><span class="small"><strong>Target</strong></span><span class="mono em">${e.kcal} kcal</span></div>
+      <p class="tiny mt-s">Accurate to about &plusmn;10% for any one person. Move it based on what the scale does over a month, not what it does tomorrow.</p>
+    </div>`;
+  }
+
+  html += `<div class="sec-head"><span class="sec-t">Add quickly</span><button class="sec-a" data-act="open-nutrition">Everything</button></div>
+    <div class="fuel-quick">
+      ${QUICKFOODS.slice(0, 6).map((f, i) => `<button class="fuel-chip" data-act="nut-quick" data-i="${i}">
+        <span class="fuel-chip-t">${h(f.n)}</span>
+        <span class="fuel-chip-b mono">${f.kcal} · ${f.p}g p</span>
+      </button>`).join('')}
+    </div>`;
+
+  html += `<button class="btn ghost block mt-l" data-act="open-nutrition">Log something else</button>
+    <button class="btn quiet block mt-s" data-act="open-nut-targets">Adjust targets</button>`;
+
+  const el = document.getElementById('fuel-body');
+  if (el) el.innerHTML = html;
+}
+
+/* Targets: shown as what the body data implies, with room to overrule. */
+function sheetNutTargets() {
+  const e = energyTargets();
+  const tg = S.nutrition.targets || {};
+  const cur = { kcal: tg.kcal || (e && e.kcal) || 0, p: tg.p || (e && e.p) || 0 };
+  openSheet(`
+    <h2 class="h1">Targets</h2>
+    <p class="small mt-s mb">${e && e.basis === 'from your resting rate'
+      ? 'Worked out from your height, weight, age and how you spend the day. Overrule anything that does not match what you see on the scale.'
+      : 'Estimated from bodyweight alone &mdash; fill in the rest of your profile and these get considerably better.'}</p>
+
+    <div class="field mb">
+      <div class="row between"><div class="label">Calories</div><div class="tiny mono">${cur.kcal} kcal</div></div>
+      <div class="stepper">
+        <button data-act="nut-target-adj" data-f="kcal" data-v="-50">&minus;</button>
+        <input type="text" value="${cur.kcal}" readonly>
+        <button data-act="nut-target-adj" data-f="kcal" data-v="50">+</button>
+      </div>
+    </div>
+    <div class="field mb">
+      <div class="row between"><div class="label">Protein</div><div class="tiny mono">${cur.p} g</div></div>
+      <div class="stepper">
+        <button data-act="nut-target-adj" data-f="p" data-v="-5">&minus;</button>
+        <input type="text" value="${cur.p}" readonly>
+        <button data-act="nut-target-adj" data-f="p" data-v="5">+</button>
+      </div>
+    </div>
+    ${e ? `<button class="btn ghost block mt" data-act="nut-target-reset">Back to the suggestion (${e.kcal} kcal · ${e.p}g)</button>` : ''}
+    <p class="tiny center mt-l">Carbs and fat fill whatever is left. Nothing here ever blocks a session.</p>
+  `);
+}
+/* ============================================================
    REST TIMER
    ============================================================ */
 let restEnd = 0, restTotal = 0, restTick = null;
@@ -6196,7 +7184,13 @@ function finishSession() {
   A.kcal = sessionKcal(A);
   applyProgression(A);
   S.sessions.push(A);
-  if (S.week.plan[A.date]) S.week.plan[A.date].done = true;
+  /* An extra you chose to do must not quietly discharge the session you
+     committed to. Abs at 10pm is not the same as the Upper day you skipped. */
+  if (!A.extra && S.week.plan[A.date]) S.week.plan[A.date].done = true;
+  if (A.routineId) {
+    const rt = routineById(A.routineId);
+    if (rt) { rt.uses = (rt.uses || 0) + 1; rt.lastUsed = A.date; }
+  }
   S.active = null;
   stopRest();
   wakeOff();
@@ -6236,7 +7230,13 @@ function sheetSessionDone(A, v, fresh) {
     ${!fresh.length && nxt && nxt.left > 0 && nxt.left <= 5 ? `
       <div class="banner soft mb">${nxt.left} more ${nxt.unit} to <strong>${nxt.title}</strong>.</div>` : ''}
     ${A.exercises.filter(i => i.deloaded).length ? `<div class="banner soft mb">Some weights were pulled back 10% after two sessions short of target. That's the plan working, not you failing.</div>` : ''}
-    <button class="btn primary block lg" data-act="close">Good</button>
+    <div class="creed">
+      <div class="creed-rule"></div>
+      <span class="creed-mark">&ldquo;</span>
+      <p class="creed-text">${dailyLine()}</p>
+      <span class="creed-tag">GUZO · ${prettyDate(today()).toUpperCase()}</span>
+    </div>
+    <button class="btn primary block lg mt" data-act="close">Good</button>
   `);
 }
 
@@ -6292,6 +7292,45 @@ document.addEventListener('click', ev => {
                         'save-note','remove-ex','finish','abandon','toggle-collapse','pick-ex','leave-session'];
   if (a === 'help-form-session' && !S.active) { sheetForm(v, false); return; }
   if (a === 'ex-form' && !S.active) { if (v) sheetExerciseGuide(v, false); return; }
+  /* Building a routine is a multi-select job. Throwing the sheet away after
+     every single choice turns "add six movements" into six round trips. */
+  if (a === 'pick-ex' && pickerFor && pickerFor.mode === 'routine') {
+    if (!addToRoutine(pickerFor.id, v)) { toast('That routine is full'); return; }
+    pickerAdded.push(v);
+    buzz();
+    renderPicker(window._pickQ || '', window._pickEnv || 'full');
+    return;
+  }
+  if (a === 'pick-ex' && pickerFor && pickerFor.mode === 'add' && S.active) {
+    const ex = EX[v];
+    if (!ex) return;
+    const tg = targetFor(ex.id);
+    S.active.exercises.push({
+      exId: ex.id, name: ex.name, load: ex.load,
+      targetW: tg.w, targetR: tg.r || ex.rl,
+      sets: Array.from({ length: 3 }, () => ({ w: tg.w != null ? tg.w : '', r:'', rpe:'', done:false })),
+      note: ''
+    });
+    pickerAdded.push(v);
+    save(); buzz();
+    renderPicker(window._pickQ || '', window._pickEnv || 'full');
+    return;
+  }
+  if (a === 'pick-group') {
+    pickerOpen = (pickerOpen === v) ? null : v;
+    renderPicker(window._pickQ || '', window._pickEnv || 'full');
+    return;
+  }
+  if (a === 'pick-finish') {
+    const mode = pickerFor && pickerFor.mode;
+    const id = pickerFor && pickerFor.id;
+    const n = pickerAdded.length;
+    closeSheet();
+    if (mode === 'routine' && id) sheetRoutineEdit(id);
+    else renderTrain();
+    if (n) toast(n + ' added', true);
+    return;
+  }
   if (NEEDS_ACTIVE.includes(a) && !S.active) { render(); return; }
 
   switch (a) {
@@ -6634,7 +7673,40 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'open-nutrition': sheetNutrition(); break;
-    case 'nut-quick': { nutDay().items.push({ ...QUICKFOODS[i] }); save(); sheetNutrition(); buzz(); break; }
+    case 'nut-quick': {
+      nutDay().items.push({ ...QUICKFOODS[i] }); save(); buzz();
+      if (SCREEN === 'fuel') { renderFuel(); toast('Logged', true); }
+      else sheetNutrition();
+      break;
+    }
+    case 'open-nut-targets': sheetNutTargets(); break;
+    case 'nut-target-adj': {
+      const e = energyTargets();
+      const f = t.dataset.f;
+      const base = (S.nutrition.targets[f] != null && S.nutrition.targets[f] > 0)
+        ? S.nutrition.targets[f] : (e ? e[f] : 0);
+      const min = f === 'kcal' ? 1000 : 40;
+      const max = f === 'kcal' ? 6000 : 400;
+      S.nutrition.targets[f] = Math.max(min, Math.min(max, base + parseFloat(v)));
+      save(true); sheetNutTargets();
+      if (SCREEN === 'fuel') renderFuel();
+      break;
+    }
+    case 'nut-target-reset': {
+      const e = energyTargets();
+      if (e) { S.nutrition.targets = { kcal:e.kcal, p:e.p, c:e.c, f:e.f }; save(true); }
+      sheetNutTargets(); if (SCREEN === 'fuel') renderFuel();
+      break;
+    }
+    case 'open-profile': sheetProfile(); break;
+    case 'toggle-fuel': {
+      S.settings.nutrition = !S.settings.nutrition;
+      save(true); syncNav();
+      if (!S.settings.nutrition && SCREEN === 'fuel') go('today'); else render();
+      renderMore();
+      toast(S.settings.nutrition ? 'Fuel is on' : 'Fuel is off', true);
+      break;
+    }
     case 'nut-del': { nutDay().items.splice(i, 1); save(); sheetNutrition(); break; }
     case 'nut-custom': {
       openSheet(`
@@ -6733,6 +7805,7 @@ document.addEventListener('click', ev => {
 
     /* ---- data ---- */
     case 'open-journey': sheetJourney(); break;
+    case 'coach-note': sheetCoachNote(v); break;
 
     /* ---- daily metrics ---- */
     case 'daily': sheetDaily(v || null); break;
@@ -6740,6 +7813,79 @@ document.addEventListener('click', ev => {
 
     /* ---- plate calculator ---- */
     case 'plate-calc': sheetPlateCalc(v); break;
+
+    /* ---- profile ---- */
+    case 'pf-height': sheetHeight(); break;
+    case 'pf-age': sheetAge(); break;
+    case 'pf-session': sheetSessionMins(); break;
+    case 'pf-sleep': sheetSleepNorm(); break;
+    case 'pf-sex': { if (setSex(v)) { sheetProfile(); } break; }
+    case 'pf-activity': { if (setActivity(v)) { sheetProfile(); } break; }
+    case 'pf-height-save': {
+      const cmEl = $('#pf-cm');
+      let cm;
+      if (cmEl) cm = parseFloat(cmEl.value);
+      else {
+        const ft = parseFloat(($('#pf-ft') || {}).value) || 0;
+        const inch = parseFloat(($('#pf-in') || {}).value) || 0;
+        cm = (ft * 12 + inch) * 2.54;
+      }
+      if (!setHeight(cm)) { toast('That does not look like a height'); return; }
+      closeSheet(); sheetProfile(); toast('Height saved', true);
+      break;
+    }
+    case 'pf-age-save': {
+      if (!setBirthYear(($('#pf-year') || {}).value)) { toast('That does not look like a birth year'); return; }
+      closeSheet(); sheetProfile(); toast('Saved', true);
+      break;
+    }
+    case 'pf-session-adj': {
+      S.profile.sessionMins = Math.max(10, Math.min(150, (S.profile.sessionMins || 60) + parseFloat(v)));
+      save(true); sheetSessionMins(); break;
+    }
+    case 'pf-sleep-adj': {
+      S.profile.sleepNorm = Math.max(3, Math.min(12, Math.round(((S.profile.sleepNorm || 7.5) + parseFloat(v)) * 2) / 2));
+      save(true); sheetSleepNorm(); break;
+    }
+
+    /* ---- routines ---- */
+    case 'routines': sheetRoutines(); break;
+    case 'routine-new': {
+      const r = newRoutine('New routine');
+      sheetRoutineEdit(r.id);
+      break;
+    }
+    case 'routine-edit': sheetRoutineEdit(v); break;
+    case 'rt-add': {
+      pickerFor = { mode: 'routine', id: v };
+      pickerOpen = null; pickerAdded = [];
+      const c = dayConstraint(today());
+      renderPicker('', c.env || (S.profile.envs && S.profile.envs[0]) || 'full');
+      break;
+    }
+    case 'rt-remove': { removeFromRoutine(v, i); sheetRoutineEdit(v); break; }
+    case 'rt-move':   { moveInRoutine(v, i, +t.dataset.d); sheetRoutineEdit(v); break; }
+    case 'rt-adj':    { adjustRoutineItem(v, i, t.dataset.f, +t.dataset.d); sheetRoutineEdit(v); break; }
+    case 'rt-emoji':  { setRoutineEmoji(v, t.dataset.e); sheetRoutineEdit(v); break; }
+    case 'rt-delete': {
+      const r = routineById(v);
+      if (!r) break;
+      if (!confirm('Delete "' + r.name + '"? The sessions you did with it are kept.')) break;
+      deleteRoutine(v); closeSheet(); sheetRoutines(); render();
+      toast('Routine deleted', true);
+      break;
+    }
+    case 'routine-start': {
+      if (S.active) { toast('Finish the session you are in first'); go('train'); return; }
+      const sess = buildRoutineSession(v);
+      if (!sess) { toast('Add something to it first'); sheetRoutineEdit(v); return; }
+      sess.started = Date.now();
+      const rd = S.readiness[today()];
+      sess.readiness = rd ? rd.score : null;
+      S.active = sess;
+      save(true); closeSheet(); wakeOn(); go('train'); buzz();
+      break;
+    }
     case 'plate-settings': sheetPlateSettings(); break;
     case 'plate-toggle': {
       if (!togglePlate(parseFloat(v))) { toast('Keep at least one plate'); return; }
@@ -6803,7 +7949,6 @@ document.addEventListener('click', ev => {
       obDraft = { ...OB_DEFAULT, gear:{ ...GEAR_ALL }, seedOverrides:{}, seedExact:{}, goals:['strength','muscle'], priorities:[], injuries:[], cardioModes:['car-walk'], envs:['full'] };
       save(true); closeSheet(); go('onboard'); break;
     }
-    case 'btn-quick-log': break;
     case 'close': closeSheet(); break;
   }
 });
@@ -6879,6 +8024,13 @@ document.addEventListener('focusin', ev => {
   if (el.dataset && el.dataset.set && el.value) { try { el.select(); } catch (e) {} }
 });
 
+/* ---- routine name: written straight through so nothing needs saving ---- */
+document.addEventListener('input', ev => {
+  const el = ev.target;
+  if (!el.dataset || !el.dataset.rtName) return;
+  renameRoutine(el.dataset.rtName, el.value);
+});
+
 /* ---- daily metrics: write straight through, keyboard stays up ---- */
 document.addEventListener('input', ev => {
   const el = ev.target;
@@ -6897,7 +8049,6 @@ $('#scrim').addEventListener('click', () => closeSheet());
 $('#sheet-x').addEventListener('click', () => closeSheet());
 $('#rest-skip').addEventListener('click', stopRest);
 $('#rest-add').addEventListener('click', () => { restEnd += 30000; restTotal += 30; tickRest(); });
-$('#btn-quick-log').addEventListener('click', () => sheetLadder(nextType()));
 
 /* ---- keep the elapsed clock moving (in place, never a re-render) ---- */
 setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress(); }, 20000);
