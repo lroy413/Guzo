@@ -245,7 +245,11 @@ Every instrument here has to be able to fail, and both new ones were checked aga
 
 **Today:** upload `index.html` **and `sw.js`** to any static host — Cloudflare Pages, GitHub Pages, Netlify. Then on the phone: Safari → Share → Add to Home Screen.
 
-Live at **https://lroy413.github.io/Guzo/**, served by GitHub Pages from `main` (enabled in repo settings, so there is no workflow file in the tree). Pushing to `main` redeploys.
+Live at **https://guzofit.app**, served by GitHub Pages from `main` (enabled in repo settings, so there is no workflow file in the tree). Pushing to `main` redeploys. The `CNAME` file at the repo root is what binds the domain — deleting it reverts the site to `lroy413.github.io/Guzo/`.
+
+**There used to be two deployments.** `guzofit.app` was hosted separately and never received a single push from this repo: it served a build older than the Fuel screen, with no `sw.js` at all, while every release landed on the `github.io` URL nobody was opening. If a version ever looks stuck again, read the build stamp in the boot panel — `build.sh` writes it into plain markup precisely so a host can be asked what it is serving without executing the page.
+
+Nothing in the app hardcodes a path. The worker registers `sw.js` relatively and its `SHELL` is `./`, so the site works identically at a domain root or under a subpath.
 
 Updates reach an installed app because the worker is network-first on navigation: it serves the cached shell only when the network fails or is slower than 3.5s. Cache-first would pin a phone to whatever it first installed, and there is no in-app update prompt to rescue it.
 
