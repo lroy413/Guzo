@@ -733,6 +733,24 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'open-profile': sheetProfile(); break;
+    case 'open-settings': sheetSettings(); break;
+    /* The Settings sheet needs its own toggle cases. The More-screen ones
+       re-render More, which is the wrong surface when the switch being tapped
+       is inside an open sheet — the sheet would keep showing the old state. */
+    case 'set-toggle-warmup': {
+      S.settings.warmup = !S.settings.warmup;
+      save(true); renderMore(); sheetSettings();
+      toast(S.settings.warmup ? 'Warm-up on' : 'Warm-up off', true);
+      break;
+    }
+    case 'set-toggle-fuel': {
+      S.settings.nutrition = !S.settings.nutrition;
+      save(true); syncNav();
+      if (!S.settings.nutrition && SCREEN === 'fuel') go('today'); else render();
+      renderMore(); sheetSettings();
+      toast(S.settings.nutrition ? 'Fuel is on' : 'Fuel is off', true);
+      break;
+    }
     case 'open-diet-prefs': sheetDietPrefs(); break;
     case 'diet-meals':  { dietPrefs().meals  = +v; save(true); sheetDietPrefs(); if (SCREEN === 'fuel') renderFuel(); break; }
     case 'diet-snacks': { dietPrefs().snacks = +v; save(true); sheetDietPrefs(); if (SCREEN === 'fuel') renderFuel(); break; }

@@ -126,7 +126,10 @@ try {
   await page.reload({ waitUntil: 'load' });
   const row = await page.evaluate(() => {
     go('more');
-    const el = document.querySelector('[data-act="toggle-fuel"]');
+    /* The Fuel switch moved off More and into the Settings sheet when More
+       became a hub of destinations. Same guarantees, one tap deeper. */
+    document.querySelector('[data-act="open-settings"]').click();
+    const el = document.querySelector('#sheet-body [data-act="set-toggle-fuel"]');
     if (!el) return null;
     return {
       badge: !!el.querySelector('.pro-tag'),
@@ -135,7 +138,7 @@ try {
       navFuelHidden: document.getElementById('nav-fuel').classList.contains('hide')
     };
   });
-  check('the Fuel row exists', !!row);
+  check('the Fuel row exists in Settings', !!row);
   check('no PRO badge while the beta unlocks everything', row && row.badge === false);
   check('the control is a switch, visible in both states', row && row.hasSwitch);
   check('switch reads off when Fuel is off', row && row.switchOn === false);
@@ -143,11 +146,11 @@ try {
 
   /* And the whole point: turning it on puts Fuel in the navbar. */
   const after = await page.evaluate(() => {
-    document.querySelector('[data-act="toggle-fuel"]').click();
+    document.querySelector('#sheet-body [data-act="set-toggle-fuel"]').click();
     return {
       navFuelHidden: document.getElementById('nav-fuel').classList.contains('hide'),
       navPlanHidden: document.getElementById('nav-plan').classList.contains('hide'),
-      switchOn: !!document.querySelector('[data-act="toggle-fuel"] .switch.on'),
+      switchOn: !!document.querySelector('#sheet-body [data-act="set-toggle-fuel"] .switch.on'),
       tabs: [...document.querySelectorAll('#nav .nav-btn')].filter(b => !b.classList.contains('hide')).length
     };
   });
@@ -155,6 +158,8 @@ try {
   check('Route leaves the bar so the count stays at five', after && after.navPlanHidden === true);
   check('the switch reflects the new state', after && after.switchOn === true);
   check('exactly five tabs', after && after.tabs === 5, String(after && after.tabs));
+
+  await page.evaluate(() => closeSheet());
 
   /* ---- the nav is a floating pill, and does not sit on the content ----
      It used to be a full-width slab whose padding plus the safe-area inset
@@ -188,6 +193,86 @@ try {
   /* Without this the last card on every screen would sit under the pill. */
   check('screens can scroll clear of it', nav.screenPadBottom >= nav.height + 10,
     `pad ${nav.screenPadBottom} vs nav ${nav.height}`);
+
+  /* ---- the Settings sheet ----
+     More is a hub of destinations now; everything you tune lives behind one
+     row. The risk in a move like this is an orphaned action — a row that
+     renders perfectly and does nothing when tapped, because its `case` was
+     never reachable from here. So every row is actually clicked. */
+  const more = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = false; save(true);
+    go('more');
+    const body = document.getElementById('more-body');
+    const acts = [...body.querySelectorAll('[data-act]')].map(e => e.dataset.act);
+    return {
+      settingsRows: body.querySelectorAll('[data-act="open-settings"]').length,
+      // these moved into Settings and must no longer sit loose on More
+      strays: ['rest-settings','plate-settings','export','import','reset','open-program','edit-envs']
+        .filter(a => acts.includes(a)),
+      text: body.innerText || ''
+    };
+  });
+  check('More has exactly one Settings row', more.settingsRows === 1, String(more.settingsRows));
+  check('the tunables no longer sit loose on More', more.strays.length === 0, more.strays.join(', '));
+  check('More still renders text', more.text.length > 100, String(more.text.length));
+  check('no placeholder text on More', !BAD.test(more.text));
+
+  const sheet = await page.evaluate(() => {
+    document.querySelector('[data-act="open-settings"]').click();
+    const b = document.getElementById('sheet-body');
+    const acts = [...b.querySelectorAll('[data-act]')].map(e => e.dataset.act);
+    return { text: b.innerText || '', acts };
+  });
+  check('the Settings sheet opens', sheet.text.length > 100, String(sheet.text.length));
+  check('no placeholder text in Settings', !BAD.test(sheet.text));
+  for (const need of ['open-program','edit-envs','rest-settings','plate-settings',
+                      'set-toggle-warmup','set-toggle-fuel','edit-profile',
+                      'export','import','reset']) {
+    check(`Settings offers ${need}`, sheet.acts.includes(need));
+  }
+
+  /* Every navigational row must actually open something. A row whose case is
+     missing would silently do nothing, which looks identical to a row nobody
+     has tapped yet. */
+  for (const act of ['open-program','edit-envs','rest-settings','plate-settings','edit-profile']) {
+    const res = await page.evaluate(a => {
+      go('more');
+      document.querySelector('[data-act="open-settings"]').click();
+      const before = document.getElementById('sheet-body').innerText || '';
+      const el = document.querySelector(`#sheet-body [data-act="${a}"]`);
+      if (!el) return { ok: false, why: 'row missing' };
+      el.click();
+      const after = document.getElementById('sheet-body').innerText || '';
+      return { ok: after.length > 40 && after !== before, why: after.slice(0, 40) };
+    }, act);
+    check(`${act} opens its sheet`, res.ok, res.why);
+  }
+
+  /* A switch inside a sheet has to update the sheet. The More-screen handlers
+     re-render More, which would leave the open sheet showing the old state. */
+  const toggled = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = false;
+    S.settings.warmup = false; save(true);
+    go('more');
+    document.querySelector('[data-act="open-settings"]').click();
+    document.querySelector('#sheet-body [data-act="set-toggle-warmup"]').click();
+    const warmOn = !!document.querySelector('#sheet-body [data-act="set-toggle-warmup"] .switch.on');
+    document.querySelector('#sheet-body [data-act="set-toggle-fuel"]').click();
+    return {
+      warmSwitchOn: warmOn,
+      warmState: S.settings.warmup,
+      fuelState: S.settings.nutrition,
+      fuelSwitchOn: !!document.querySelector('#sheet-body [data-act="set-toggle-fuel"] .switch.on'),
+      navFuelShown: !document.getElementById('nav-fuel').classList.contains('hide'),
+      dietRowAppeared: !!document.querySelector('#sheet-body [data-act="open-diet-prefs"]')
+    };
+  });
+  check('the warm-up switch flips the setting', toggled.warmState === true);
+  check('...and the sheet redraws to show it', toggled.warmSwitchOn === true);
+  check('the Fuel switch flips the setting', toggled.fuelState === true);
+  check('...and the sheet redraws to show it', toggled.fuelSwitchOn === true);
+  check('...and Fuel joins the nav from inside Settings', toggled.navFuelShown === true);
+  check('...and "How you eat" appears once Fuel is on', toggled.dietRowAppeared === true);
 
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 

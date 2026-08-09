@@ -1,6 +1,6 @@
 # Status
 
-Verified against the build at **519,334 bytes**, `VERSION = '1.2.0'`.
+Verified against the build at **522,686 bytes**, `VERSION = '1.2.0'`.
 Last full sweep: all instruments green. Nothing known is broken.
 
 ---
@@ -111,6 +111,22 @@ Onboarding never asked height, age or sex, so `energyTargets()` returned null fo
 Two more screens collect how you actually eat — meals and snacks a day, a dietary pattern, and exclusions — stored in `S.nutrition.prefs` and editable afterwards from Fuel's "How you eat" sheet, which is the only route for anyone who enabled Fuel long after onboarding.
 
 `suggestMeals()` builds a day from the existing library: protein leads, the carb fills the remaining calories, portions round to something a person would actually measure. Variety comes from the date, so the same day always suggests the same plate and reopening Fuel does not reshuffle it. Restrictions are enforced by tags that are deliberately conservative — oats carry `gluten`, dark chocolate carries `dairy` — and **the UI states plainly that this is not an allergen database**.
+
+### More is a hub; Settings is a sheet
+
+More carried four lists, and "Modules" had become a drawer holding two real modules, two destinations and two settings — a switch for the mobility warm-up sat between a link to your routines and a link to the plate calculator.
+
+More is now three lists of places to go: **Your journey** (the journey, your routines, and Route and Today's fuel when Fuel is on, since Route leaves the nav), **Guides**, and **App** with a single Settings row.
+
+`sheetSettings()` holds everything you tune, grouped by what it is about rather than which file implements it: Training (structure, where you train, rest timers, bar and plates, mobility warm-up), Modules (Fuel, and How you eat when it is on), You (profile), and Your data (export, restore, reset).
+
+"Shape this week" was dropped from More entirely. It was never a setting, and Today and Plan already offer it in five places.
+
+The Settings sheet needs its own toggle cases — `set-toggle-fuel` and `set-toggle-warmup`. The More-screen handlers re-render More, which is the wrong surface when the switch being tapped is inside an open sheet: the sheet would sit there showing the old state.
+
+`blanks.mjs` covers it, and the checks that matter are the ones that click every row rather than just reading it. An orphaned action renders perfectly and does nothing when tapped, which looks identical to a row nobody has tried.
+
+**Known rough edge:** closing a sub-sheet opened from Settings returns you to More, not to Settings. Sheets have no back stack, only a close, and threading a return target through every sub-sheet was more invasive than the annoyance warranted.
 
 ### The nav is a floating pill
 

@@ -42,9 +42,19 @@ function renderMore() {
     </div>
   </div>`;
 
+  /* More is a list of places to go. Everything you tune rather than visit now
+     lives behind one Settings row — the screen used to carry four lists, and
+     "Modules" had become a drawer holding two actual modules, two
+     destinations and two settings.
+
+     "Shape this week" is not here any more. It was never a setting, and Today
+     and Plan already offer it in five places. */
   const jst = journeyStats();
   html += `<div class="eyebrow mb-s">Your journey</div><div class="list mb">
     <div class="lrow" data-act="open-journey"><div class="ico">🧭</div><div class="grow"><div class="h3">Day ${jst.day} of your guzo</div><div class="tiny mt-s">${milestonesReached().length} of ${MILESTONES.length} markers reached · ${(jst.kcal/1000).toFixed(1)}k kcal estimated</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="routines"><div class="ico">🧩</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="chev">›</span></div>
+    ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">🗺</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="chev">›</span></div>` : ''}
+    ${fuelOn() ? `<div class="lrow" data-act="open-nutrition"><div class="ico">📊</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">›</span></div>` : ''}
   </div>`;
 
   html += `<div class="eyebrow mb-s">Guides</div><div class="list mb">
@@ -52,39 +62,8 @@ function renderMore() {
     <div class="lrow" data-act="help-form-list"><div class="ico">📐</div><div class="grow"><div class="h3">Form guides</div><div class="tiny mt-s">${Object.keys(FORMS).length} lifts with diagrams and cues</div></div><span class="chev">›</span></div>
   </div>`;
 
-  html += `<div class="eyebrow mb-s">Setup</div><div class="list mb">
-    <div class="lrow" data-act="edit-profile"><div class="ico">👤</div><div class="grow"><div class="h3">Profile</div><div class="tiny mt-s">${h(p.name||'No name')} · ${p.units}</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="open-program"><div class="ico">▲</div><div class="grow"><div class="h3">Structure</div><div class="tiny mt-s">${programOf().name} · ${programOf().target}×/wk</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="edit-envs"><div class="ico">📍</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${p.envs.map(e=>ENVS[e]?ENVS[e].label:e).join(', ')}</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="open-week"><div class="ico">📅</div><div class="grow"><div class="h3">Shape this week</div><div class="tiny mt-s">Availability, equipment, expected chaos</div></div><span class="chev">›</span></div>
-  </div>`;
-
-  /* The Fuel badge is conditional and its control is a switch, both deliberately.
-     This row used to read "Fuel PRO" with an empty chevron slot when off: no
-     affordance suggesting it was a switch, and a badge announcing a paywall.
-     The reasonable reading was "locked, go and buy it" — so that is what
-     happened, and Fuel stayed missing from the nav, because nothing has ever
-     gated on billing.pro. can() is the honest test: it returns true throughout
-     the beta, and the badge comes back by itself if a real tier ever locks
-     this. The switch matches the mobility row directly below and shows both
-     states, and it retires a hairline ✓ that would fail a pixel-sampled
-     contrast check anyway. */
-  html += `<div class="eyebrow mb-s">Modules</div><div class="list mb">
-    <div class="lrow" data-act="toggle-fuel">
-      <div class="ico">🔥</div>
-      <div class="grow"><div class="h3">Fuel${can('nutrition') ? '' : ' <span class="pro-tag">PRO</span>'}</div><div class="tiny mt-s">${fuelOn() ? 'On &mdash; it has its own tab, and Route moves here' : 'Protein and calorie targets, worked out from your body data'}</div></div>
-      <div class="switch ${fuelOn() ? 'on' : ''}"></div>
-    </div>
-    ${S.settings.nutrition ? `<div class="lrow" data-act="open-nutrition"><div class="ico">📊</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">›</span></div>` : ''}
-    <div class="lrow" data-act="toggle-warmup">
-      <div class="ico">🤸</div>
-      <div class="grow"><div class="h3">Mobility warm-up</div><div class="tiny mt-s">Adds one short mobility movement to the start of full sessions</div></div>
-      <div class="switch ${S.settings.warmup?'on':''}"></div>
-    </div>
-    ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">🗺</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="chev">›</span></div>` : ''}
-    <div class="lrow" data-act="routines"><div class="ico">🧩</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="plate-settings"><div class="ico">🏋️</div><div class="grow"><div class="h3">Bar and plates</div><div class="tiny mt-s">${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="rest-settings"><div class="ico">⏱</div><div class="grow"><div class="h3">Rest timers</div><div class="tiny mt-s">${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest?'on':'off'}</div></div><span class="chev">›</span></div>
+  html += `<div class="eyebrow mb-s">App</div><div class="list mb">
+    <div class="lrow" data-act="open-settings"><div class="ico">⚙</div><div class="grow"><div class="h3">Settings</div><div class="tiny mt-s">${settingsSummary()}</div></div><span class="chev">›</span></div>
   </div>`;
 
   html += `<div class="eyebrow mb-s">Membership</div>
@@ -92,12 +71,6 @@ function renderMore() {
     <div class="row between"><div class="h3">Guzo Pro</div><div class="pill em">Beta — unlocked</div></div>
     <p class="small mt-s">Everything is on while this is in testing. The paywall below is scaffolding for later; nothing charges, nothing phones home.</p>
     <button class="btn ghost block mt" data-act="open-paywall">Preview the paywall</button>
-  </div>`;
-
-  html += `<div class="eyebrow mb-s">Your data</div><div class="list mb">
-    <div class="lrow" data-act="export"><div class="ico">⬇️</div><div class="grow"><div class="h3">Export backup</div><div class="tiny mt-s">A JSON file of everything. Do this weekly.</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="import"><div class="ico">⬆️</div><div class="grow"><div class="h3">Restore from backup</div><div class="tiny mt-s">Replaces everything on this device</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="reset"><div class="ico">⚠</div><div class="grow"><div class="h3" style="color:var(--rose)">Reset everything</div><div class="tiny mt-s">Cannot be undone</div></div><span class="chev">›</span></div>
   </div>`;
 
   html += `<div class="card flat">
@@ -504,5 +477,83 @@ function sheetPaywall() {
     </div>
     <div class="banner soft mb">Free tier keeps: logging, the four-rung ladder, terrain check-ins, full history and data export. Logging your training should never be behind a paywall.</div>
     <button class="btn primary block lg" data-act="close">Everything's unlocked in beta</button>
+  `);
+}
+
+/* ============================================================
+   SETTINGS
+   ------------------------------------------------------------
+   Everything you tune rather than visit. More used to carry four lists, and
+   "Modules" had quietly become a drawer holding two real modules, two
+   destinations and two settings — so a switch for the warm-up sat between a
+   link to your routines and a link to the plate calculator.
+
+   Grouped by what the setting is about, not by which file implements it.
+   ============================================================ */
+
+/* The one-line summary under the Settings row. Names the two things most
+   likely to be wrong for a new user — the units everything is displayed in,
+   and whether Fuel is even switched on, which cost a debugging session once
+   because nothing on screen said either way. */
+function settingsSummary() {
+  const bits = [S.profile.units, fuelOn() ? 'Fuel on' : 'Fuel off'];
+  return bits.join(' · ') + ' · rest, plates, backups';
+}
+
+function sheetSettings() {
+  const p = S.profile;
+  const row = (act, ico, title, sub) => `
+    <div class="lrow" data-act="${act}">
+      <div class="ico">${ico}</div>
+      <div class="grow"><div class="h3">${title}</div><div class="tiny mt-s">${sub}</div></div>
+      <span class="chev">›</span>
+    </div>`;
+  const toggle = (act, ico, title, sub, on) => `
+    <div class="lrow" data-act="${act}">
+      <div class="ico">${ico}</div>
+      <div class="grow"><div class="h3">${title}</div><div class="tiny mt-s">${sub}</div></div>
+      <div class="switch ${on ? 'on' : ''}"></div>
+    </div>`;
+
+  openSheet(`
+    <div class="row between mb">
+      <h2 class="h1">Settings</h2>
+      <button class="btn xs quiet" data-act="close">Done</button>
+    </div>
+
+    <div class="eyebrow mb-s">Training</div>
+    <div class="list mb">
+      ${row('open-program', '▲', 'Structure', `${h(programOf().name)} · ${programOf().target}×/wk`)}
+      ${row('edit-envs', '📍', 'Where you train', h(p.envs.map(e => ENVS[e] ? ENVS[e].label : e).join(', ')))}
+      ${row('rest-settings', '⏱', 'Rest timers', `${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest ? 'on' : 'off'}`)}
+      ${row('plate-settings', '🏋️', 'Bar and plates', `${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand`)}
+      ${toggle('set-toggle-warmup', '🤸', 'Mobility warm-up', 'One short mobility movement at the start of full sessions', S.settings.warmup)}
+    </div>
+
+    <div class="eyebrow mb-s">Modules</div>
+    <div class="list mb">
+      ${toggle('set-toggle-fuel', '🔥', `Fuel${can('nutrition') ? '' : ' <span class="pro-tag">PRO</span>'}`,
+        fuelOn() ? 'On — it has its own tab, and Route moves to More' : 'Protein and calorie targets, worked out from your body data',
+        fuelOn())}
+      ${fuelOn() ? row('open-diet-prefs', '🍽', 'How you eat', 'Meals a day, dietary pattern, what to leave out') : ''}
+    </div>
+
+    <div class="eyebrow mb-s">You</div>
+    <div class="list mb">
+      ${row('edit-profile', '👤', 'Profile', `${h(p.name || 'No name')} · ${p.units} · height, age, activity`)}
+    </div>
+
+    <div class="eyebrow mb-s">Your data</div>
+    <div class="list mb">
+      ${row('export', '⬇️', 'Export backup', 'A JSON file of everything. Do this weekly.')}
+      ${row('import', '⬆️', 'Restore from backup', 'Replaces everything on this device')}
+      <div class="lrow" data-act="reset">
+        <div class="ico">⚠</div>
+        <div class="grow"><div class="h3" style="color:var(--rose)">Reset everything</div><div class="tiny mt-s">Cannot be undone</div></div>
+        <span class="chev">›</span>
+      </div>
+    </div>
+
+    <p class="tiny center">Guzo Fit v${VERSION} · build ${VERSION}<br>All data stored locally on this device.</p>
   `);
 }

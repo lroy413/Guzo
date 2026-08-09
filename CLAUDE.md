@@ -60,7 +60,7 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 │   ├── p4j_meals.js          ← diet preferences, dietary tags, suggested meals
 │   ├── p5a_onboard.js        ← onboarding flow
 │   ├── p5_ui.js              ← render(), Today, Plan, Train, Progress + shared helpers
-│   ├── p6_more.js            ← More screen, week sheet, exercise picker
+│   ├── p6_more.js            ← More screen, Settings sheet, week sheet, exercise picker
 │   ├── p6b_help.js           ← help and guide sheets
 │   ├── p6c_daily.js          ← daily-metrics sheets
 │   ├── p6d_routines.js       ← routine sheets
