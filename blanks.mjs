@@ -274,6 +274,31 @@ try {
   check('...and Fuel joins the nav from inside Settings', toggled.navFuelShown === true);
   check('...and "How you eat" appears once Fuel is on', toggled.dietRowAppeared === true);
 
+  /* The evidence prose lives in exactly one place: the "why" help page. More
+     used to carry a shorter copy of the same studies, and two copies of the
+     same prose drift — one gets updated, the other quietly starts lying. */
+  const evidence = await page.evaluate(() => {
+    go('more');
+    const moreText = document.getElementById('more-body').innerText || '';
+    document.querySelector('[data-act="open-settings"]').click();
+    const link = document.querySelector('#sheet-body [data-act="help-page"][data-v="why"]');
+    if (!link) return { linked: false };
+    link.click();
+    const t = document.getElementById('sheet-body').innerText || '';
+    return {
+      linked: true,
+      moreHasProse: /Bondaronek|58,881/.test(moreText),
+      pageHasProse: /Bondaronek/.test(t),
+      pageHasAll: /Bondaronek/.test(t) && /Lally/.test(t) && /Stamatakis/.test(t),
+      text: t
+    };
+  });
+  check('Settings links to the evidence', evidence.linked);
+  check('More no longer carries a second copy of it', evidence.moreHasProse === false);
+  check('the link opens the real evidence page', evidence.pageHasProse === true);
+  check('...which carries all the studies, not a subset', evidence.pageHasAll === true);
+  check('no placeholder text on it', !BAD.test(evidence.text || ''));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

@@ -73,16 +73,11 @@ function renderMore() {
     <button class="btn ghost block mt" data-act="open-paywall">Preview the paywall</button>
   </div>`;
 
-  html += `<div class="card flat">
-    <div class="eyebrow">Why this app behaves the way it does</div>
-    <p class="small mt-s"><strong>No daily streak.</strong> Daily streaks are the best-documented retention mechanic in the category and also the one most reliably linked to shame and disengagement. A 2025 analysis of 58,881 posts about the five most profitable fitness apps found rigid quantitative goals producing "shame, disappointment and demotivation, and subsequent disengagement." Weeks are the unit here instead.</p>
-    <span class="src">Bondaronek et al., British Journal of Health Psychology, 2025</span>
-    <p class="small mt">${EVIDENCE.oneMiss}</p>
-    <span class="src">${EVIDENCE.oneMissSrc}</span>
-    <p class="small mt">${EVIDENCE.micro}</p>
-    <span class="src">${EVIDENCE.microSrc}</span>
-  </div>
-  <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta build<br>ጉዞ · Amharic for “journey”<br>guzofit.app · all data stored locally on this device</p>`;
+  /* The evidence card that used to sit here was a shorter, worse copy of the
+     "why" help page, which carries all five studies rather than three. Two
+     copies of the same prose drift; one of them gets updated and the other
+     quietly starts lying. It is linked from the bottom of Settings instead. */
+  html += `  <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta build<br>ጉዞ · Amharic for “journey”<br>guzofit.app · all data stored locally on this device</p>`;
 
   $('#more-body').innerHTML = html;
 }
@@ -550,6 +545,15 @@ function sheetSettings() {
       <div class="lrow" data-act="reset">
         <div class="ico">⚠</div>
         <div class="grow"><div class="h3" style="color:var(--rose)">Reset everything</div><div class="tiny mt-s">Cannot be undone</div></div>
+        <span class="chev">›</span>
+      </div>
+    </div>
+
+    <div class="eyebrow mb-s">About</div>
+    <div class="list mb">
+      <div class="lrow" data-act="help-page" data-v="why">
+        <div class="ico">🔬</div>
+        <div class="grow"><div class="h3">Why this app behaves the way it does</div><div class="tiny mt-s">The research behind no streaks, a free miss, and three-minute sessions</div></div>
         <span class="chev">›</span>
       </div>
     </div>

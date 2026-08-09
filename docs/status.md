@@ -1,6 +1,6 @@
 # Status
 
-Verified against the build at **522,686 bytes**, `VERSION = '1.2.0'`.
+Verified against the build at **522,599 bytes**, `VERSION = '1.2.0'`.
 Last full sweep: all instruments green. Nothing known is broken.
 
 ---
@@ -125,6 +125,8 @@ More is now three lists of places to go: **Your journey** (the journey, your rou
 The Settings sheet needs its own toggle cases — `set-toggle-fuel` and `set-toggle-warmup`. The More-screen handlers re-render More, which is the wrong surface when the switch being tapped is inside an open sheet: the sheet would sit there showing the old state.
 
 `blanks.mjs` covers it, and the checks that matter are the ones that click every row rather than just reading it. An orphaned action renders perfectly and does nothing when tapped, which looks identical to a row nobody has tried.
+
+The evidence card that sat at the bottom of More is gone. It was a shorter copy of the `why` help page — three studies against five — and two copies of the same prose drift until one of them is quietly wrong. Settings links to the real one instead.
 
 **Known rough edge:** closing a sub-sheet opened from Settings returns you to More, not to Settings. Sheets have no back stack, only a close, and threading a return target through every sub-sheet was more invasive than the annoyance warranted.
 
