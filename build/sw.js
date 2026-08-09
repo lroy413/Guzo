@@ -78,7 +78,12 @@ async function navigate(req) {
   /* ignoreSearch so /?from=shortcut and friends still find the shell. */
   const cached = await cache.match(req, { ignoreSearch: true }) || await cache.match(SHELL);
 
-  const net = fetch(req).then(res => {
+  /* cache:'reload' matters more than it looks. A bare fetch(req) is served by
+     the browser's own HTTP cache, and GitHub Pages sends max-age=600 on HTML —
+     so "network-first" could be answered from a stale copy without a packet
+     leaving the phone, and a fresh deploy would sit unseen for as long as that
+     header said. Going past the HTTP cache is the whole point of this branch. */
+  const net = fetch(new Request(req.url, { cache: 'reload', credentials: 'same-origin' })).then(res => {
     if (res && res.ok) cache.put(SHELL, res.clone()).catch(() => {});
     return res;
   });

@@ -82,6 +82,16 @@ Gone with it: `nutritionTileHTML`, `QUICKFOODS`, and the five orphaned handlers 
 
 **Two clocks.** `weekStart()` defaulted to `new Date()` while `today()` went through `dk()`, so a fixture pinning `today()` left `weekStart()` on the real clock. It was correct on the day it was written and would have drifted the next time the real date crossed a Monday. `weekStart()` now defaults through `today()`.
 
+### Deploys were live but never reached the phone
+
+Two separate reasons, both in our code, neither on the host:
+
+**The worker's "network-first" was not reaching the network.** `navigate()` used a bare `fetch(req)`, which is served by the browser's own HTTP cache — and GitHub Pages sends `Cache-Control: max-age=600` on HTML. So the branch whose entire job is to prefer fresh bytes could be answered from a stale copy without a packet leaving the device. The shell fetch now uses `cache:'reload'`.
+
+`sw.mjs` missed this because its test server sent `no-cache`, which forced a revalidation production never performs — the instrument was kinder than reality. It now sends `max-age=600`, and reverting the fix takes it from 17 passed to 12 passed / 5 failed, with the update check returning null.
+
+**An installed app resumes; it does not navigate.** Reopening from the Home Screen restores the existing page rather than performing a navigation, so the network-first path never ran at all. A phone could sit on a weeks-old build while every deploy since was live. The app now calls `registration.update()` whenever it returns to the foreground, and reloads once when a new worker takes control — guarded so a first-ever visit does not flash, and so a session in progress is never interrupted.
+
 ### Fuel now asks how you eat, and suggests accordingly
 
 Onboarding never asked height, age or sex, so `energyTargets()` returned null for every new user and Fuel opened with no target — the same gap that produced the `undefined` tile. Those three, plus activity level, are now asked in chapter four, **only when Fuel is switched on**. That condition is the point: `decisions.md` says nothing is collected for the sake of a longer form, and none of them changes a single set or rep.

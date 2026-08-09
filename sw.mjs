@@ -51,7 +51,12 @@ const server = http.createServer((req, res) => {
     return res.end(swSrc);
   }
   if (path === '/' || path === '/index.html') {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache' });
+    /* max-age, not no-cache, because that is what GitHub Pages actually sends
+       for HTML. Serving no-cache here made the update check pass against a
+       worker whose "network-first" fetch was quietly being answered from the
+       browser's HTTP cache — the test was kinder than production and missed a
+       real bug because of it. */
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'max-age=600' });
     return res.end(html);
   }
   res.writeHead(404, { 'Content-Type': 'text/plain' });
@@ -93,7 +98,12 @@ async function swReady(p, ms = 8000) {
 async function awaitControl(p, ms = 10000) {
   const deadline = Date.now() + ms;
   while (Date.now() < deadline) {
-    const got = await p.evaluate(() => !!navigator.serviceWorker.controller);
+    /* The app reloads itself when a new worker takes control, so any evaluate
+       here can lose its execution context mid-call. That is the feature
+       working, not a failure — swallow it and look again. */
+    let got = false;
+    try { got = await p.evaluate(() => !!navigator.serviceWorker.controller); }
+    catch (e) { if (!/context was destroyed|Target closed|Execution context/i.test(e.message)) throw e; }
     if (got) return true;
     await p.waitForTimeout(150);
   }
@@ -108,10 +118,18 @@ async function awaitActiveScript(p, needle, ms = 15000) {
   const deadline = Date.now() + ms;
   let last = null;
   while (Date.now() < deadline) {
-    last = await p.evaluate(async () => {
-      const rs = await navigator.serviceWorker.getRegistrations();
-      return rs.map(r => `${(r.active || {}).scriptURL || ''}#${(r.active || {}).state || ''}`).join(',');
-    });
+    try {
+      last = await p.evaluate(async () => {
+        const rs = await navigator.serviceWorker.getRegistrations();
+        return rs.map(r => `${(r.active || {}).scriptURL || ''}#${(r.active || {}).state || ''}`).join(',');
+      });
+    } catch (e) {
+      /* Reload in flight — the controller handover is exactly what we are
+         waiting for, so this is progress, not an error. */
+      if (!/context was destroyed|Target closed|Execution context/i.test(e.message)) throw e;
+      await p.waitForTimeout(200);
+      continue;
+    }
     /* 'activated', not merely present: registration.active is already set
        while the worker is still 'activating', i.e. before its activate
        handler's waitUntil has finished retiring the previous caches. Reading

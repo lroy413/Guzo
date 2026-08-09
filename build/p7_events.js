@@ -1129,8 +1129,38 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
      the query string so a release installs a fresh worker and retires the
      previous cache. */
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    /* Whether an update ever arrives depends on this block, not on the host.
+       An installed home-screen app RESUMES — it restores the page it already
+       had rather than navigating — so the worker's network-first navigation
+       path never runs, and a phone can sit on a build from weeks ago while
+       every deploy since has been live. Coming back to the foreground is the
+       moment to ask. */
+    const hadController = !!navigator.serviceWorker.controller;
+
     navigator.serviceWorker.register('sw.js?v=' + encodeURIComponent(VERSION))
+      .then(reg => {
+        const poke = () => { if (!document.hidden) reg.update().catch(() => {}); };
+        document.addEventListener('visibilitychange', poke);
+        window.addEventListener('focus', poke);
+      })
       .catch(err => console.warn('guzo: running online-only, sw.js did not register —', (err && err.message) || err));
+
+    /* A new worker taking over means new markup is waiting behind the old
+       page. Reload once so it is actually seen.
+
+       Guarded twice. hadController is false on a first-ever visit — the
+       initial worker claiming the page is not an update, and reloading there
+       would be a pointless flash. And a session in progress is never
+       interrupted: state is saved continuously, but yanking the screen out
+       from under someone between sets is exactly the kind of thing this app
+       is supposed to not do. It will land on the next launch instead. */
+    let swReloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || swReloading) return;
+      if (S && S.active) return;
+      swReloading = true;
+      location.reload();
+    });
   }
 
   window.addEventListener('beforeunload', () => save(true));
