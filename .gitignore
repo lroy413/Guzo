@@ -8,3 +8,7 @@ GuzoFit.html
 # node_modules is not a directory as far as gitignore is concerned.
 node_modules
 package-lock.json
+
+# Cloudflare's publish directory. build.sh regenerates it; committing it would
+# put a second copy of a 500 KB file in every build commit.
+dist/

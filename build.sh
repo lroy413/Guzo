@@ -78,6 +78,15 @@ cp GuzoFit.html index.html
 [ -f build/sw.js ] || { echo "build: missing build/sw.js" >&2; exit 1; }
 cp build/sw.js sw.js
 
+# dist/ is what Cloudflare publishes. It holds exactly the two deployed files
+# and nothing else — pointing the Worker at the repo root would put build/,
+# docs/ and every test instrument on the open internet. Regenerated here rather
+# than committed, so it can never drift from the parts.
+rm -rf dist
+mkdir -p dist
+cp index.html dist/index.html
+cp sw.js dist/sw.js
+
 bytes=$(wc -c < GuzoFit.html | tr -d ' ')
 swbytes=$(wc -c < sw.js | tr -d ' ')
-echo "build: ${#PARTS[@]} parts → GuzoFit.html, index.html (${bytes} bytes) + sw.js (${swbytes} bytes) · v${VERSION_STR}"
+echo "build: ${#PARTS[@]} parts → index.html (${bytes} bytes) + sw.js (${swbytes} bytes) → dist/ · v${VERSION_STR}"

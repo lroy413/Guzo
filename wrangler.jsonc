@@ -1,0 +1,38 @@
+{
+  // Cloudflare Worker that serves Guzo Fit as static assets.
+  //
+  // guzofit.app is a Worker, not a Pages project, and it was already wired to
+  // this repo — but the repo had no wrangler config at all, so `npx wrangler
+  // deploy` had nothing to deploy. The domain kept serving whatever was last
+  // pushed by hand: a build older than the Fuel screen, with no sw.js.
+  //
+  // >>> `name` MUST match the existing Worker exactly. <<<
+  // If it does not, wrangler creates a SECOND Worker and guzofit.app stays
+  // bound to the old one — the deploy goes green and nothing changes, which is
+  // the most confusing possible outcome. Check the name at the top of the
+  // Worker's dashboard page and correct this line if it differs.
+  "name": "guzo",
+
+  "compatibility_date": "2025-06-01",
+
+  // There is no Worker script. This deploys the built files and nothing else,
+  // which is all a static PWA needs — no `main` entry point is required for an
+  // assets-only Worker.
+  //
+  // ./dist, not ./ — build.sh writes exactly index.html and sw.js into it.
+  // Pointing at the repo root would publish build/, docs/ and every test
+  // instrument to the open internet.
+  "assets": {
+    "directory": "./dist",
+
+    // Deliberately NOT "single-page-application".
+    //
+    // SPA handling serves index.html for any path that misses, which would
+    // mean a missing or misnamed sw.js quietly returns HTML instead of 404.
+    // The browser would then reject the registration for a bad MIME type, and
+    // offline support would break in a way that looks like nothing is wrong —
+    // this app has already lost months to a silently unregistered worker once.
+    // A 404 that says 404 is worth more than a page that always renders.
+    "not_found_handling": "none"
+  }
+}

@@ -245,7 +245,11 @@ Every instrument here has to be able to fail, and both new ones were checked aga
 
 **Today:** upload `index.html` **and `sw.js`** to any static host — Cloudflare Pages, GitHub Pages, Netlify. Then on the phone: Safari → Share → Add to Home Screen.
 
-Live at **https://guzofit.app**, served by GitHub Pages from `main` (enabled in repo settings, so there is no workflow file in the tree). Pushing to `main` redeploys. The `CNAME` file at the repo root is what binds the domain — deleting it reverts the site to `lroy413.github.io/Guzo/`.
+Live at **https://guzofit.app**, served by a **Cloudflare Worker** that builds from `main`. `wrangler.jsonc` is the deploy config; the Worker's `name` in it must match the Worker in the Cloudflare dashboard exactly, or a deploy creates a second Worker, goes green, and changes nothing.
+
+Cloudflare runs `./build.sh` and then `npx wrangler deploy`. The published directory is **`dist/`**, which `build.sh` regenerates with exactly `index.html` and `sw.js` — pointing the Worker at the repo root would publish `build/`, `docs/` and every test instrument.
+
+`lroy413.github.io/Guzo/` still serves the same build from GitHub Pages and is useful as a staging URL. There is deliberately no `CNAME` file: the domain belongs to Cloudflare, and letting Pages claim it too would mean two hosts fighting over one name.
 
 **There used to be two deployments.** `guzofit.app` was hosted separately and never received a single push from this repo: it served a build older than the Fuel screen, with no `sw.js` at all, while every release landed on the `github.io` URL nobody was opening. If a version ever looks stuck again, read the build stamp in the boot panel — `build.sh` writes it into plain markup precisely so a host can be asked what it is serving without executing the page.
 
