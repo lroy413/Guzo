@@ -45,7 +45,7 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 ├── build/
 │   ├── p1_head.html          ← <head> + ALL CSS (~63 KB). Design tokens at the top.
 │   ├── p2_body.html          ← all screen markup, nav, sheet container, boot fallback
-│   ├── p3_data.js            ← constants, 251 exercises, 6 programmes, copy strings
+│   ├── p3_data.js            ← constants, 267 exercises, 6 programmes, copy strings
 │   ├── p3b_intake.js         ← onboarding question definitions
 │   ├── p3c_form.js           ← 45 hand-built SVG form diagrams
 │   ├── p4_engine.js          ← state, dates, units, readiness, session generation, week plan
@@ -235,14 +235,16 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node sw.mjs` | the service worker registers, caches, survives the network being cut, and still lets an update through |
 | `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of; a sheet that redraws itself keeps your scroll position |
 | `node fuel.mjs` | meal suggestions are deterministic, hit the target, and never break a stated dietary restriction |
-| `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, and a Fuel bar means what it looks like |
+| `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, a Fuel bar means what it looks like, a recovery day is mobility spread across the body with nothing to beat, and a routine warm-up matches what the routine trains |
 | `node native.mjs` | the Capacitor bridge is inert on the web, mirrors saves on device, and never restores over live data |
 
 `png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.
 
 The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping. `sw.mjs`, `blanks.mjs`, `engine.mjs` and `fuel.mjs` need `npm install` first, and take about two minutes between them.
 
-Every instrument here has to be able to fail, and both new ones were checked against the bug they were written for. Reinstate the Blob registration and `sw.mjs` goes from 17 passed to 12 failed rather than hanging or crashing. Put the legacy Fuel tile back and `blanks.mjs` goes red on Today with `"0 / undefined kcal"`. Each of `engine.mjs`'s four subjects was reverted individually and the matching checks confirmed red — the weekend one prints `[0,1,2,3,4]`, the bar one prints `["100%","100%","50%"]`. Put `sh.scrollTop = 0` back in `openSheet` and `blanks.mjs` goes 83/3 with the real distances printed (`1211 → 0` on the builder, `10106 → 0` in the picker); restore that and put `closeSheet()` back in `pick-finish` and it goes 85/1. If you add an instrument, prove it red before you trust it green.
+Every instrument here has to be able to fail, and both new ones were checked against the bug they were written for. Reinstate the Blob registration and `sw.mjs` goes from 17 passed to 12 failed rather than hanging or crashing. Put the legacy Fuel tile back and `blanks.mjs` goes red on Today with `"0 / undefined kcal"`. Each of `engine.mjs`'s four subjects was reverted individually and the matching checks confirmed red — the weekend one prints `[0,1,2,3,4]`, the bar one prints `["100%","100%","50%"]`. Put `sh.scrollTop = 0` back in `openSheet` and `blanks.mjs` goes 83/3 with the real distances printed (`1211 → 0` on the builder, `10106 → 0` in the picker); restore that and put `closeSheet()` back in `pick-finish` and it goes 85/1. The recovery and warm-up checks were reverted one subject at a time too — dropping the `type === 'recovery'` branch prints `squat, push-h, pull-h, pull-h, cardio`, a flat least-recent sort prints `6 glutes, 3 regions`, and removing the mobility guard in `applyProgression` prints `mob-cat-cow → 9 (from 8)`.
+
+Two of those checks were written wrong first and passed for the wrong reason: on a fresh profile every mobility movement has the same `lastDate`, so the alphabetical tiebreak interleaved regions by luck and the spread check could not fail. Both now seed a real history. **A check whose subject you have not reverted is not a passing check, it is an untested one** — if you add an instrument, prove it red before you trust it green.
 
 ---
 

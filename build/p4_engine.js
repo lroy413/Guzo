@@ -367,6 +367,13 @@ function applyProgression(sess) {
     const L = liftOf(item.exId);
     L.lastDate = sess.date;
 
+    /* Mobility is never progressed. A stretch has a range that is correct,
+       not one to beat, and the unloaded branch below would otherwise add a
+       rep every single time with nothing to stop it — "Cat-Cow × 47" after a
+       couple of months of warm-ups. lastDate is still stamped above, because
+       that is exactly what rotates the picks on a recovery day. */
+    if (ex.pattern === 'mobility') return;
+
     // track best e1RM
     done.forEach(s => {
       const est = e1rm(+s.w || 0, +s.r || 0);
@@ -482,6 +489,9 @@ function cardioDoneThisWeek() {
 
 function generateSession(type, envKey, rung, minutes) {
   const flag = envFlag(envKey);
+  /* Recovery has its own shape and is checked before the micro rung, because a
+     three-minute recovery day is a shorter flow, not a set of air squats. */
+  if (type === 'recovery') return recoverySession(envKey, rung);
   if (rung === 'micro') return microSession(envKey);
 
   const blocked = blockedIds(envKey);
@@ -583,6 +593,85 @@ function microSession(envKey) {
   };
 }
 
+/* ---------- a recovery day ----------
+   Not a smaller training day. A training session shrunk to fifteen minutes is
+   still training; a recovery day is stretching and light joint work, and it
+   earns its place in the week rather than apologising for not being a session.
+
+   Two rules shape what lands in it.
+
+   Spread comes before recency. Sorting the whole mobility pool by
+   least-recently-done — which is what pickExercise does everywhere else — hands
+   you five hip stretches the first time you open one, because that genuinely is
+   what has gone longest. So the regions take turns, and recency only decides
+   the order within a region.
+
+   And nothing is loaded. targetW stays null, and applyProgression returns early
+   on anything with a mobility pattern, so a recovery day can never nudge a
+   number upward. It is the one session in the app with no target to beat. */
+const RECOVERY_MOVES = { full: 8, trim: 6, short: 4, micro: 3 };
+
+function recoverySession(envKey, rung) {
+  const flag = envFlag(envKey);
+  const blocked = blockedIds(envKey);
+  const pool = EXLIST.filter(e => e.pattern === 'mobility' &&
+                                  e.env.indexOf(flag) >= 0 && !blocked.has(e.id));
+  if (!pool.length) return null;
+
+  const lastOf = id => (S.lifts[id] && S.lifts[id].lastDate) || '0000-00-00';
+  const cmp = (a, b, ka, kb) => (ka === kb ? String(a).localeCompare(String(b)) : (ka < kb ? -1 : 1));
+
+  const byRegion = {};
+  pool.forEach(e => { (byRegion[e.primary] = byRegion[e.primary] || []).push(e); });
+  Object.keys(byRegion).forEach(r =>
+    byRegion[r].sort((a, b) => cmp(a.name, b.name, lastOf(a.id), lastOf(b.id))));
+
+  const regions = Object.keys(byRegion)
+    .sort((a, b) => cmp(a, b, lastOf(byRegion[a][0].id), lastOf(byRegion[b][0].id)));
+
+  /* One from each region, then round again — so four movements is four
+     different parts of you, not four ways to stretch a hip. */
+  const order = [];
+  for (let round = 0; round < 4; round++)
+    regions.forEach(r => { if (byRegion[r][round]) order.push(byRegion[r][round]); });
+
+  const want = RECOVERY_MOVES[rung] || RECOVERY_MOVES.full;
+  const exercises = order.slice(0, Math.min(want, order.length)).map(ex => {
+    const timed = ex.load === 'time' || ex.load === 'min';
+    return {
+      exId: ex.id, name: ex.name, load: ex.load,
+      targetW: null, targetR: ex.rl,
+      recovery: true,
+      sets: [{ w: '', r: ex.rl, rpe: '', done: false }],
+      note: timed ? 'Hold it, breathing. Both sides if it has sides.'
+                  : 'Slow, through the whole range. Not a rep count to beat.'
+    };
+  });
+  if (!exercises.length) return null;
+
+  return {
+    id: 'sx' + Date.now().toString(36),
+    date: today(),
+    type: 'recovery', env: envKey, rung: rung || 'full',
+    planMins: recoveryMins(exercises),
+    exercises,
+    started: null, ended: null, dur: 0
+  };
+}
+
+/* Deliberately generous on the changeover: on a recovery day you are getting
+   down onto the floor and swapping sides, not resting between sets. */
+function recoveryMins(exercises) {
+  let secs = 0;
+  (exercises || []).forEach(i => {
+    const ex = EX[i.exId];
+    if (!ex) return;
+    secs += (ex.load === 'time' || ex.load === 'min') ? i.targetR : i.targetR * 3.5;
+    secs += 45;
+  });
+  return Math.max(4, Math.round(secs / 60));
+}
+
 /* ============================================================
    PLAN — which session type is due
    ============================================================ */
@@ -601,7 +690,7 @@ function nextType() {
 function typeLabel(t) {
   return { full:'Full body', upper:'Upper', lower:'Lower', push:'Push', pull:'Pull', legs:'Legs',
            chest:'Chest', back:'Back', delts:'Shoulders', arms:'Arms',
-           cardio:'Cardio', micro:'Three minutes' }[t] || t;
+           cardio:'Cardio', recovery:'Recovery', micro:'Three minutes' }[t] || t;
 }
 
 /* Distribute the program's target sessions across the week's usable days */

@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **537,188 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (86) + `engine` (19) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **548,815 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (113) + `engine` (57) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -10,13 +10,14 @@ Last sweep: `dupes` + `blanks` (86) + `engine` (19) + `fuel` (37) + `sw` (17) + 
 | Area | State |
 |---|---|
 | Onboarding | Complete. Seeds starting weights from stated experience, deliberately conservative. |
-| Session generation | Complete. 251 exercises, 6 programmes, 3 environments, 4 session sizes. |
+| Session generation | Complete. 267 exercises, 6 programmes, 3 environments, 4 session sizes. |
 | Progression | Complete. Learned weights per lift, deload after two sessions short of target. |
 | Readiness check-in | Complete. Scored against your own sleep norm, sizes the session, explains itself. |
 | Week planning | Complete. Availability + environment per day, plan distributed across the days with the most time. |
 | Week ordering | Complete and new. Pin / swap / reflow, move a session between days, place one on an empty day. |
 | "Already trained this week" | Complete. Marks days spent without inventing session records. |
-| Custom routines | Complete. Build, reorder, run as an extra, or assign to a planned day. The builder and the picker hold their scroll position through every tap. |
+| Custom routines | Complete. Build, reorder, run as an extra, or assign to a planned day, with an optional warm-up per routine. The builder and the picker hold their scroll position through every tap. |
+| Recovery days | Complete. Any day can be set to Recovery: mobility and stretching spread across the body, nothing loaded, nothing to beat. Choosable, never scheduled. |
 | Form guides | 45 SVG diagrams, two frames each, anatomically checked. Reachable mid-session. |
 | Plate calculator | Complete. Owned-plate aware, persists bar weight, follows the weight you type. |
 | Last-time recall | Complete. |
@@ -147,6 +148,24 @@ The evidence card that sat at the bottom of More is gone. It was a shorter copy 
 
 The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
 
+### Recovery days, and an optional warm-up on a routine
+
+Asked for together, and they turned out to share a gap: the app had ten mobility movements and used them one at a time as a warm-up opener on generated full sessions. Nothing else could reach them. A routine you built yourself started cold, and there was no way to say "today is stretching" — a recovery day could only be expressed as a rest day, which is a different thing.
+
+**Warm-ups.** Per routine rather than global, because "abs before bed" does not need one and "hotel full body" does. `r.warmup` defaults off, is backfilled onto older routines in `ensureRoutines()` so a save from before the field existed behaves like one made today, and `buildRoutineSession()` prepends exactly one mobility movement when it is on. The movement is chosen against what the routine actually trains — `WARMUP_REGIONS` maps each muscle to the regions worth opening for it, so an arms routine gets shoulders and thoracic spine and a leg routine gets hips and ankles. Least-recently-done breaks ties, so a routine run three times a week does not open with the same movement every time. If the environment and injury exclusions leave nothing, the routine simply starts without one; a missing warm-up must never stop a session.
+
+**Recovery days.** `'recovery'` is a plan type, so any day can be set to it from the day sheet — but it is in no programme's cycle and `buildWeekPlan` will never place one. A day the app decided was recovery is a rest day with homework.
+
+`recoverySession()` is deliberately not `generateSession` with a smaller budget. A training day shrunk to fifteen minutes is still training. It picks 8 / 6 / 4 / 3 movements by size, and the picks round-robin across body regions before recency, because sorting the mobility pool by least-recently-done — what the engine does everywhere else — fills the whole session with whichever region has gone longest. Nothing carries a load, and Today gets its own hero with no size ladder and no readiness prompt: both of those answer "how hard should today be", and offering them would quietly reframe stretching as a workout you are allowed to shorten. Finishing one marks the day done like any other session.
+
+The rest-day hero also gained "Or stretch for ten minutes", beside the existing three-minute offer. It is an escape hatch, not an obligation — the day still says nothing is owed.
+
+**A real bug fell out of this.** `applyProgression`'s unloaded branch adds a rep every time you clear the target and has no ceiling, because there is no weight to switch to instead. That is right for push-ups and wrong for a stretch: the existing mobility warm-up had been quietly ratcheting, and a recovery day of eight stretches would have made it obvious as "Cat-Cow × 47". Mobility now returns early — `lastDate` is still stamped, because that is exactly what rotates the picks.
+
+The catalogue went 251 → 267, with 16 stretches added so a recovery day has 27 movements across 9 regions to draw on rather than 10 across 4.
+
+Every subject was reverted individually and confirmed red. Two of the checks were wrong on the first attempt and passed for the wrong reason — on a fresh profile every movement has the same `lastDate`, so the alphabetical tiebreak interleaved regions by luck and both the spread check and the warm-up matching check were vacuous. They now seed a real history and compare two routines at opposite ends of the body. A third, "the rest day does not nag", was a keyword blocklist that flagged the correct copy (`Nothing is owed` matches `/owe/`); it was replaced with a positive assertion of the rule instead.
+
 ### Building a routine threw you back to the top on every tap
 
 Reported from use, not found by an instrument: *"everytime I choose an exercise it auto scrolls to the top, also when trying to adjust the reps/time it auto scrolls up."*
@@ -161,7 +180,7 @@ Measured in `blanks.mjs` rather than described: the probe builds a twelve-moveme
 
 ### Fifteen more core exercises
 
-`bw-hollow-rock` aside, the catalogue's core work was mostly planks and carries — nothing you would actually pick to build a routine called "abs before bed". Added: Crunch, Bicycle Crunch, Reverse Crunch, Oblique Crunch, Flutter Kick, Scissor Kick, Lying Leg Raise, Heel Tap, Seated Knee Tuck, Plank Up-Down, Side Plank Hip Dip, Dragon Flag, Weighted Crunch, Weighted Russian Twist and Rope Crunch. 236 → 251 exercises, Core 27 → 42. All bodyweight ones carry the `fhb` environment flag, so they are available in a hotel room and with no kit at all, which is where a core routine is most likely to be run.
+`bw-hollow-rock` aside, the catalogue's core work was mostly planks and carries — nothing you would actually pick to build a routine called "abs before bed". Added: Crunch, Bicycle Crunch, Reverse Crunch, Oblique Crunch, Flutter Kick, Scissor Kick, Lying Leg Raise, Heel Tap, Seated Knee Tuck, Plank Up-Down, Side Plank Hip Dip, Dragon Flag, Weighted Crunch, Weighted Russian Twist and Rope Crunch. 236 → 267 exercises, Core 27 → 42. All bodyweight ones carry the `fhb` environment flag, so they are available in a hotel room and with no kit at all, which is where a core routine is most likely to be run.
 
 ### The Fuel module row read as a paywall
 
@@ -196,6 +215,6 @@ Structurally the largest remaining gap in the session model. `S.active.exercises
 ## Explicitly deferred
 
 - **CSV export.** JSON export works and round-trips. CSV is a nicety.
-- **AI-assisted workout building.** Scoped, not started. Needs a proxy to hold an API key (the app has no backend). The recommended shape is constrained generation against the existing 251-exercise catalogue with client-side validation — the model proposes IDs, the deterministic engine still disposes. Estimated a weekend to function, a week to trust. Cost is negligible (~$0.004 per generated session on Haiku with the catalogue cached).
+- **AI-assisted workout building.** Scoped, not started. Needs a proxy to hold an API key (the app has no backend). The recommended shape is constrained generation against the existing 267-exercise catalogue with client-side validation — the model proposes IDs, the deterministic engine still disposes. Estimated a weekend to function, a week to trust. Cost is negligible (~$0.004 per generated session on Haiku with the catalogue cached).
 - **Scheduling routines into future weeks.** They can be assigned to any day of the current week; next week's plan is not addressable yet.
 - **Multi-device sync.** See `docs/decisions.md` — deliberately out of scope.

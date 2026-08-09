@@ -212,6 +212,7 @@ function renderToday() {
           <button class="btn ghost" data-act="open-week">Change it</button>
           <button class="btn" data-act="quick-rung" data-v="micro">Three minutes anyway</button>
         </div>
+        <button class="btn quiet block mt-s" data-act="start-session" data-type="recovery" data-rung="trim">Or stretch for ten minutes</button>
       </div>
     </div>`;
   } else if (plannedDoneOn(today())) {
@@ -229,6 +230,31 @@ function renderToday() {
         </div>
         <p class="hero-sub">That's today's waypoint marked. Anything else now is a bonus, not a requirement.</p>
         <button class="btn ghost block mt" data-act="new-session">Log something else</button>
+      </div>
+    </div>`;
+  } else if (plan && plan.type === 'recovery' && !plan.routineId) {
+    /* Its own hero rather than a case inside the training one. The size ladder
+       and the readiness prompt both exist to answer "how hard should today
+       be", and on a recovery day that question does not apply — offering it
+       would quietly reframe stretching as a workout you are allowed to
+       shorten. */
+    const preview = recoverySession(c.env || (S.profile.envs && S.profile.envs[0]) || 'full', 'full');
+    html += `<div class="hero">
+      <div class="hero-glow"></div>
+      <div class="hero-in">
+        <div class="row between">
+          <span class="hero-eyebrow">Today</span>
+          <span class="pill em">${ENVS[c.env] ? ENVS[c.env].short : 'Gym'}</span>
+        </div>
+        <h1 class="hero-title">Recovery</h1>
+        <div class="hero-meta">
+          <span class="hm"><span class="hm-v">${preview ? preview.planMins : 12} min</span><span class="hm-k">planned</span></span>
+          <span class="hm-div"></span>
+          <span class="hm"><span class="hm-v">${preview ? preview.exercises.length : 0} moves</span><span class="hm-k">mobility</span></span>
+        </div>
+        <p class="hero-sub">Stretching and light joint work, spread across wherever has gone longest. Nothing is loaded and there is no target to beat &mdash; finishing it marks today done, the same as any other session.</p>
+        <button class="btn primary block lg mt" data-act="start-session" data-type="recovery" data-rung="full">Start</button>
+        <button class="btn quiet block" data-act="start-session" data-type="recovery" data-rung="short">Shorter &mdash; four movements</button>
       </div>
     </div>`;
   } else {

@@ -913,6 +913,13 @@ document.addEventListener('click', ev => {
     case 'rt-move':   { moveInRoutine(v, i, +t.dataset.d); sheetRoutineEdit(v); break; }
     case 'rt-adj':    { adjustRoutineItem(v, i, t.dataset.f, +t.dataset.d); sheetRoutineEdit(v); break; }
     case 'rt-emoji':  { setRoutineEmoji(v, t.dataset.e); sheetRoutineEdit(v); break; }
+    case 'rt-warmup': {
+      const r = routineById(v);
+      if (!r) break;
+      setRoutineWarmup(v, !r.warmup);
+      sheetRoutineEdit(v); render();
+      break;
+    }
     case 'rt-delete': {
       const r = routineById(v);
       if (!r) break;

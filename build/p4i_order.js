@@ -31,9 +31,12 @@
         already gone, and days already logged, are not moved.
    ============================================================ */
 
-/* Every split the app can generate, in the order people think of them. */
+/* Every split the app can generate, in the order people think of them.
+   'recovery' is in the list so it can be chosen for a day, but it is in no
+   programme's cycle — the app never schedules one for you, because a day the
+   app decided was recovery is just a rest day with homework. */
 const PLAN_TYPES = ['full', 'upper', 'lower', 'push', 'pull', 'legs',
-                    'chest', 'back', 'delts', 'arms', 'cardio'];
+                    'chest', 'back', 'delts', 'arms', 'cardio', 'recovery'];
 
 /* A plan entry is {type, done, pinned?, routineId?, elsewhere?}. Routines
    carry a routineId and keep type 'custom' so nothing downstream has to

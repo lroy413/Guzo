@@ -18,6 +18,12 @@ const ROUTINE_LIMITS = { name: 40, items: 24, sets: 12, reps: 300 };
 
 function ensureRoutines() {
   if (!Array.isArray(S.routines)) S.routines = [];
+  /* Routines built before warm-ups existed have no `warmup` field at all.
+     Backfilling here rather than in a migration means the default is decided
+     in one place, and an older save read on a newer build behaves the same as
+     a routine made this morning. Off, because a routine is a thing you wrote
+     down yourself and the app should not quietly add a movement to it. */
+  S.routines.forEach(r => { if (typeof r.warmup !== 'boolean') r.warmup = false; });
   return S.routines;
 }
 
@@ -31,7 +37,7 @@ function newRoutine(name, emoji) {
     id: 'rt' + Date.now().toString(36) + Math.floor(list.length + 1),
     name: String(name || 'New routine').slice(0, ROUTINE_LIMITS.name),
     emoji: emoji || ROUTINE_EMOJI[list.length % ROUTINE_EMOJI.length],
-    items: [], created: today(), uses: 0, lastUsed: null
+    items: [], warmup: false, created: today(), uses: 0, lastUsed: null
   };
   list.push(r);
   save(true);
@@ -50,6 +56,59 @@ function setRoutineEmoji(id, emoji) {
   const r = routineById(id);
   if (!r || ROUTINE_EMOJI.indexOf(emoji) < 0) return false;
   r.emoji = emoji; save(true); return true;
+}
+
+function setRoutineWarmup(id, on) {
+  const r = routineById(id);
+  if (!r) return false;
+  r.warmup = !!on; save(true); return true;
+}
+
+/* Which mobility movement a routine opens with.
+   ---------------------------------------------
+   Chosen against what the routine actually trains, not off the top of the
+   list: an arms routine gets shoulders and thoracic spine, a leg routine gets
+   hips and ankles. Warming up the wrong end of you is the reason people stop
+   bothering with warm-ups.
+
+   Least-recently-done breaks the tie, so a routine you run three times a week
+   does not open with the same movement every time. Returns null when nothing
+   is available in today's environment, and the routine simply starts without
+   one — a missing warm-up must never stop a session starting. */
+const WARMUP_REGIONS = {
+  Chest: ['Shoulders', 'Chest', 'Back'], Shoulders: ['Shoulders', 'Back'],
+  Triceps: ['Shoulders', 'Triceps'], Biceps: ['Shoulders', 'Back'],
+  Back: ['Back', 'Shoulders'], Core: ['Back', 'Core', 'Glutes'],
+  Quads: ['Quads', 'Glutes', 'Calves'], Hamstrings: ['Hamstrings', 'Glutes'],
+  Glutes: ['Glutes', 'Hamstrings'], Calves: ['Calves', 'Quads'],
+  Forearms: ['Shoulders', 'Back'], Cardio: ['Glutes', 'Calves']
+};
+
+function warmupFor(routine, envKey, blocked) {
+  const flag = envFlag(envKey);
+  blocked = blocked || new Set();
+  const pool = EXLIST.filter(e => e.pattern === 'mobility' &&
+                                  e.env.indexOf(flag) >= 0 && !blocked.has(e.id));
+  if (!pool.length) return null;
+
+  const wanted = [];
+  (routine.items || []).forEach(it => {
+    const ex = EX[it.exId];
+    if (!ex) return;
+    (WARMUP_REGIONS[ex.primary] || []).forEach(m => { if (wanted.indexOf(m) < 0) wanted.push(m); });
+  });
+
+  const lastOf = id => (S.lifts[id] && S.lifts[id].lastDate) || '0000-00-00';
+  const rank = e => {
+    const i = wanted.indexOf(e.primary);
+    return i < 0 ? wanted.length : i;      // unrelated regions sort last, never out
+  };
+  pool.sort((a, b) => {
+    if (rank(a) !== rank(b)) return rank(a) - rank(b);
+    const la = lastOf(a.id), lb = lastOf(b.id);
+    return la === lb ? a.name.localeCompare(b.name) : (la < lb ? -1 : 1);
+  });
+  return pool[0];
 }
 
 function deleteRoutine(id) {
@@ -164,6 +223,10 @@ function routineMins(r) {
     const work = (ex.load === 'time' || ex.load === 'min') ? (it.reps / 60) : (it.reps * 3.5 / 60);
     mins += it.sets * (work + rest);
   });
+  /* The opener costs about a minute and a half. Counted, because the whole
+     point of the number on the chip is that it does not lie about the time
+     you are agreeing to. */
+  if (r.warmup) mins += 1.5;
   return Math.max(1, Math.round(mins));
 }
 
@@ -191,6 +254,7 @@ function buildRoutineSession(id, asPlanned) {
   if (!r || !r.items.length) return null;
   const c = dayConstraint(today());
   const env = c.env || (S.profile.envs && S.profile.envs[0]) || 'full';
+  const blocked = blockedIds(env);
 
   const exercises = r.items.map(it => {
     const ex = EX[it.exId];
@@ -209,6 +273,22 @@ function buildRoutineSession(id, asPlanned) {
   }).filter(Boolean);
 
   if (!exercises.length) return null;
+
+  /* Prepended, not appended, and only after the routine itself is known to be
+     buildable — a warm-up in front of an empty session would be a session. */
+  if (r.warmup) {
+    const w = warmupFor(r, env, blocked);
+    if (w) {
+      const timed = w.load === 'time' || w.load === 'min';
+      exercises.unshift({
+        exId: w.id, name: w.name, load: w.load,
+        targetW: null, targetR: w.rl,
+        warmup: true,
+        sets: [{ w: '', r: w.rl, rpe: '', done: false }],
+        note: timed ? 'Warm-up. Hold it, breathing.' : 'Warm-up. Slow, through the whole range.'
+      });
+    }
+  }
 
   return {
     id: 'sx' + Date.now().toString(36),

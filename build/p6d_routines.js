@@ -129,6 +129,19 @@ function sheetRoutineEdit(id) {
     ${r.items.length ? rows : `<div class="note mb"><p class="note-t">Empty so far.</p><p class="note-b">Add the movements you want, in the order you want to do them.</p></div>`}
 
     <button class="btn ghost block mt" data-act="rt-add" data-v="${h(id)}">+ Add a movement</button>
+
+    <div class="list mt">
+      <div class="lrow" data-act="rt-warmup" data-v="${h(id)}">
+        <div class="ico">🤸</div>
+        <div class="grow">
+          <div class="h3">Warm-up first</div>
+          <div class="tiny mt-s">${r.warmup
+            ? 'One mobility movement in front, picked for what this routine trains'
+            : 'Off &mdash; this routine starts on the first movement you listed'}</div>
+        </div>
+        <div class="switch ${r.warmup ? 'on' : ''}"></div>
+      </div>
+    </div>
     ${r.items.length ? `<button class="btn primary block lg mt" data-act="routine-start" data-v="${h(id)}">Start it now</button>` : ''}
 
     <div class="divide"></div>

@@ -389,6 +389,143 @@ try {
   check('closing the sheet forgets where you were', scrollProbe.reopenAtTop === 0,
     String(scrollProbe.reopenAtTop));
 
+  /* ---- recovery days ----
+     The engine side is covered in engine.mjs. What matters here is that a
+     recovery day is reachable at all: choosable for a day, distinct on Today,
+     and startable in one tap. A generator nobody can get to is not a feature. */
+  const recoverable = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    go('plan');
+    sheetPlanDay(today());
+    const chip = document.querySelector('#sheet-body [data-act="plan-set"][data-v="recovery"]');
+    return { offered: !!chip, label: chip ? chip.textContent.trim() : '' };
+  });
+  check('a day can be set to Recovery', recoverable.offered === true);
+  check('...and the chip says so', recoverable.label === 'Recovery', recoverable.label);
+
+  /* Driven through the real path — chip, then "just this day" — rather than
+     writing week.plan directly: buildWeekPlan() rebuilds any week whose start
+     key does not match, so a hand-written entry vanishes on the next render
+     and the probe would be testing nothing. */
+  const recHero = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    go('plan');
+    sheetPlanDay(today());
+    /* Defensively: a missing chip has to read as a failed check, not an
+       exception that takes the whole instrument down before it reports. */
+    const chip = document.querySelector('#sheet-body [data-act="plan-set"][data-v="recovery"]');
+    if (chip) chip.click();
+    const only = document.querySelector('#sheet-body [data-act="plan-apply"][data-m="only"]');
+    if (only) only.click();
+    closeSheet(); go('today');
+    const body = document.getElementById('today-body');
+    const text = body.innerText || '';
+    const hero = body.querySelector('.hero');
+    return {
+      text,
+      planned: (S.week.plan[today()] || {}).type,
+      /* Not just the word "Recovery" — the ordinary training hero prints that
+         too, from typeLabel(). The mobility count is the recovery hero's own. */
+      titled: /mobility/i.test((hero && hero.innerText) || ''),
+      startable: !!body.querySelector('[data-act="start-session"][data-type="recovery"]'),
+      /* The size ladder answers "how hard should today be", which is not a
+         question a recovery day asks. */
+      ladder: !!body.querySelector('[data-act="open-ladder"]'),
+      checkin: !!body.querySelector('[data-act="open-readiness"]'),
+      mins: parseInt((hero && hero.querySelector('.hm-v') || {}).textContent || '', 10)
+    };
+  });
+  check('choosing it lands on the day', recHero.planned === 'recovery', String(recHero.planned));
+  check('Today shows a recovery hero, not a training one', recHero.titled === true);
+  check('no placeholder text on it', !BAD.test(recHero.text));
+  check('...it can be started in one tap', recHero.startable === true);
+  check('...it claims a real length', recHero.mins >= 4 && recHero.mins <= 30, String(recHero.mins));
+  check('...and offers no size ladder', recHero.ladder === false);
+  check('...nor a readiness check-in', recHero.checkin === false);
+
+  const recRun = await page.evaluate(() => {
+    const btn = document.querySelector('#today-body [data-act="start-session"][data-type="recovery"]');
+    if (!btn) return { started: false };
+    btn.click();
+    const A = S.active;
+    if (!A) return { started: false };
+    const text = document.getElementById('train-body').innerText || '';
+    return {
+      started: true, type: A.type, n: A.exercises.length,
+      allMobility: A.exercises.every(i => (EX[i.exId] || {}).pattern === 'mobility'),
+      text, named: A.exercises.every(i => text.includes(i.name))
+    };
+  });
+  check('starting it opens a real session', recRun.started === true);
+  check('...of the right type', recRun.type === 'recovery', recRun.type);
+  check('...made of mobility work', recRun.allMobility === true);
+  check('...and every movement is named on the screen', recRun.named === true);
+  check('no placeholder text on the recovery session', !BAD.test(recRun.text));
+
+  /* A day you marked off is not the same as a recovery day, and the copy must
+     not start owing you something. The stretch offer is an escape hatch next
+     to the existing one, not an obligation. */
+  const restDay = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.active = null;
+    S.week.days[today()] = { avail: 'none', env: 'full', note: '' };
+    save(true);
+    go('today');
+    const body = document.getElementById('today-body');
+    const text = body.innerText || '';
+    return {
+      text,
+      restDay: /rest day/i.test(text),
+      stretch: !!body.querySelector('[data-act="start-session"][data-type="recovery"]'),
+      micro: !!body.querySelector('[data-act="quick-rung"][data-v="micro"]'),
+      /* The product rule, asserted positively. A keyword blocklist cannot tell
+         "nothing is owed" from "you owe a session" — it flagged the correct
+         copy on the first run. The rule is that the day is explicitly free,
+         so check for that sentence and let a rewrite that drops it go red. */
+      free: /nothing is owed/i.test(text),
+      /* Adding a third option must not turn the offers into instructions. */
+      imperative: /you should|make sure|don't skip|at least/i.test(text)
+    };
+  });
+  check('a day marked off still says rest day', restDay.restDay === true);
+  check('...and still offers the three-minute option', restDay.micro === true);
+  check('...and now offers stretching too', restDay.stretch === true);
+  check('...and still says plainly that nothing is owed', restDay.free === true);
+  check('...with the stretch offered, not prescribed', restDay.imperative === false);
+  check('no placeholder text on the rest day', !BAD.test(restDay.text));
+
+  /* ---- the routine warm-up toggle ---- */
+  const rtWarm = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    go('today');
+    const r = newRoutine('Warm probe');
+    addToRoutine(r.id, 'bw-squat');
+    sheetRoutineEdit(r.id);
+    const row = () => document.querySelector('#sheet-body [data-act="rt-warmup"]');
+    /* A missing row is a failed check, not an exception that stops the
+       instrument before it has reported anything. */
+    if (!row()) return { before: { present: false, on: null }, after: {}, missing: true,
+                         text: document.getElementById('sheet-body').innerText || '' };
+    const before = { present: true, on: !!row().querySelector('.switch.on') };
+    row().click();
+    const after = { on: !!row().querySelector('.switch.on'), state: routineById(r.id).warmup };
+    const mins = routineMins(routineById(r.id));
+    const built = buildRoutineSession(r.id, false);
+    row().click();
+    return {
+      before, after, mins,
+      builtWith: built.exercises.length,
+      off: routineById(r.id).warmup,
+      text: document.getElementById('sheet-body').innerText || ''
+    };
+  });
+  check('the builder offers a warm-up toggle', rtWarm.before.present === true);
+  check('...off by default', rtWarm.before.on === false);
+  check('...tapping it turns the warm-up on', rtWarm.after.state === true);
+  check('...and the sheet redraws to show it', rtWarm.after.on === true);
+  check('...the session then carries the extra movement', rtWarm.builtWith === 2, String(rtWarm.builtWith));
+  check('...and tapping again turns it back off', rtWarm.off === false);
+  check('no placeholder text in the builder', !BAD.test(rtWarm.text));
+
   /* ---- App Store readiness ---- */
 
   /* A subscription offer with nothing behind it reads as an incomplete app. */
