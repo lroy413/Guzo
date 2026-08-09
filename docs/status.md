@@ -1,6 +1,6 @@
 # Status
 
-Verified against the build at **529,320 bytes**, `VERSION = '1.2.0'`.
+Verified against the build at **533,894 bytes**, `VERSION = '1.2.0'`.
 Last full sweep: all instruments green. Nothing known is broken.
 
 ---
@@ -42,9 +42,9 @@ Three of the seven audit items are done — the paywall is gated behind `SHOW_PA
 
 Four remain, and all four need the native scaffold in the repo first:
 
-1. **`guzo-native/` is not in this repo.** It is described in CLAUDE.md and absent from git. Nothing can be built for iOS until it exists.
+1. ~~`guzo-native/` is not in this repo.~~ **Built.** `capacitor.config.json` (`com.guzofit.app`), `package.json` pinning the plugins, `README.md`, `PRIVACY.md`, and `.github/workflows/ios.yml` which builds on a macOS runner. `build.sh` writes the web build into `guzo-native/www/`. `ios/` is generated in CI rather than committed, because it is entirely derived from the config and a committed copy drifts silently.
 2. **Guideline 4.2, minimum functionality.** The app makes zero network calls and uses zero native APIs — verified, no `fetch`/`XHR`/`sendBeacon`/`WebSocket` anywhere outside `sw.js`. A Capacitor shell with no native capability is the classic rejection. HealthKit sleep is the answer and is already priority one.
-3. **Storage durability.** Everything lives in `localStorage` with manual export. WebView storage can be cleared by the OS under pressure and is not backed up like native app data. `@capacitor/preferences` is the fix.
+3. ~~Storage durability.~~ **Done.** `localStorage` stays primary and Capacitor Preferences mirrors it, coalesced so twenty-five saves cost one bridge write. `restoreFromNativeIfEmpty()` recovers an evicted WebView and declines in every other case — `native.mjs` asserts that a stale mirror never overwrites live data, which is the rule that matters most.
 4. **The missing instruments.** `contrast.mjs`, `collide.mjs`, `ux.mjs`, `test.mjs`, `audit.mjs`, `sheetcontrast.mjs`, `knees.mjs` and `png.mjs` are documented and absent. The floating nav, the Settings sheet and the Suggested section have never faced a pixel-sampled contrast or collision sweep.
 
 Not blockers, worth doing: seven `confirm()`/`alert()` calls are unstyleable system dialogs in a native shell, and there is no web manifest.

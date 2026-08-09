@@ -80,7 +80,7 @@ function storageProbe() {
 
 function save(now) {
   const write = () => {
-    try { localStorage.setItem(KEY, JSON.stringify(S)); STORAGE_OK = true; }
+    try { localStorage.setItem(KEY, JSON.stringify(S)); STORAGE_OK = true; mirrorToNative(); }
     catch (e) {
       STORAGE_OK = false;
       if (!storageWarned) { storageWarned = true; toast('Preview only — nothing is being saved'); }

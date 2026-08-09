@@ -31,6 +31,7 @@ PARTS=(
   build/p4h_energy.js
   build/p4i_order.js
   build/p4j_meals.js
+  build/p4k_native.js
   build/p5a_onboard.js
   build/p5_ui.js
   build/p6_more.js
@@ -86,6 +87,15 @@ rm -rf dist
 mkdir -p dist
 cp index.html dist/index.html
 cp sw.js dist/sw.js
+
+# The iOS shell serves the same two files. Copied rather than symlinked so
+# `cap sync` picks up real content, and only when the shell exists — the web
+# build must not depend on the native wrapper being present.
+if [ -d guzo-native ]; then
+  mkdir -p guzo-native/www
+  cp index.html guzo-native/www/index.html
+  cp sw.js      guzo-native/www/sw.js
+fi
 
 bytes=$(wc -c < GuzoFit.html | tr -d ' ')
 swbytes=$(wc -c < sw.js | tr -d ' ')

@@ -1115,6 +1115,11 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
     /* Before the week is built, not after: a plan entry still pointing at a
        deleted routine would otherwise be treated as a settled day and kept
        through the rebuild. */
+    /* If the WebView was cleared, localStorage is empty and the native mirror
+       is the only copy left. Async by necessity, so boot continues normally
+       and the restore re-renders if it finds anything. */
+    if (typeof restoreFromNativeIfEmpty === 'function') restoreFromNativeIfEmpty();
+
     if (S.onboarded) repairRefs();
 
     // roll the week over if needed

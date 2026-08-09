@@ -1,0 +1,131 @@
+# Builds the iOS app on a macOS runner, so no Mac is needed to ship.
+#
+# Two deliberate properties:
+#
+# - It runs on every push, but only *uploads* when the App Store Connect
+#   secrets exist. Until they do it is still a compile check, which is the
+#   part that catches mistakes; a workflow that fails loudly on a missing
+#   secret would just get switched off.
+# - `ios/` is generated here rather than committed. It is entirely derived
+#   from capacitor.config.json and the plugin list, and a committed copy
+#   drifts out of sync with them silently.
+
+name: iOS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Builds index.html and sw.js, and copies them into guzo-native/www/.
+      # dupes.mjs runs inside build.sh and needs no dependencies.
+      - name: Build the web app
+        run: ./build.sh
+
+      - name: Confirm the web build landed in the shell
+        run: |
+          test -f guzo-native/www/index.html || { echo "www/index.html missing — build.sh did not copy it"; exit 1; }
+          test -f guzo-native/www/sw.js     || { echo "www/sw.js missing";     exit 1; }
+          grep -q 'id="boot-build"' guzo-native/www/index.html || { echo "build stamp missing"; exit 1; }
+
+      - name: Install Capacitor
+        working-directory: guzo-native
+        run: npm install
+
+      - name: Generate the iOS project
+        working-directory: guzo-native
+        run: |
+          npx cap add ios
+          npx cap sync ios
+
+      - name: Install pods
+        working-directory: guzo-native/ios/App
+        run: pod install
+
+      # Compiles without signing. This is the step that actually catches
+      # breakage, and it needs no secrets — so it runs on every push.
+      - name: Build (unsigned)
+        working-directory: guzo-native/ios/App
+        run: |
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Are the release secrets present?
+        id: secrets
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: echo "ready=${{ env.ASC_KEY_ID != '' }}" >> "$GITHUB_OUTPUT"
+
+      - name: Archive and upload to TestFlight
+        if: steps.secrets.outputs.ready == 'true'
+        working-directory: guzo-native/ios/App
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+        run: |
+          mkdir -p ~/private_keys
+          echo "$ASC_KEY_P8" > ~/private_keys/AuthKey_${ASC_KEY_ID}.p8
+
+          xcodebuild \
+            -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
+            archive
+
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>teamID</key><string>$IOS_TEAM_ID</string>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath ~/private_keys/AuthKey_${ASC_KEY_ID}.p8 \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Keep the build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-logs
+          path: |
+            guzo-native/ios/App/build
+            ~/Library/Logs/gym
+          if-no-files-found: ignore

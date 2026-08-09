@@ -1,0 +1,13 @@
+{
+  "appId": "com.guzofit.app",
+  "appName": "Guzo Fit",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0a0c0f",
+    "limitsNavigationsToAppBoundDomains": true
+  },
+  "server": {
+    "iosScheme": "capacitor"
+  }
+}

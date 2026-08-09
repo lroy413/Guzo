@@ -58,6 +58,7 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 │   ├── p4h_energy.js         ← adaptive TDEE, weekly intake, protein targets
 │   ├── p4i_order.js          ← week ordering: pin / swap / reflow / trained-elsewhere
 │   ├── p4j_meals.js          ← diet preferences, dietary tags, suggested meals
+│   ├── p4k_native.js         ← Capacitor bridge: storage mirror, haptics. Inert on the web.
 │   ├── p5a_onboard.js        ← onboarding flow
 │   ├── p5_ui.js              ← render(), Today, Plan, Train, Progress + shared helpers
 │   ├── p6_more.js            ← More screen, Settings sheet, week sheet, exercise picker
@@ -73,7 +74,8 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 ├── docs/
 │   ├── decisions.md
 │   └── status.md
-├── guzo-native/              ← Capacitor iOS wrapper (scaffold, not wired)
+├── guzo-native/              ← Capacitor iOS shell. www/ is written by build.sh.
+├── .github/workflows/ios.yml ← builds and uploads on a macOS runner; no Mac needed
 └── *.mjs                     ← test instruments (see below)
 ```
 
@@ -232,6 +234,7 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of |
 | `node fuel.mjs` | meal suggestions are deterministic, hit the target, and never break a stated dietary restriction |
 | `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, and a Fuel bar means what it looks like |
+| `node native.mjs` | the Capacitor bridge is inert on the web, mirrors saves on device, and never restores over live data |
 
 `png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.
 
@@ -258,5 +261,7 @@ Nothing in the app hardcodes a path. The worker registers `sw.js` relatively and
 Updates reach an installed app because the worker is network-first on navigation: it serves the cached shell only when the network fails or is slower than 3.5s. Cache-first would pin a phone to whatever it first installed, and there is no in-app update prompt to rescue it.
 
 **Domain:** `guzo.app` was already taken, which is why the product is "Guzo Fit". No domain is wired up yet.
+
+**Storage on device.** `localStorage` stays the primary store — it is synchronous and `load()` runs at boot before any async API could answer. Capacitor Preferences is a *mirror*, written after each save and read only when localStorage comes up empty. That is what survives a WebView eviction, which is the one way a user loses everything. `restoreFromNativeIfEmpty()` only ever fills a hole; it declines if the current state has anything in it.
 
 **Native (iOS):** `guzo-native/` holds a Capacitor 8 scaffold — `capacitor.config.json` (`appId: com.guzofit.app`), a `package.json` pinning `@capacitor/ios`, `@capacitor/haptics`, `@capacitor/local-notifications`, `@capacitor/preferences` and `@capgo/capacitor-health`, and a GitHub Actions workflow (`.github/workflows/ios.yml`) that builds on a macOS runner using an App Store Connect API key, so no Mac is required. The web build must be copied to `guzo-native/www/index.html` before `cap sync`. **None of the native plugins are wired into the app yet** — no HealthKit reads, no notifications. The full plan is in `guzo-native-wrap-plan.md`.
