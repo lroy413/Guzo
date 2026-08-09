@@ -299,6 +299,72 @@ try {
   check('...which carries all the studies, not a subset', evidence.pageHasAll === true);
   check('no placeholder text on it', !BAD.test(evidence.text || ''));
 
+  /* ---- App Store readiness ---- */
+
+  /* A subscription offer with nothing behind it reads as an incomplete app. */
+  const paywall = await page.evaluate(() => {
+    go('more');
+    const reachable = !!document.querySelector('#more-body [data-act="open-paywall"]');
+    const before = document.getElementById('sheet-body').innerText || '';
+    const b = document.createElement('button');
+    b.setAttribute('data-act', 'open-paywall');
+    document.body.appendChild(b); b.click(); b.remove();
+    const after = document.getElementById('sheet-body').innerText || '';
+    return { reachable, opened: after !== before, after: after.slice(0, 60) };
+  });
+  check('the paywall is not reachable from More', paywall.reachable === false);
+  check('...and the action refuses even if invoked directly', paywall.opened === false, paywall.after);
+
+  /* The store needs a policy, and it has to say the true thing. */
+  const privacy = await page.evaluate(() => {
+    go('more');
+    document.querySelector('[data-act="open-settings"]').click();
+    const link = document.querySelector('#sheet-body [data-act="help-page"][data-v="privacy"]');
+    if (!link) return { linked: false };
+    link.click();
+    return { linked: true, text: document.getElementById('sheet-body').innerText || '' };
+  });
+  check('Settings links to a privacy page', privacy.linked);
+  check('it states there is no account or server', /no account|no server|no backend/i.test(privacy.text || ''));
+  check('it states nothing is collected or sent', /no analytics|not collected|nothing is collected/i.test(privacy.text || ''));
+  check('it covers health data and disclaims medical advice', /health/i.test(privacy.text || '') && /medical advice/i.test(privacy.text || ''));
+  check('no placeholder text in it', !BAD.test(privacy.text || ''));
+
+  /* Interactive divs must be focusable and announced. 36 of them were neither,
+     which made parts of the app pointer-only. */
+  await page.waitForTimeout(100);   // let the observer settle on renderX() paths
+  const a11y = await page.evaluate(() => {
+    const NATIVE = 'button,a,input,select,textarea,summary';
+    const bad = [];
+    ['today', 'plan', 'progress', 'more', 'fuel'].forEach(scr => {
+      go(scr);
+      document.querySelectorAll(`#s-${scr} [data-act],#s-${scr} [data-go]`).forEach(el => {
+        if (el.matches(NATIVE)) return;
+        if (el.querySelector(NATIVE)) return;
+        if (el.getAttribute('role') !== 'button' || el.getAttribute('tabindex') !== '0') {
+          bad.push(scr + ':' + (el.dataset.act || el.dataset.go));
+        }
+      });
+    });
+    return { bad: bad.slice(0, 6), count: bad.length };
+  });
+  check('every interactive div is focusable and announced', a11y.count === 0,
+    a11y.count + ' unreachable: ' + a11y.bad.join(', '));
+
+  /* Focusable but inert is worse than unreachable — it takes a tab stop and
+     does nothing. */
+  const keyboard = await page.evaluate(() => {
+    go('more');
+    const row = document.querySelector('#more-body [data-act="open-settings"]');
+    row.focus();
+    const focused = document.activeElement === row;
+    row.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    const opened = (document.getElementById('sheet-body').innerText || '').length > 100;
+    return { focused, opened };
+  });
+  check('an interactive div can take keyboard focus', keyboard.focused);
+  check('...and Enter activates it', keyboard.opened);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

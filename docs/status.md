@@ -1,6 +1,6 @@
 # Status
 
-Verified against the build at **522,599 bytes**, `VERSION = '1.2.0'`.
+Verified against the build at **529,320 bytes**, `VERSION = '1.2.0'`.
 Last full sweep: all instruments green. Nothing known is broken.
 
 ---
@@ -35,6 +35,19 @@ Last full sweep: all instruments green. Nothing known is broken.
 | Accessibility | 44px minimum targets, 11px font floor, WCAG AA on 527 screen + 818 sheet text nodes, reduced-motion honoured, pinch zoom unblocked. |
 
 ---
+
+## Before the App Store
+
+Three of the seven audit items are done — the paywall is gated behind `SHOW_PAYWALL`, there is a real privacy page, and every interactive element is keyboard-reachable and announced.
+
+Four remain, and all four need the native scaffold in the repo first:
+
+1. **`guzo-native/` is not in this repo.** It is described in CLAUDE.md and absent from git. Nothing can be built for iOS until it exists.
+2. **Guideline 4.2, minimum functionality.** The app makes zero network calls and uses zero native APIs — verified, no `fetch`/`XHR`/`sendBeacon`/`WebSocket` anywhere outside `sw.js`. A Capacitor shell with no native capability is the classic rejection. HealthKit sleep is the answer and is already priority one.
+3. **Storage durability.** Everything lives in `localStorage` with manual export. WebView storage can be cleared by the OS under pressure and is not backed up like native app data. `@capacitor/preferences` is the fix.
+4. **The missing instruments.** `contrast.mjs`, `collide.mjs`, `ux.mjs`, `test.mjs`, `audit.mjs`, `sheetcontrast.mjs`, `knees.mjs` and `png.mjs` are documented and absent. The floating nav, the Settings sheet and the Suggested section have never faced a pixel-sampled contrast or collision sweep.
+
+Not blockers, worth doing: seven `confirm()`/`alert()` calls are unstyleable system dialogs in a native shell, and there is no web manifest.
 
 ## Half-built
 

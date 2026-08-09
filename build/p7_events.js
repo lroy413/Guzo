@@ -164,6 +164,17 @@ function importData() {
 /* ============================================================
    EVENT DELEGATION
    ============================================================ */
+/* A control you can focus but not operate is worse than one you cannot reach:
+   it takes a tab stop and does nothing. Enter and Space activate anything
+   a11yPass promoted. Space is preventDefault'd so it does not scroll. */
+document.addEventListener('keydown', ev => {
+  if (ev.key !== 'Enter' && ev.key !== ' ' && ev.key !== 'Spacebar') return;
+  const t = ev.target.closest && ev.target.closest('[role="button"][data-act],[role="button"][data-go]');
+  if (!t) return;
+  ev.preventDefault();
+  t.click();
+});
+
 document.addEventListener('click', ev => {
   const nav = ev.target.closest('[data-go]');
   if (nav) { go(nav.dataset.go); return; }
@@ -970,7 +981,12 @@ document.addEventListener('click', ev => {
       toast(S.settings.warmup ? 'Warm-up on' : 'Warm-up off', true);
       break;
     }
-    case 'open-paywall': sheetPaywall(); break;
+    case 'open-paywall':
+      /* Belt and braces: the entry point is gone from More, and the action
+         refuses too, so a stale handler cannot resurrect a purchase surface
+         that has nothing behind it. */
+      if (!SHOW_PAYWALL) break;
+      sheetPaywall(); break;
     case 'export': exportData(); break;
     case 'import': importData(); break;
     case 'reset': {
@@ -1091,6 +1107,7 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
 (function init() {
   try {
     STORAGE_OK = storageProbe();
+    a11yWatch();
     const had = load();
     const ingested = ingestFromURL();
     S.meta.lastOpen = new Date().toISOString();

@@ -8,7 +8,8 @@ const HELP_PAGES = {
   start: { ico:'▶️', title:'Getting started',   sub:'Your first week, and what to do on a bad one' },
   data:  { ico:'💾', title:'Install & backups', sub:'Home screen, exporting, restoring, resetting' },
   shortcut: { ico:'📲', title:'Steps &amp; sleep from Health', sub:'Build the shortcut that hands Apple Health over' },
-  why:   { ico:'🔬', title:'The evidence',      sub:'The research this app is built on' }
+  why:   { ico:'🔬', title:'The evidence',      sub:'The research this app is built on' },
+  privacy: { ico:'🔒', title:'Privacy',          sub:'What is stored, where it lives, and what never leaves' }
 };
 
 function sheetHelp() {
@@ -195,6 +196,44 @@ const HELP_BODY = {
       <div class="eyebrow em">Beta build</div>
       <p class="small mt-s">Every Pro feature is unlocked and nothing charges. The paywall in Base camp is a design preview only.</p>
     </div>`,
+
+  /* Written to be the actual privacy policy, not a summary of one. The App
+     Store requires a policy for any app, and requires an explicit one for
+     anything touching Health data — so this has to be true, specific, and
+     checkable against the code rather than reassuring. Every claim below was
+     verified: the app makes no network requests of any kind outside the
+     service worker, which fetches nothing but the app's own two files. */
+  privacy: () => `
+    ${helpBack()}
+    <h2 class="h1 mt-s">Privacy</h2>
+    <p class="small mt-s">The short version: nothing you enter here leaves this device, because there is nowhere for it to go.</p>
+
+    <div class="card mt">
+      <div class="h3">There is no account and no server</div>
+      <p class="small mt-s">Guzo has no sign-up, no login, and no backend. Your training history, bodyweight, food log, readiness check-ins and routines are stored in this browser's local storage on this device only. No copy exists anywhere else unless you export one yourself.</p>
+    </div>
+
+    <div class="card mt">
+      <div class="h3">Nothing is collected, sent or sold</div>
+      <p class="small mt-s">No analytics, no crash reporting, no advertising identifiers, no tracking of any kind. The app makes no network requests except to load its own two files. There is no third party in this app to share anything with.</p>
+    </div>
+
+    <div class="card mt">
+      <div class="h3">The one time you leave</div>
+      <p class="small mt-s">Tapping "Find a video" for a lift opens a YouTube search in your browser. That is you visiting YouTube, under their privacy policy, not Guzo sending them anything about you. Nothing else in the app opens an external link.</p>
+    </div>
+
+    <div class="card mt">
+      <div class="h3">Your data, your copies</div>
+      <p class="small mt-s">Export writes a JSON file of everything to wherever you choose to save it. Restore replaces what is on this device. Reset erases it. All three are in Settings, under Your data, and none of them touches a network.</p>
+    </div>
+
+    <div class="card mt">
+      <div class="h3">Health data</div>
+      <p class="small mt-s">Guzo does not currently read Apple Health. If a future version does, it will ask first, read only what it names, keep it on the device under exactly these terms, and never write it anywhere else. Nothing in this app is medical advice — calorie and protein targets are estimates from published equations, and the food library holds generic reference foods rather than products with labels.</p>
+    </div>
+
+    <p class="tiny center mt-l">Guzo Fit v\${VERSION}. Questions: the developer is the only person with access to anything, and that access is your own phone.</p>`,
 
   why: () => `
     ${helpBack()}

@@ -69,8 +69,8 @@ function renderMore() {
   html += `<div class="eyebrow mb-s">Membership</div>
   <div class="card accent mb">
     <div class="row between"><div class="h3">Guzo Pro</div><div class="pill em">Beta — unlocked</div></div>
-    <p class="small mt-s">Everything is on while this is in testing. The paywall below is scaffolding for later; nothing charges, nothing phones home.</p>
-    <button class="btn ghost block mt" data-act="open-paywall">Preview the paywall</button>
+    <p class="small mt-s">Everything is on while this is in testing. Nothing charges, nothing phones home, and there is no account to make.</p>
+    ${SHOW_PAYWALL ? `<button class="btn ghost block mt" data-act="open-paywall">Preview the paywall</button>` : ''}
   </div>`;
 
   /* The evidence card that used to sit here was a shorter, worse copy of the
@@ -551,6 +551,11 @@ function sheetSettings() {
 
     <div class="eyebrow mb-s">About</div>
     <div class="list mb">
+      <div class="lrow" data-act="help-page" data-v="privacy">
+        <div class="ico">🔒</div>
+        <div class="grow"><div class="h3">Privacy</div><div class="tiny mt-s">What is stored, where it lives, and what never leaves this device</div></div>
+        <span class="chev">›</span>
+      </div>
       <div class="lrow" data-act="help-page" data-v="why">
         <div class="ico">🔬</div>
         <div class="grow"><div class="h3">Why this app behaves the way it does</div><div class="tiny mt-s">The research behind no streaks, a free miss, and three-minute sessions</div></div>

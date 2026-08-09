@@ -50,6 +50,17 @@ const TIERSPEC = {
   pro:  ['weekshaper', 'autoplan', 'nutrition', 'analytics', 'prs', 'customprog', 'coachnotes']
 };
 const BETA_UNLOCK_ALL = true;
+
+/* The paywall renders real prices — £69.99 a year, £8.99 a month, "7-day free
+   trial · cancel anytime" — and nothing behind it charges anything, because
+   there is no StoreKit and no in-app purchase.
+
+   That is fine in a personal beta and a liability in App Store review: a
+   reviewer sees a subscription offer that does not work, which reads as an
+   incomplete app at best and raises in-app-purchase questions at worst. It
+   stays built and stays unreachable until real IAP exists. Flip this the same
+   day StoreKit lands, not before. */
+const SHOW_PAYWALL = false;
 function can(feature) {
   if (BETA_UNLOCK_ALL) return true;
   if (TIERSPEC.free.includes(feature)) return true;

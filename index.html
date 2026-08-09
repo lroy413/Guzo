@@ -1186,6 +1186,17 @@ const TIERSPEC = {
   pro:  ['weekshaper', 'autoplan', 'nutrition', 'analytics', 'prs', 'customprog', 'coachnotes']
 };
 const BETA_UNLOCK_ALL = true;
+
+/* The paywall renders real prices — £69.99 a year, £8.99 a month, "7-day free
+   trial · cancel anytime" — and nothing behind it charges anything, because
+   there is no StoreKit and no in-app purchase.
+
+   That is fine in a personal beta and a liability in App Store review: a
+   reviewer sees a subscription offer that does not work, which reads as an
+   incomplete app at best and raises in-app-purchase questions at worst. It
+   stays built and stays unreachable until real IAP exists. Flip this the same
+   day StoreKit lands, not before. */
+const SHOW_PAYWALL = false;
 function can(feature) {
   if (BETA_UNLOCK_ALL) return true;
   if (TIERSPEC.free.includes(feature)) return true;
@@ -6092,6 +6103,7 @@ let sheetDepth = 0;
 function openSheet(html) {
   const sh = $('#sheet');
   $('#sheet-body').innerHTML = html;
+  a11yPass($('#sheet-body'));   // synchronous, for the same reason as in go()
   sh.style.transform = '';
   sh.classList.add('on');
   $('#scrim').classList.add('on');
@@ -6162,6 +6174,11 @@ function go(name) {
   $('#nav').classList.toggle('hide', name === 'onboard');
   syncNav();
   render();
+  /* Synchronously, not via the observer: its callback is a microtask, so a
+     focus() immediately after navigating would land before the attributes
+     did. The observer stays as the backstop for renderX() calls that do not
+     go through here. */
+  a11yPass(el || undefined);
   if (el) el.scrollTop = 0;   // the screen scrolls, the page never does
 }
 
@@ -6876,6 +6893,45 @@ function sparkHTML(vals) {
     <polyline points="${pts}" fill="none" stroke="#E9B44C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
   </svg>`;
 }
+
+/* ---------- keyboard and screen-reader access ----------
+   Every interactive thing in this app carries data-act or data-go, and most
+   of them are real <button>s — but 36 are plain <div>s. A div is not
+   focusable and assistive technology does not announce it as a control, so
+   those rows could only ever be reached with a pointer. On a phone that is
+   invisible; with VoiceOver it makes parts of the app unusable.
+
+   Fixed here rather than at 36 markup sites, because every screen and sheet
+   is a wholesale innerHTML write and new rows get added constantly — a fix
+   applied by hand would be correct on the day and wrong a month later.
+
+   Two rules keep it honest. Natively interactive elements are left alone,
+   and so is any container that already holds its own control: a suggestion
+   row with a Log button inside it is not itself a button, and telling a
+   screen reader otherwise would be worse than saying nothing. */
+const A11Y_NATIVE = 'button,a,input,select,textarea,summary,[role="button"]';
+
+function a11yPass(root) {
+  const scope = root || document.getElementById('app');
+  if (!scope) return;
+  scope.querySelectorAll('[data-act],[data-go]').forEach(el => {
+    if (el.matches(A11Y_NATIVE)) return;
+    if (el.querySelector(A11Y_NATIVE)) return;
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+  });
+}
+
+/* Watching for new markup rather than calling a11yPass from every renderer:
+   there are more than twenty of them and the next one would be forgotten.
+   childList only — setting attributes must not retrigger the observer. */
+function a11yWatch() {
+  const app = document.getElementById('app');
+  if (!app || typeof MutationObserver !== 'function') return;
+  a11yPass(app);
+  new MutationObserver(() => a11yPass(app))
+    .observe(app, { childList: true, subtree: true });
+}
 /* ============================================================
    NUTRITION (optional module — deliberately non-blocking)
    ============================================================ */
@@ -6947,8 +7003,8 @@ function renderMore() {
   html += `<div class="eyebrow mb-s">Membership</div>
   <div class="card accent mb">
     <div class="row between"><div class="h3">Guzo Pro</div><div class="pill em">Beta — unlocked</div></div>
-    <p class="small mt-s">Everything is on while this is in testing. The paywall below is scaffolding for later; nothing charges, nothing phones home.</p>
-    <button class="btn ghost block mt" data-act="open-paywall">Preview the paywall</button>
+    <p class="small mt-s">Everything is on while this is in testing. Nothing charges, nothing phones home, and there is no account to make.</p>
+    ${SHOW_PAYWALL ? `<button class="btn ghost block mt" data-act="open-paywall">Preview the paywall</button>` : ''}
   </div>`;
 
   /* The evidence card that used to sit here was a shorter, worse copy of the
@@ -7429,6 +7485,11 @@ function sheetSettings() {
 
     <div class="eyebrow mb-s">About</div>
     <div class="list mb">
+      <div class="lrow" data-act="help-page" data-v="privacy">
+        <div class="ico">🔒</div>
+        <div class="grow"><div class="h3">Privacy</div><div class="tiny mt-s">What is stored, where it lives, and what never leaves this device</div></div>
+        <span class="chev">›</span>
+      </div>
       <div class="lrow" data-act="help-page" data-v="why">
         <div class="ico">🔬</div>
         <div class="grow"><div class="h3">Why this app behaves the way it does</div><div class="tiny mt-s">The research behind no streaks, a free miss, and three-minute sessions</div></div>
@@ -7449,7 +7510,8 @@ const HELP_PAGES = {
   start: { ico:'▶️', title:'Getting started',   sub:'Your first week, and what to do on a bad one' },
   data:  { ico:'💾', title:'Install & backups', sub:'Home screen, exporting, restoring, resetting' },
   shortcut: { ico:'📲', title:'Steps &amp; sleep from Health', sub:'Build the shortcut that hands Apple Health over' },
-  why:   { ico:'🔬', title:'The evidence',      sub:'The research this app is built on' }
+  why:   { ico:'🔬', title:'The evidence',      sub:'The research this app is built on' },
+  privacy: { ico:'🔒', title:'Privacy',          sub:'What is stored, where it lives, and what never leaves' }
 };
 
 function sheetHelp() {
@@ -7636,6 +7698,44 @@ const HELP_BODY = {
       <div class="eyebrow em">Beta build</div>
       <p class="small mt-s">Every Pro feature is unlocked and nothing charges. The paywall in Base camp is a design preview only.</p>
     </div>`,
+
+  /* Written to be the actual privacy policy, not a summary of one. The App
+     Store requires a policy for any app, and requires an explicit one for
+     anything touching Health data — so this has to be true, specific, and
+     checkable against the code rather than reassuring. Every claim below was
+     verified: the app makes no network requests of any kind outside the
+     service worker, which fetches nothing but the app's own two files. */
+  privacy: () => `
+    ${helpBack()}
+    <h2 class="h1 mt-s">Privacy</h2>
+    <p class="small mt-s">The short version: nothing you enter here leaves this device, because there is nowhere for it to go.</p>
+
+    <div class="card mt">
+      <div class="h3">There is no account and no server</div>
+      <p class="small mt-s">Guzo has no sign-up, no login, and no backend. Your training history, bodyweight, food log, readiness check-ins and routines are stored in this browser's local storage on this device only. No copy exists anywhere else unless you export one yourself.</p>
+    </div>
+
+    <div class="card mt">
+      <div class="h3">Nothing is collected, sent or sold</div>
+      <p class="small mt-s">No analytics, no crash reporting, no advertising identifiers, no tracking of any kind. The app makes no network requests except to load its own two files. There is no third party in this app to share anything with.</p>
+    </div>
+
+    <div class="card mt">
+      <div class="h3">The one time you leave</div>
+      <p class="small mt-s">Tapping "Find a video" for a lift opens a YouTube search in your browser. That is you visiting YouTube, under their privacy policy, not Guzo sending them anything about you. Nothing else in the app opens an external link.</p>
+    </div>
+
+    <div class="card mt">
+      <div class="h3">Your data, your copies</div>
+      <p class="small mt-s">Export writes a JSON file of everything to wherever you choose to save it. Restore replaces what is on this device. Reset erases it. All three are in Settings, under Your data, and none of them touches a network.</p>
+    </div>
+
+    <div class="card mt">
+      <div class="h3">Health data</div>
+      <p class="small mt-s">Guzo does not currently read Apple Health. If a future version does, it will ask first, read only what it names, keep it on the device under exactly these terms, and never write it anywhere else. Nothing in this app is medical advice — calorie and protein targets are estimates from published equations, and the food library holds generic reference foods rather than products with labels.</p>
+    </div>
+
+    <p class="tiny center mt-l">Guzo Fit v\${VERSION}. Questions: the developer is the only person with access to anything, and that access is your own phone.</p>`,
 
   why: () => `
     ${helpBack()}
@@ -9388,6 +9488,17 @@ function importData() {
 /* ============================================================
    EVENT DELEGATION
    ============================================================ */
+/* A control you can focus but not operate is worse than one you cannot reach:
+   it takes a tab stop and does nothing. Enter and Space activate anything
+   a11yPass promoted. Space is preventDefault'd so it does not scroll. */
+document.addEventListener('keydown', ev => {
+  if (ev.key !== 'Enter' && ev.key !== ' ' && ev.key !== 'Spacebar') return;
+  const t = ev.target.closest && ev.target.closest('[role="button"][data-act],[role="button"][data-go]');
+  if (!t) return;
+  ev.preventDefault();
+  t.click();
+});
+
 document.addEventListener('click', ev => {
   const nav = ev.target.closest('[data-go]');
   if (nav) { go(nav.dataset.go); return; }
@@ -10194,7 +10305,12 @@ document.addEventListener('click', ev => {
       toast(S.settings.warmup ? 'Warm-up on' : 'Warm-up off', true);
       break;
     }
-    case 'open-paywall': sheetPaywall(); break;
+    case 'open-paywall':
+      /* Belt and braces: the entry point is gone from More, and the action
+         refuses too, so a stale handler cannot resurrect a purchase surface
+         that has nothing behind it. */
+      if (!SHOW_PAYWALL) break;
+      sheetPaywall(); break;
     case 'export': exportData(); break;
     case 'import': importData(); break;
     case 'reset': {
@@ -10315,6 +10431,7 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
 (function init() {
   try {
     STORAGE_OK = storageProbe();
+    a11yWatch();
     const had = load();
     const ingested = ingestFromURL();
     S.meta.lastOpen = new Date().toISOString();

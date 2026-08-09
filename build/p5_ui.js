@@ -23,6 +23,7 @@ let sheetDepth = 0;
 function openSheet(html) {
   const sh = $('#sheet');
   $('#sheet-body').innerHTML = html;
+  a11yPass($('#sheet-body'));   // synchronous, for the same reason as in go()
   sh.style.transform = '';
   sh.classList.add('on');
   $('#scrim').classList.add('on');
@@ -93,6 +94,11 @@ function go(name) {
   $('#nav').classList.toggle('hide', name === 'onboard');
   syncNav();
   render();
+  /* Synchronously, not via the observer: its callback is a microtask, so a
+     focus() immediately after navigating would land before the attributes
+     did. The observer stays as the backstop for renderX() calls that do not
+     go through here. */
+  a11yPass(el || undefined);
   if (el) el.scrollTop = 0;   // the screen scrolls, the page never does
 }
 
@@ -806,4 +812,43 @@ function sparkHTML(vals) {
   return `<svg class="spark mt" viewBox="0 0 100 56" preserveAspectRatio="none">
     <polyline points="${pts}" fill="none" stroke="#E9B44C" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
   </svg>`;
+}
+
+/* ---------- keyboard and screen-reader access ----------
+   Every interactive thing in this app carries data-act or data-go, and most
+   of them are real <button>s — but 36 are plain <div>s. A div is not
+   focusable and assistive technology does not announce it as a control, so
+   those rows could only ever be reached with a pointer. On a phone that is
+   invisible; with VoiceOver it makes parts of the app unusable.
+
+   Fixed here rather than at 36 markup sites, because every screen and sheet
+   is a wholesale innerHTML write and new rows get added constantly — a fix
+   applied by hand would be correct on the day and wrong a month later.
+
+   Two rules keep it honest. Natively interactive elements are left alone,
+   and so is any container that already holds its own control: a suggestion
+   row with a Log button inside it is not itself a button, and telling a
+   screen reader otherwise would be worse than saying nothing. */
+const A11Y_NATIVE = 'button,a,input,select,textarea,summary,[role="button"]';
+
+function a11yPass(root) {
+  const scope = root || document.getElementById('app');
+  if (!scope) return;
+  scope.querySelectorAll('[data-act],[data-go]').forEach(el => {
+    if (el.matches(A11Y_NATIVE)) return;
+    if (el.querySelector(A11Y_NATIVE)) return;
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+  });
+}
+
+/* Watching for new markup rather than calling a11yPass from every renderer:
+   there are more than twenty of them and the next one would be forgotten.
+   childList only — setting attributes must not retrigger the observer. */
+function a11yWatch() {
+  const app = document.getElementById('app');
+  if (!app || typeof MutationObserver !== 'function') return;
+  a11yPass(app);
+  new MutationObserver(() => a11yPass(app))
+    .observe(app, { childList: true, subtree: true });
 }
