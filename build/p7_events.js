@@ -605,12 +605,6 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'open-nutrition': sheetNutrition(); break;
-    case 'nut-quick': {
-      nutDay().items.push({ ...QUICKFOODS[i] }); save(); buzz();
-      if (SCREEN === 'fuel') { renderFuel(); toast('Logged', true); }
-      else sheetNutrition();
-      break;
-    }
     case 'open-nut-targets': sheetNutTargets(); break;
 
     /* ---- fuel: the logging loop ---- */
@@ -714,44 +708,6 @@ document.addEventListener('click', ev => {
       if (!S.settings.nutrition && SCREEN === 'fuel') go('today'); else render();
       renderMore();
       toast(S.settings.nutrition ? 'Fuel is on' : 'Fuel is off', true);
-      break;
-    }
-    case 'nut-del': { nutDay().items.splice(i, 1); save(); sheetNutrition(); break; }
-    case 'nut-custom': {
-      openSheet(`
-        <div class="row gap-s mb" style="align-items:center"><button class="btn xs back" data-act="open-nutrition" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button><h2 class="h1 grow" style="padding-right:44px">Custom entry</h2></div>
-        <div class="field mb"><div class="label">What</div><input class="input" id="nc-n" placeholder="Curry from the truck"></div>
-        <div class="row gap-s mb">
-          <div class="field grow"><div class="label">kcal</div><input class="input" id="nc-k" type="number" inputmode="numeric"></div>
-          <div class="field grow"><div class="label">Protein</div><input class="input" id="nc-p" type="number" inputmode="numeric"></div>
-        </div>
-        <div class="row gap-s mb">
-          <div class="field grow"><div class="label">Carbs</div><input class="input" id="nc-c" type="number" inputmode="numeric"></div>
-          <div class="field grow"><div class="label">Fat</div><input class="input" id="nc-f" type="number" inputmode="numeric"></div>
-        </div>
-        <button class="btn primary block" data-act="nut-add">Add</button>`);
-      break;
-    }
-    case 'nut-add': {
-      const g = id => (document.getElementById(id) || {}).value || '';
-      const n = g('nc-n').trim() || 'Entry';
-      nutDay().items.push({ n, kcal:+g('nc-k')||0, p:+g('nc-p')||0, c:+g('nc-c')||0, f:+g('nc-f')||0 });
-      save(); sheetNutrition(); toast('Added', true); break;
-    }
-    case 'nut-targets': {
-      const tg = S.nutrition.targets;
-      openSheet(`
-        <div class="row gap-s mb" style="align-items:center"><button class="btn xs back" data-act="open-nutrition" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button><h2 class="h1 grow" style="padding-right:44px">Targets</h2></div>
-        <p class="small mb">For gaining muscle while training hard, roughly 1.6–2.2 g of protein per kg of bodyweight is the evidence-backed range. Calories slightly above maintenance.</p>
-        <div class="row gap-s mb">
-          <div class="field grow"><div class="label">kcal</div><input class="input" id="tg-k" type="number" value="${tg.kcal}"></div>
-          <div class="field grow"><div class="label">Protein g</div><input class="input" id="tg-p" type="number" value="${tg.p}"></div>
-        </div>
-        <div class="row gap-s mb">
-          <div class="field grow"><div class="label">Carbs g</div><input class="input" id="tg-c" type="number" value="${tg.c}"></div>
-          <div class="field grow"><div class="label">Fat g</div><input class="input" id="tg-f" type="number" value="${tg.f}"></div>
-        </div>
-        <button class="btn primary block" data-act="tg-save">Save targets</button>`);
       break;
     }
     case 'tg-save': {

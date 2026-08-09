@@ -18,38 +18,6 @@ function nutTotals(kIn) {
   const r = v => Math.round(v * 10) / 10;
   return { kcal: Math.round(t.kcal), p: r(t.p), c: r(t.c), f: r(t.f) };
 }
-function nutritionTileHTML() {
-  const t = nutTotals();
-  const tg = S.nutrition.targets;
-  const pPct = Math.min(100, Math.round(t.p / (tg.p || 1) * 100));
-  const kPct = Math.min(100, Math.round(t.kcal / (tg.kcal || 1) * 100));
-  const burned = kcalOnDate(today());
-  return `<div class="card mt-l" data-act="open-nutrition">
-    <div class="row between mb-s"><div class="eyebrow">Fuel</div><div class="pill">${t.kcal} / ${tg.kcal} kcal</div></div>
-    ${burned ? `<div class="row between mb-s"><span class="tiny">Training burned ~${burned} kcal today</span><span class="tiny mono em">net ${t.kcal - burned}</span></div>` : ''}
-    <div class="row between"><span class="small">Protein</span><span class="tiny mono">${t.p}g of ${tg.p}g</span></div>
-    <div class="bar teal thin mt-s"><i style="width:${pPct}%"></i></div>
-    <div class="row between mt"><span class="small">Calories</span><span class="tiny mono">${kPct}%</span></div>
-    <div class="bar thin mt-s"><i style="width:${kPct}%"></i></div>
-    <p class="tiny mt-s">Protein is the number that matters for building muscle. Everything else is a rounding error by comparison.</p>
-  </div>`;
-}
-
-const QUICKFOODS = [
-  { n:'Chicken breast 200g', kcal:330, p:62, c:0,  f:7 },
-  { n:'Whey shake (1 scoop)', kcal:120, p:24, c:3,  f:2 },
-  { n:'4 whole eggs',        kcal:310, p:25, c:2,  f:22 },
-  { n:'Greek yoghurt 200g',  kcal:130, p:20, c:8,  f:1 },
-  { n:'Tin of tuna',         kcal:110, p:25, c:0,  f:1 },
-  { n:'Rice, cooked 250g',   kcal:325, p:6,  c:71, f:1 },
-  { n:'Oats 80g',            kcal:300, p:11, c:50, f:6 },
-  { n:'Banana',              kcal:105, p:1,  c:27, f:0 },
-  { n:'Peanut butter 30g',   kcal:180, p:7,  c:6,  f:15 },
-  { n:'Crew catering plate',  kcal:750, p:35, c:70, f:35 },
-  { n:'Meal deal sandwich',  kcal:450, p:22, c:45, f:18 },
-  { n:'Coffee, black',       kcal:5,   p:0,  c:0,  f:0 }
-];
-
 /* The old sheet is gone — Fuel is a screen now. This keeps any stale
    entry point working rather than dead-ending. */
 function sheetNutrition() {
@@ -91,11 +59,21 @@ function renderMore() {
     <div class="lrow" data-act="open-week"><div class="ico">📅</div><div class="grow"><div class="h3">Shape this week</div><div class="tiny mt-s">Availability, equipment, expected chaos</div></div><span class="chev">›</span></div>
   </div>`;
 
+  /* The Fuel badge is conditional and its control is a switch, both deliberately.
+     This row used to read "Fuel PRO" with an empty chevron slot when off: no
+     affordance suggesting it was a switch, and a badge announcing a paywall.
+     The reasonable reading was "locked, go and buy it" — so that is what
+     happened, and Fuel stayed missing from the nav, because nothing has ever
+     gated on billing.pro. can() is the honest test: it returns true throughout
+     the beta, and the badge comes back by itself if a real tier ever locks
+     this. The switch matches the mobility row directly below and shows both
+     states, and it retires a hairline ✓ that would fail a pixel-sampled
+     contrast check anyway. */
   html += `<div class="eyebrow mb-s">Modules</div><div class="list mb">
     <div class="lrow" data-act="toggle-fuel">
       <div class="ico">🔥</div>
-      <div class="grow"><div class="h3">Fuel <span class="pro-tag">PRO</span></div><div class="tiny mt-s">${fuelOn() ? 'On &mdash; it has its own tab, and Route moves here' : 'Protein and calorie targets, worked out from your body data'}</div></div>
-      <span class="chev em">${fuelOn() ? '✓' : ''}</span>
+      <div class="grow"><div class="h3">Fuel${can('nutrition') ? '' : ' <span class="pro-tag">PRO</span>'}</div><div class="tiny mt-s">${fuelOn() ? 'On &mdash; it has its own tab, and Route moves here' : 'Protein and calorie targets, worked out from your body data'}</div></div>
+      <div class="switch ${fuelOn() ? 'on' : ''}"></div>
     </div>
     ${S.settings.nutrition ? `<div class="lrow" data-act="open-nutrition"><div class="ico">📊</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">›</span></div>` : ''}
     <div class="lrow" data-act="toggle-warmup">

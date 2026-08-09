@@ -245,8 +245,9 @@ function renderToday() {
   html += routineStripHTML();
   html += todaySessionsHTML();
 
-  /* ── 6. optional modules ──────────────────────────────────── */
-  if (S.settings.nutrition) html += nutritionTileHTML();
+  /* Fuel has its own nav tab and its own day card. The tile that used to sit
+     here was a worse duplicate of both, and read S.nutrition.targets raw — so
+     with no height or age on file it rendered "0 / undefined kcal". */
 
   $('#today-body').innerHTML = html;
 }

@@ -222,12 +222,13 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node knees.mjs` | anatomical check on the SVG form diagrams |
 | `node dupes.mjs` | duplicate top-level declarations (also runs in `build.sh`) |
 | `node sw.mjs` | the service worker registers, caches, survives the network being cut, and still lets an update through |
+| `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen, across the awkward empty states |
 
 `png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.
 
-The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping. `sw.mjs` needs `npm install` first, and takes about 40 seconds.
+The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping. `sw.mjs` and `blanks.mjs` need `npm install` first, and take about a minute between them.
 
-Every instrument here has to be able to fail. `sw.mjs` is checked against the bug it was written for — reinstate the Blob registration and it goes from 17 passed to 12 failed rather than hanging or crashing. If you add an instrument, prove it red before you trust it green.
+Every instrument here has to be able to fail, and both new ones were checked against the bug they were written for. Reinstate the Blob registration and `sw.mjs` goes from 17 passed to 12 failed rather than hanging or crashing. Put the legacy Fuel tile back and `blanks.mjs` goes red on Today with `"0 / undefined kcal"`. If you add an instrument, prove it red before you trust it green.
 
 ---
 

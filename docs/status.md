@@ -1,6 +1,6 @@
 # Status
 
-Verified against the build at **491,010 bytes**, `VERSION = '1.1.0'`.
+Verified against the build at **486,650 bytes**, `VERSION = '1.1.0'`.
 Last full sweep: all instruments green except the known bug below, which no instrument covers.
 
 ---
@@ -38,9 +38,9 @@ Last full sweep: all instruments green except the known bug below, which no inst
 
 **Native iOS wrap.** `guzo-native/` has a Capacitor 8 scaffold: config, `package.json` pinning the plugins, a GitHub Actions workflow that builds on a macOS runner with an App Store Connect API key, a README and a PRIVACY.md. **Nothing is wired.** No HealthKit reads, no local notifications, no Preferences-backed storage. The web build is not automatically copied into `guzo-native/www/`. Plan: `guzo-native-wrap-plan.md`.
 
-**Billing.** `S.billing = {pro, plan, trialStart}` exists and a paywall sheet renders, but nothing gates on it. Fuel is labelled `PRO` in the More screen and is free to switch on.
+**Billing.** `S.billing = {pro, plan, trialStart}` exists and a paywall sheet renders, but nothing gates on it — and nothing can. Its only reader is `can()`, which returns early on `BETA_UNLOCK_ALL` and has no callers, and no code path sets `pro` to true. `can()` now has exactly one caller, deciding whether the Fuel row shows a `PRO` badge, so the scaffolding is at least attached to something real.
 
-**Legacy nutrition surface.** Superseded by the Fuel screen but still present and still wired: `nutritionTileHTML()`, `QUICKFOODS`, and the `nut-quick` / `nut-custom` / `nut-add` / `nut-del` / `nut-targets` handlers in `p7_events.js`. `sheetNutrition()` is now just a redirect to the Fuel screen. The tile still renders on Today — see the bug below.
+**Legacy nutrition surface.** Deleted — see below. `sheetNutrition()` survives as a redirect into the Fuel screen so any stale entry point still lands somewhere sensible.
 
 **Version drift.** `VERSION = '1.1.0'` in `p3_data.js`; `guzo-native/package.json` says `1.2.0`. Nothing reconciles them.
 
@@ -64,24 +64,27 @@ Cost: the deploy is two files rather than one. That constraint was explicitly re
 
 ---
 
+### The legacy Fuel tile printed "undefined" on Today — bug #1, now gone
+
+`nutritionTileHTML()` read `S.nutrition.targets` raw, so a profile with no height or age on file rendered `0 / undefined kcal` and `0g of undefinedg` at the bottom of Today. Fixed the way this document prescribed: the tile is deleted rather than patched. It was a worse duplicate of the Fuel screen's day card, and Fuel has had its own nav tab for a while.
+
+Gone with it: `nutritionTileHTML`, `QUICKFOODS`, and the five orphaned handlers `nut-quick`, `nut-custom`, `nut-add`, `nut-del`, `nut-targets`. The `nut-target-*` handlers stay — those are live, produced by the Fuel screen. About 4.4 KB and two top-level declarations lighter.
+
+`blanks.mjs` is the regression test, and it is the assertion this document asked for: no `undefined`, `NaN` or `[object Object]` on any screen, across three empty states. Proven red — reinstate the tile and it fails on Today with the exact observed string.
+
+### The Fuel module row read as a paywall
+
+The More row rendered `Fuel PRO` with an empty chevron slot when off. No affordance said "switch", and the badge said "locked" — so the reasonable move was to go and activate Pro, which does nothing at all, and Fuel stayed out of the navbar. This cost a real debugging session that started as "is the latest file deployed?".
+
+`billing.pro` gates nothing anywhere. Its only reader is `can()`, which returns early on `BETA_UNLOCK_ALL` and has no callers; no code path even sets `pro` to true.
+
+The badge is now `${can('nutrition') ? '' : ' <span class="pro-tag">PRO</span>'}` — invisible during the beta, back automatically if a tier ever locks it — and the control is the same `.switch` the mobility row below it uses, so it shows both states. That also retires a hairline `✓`, which fragile area 8 says fails a pixel-sampled contrast check.
+
+---
+
 ## Broken
 
-### 1. The legacy Fuel tile prints "undefined" on Today — CONFIRMED
-
-**Repro**
-1. Fresh state with `S.nutrition.targets = {}` (this is what `nut-target-reset` leaves when `energyTargets()` returns null, i.e. no height/age on file).
-2. Turn Fuel on (More → Modules → Fuel).
-3. Go to Today and scroll to the bottom.
-
-**Observed:** `0 / undefined kcal` and `0g of undefinedg`.
-
-**Cause:** `nutritionTileHTML()` in `p6_more.js` reads `S.nutrition.targets` directly instead of falling back through `energyTargets()` the way the Fuel screen does.
-
-**Correct fix:** delete the tile. It is a worse duplicate of the Fuel screen's day card, and Fuel has its own nav tab now. Remove the call at `p5_ui.js:249`, then `nutritionTileHTML` and `QUICKFOODS`, then the orphaned `nut-*` handlers.
-
-**Why no instrument caught it:** neither `contrast.mjs` nor `collide.mjs` asserts anything about text *content*, and `test.mjs` never renders Today with Fuel on and empty targets.
-
-### 2. Weekend days never get a session by default
+### 1. Weekend days never get a session by default
 
 **Repro:** fresh profile, all seven days at default availability, any programme with `target ≤ 5`. Open Today on a Saturday.
 
@@ -91,36 +94,33 @@ Cost: the deploy is two files rather than one. That constraint was explicitly re
 
 **Severity:** low now that the order list offers empty days explicitly, but it means a Saturday-first user meets an empty plan.
 
-### 3. Fuel week bars saturate at 100%
+### 2. Fuel week bars saturate at 100%
 
 `renderFuel` computes `pct` up to 140 and then clamps the bar height to 100. A day 40% over target is visually identical to a day exactly on target. The numeric readout is correct; only the bar misleads.
 
-### 4. Deleting a routine leaves a dangling reference
+### 3. Deleting a routine leaves a dangling reference
 
 If a routine is assigned to a planned day and then deleted, `week.plan[k].routineId` still points at it. `planLabel()` renders `"Deleted routine"` and nothing crashes, but the day is unstartable — the hero's Start button calls `buildRoutineSession`, which returns null. There is no cleanup and no repair path in the UI.
 
-### 5. Test-suite clock dependency
+### 4. Test-suite clock dependency
 
 The week-ordering tests override `today()` to a fixed Tuesday. Anything that reads the real clock instead — `weekStart()` does — can drift relative to the override. It is correct today; it is fragile. Any new time-sensitive test must pin the clock the same way and should not mix pinned and real time in one fixture.
 
 ---
 
-## Next five, in priority order
+## Next four, in priority order
 
-### 1. Delete the legacy nutrition surface
-Fixes bug #1, removes roughly 80 lines of dead code and five orphaned event cases. Lowest risk, highest ratio. Add a `test.mjs` case that renders Today with Fuel on, empty targets, and asserts no `undefined`/`NaN` anywhere in `#today-body` — that assertion is worth running across every screen.
-
-### 2. Wire HealthKit sleep in the native wrap
+### 1. Wire HealthKit sleep in the native wrap
 Sleep is the signal that changes what the app does; it drives readiness, which sizes the session. Steps are noise by comparison. `@capgo/capacitor-health` is already pinned. This is also what makes the native build worth shipping at all, alongside a wake lock that actually holds.
 
-### 3. Warm-up ramp calculator
+### 2. Warm-up ramp calculator
 Given a working weight, produce the ramp sets. It is deterministic, it is the most-requested thing missing from a session screen, it needs no new data, and the plate calculator already knows how to express a load in plates.
 
-### 4. Supersets
+### 3. Supersets
 Structurally the largest remaining gap in the session model. `S.active.exercises` is a flat list; supersets need a grouping concept that survives generation, reordering, the rest timer, and progression. Design it before writing it — and note that the routine builder will need to express it too.
 
-### 5. Repair paths for dangling references
-Fixes bug #4 and the class it belongs to. On load, sweep `week.plan` for `routineId`s that no longer resolve and clear them; do the same for `lifts` and `videos` keyed to exercise ids that no longer exist. One function, called once at boot, plus a test that deletes a referenced routine and asserts the week is still startable.
+### 4. Repair paths for dangling references
+Fixes bug #3 and the class it belongs to. On load, sweep `week.plan` for `routineId`s that no longer resolve and clear them; do the same for `lifts` and `videos` keyed to exercise ids that no longer exist. One function, called once at boot, plus a test that deletes a referenced routine and asserts the week is still startable.
 
 ---
 
