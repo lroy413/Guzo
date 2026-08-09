@@ -1,6 +1,6 @@
 # Status
 
-Verified against the build at **492,541 bytes**, `VERSION = '1.1.0'`.
+Verified against the build at **519,334 bytes**, `VERSION = '1.2.0'`.
 Last full sweep: all instruments green. Nothing known is broken.
 
 ---
@@ -21,6 +21,8 @@ Last full sweep: all instruments green. Nothing known is broken.
 | Plate calculator | Complete. Owned-plate aware, persists bar weight, follows the weight you type. |
 | Last-time recall | Complete. |
 | Fuel (nutrition) | Complete. 113 foods, custom foods, portions, edit/delete, copy-a-day, recents. |
+| Diet preferences | Complete. Meals and snacks a day, four dietary patterns, seven exclusions. Asked during onboarding when Fuel is on, editable forever after from Fuel. |
+| Suggested meals | Complete. Built from the same 113-food library, portioned against your targets, deterministic per day, and filtered by your restrictions. One tap logs a whole meal. |
 | Adaptive TDEE | Complete. Refuses implausible answers and names under-logging as the cause. |
 | Protein-only mode | Complete. Hides calories everywhere without deleting data. |
 | Profile | Complete. Height, weight, age, sex, activity → Mifflin-St Jeor BMR and TDEE. |
@@ -41,8 +43,6 @@ Last full sweep: all instruments green. Nothing known is broken.
 **Billing.** `S.billing = {pro, plan, trialStart}` exists and a paywall sheet renders, but nothing gates on it — and nothing can. Its only reader is `can()`, which returns early on `BETA_UNLOCK_ALL` and has no callers, and no code path sets `pro` to true. `can()` now has exactly one caller, deciding whether the Fuel row shows a `PRO` badge, so the scaffolding is at least attached to something real.
 
 **Legacy nutrition surface.** Deleted — see below. `sheetNutrition()` survives as a redirect into the Fuel screen so any stale entry point still lands somewhere sensible.
-
-**Version drift.** `VERSION = '1.1.0'` in `p3_data.js`; `guzo-native/package.json` says `1.2.0`. Nothing reconciles them.
 
 **Programme switching mid-week.** `set-program` changes `S.profile.programId` but does not rebuild or re-flow the current week, so the rotation shown can belong to the previous programme until the week rolls over. Not obviously wrong, not obviously right — undecided.
 
@@ -81,6 +81,18 @@ Gone with it: `nutritionTileHTML`, `QUICKFOODS`, and the five orphaned handlers 
 **Deleting a routine left a dangling reference.** `deleteRoutine` spliced the list and nothing else, so `week.plan[k].routineId` kept pointing at nothing: the day rendered as "Deleted routine" and was unstartable, with no repair path in the UI. `repairRefs()` now runs on delete and again at boot — before `buildWeekPlan`, so a stale entry is not mistaken for a settled day — and the day falls back to an ordinary planned session rather than being emptied. It also drops `lifts` and `videos` keyed to exercise ids that no longer resolve. The boot sweep matters for devices that already deleted a routine before this existed.
 
 **Two clocks.** `weekStart()` defaulted to `new Date()` while `today()` went through `dk()`, so a fixture pinning `today()` left `weekStart()` on the real clock. It was correct on the day it was written and would have drifted the next time the real date crossed a Monday. `weekStart()` now defaults through `today()`.
+
+### Fuel now asks how you eat, and suggests accordingly
+
+Onboarding never asked height, age or sex, so `energyTargets()` returned null for every new user and Fuel opened with no target — the same gap that produced the `undefined` tile. Those three, plus activity level, are now asked in chapter four, **only when Fuel is switched on**. That condition is the point: `decisions.md` says nothing is collected for the sake of a longer form, and none of them changes a single set or rep.
+
+Two more screens collect how you actually eat — meals and snacks a day, a dietary pattern, and exclusions — stored in `S.nutrition.prefs` and editable afterwards from Fuel's "How you eat" sheet, which is the only route for anyone who enabled Fuel long after onboarding.
+
+`suggestMeals()` builds a day from the existing library: protein leads, the carb fills the remaining calories, portions round to something a person would actually measure. Variety comes from the date, so the same day always suggests the same plate and reopening Fuel does not reshuffle it. Restrictions are enforced by tags that are deliberately conservative — oats carry `gluten`, dark chocolate carries `dairy` — and **the UI states plainly that this is not an allergen database**.
+
+### The nav is a floating pill
+
+The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
 
 ### The Fuel module row read as a paywall
 

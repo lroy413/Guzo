@@ -9,7 +9,12 @@ const OB_DEFAULT = {
   name:'', units:'kg', bodyweight:null, goals:['strength','muscle'],
   level:'some', priorities:[], cardioAmount:'light', cardioModes:['car-walk'],
   injuries:[], sleepNorm:7.5, envs:['full'], gearMode:'commercial', seedOverrides:{}, seedExact:{},
-  gear:{ ...GEAR_ALL }, programId:'anchor3', sessionMins:60, nutrition:false
+  gear:{ ...GEAR_ALL }, programId:'anchor3', sessionMins:60, nutrition:false,
+  /* Fuel intake. Only asked when Fuel is switched on, because none of it
+     changes a single set or rep — it feeds the energy equation and nothing
+     else, and this form does not collect anything for its own sake. */
+  heightCm:null, birthYear:null, sex:'na', activity:'light',
+  mealsPerDay:3, snacksPerDay:1, dietPattern:'omni', dietExclude:[]
 };
 let obDraft = { ...OB_DEFAULT, gear:{ ...GEAR_ALL }, seedOverrides:{}, seedExact:{} };
 
@@ -49,7 +54,14 @@ const OB_STEPS = [
   { k:'length',      q:14, ch:3 },
   { k:'ch-finish',   c:4 },
   { k:'nutrition',   q:15, ch:4 },
-  { k:'seed',        q:16, ch:4 },
+  /* Both skipped unless Fuel was just switched on. Height, age and sex change
+     nothing about training — they are the Mifflin-St Jeor inputs, and without
+     them energyTargets() returns null and Fuel opens with no target at all. */
+  { k:'measure',     q:16, ch:4 },
+  { k:'activity',    q:17, ch:4 },
+  { k:'meals',       q:18, ch:4 },
+  { k:'diet',        q:19, ch:4 },
+  { k:'seed',        q:20, ch:4 },
   { k:'ready' }
 ];
 const CHAPTERS = { 1:'You', 2:'Your training', 3:'Where and how', 4:'Finishing up' };
@@ -60,6 +72,7 @@ function obSkip(step) {
   if (step.k === 'cardiomode' && obDraft.cardioAmount === 'none') return true;
   if (step.k === 'gear' && !obDraft.envs.includes('full')) return true;
   if (step.k === 'geardetail' && (!obDraft.envs.includes('full') || obDraft.gearMode === 'commercial')) return true;
+  if (['measure','activity','meals','diet'].includes(step.k) && !obDraft.nutrition) return true;
   return false;
 }
 function obAdvance(dir) {
@@ -195,6 +208,120 @@ OB_RENDER.body = () => {
   `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>
              <button class="btn quiet block mt-s" data-act="ob-skip-bw">Skip this</button>` });
 };
+
+/* Read the measure screen's fields into the draft. Called before any
+   re-render of that screen and on both navigation directions, because the
+   screen is rebuilt wholesale by innerHTML and anything typed but not
+   captured is simply gone — tapping a sex button would otherwise wipe a
+   height that had just been entered.
+
+   Validation is deliberately loose here and strict at the end: setHeight()
+   and setBirthYear() reject out-of-range values, so a typo lands as null
+   and Fuel falls back to bodyweight rather than reporting nonsense. */
+function collectMeasureInputs() {
+  const imperial = obDraft.units === 'lb';
+  if (imperial) {
+    const ft = parseFloat(($('#ob-focus') || {}).value);
+    const inch = parseFloat(($('#ob-in') || {}).value) || 0;
+    const cm = (isNaN(ft) ? NaN : (ft * 12 + inch) * 2.54);
+    obDraft.heightCm = (isNaN(cm) || cm < 120 || cm > 230) ? null : Math.round(cm * 10) / 10;
+  } else {
+    const cm = parseFloat(($('#ob-focus') || {}).value);
+    obDraft.heightCm = (isNaN(cm) || cm < 120 || cm > 230) ? null : Math.round(cm * 10) / 10;
+  }
+  const now = new Date().getFullYear();
+  const y = parseInt(($('#ob-year') || {}).value, 10);
+  obDraft.birthYear = (isNaN(y) || y < now - 100 || y > now - 13) ? null : y;
+}
+
+/* ---------- Fuel intake: the energy equation ----------
+   Only reached when Fuel was switched on one screen earlier. Mifflin-St Jeor
+   needs weight, height, age and sex; weight is already asked for in chapter
+   one because it seeds starting loads, so this collects the other three.
+   Skippable — Fuel still works from bodyweight alone, just less precisely,
+   and the app says so rather than pretending otherwise. */
+OB_RENDER.measure = () => {
+  const imperial = obDraft.units === 'lb';
+  const inches = obDraft.heightCm ? obDraft.heightCm / 2.54 : null;
+  const now = new Date().getFullYear();
+  return obShell(`
+    <h1 class="ob-q">Three numbers for the energy equation</h1>
+    <p class="ob-sub">Resting energy is worked out from weight, height, age and sex. You have given the first already. None of this changes your training — it only decides what your calorie and protein targets are.</p>
+
+    <div class="label mt-l mb-s">Height</div>
+    ${imperial ? `
+      <div class="pf-grid mb">
+        <div class="field"><div class="label">Feet</div>
+          <input class="input mono" id="ob-focus" type="text" inputmode="numeric" enterkeyhint="next"
+                 value="${inches ? Math.floor(inches/12) : ''}" placeholder="5"></div>
+        <div class="field"><div class="label">Inches</div>
+          <input class="input mono" id="ob-in" type="text" inputmode="numeric" enterkeyhint="next"
+                 value="${inches ? Math.round(inches - Math.floor(inches/12)*12) : ''}" placeholder="10"></div>
+      </div>` : `
+      <div class="field mb">
+        <input class="input mono" id="ob-focus" type="text" inputmode="decimal" enterkeyhint="next"
+               value="${obDraft.heightCm || ''}" placeholder="178"> </div>`}
+
+    <div class="label mt mb-s">Year you were born</div>
+    <div class="field mb">
+      <input class="input mono" id="ob-year" type="text" inputmode="numeric" enterkeyhint="done"
+             value="${obDraft.birthYear || ''}" placeholder="${now - 32}"></div>
+
+    <div class="label mt mb-s">Sex</div>
+    <div class="seg">
+      ${SEXES.map(x => `<button class="${obDraft.sex === x.k ? 'on' : ''}" data-act="ob-sex" data-v="${x.k}">${x.label}</button>`).join('')}
+    </div>
+    <p class="ob-why">Sex is used for one constant in the equation and nothing else. "Rather not say" averages the two, which costs about 80 kcal of precision.</p>
+  `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>
+             <button class="btn quiet block mt-s" data-act="ob-skip-measure">Skip this</button>` });
+};
+
+OB_RENDER.activity = () => obShell(`
+  <h1 class="ob-q">How much are you moving the rest of the day?</h1>
+  <p class="ob-sub">This is about the day around the training, not the training. A camera operator on their feet for fourteen hours is not sedentary because they only lifted three times this week.</p>
+  <div class="opts">
+    ${ACTIVITY.map(a => opt({ act:'ob-activity', v:a.k, on:obDraft.activity === a.k,
+                              title:a.label, desc:a.note })).join('')}
+  </div>
+  <p class="ob-why">Change it whenever the work changes — a studio month and a location month are not the same job.</p>
+`, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>` });
+
+OB_RENDER.meals = () => {
+  const n = obDraft.mealsPerDay, sn = obDraft.snacksPerDay;
+  const btn = (act, val, cur, label) =>
+    `<button class="${cur === val ? 'on' : ''}" data-act="${act}" data-v="${val}">${label}</button>`;
+  return obShell(`
+    <h1 class="ob-q">How many times do you actually get to eat?</h1>
+    <p class="ob-sub">Not how many you think you should. On a fourteen-hour day the honest answer might be two and a handful of things out of a van, and the suggestions are more useful if they know that.</p>
+
+    <div class="label mt-l mb-s">Proper meals</div>
+    <div class="seg">${[2,3,4,5].map(x => btn('ob-meals', x, n, x)).join('')}</div>
+
+    <div class="label mt mb-s">Snacks on top</div>
+    <div class="seg">${[0,1,2,3].map(x => btn('ob-snacks', x, sn, x)).join('')}</div>
+
+    <p class="ob-why">Your day's calories and protein get split across these. Nothing is forced — a day you eat once is not a failed day, and nothing turns red.</p>
+  `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>` });
+};
+
+OB_RENDER.diet = () => obShell(`
+  <h1 class="ob-q">Anything off the plate?</h1>
+  <p class="ob-sub">This filters what gets suggested. It does not restrict what you can log — you can always record whatever you actually ate.</p>
+
+  <div class="label mt-l mb-s">Pattern</div>
+  <div class="opts">
+    ${DIET_PATTERNS.map(d => opt({ act:'ob-diet-pattern', v:d.k, on:obDraft.dietPattern === d.k,
+                                   title:d.label, desc:d.note })).join('')}
+  </div>
+
+  <div class="label mt-l mb-s">Leave out</div>
+  <div class="chips">
+    ${EXCLUSIONS.map(x => `<button class="chip ${obDraft.dietExclude.includes(x.k) ? 'on' : ''}"
+       data-act="ob-diet-exclude" data-v="${x.k}">${x.label}</button>`).join('')}
+  </div>
+
+  <p class="ob-why">Guzo is not an allergen database. These are generic reference foods, not products with labels — if something matters medically, read the packet.</p>
+`, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>` });
 
 /* ---------- 3. goals ---------- */
 OB_RENDER.goals = () => obShell(`

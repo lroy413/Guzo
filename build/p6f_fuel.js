@@ -114,6 +114,9 @@ function renderFuel() {
     </div>
   </div>`;
 
+  /* ── suggested meals ─────────────────────────────────────── */
+  html += suggestionsHTML(k);
+
   /* ── what's logged ───────────────────────────────────────── */
   const items = nutDay(k).items;
   if (items.length) {
@@ -138,6 +141,44 @@ function renderFuel() {
 
   const el = document.getElementById('fuel-body');
   if (el) el.innerHTML = html;
+}
+
+/* ---------- suggested meals ----------
+   A shape for the day, not a prescription. It never claims you must eat this,
+   and logging one is a single deliberate tap rather than something that
+   happens to your diary on its own. */
+function suggestionsHTML(k) {
+  const prefs = dietPrefs();
+  const sug = suggestMeals(k);
+
+  if (!sug.ok) {
+    /* Say which thing is missing. "No suggestions" with no reason is the sort
+       of dead end that makes someone assume the feature is broken. */
+    const why = sug.reason === 'no-protein'
+      ? 'Those restrictions leave nothing to build a meal around. Loosening one would give the suggestions something to work with.'
+      : 'Suggestions need a calorie target. Add your height and age and one gets worked out for you.';
+    return `<div class="sec-head"><span class="sec-t">Suggested</span></div>
+      <div class="note mb"><p class="note-t">Nothing to suggest yet.</p><p class="note-b">${why}</p>
+      <button class="btn ghost block mt-s" data-act="open-diet-prefs">How you eat</button></div>`;
+  }
+
+  const pOnly = proteinOnly();
+  return `<div class="sec-head"><span class="sec-t">Suggested</span>
+      <button class="sec-a" data-act="open-diet-prefs">How you eat</button></div>
+    <div class="list mb">
+      ${sug.slots.map((s, i) => `<div class="lrow" style="align-items:flex-start">
+        <div class="grow">
+          <div class="h3" style="font-size:14.5px">${h(s.slot)}</div>
+          <div class="tiny mt-s">${s.items.map(it =>
+            h(it.n) + ' ' + it.qty + (unitLabel(it.u) || '×')).join(' · ')}</div>
+          <div class="tiny mt-s mono em">${pOnly ? Math.round(s.p) + 'g protein' : s.kcal + ' kcal · ' + Math.round(s.p) + 'g protein'}</div>
+        </div>
+        <button class="btn xs" data-act="fuel-log-slot" data-v="${k}" data-i="${i}">Log</button>
+      </div>`).join('')}
+    </div>
+    <p class="tiny mb">${pOnly
+      ? 'Built from your protein target and how often you said you eat.'
+      : `Roughly ${sug.kcal} kcal and ${Math.round(sug.p)}g protein across the day, against a target of ${sug.kcalTarget}${sug.pTarget ? ' and ' + sug.pTarget + 'g' : ''}.`} Generic reference foods, not products — check labels if something matters medically.</p>`;
 }
 
 /* Protein-only gets its own reasoning panel. Same honesty, one number. */
@@ -529,3 +570,44 @@ function sheetNutTargets() {
   `);
 }
 
+
+/* ---------- how you eat ----------
+   The same questions the onboarding asks, reachable forever after. Fuel can
+   be switched on long after onboarding — from the More screen — and someone
+   who did that has never been asked any of this. */
+function sheetDietPrefs() {
+  const p = dietPrefs();
+  const seg = (act, vals, cur) => `<div class="seg">${vals.map(x =>
+    `<button class="${cur === x ? 'on' : ''}" data-act="${act}" data-v="${x}">${x}</button>`).join('')}</div>`;
+
+  const gaps = bodyGaps ? bodyGaps() : [];
+  openSheet(`
+    <div class="row between mb">
+      <h2 class="h1">How you eat</h2>
+      <button class="btn xs quiet" data-act="close">Done</button>
+    </div>
+    <p class="small mb">This shapes what gets suggested. It never limits what you can log — whatever you actually ate can always be recorded.</p>
+
+    ${gaps.length ? `<div class="banner soft mb">Your calorie target is estimated from bodyweight alone. Adding ${gaps.join(' and ')} in Profile makes it meaningfully better.</div>` : ''}
+
+    <div class="label mb-s">Proper meals a day</div>
+    ${seg('diet-meals', [2,3,4,5], p.meals)}
+
+    <div class="label mt mb-s">Snacks on top</div>
+    ${seg('diet-snacks', [0,1,2,3], p.snacks)}
+
+    <div class="label mt-l mb-s">Pattern</div>
+    <div class="opts mb">
+      ${DIET_PATTERNS.map(d => opt({ act:'diet-pattern', v:d.k, on:p.pattern === d.k,
+                                     title:d.label, desc:d.note })).join('')}
+    </div>
+
+    <div class="label mt mb-s">Leave out</div>
+    <div class="chips mb">
+      ${EXCLUSIONS.map(x => `<button class="chip ${p.exclude.includes(x.k) ? 'on' : ''}"
+         data-act="diet-exclude" data-v="${x.k}">${x.label}</button>`).join('')}
+    </div>
+
+    <p class="tiny">${allowedFoods(p).length} of ${FOODS.length} foods pass these. Guzo is not an allergen database — these are generic reference foods, not products with labels. If something matters medically, read the packet.</p>
+  `);
+}

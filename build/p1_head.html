@@ -463,24 +463,45 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .dot:active{transform:scale(.94)}
 
 /* ---------- nav ---------- */
+/* A floating glass pill, not a bar welded to the bottom edge.
+
+   The old bar was a full-width slab: its own padding, plus the safe-area
+   inset, plus a top border, came to roughly 100px of permanent chrome on a
+   notched phone for five icons. Detaching it gives that height back to the
+   content and reads as lighter.
+
+   The background stays close to opaque on purpose. The label colour is
+   --faint, and a genuinely transparent pill would leave that text sitting on
+   whatever happened to scroll underneath — which passes a look at the CSS and
+   fails a pixel-sampled contrast check. Blur is the finish, not the substance. */
 .nav{
-  position:relative;flex:0 0 auto;z-index:60;
-  display:flex;justify-content:space-around;align-items:stretch;
-  padding:8px 6px calc(8px + var(--safe-b));
-  background:rgba(10,12,15,.94);backdrop-filter:blur(20px) saturate(1.4);
-  -webkit-backdrop-filter:blur(20px) saturate(1.4);
-  border-top:1px solid var(--line-soft);
-  max-width:640px;margin:0 auto;width:100%;
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(10px + var(--safe-b));z-index:60;
+  display:flex;align-items:center;justify-content:space-between;gap:2px;
+  width:calc(100% - 24px);max-width:430px;
+  padding:5px;border-radius:999px;
+  background:rgba(18,22,28,.90);
+  backdrop-filter:blur(22px) saturate(1.5);
+  -webkit-backdrop-filter:blur(22px) saturate(1.5);
+  border:1px solid rgba(255,255,255,.09);
+  box-shadow:0 12px 34px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.32);
 }
-.nav-wrap{flex:0 0 auto;background:rgba(10,12,15,.94);border-top:1px solid var(--line-soft)}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;
-  color:var(--faint);transition:color .2s ease;max-width:110px;position:relative}
-.nav-btn.on{color:var(--ember)}
-.nav-btn::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%) scaleX(0);
-  width:22px;height:2px;border-radius:100px;background:var(--ember);transition:transform .28s cubic-bezier(.3,1.3,.5,1)}
-.nav-btn.on::before{transform:translateX(-50%) scaleX(1)}
-.nav-btn svg{width:22px;height:22px;stroke-width:1.8}
-.nav-btn span{font-size:11px;font-weight:600;letter-spacing:.02em}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;padding:7px 2px;min-height:46px;border-radius:999px;
+  color:var(--faint);transition:color .2s ease,background .2s ease;position:relative}
+/* The selected tab is a filled pill rather than a hairline above the icon —
+   a 2px rule antialiases away at this size, which is the same reason the
+   arrows in this app are stroked paths and not text glyphs. */
+.nav-btn.on{color:var(--ember);background:var(--ember-dim)}
+.nav-btn svg{width:20px;height:20px;stroke-width:1.9}
+.nav-btn span{font-size:11px;font-weight:600;letter-spacing:.01em}
+
+/* The nav no longer takes up flow space, so every screen it floats over has
+   to be able to scroll past it. Boot and onboarding run with the nav hidden
+   and keep their own spacing. */
+#s-today,#s-plan,#s-train,#s-fuel,#s-progress,#s-more{
+  padding-bottom:calc(var(--safe-b) + 96px);
+}
 
 /* ---------- header ---------- */
 .hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}

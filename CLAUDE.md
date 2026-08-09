@@ -57,6 +57,7 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 │   ├── p4g_food.js           ← 113-food library, portions, logging
 │   ├── p4h_energy.js         ← adaptive TDEE, weekly intake, protein targets
 │   ├── p4i_order.js          ← week ordering: pin / swap / reflow / trained-elsewhere
+│   ├── p4j_meals.js          ← diet preferences, dietary tags, suggested meals
 │   ├── p5a_onboard.js        ← onboarding flow
 │   ├── p5_ui.js              ← render(), Today, Plan, Train, Progress + shared helpers
 │   ├── p6_more.js            ← More screen, week sheet, exercise picker
@@ -99,7 +100,7 @@ There is no virtual DOM and no reactive binding. **Everything is a full innerHTM
 What exists instead is one JSON blob in `localStorage`.
 
 - **Key:** `guzo.v1` (`KEY` in `p3_data.js`)
-- **Schema version:** `VERSION = '1.1.0'` — note `guzo-native/package.json` independently says `1.2.0`; they are not kept in sync
+- **Schema version:** `VERSION = '1.2.0'` — now matching the root `package.json` and `guzo-native/package.json`. Bump all three together; the service worker keys its cache off this one, so a release rotates the cache cleanly
 - **Legacy migration:** `LEGACY_KEYS = ['fittrek.v1']` — on load, if the current key is missing *or holds an empty state*, a meaningful legacy blob is copied across. The "or holds an empty state" part is deliberate: opening the app once before restoring would otherwise orphan the old save behind a blank one.
 
 ### State shape (`blank()` in `p4_engine.js`)
@@ -115,7 +116,7 @@ What exists instead is one JSON blob in `localStorage`.
 | `sessions` | array | completed sessions, append-only |
 | `active` | object\|null | the in-progress session |
 | `lifts` | map | exercise id → learned working weight / progression state |
-| `nutrition` | object | `{ targets:{kcal,p,c,f}, days:{ dateKey:{items:[]} }, custom:[] }` |
+| `nutrition` | object | `{ targets:{kcal,p,c,f}, days:{ dateKey:{items:[]} }, custom:[], prefs:{meals,snacks,pattern,exclude[]} }` |
 | `billing` | object | `{pro, plan, trialStart}` — scaffolding only, nothing enforces it |
 | `journey` | object | `{ reached:{} }` milestone flags |
 | `daily` | map | date key → `{steps, sleepH, weight, src}` |
@@ -198,6 +199,10 @@ The blob is already the natural sync unit. The honest shape would be one `profil
 
 **9. The nav has exactly five tabs.** Turning Fuel on hides Route and shows Fuel (`syncNav()`). Tests must navigate via `go()` or scope selectors to `#nav`, because `[data-go="plan"]` also matches a row on the More screen.
 
+**10. The nav is `position:fixed`.** It floats as a pill rather than sitting in the flex flow, so it takes no layout space — every screen it covers carries its own `padding-bottom` to scroll clear of it. Add a screen and it needs adding to that rule, or its last card sits under the nav.
+
+**11. `innerText` returns painted text, not template text.** `.sec-t` and `.eyebrow` are `text-transform:uppercase`, so a test matching `/Suggested/` against `innerText` fails while the markup plainly says "Suggested". Match case-insensitively, or read `textContent`.
+
 ---
 
 ## Running it locally
@@ -224,12 +229,13 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node knees.mjs` | anatomical check on the SVG form diagrams |
 | `node dupes.mjs` | duplicate top-level declarations (also runs in `build.sh`) |
 | `node sw.mjs` | the service worker registers, caches, survives the network being cut, and still lets an update through |
-| `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen, across the awkward empty states |
+| `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of |
+| `node fuel.mjs` | meal suggestions are deterministic, hit the target, and never break a stated dietary restriction |
 | `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, and a Fuel bar means what it looks like |
 
 `png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.
 
-The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping. `sw.mjs`, `blanks.mjs` and `engine.mjs` need `npm install` first, and take about ninety seconds between them.
+The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping. `sw.mjs`, `blanks.mjs`, `engine.mjs` and `fuel.mjs` need `npm install` first, and take about two minutes between them.
 
 Every instrument here has to be able to fail, and both new ones were checked against the bug they were written for. Reinstate the Blob registration and `sw.mjs` goes from 17 passed to 12 failed rather than hanging or crashing. Put the legacy Fuel tile back and `blanks.mjs` goes red on Today with `"0 / undefined kcal"`. Each of `engine.mjs`'s four subjects was reverted individually and the matching checks confirmed red — the weekend one prints `[0,1,2,3,4]`, the bar one prints `["100%","100%","50%"]`. If you add an instrument, prove it red before you trust it green.
 

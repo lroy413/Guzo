@@ -107,6 +107,11 @@ try {
 
       if (visible.missing) { check(`${label} · ${screen} exists`, false, 'no #s-' + screen); continue; }
 
+      /* An empty read would pass the placeholder check by having nothing in it
+         to fail on — the same shape of lie as a contrast checker that sampled
+         no pixels. Assert there was something to look at first. */
+      if (!visible.text.trim()) { check(`${label} · ${screen} rendered anything`, false, 'empty'); continue; }
+
       const hit = visible.text.match(BAD);
       const line = hit
         ? (visible.text.split('\n').find(l => BAD.test(l)) || '').trim().slice(0, 90)
@@ -150,6 +155,39 @@ try {
   check('Route leaves the bar so the count stays at five', after && after.navPlanHidden === true);
   check('the switch reflects the new state', after && after.switchOn === true);
   check('exactly five tabs', after && after.tabs === 5, String(after && after.tabs));
+
+  /* ---- the nav is a floating pill, and does not sit on the content ----
+     It used to be a full-width slab whose padding plus the safe-area inset
+     came to roughly 100px of permanent chrome. Floating it reclaims that, but
+     only if every screen it covers can still scroll past it. */
+  const nav = await page.evaluate(() => {
+    go('today');
+    const el = document.getElementById('nav');
+    const cs = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    const btns = [...el.querySelectorAll('.nav-btn')].filter(b => !b.classList.contains('hide'));
+    const screen = document.getElementById('s-today');
+    return {
+      position: cs.position,
+      radius: parseFloat(cs.borderRadius),
+      height: Math.round(r.height),
+      detachedFromEdges: r.left > 0 && r.right < window.innerWidth,
+      aboveBottom: window.innerHeight - r.bottom > 0,
+      minBtn: Math.min(...btns.map(b => Math.round(b.getBoundingClientRect().height))),
+      tabs: btns.length,
+      screenPadBottom: parseFloat(getComputedStyle(screen).paddingBottom)
+    };
+  });
+  check('the nav floats rather than sitting in the flow', nav.position === 'fixed', nav.position);
+  check('it is a pill', nav.radius >= 24, String(nav.radius));
+  check('it is detached from the screen edges', nav.detachedFromEdges);
+  check('it sits above the bottom edge', nav.aboveBottom);
+  check('it is shorter than the old bar', nav.height < 70, nav.height + 'px');
+  check('every tab still clears a 44px touch target', nav.minBtn >= 44, nav.minBtn + 'px');
+  check('exactly five tabs, still', nav.tabs === 5, String(nav.tabs));
+  /* Without this the last card on every screen would sit under the pill. */
+  check('screens can scroll clear of it', nav.screenPadBottom >= nav.height + 10,
+    `pad ${nav.screenPadBottom} vs nav ${nav.height}`);
 
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 

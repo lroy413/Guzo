@@ -30,6 +30,7 @@ PARTS=(
   build/p4g_food.js
   build/p4h_energy.js
   build/p4i_order.js
+  build/p4j_meals.js
   build/p5a_onboard.js
   build/p5_ui.js
   build/p6_more.js

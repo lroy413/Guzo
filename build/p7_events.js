@@ -240,15 +240,33 @@ document.addEventListener('click', ev => {
       if (k === 'env' && !obDraft.envs.length) { toast('Pick at least one place'); return; }
       if (k === 'cardiomode' && !obDraft.cardioModes.length) { toast('Pick at least one you would actually do'); return; }
       if (k === 'geardetail' && !Object.values(obDraft.gear).some(Boolean)) { toast('You must have something'); return; }
+      if (k === 'measure') collectMeasureInputs();
       if (k === 'seed') collectSeedInputs();
       obAdvance(1); renderOnboard(); break;
     }
     case 'ob-skip-bw': { obDraft.bodyweight = null; obAdvance(1); renderOnboard(); break; }
+    /* Skipping is a real answer, so it clears rather than leaves whatever was
+       half-typed. Fuel still works from bodyweight alone. */
+    case 'ob-skip-measure': {
+      obDraft.heightCm = null; obDraft.birthYear = null;
+      obAdvance(1); renderOnboard(); break;
+    }
+    case 'ob-sex': { collectMeasureInputs(); obDraft.sex = v; renderOnboard(); break; }
+    case 'ob-activity': { obDraft.activity = v; renderOnboard(); break; }
+    case 'ob-meals':  { obDraft.mealsPerDay = +v; renderOnboard(); break; }
+    case 'ob-snacks': { obDraft.snacksPerDay = +v; renderOnboard(); break; }
+    case 'ob-diet-pattern': { obDraft.dietPattern = v; renderOnboard(); break; }
+    case 'ob-diet-exclude': {
+      const ix = obDraft.dietExclude.indexOf(v);
+      if (ix >= 0) obDraft.dietExclude.splice(ix, 1); else obDraft.dietExclude.push(v);
+      renderOnboard(); break;
+    }
     case 'ob-back': {
       const k = OB_STEPS[obStep].k;
       if (k === 'name') { const n = $('#ob-focus'); if (n) obDraft.name = n.value.trim(); }
       if (k === 'body') { const n = $('#ob-focus'); const val = n ? parseFloat(n.value) : NaN; obDraft.bodyweight = isNaN(val) ? null : val; }
       if (k === 'sleep') { const n = $('#ob-focus'); const val = n ? parseFloat(n.value) : NaN; if (!isNaN(val)) obDraft.sleepNorm = val; }
+      if (k === 'measure') collectMeasureInputs();
       if (k === 'seed') collectSeedInputs();
       obAdvance(-1); renderOnboard(); break;
     }
@@ -313,6 +331,19 @@ document.addEventListener('click', ev => {
       P.gear = obDraft.envs.includes('full') ? { ...obDraft.gear } : { ...GEAR_ALL };
       P.programId = obDraft.programId;
       S.settings.nutrition = obDraft.nutrition;
+      /* Only written when Fuel is on — the measure screens are skipped
+         otherwise, so the draft still holds its defaults and writing them
+         would fabricate a height nobody gave. */
+      if (obDraft.nutrition) {
+        if (obDraft.heightCm) P.heightCm = obDraft.heightCm;
+        if (obDraft.birthYear) P.birthYear = obDraft.birthYear;
+        P.sex = obDraft.sex;
+        P.activity = obDraft.activity;
+        S.nutrition.prefs = {
+          meals: obDraft.mealsPerDay, snacks: obDraft.snacksPerDay,
+          pattern: obDraft.dietPattern, exclude: [...obDraft.dietExclude]
+        };
+      }
       seedStartingWeights(obDraft.level, obDraft.bodyweight || 0, obDraft.seedOverrides, obDraft.seedExact);
       if (obDraft.bodyweight > 0) {
         P.bodyweight = [{ d: today(), w: obDraft.bodyweight }];
@@ -702,6 +733,24 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'open-profile': sheetProfile(); break;
+    case 'open-diet-prefs': sheetDietPrefs(); break;
+    case 'diet-meals':  { dietPrefs().meals  = +v; save(true); sheetDietPrefs(); if (SCREEN === 'fuel') renderFuel(); break; }
+    case 'diet-snacks': { dietPrefs().snacks = +v; save(true); sheetDietPrefs(); if (SCREEN === 'fuel') renderFuel(); break; }
+    case 'diet-pattern':{ dietPrefs().pattern = v; save(true); sheetDietPrefs(); if (SCREEN === 'fuel') renderFuel(); break; }
+    case 'diet-exclude': {
+      const ex = dietPrefs().exclude;
+      const ix = ex.indexOf(v);
+      if (ix >= 0) ex.splice(ix, 1); else ex.push(v);
+      save(true); sheetDietPrefs(); if (SCREEN === 'fuel') renderFuel();
+      break;
+    }
+    case 'fuel-log-slot': {
+      const n = logSuggestedSlot(v, i);
+      if (!n) { toast('That suggestion is no longer available'); break; }
+      renderFuel();
+      toast(n + ' item' + (n === 1 ? '' : 's') + ' logged', true);
+      break;
+    }
     case 'toggle-fuel': {
       S.settings.nutrition = !S.settings.nutrition;
       save(true); syncNav();

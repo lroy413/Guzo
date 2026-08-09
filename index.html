@@ -463,24 +463,45 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .dot:active{transform:scale(.94)}
 
 /* ---------- nav ---------- */
+/* A floating glass pill, not a bar welded to the bottom edge.
+
+   The old bar was a full-width slab: its own padding, plus the safe-area
+   inset, plus a top border, came to roughly 100px of permanent chrome on a
+   notched phone for five icons. Detaching it gives that height back to the
+   content and reads as lighter.
+
+   The background stays close to opaque on purpose. The label colour is
+   --faint, and a genuinely transparent pill would leave that text sitting on
+   whatever happened to scroll underneath — which passes a look at the CSS and
+   fails a pixel-sampled contrast check. Blur is the finish, not the substance. */
 .nav{
-  position:relative;flex:0 0 auto;z-index:60;
-  display:flex;justify-content:space-around;align-items:stretch;
-  padding:8px 6px calc(8px + var(--safe-b));
-  background:rgba(10,12,15,.94);backdrop-filter:blur(20px) saturate(1.4);
-  -webkit-backdrop-filter:blur(20px) saturate(1.4);
-  border-top:1px solid var(--line-soft);
-  max-width:640px;margin:0 auto;width:100%;
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(10px + var(--safe-b));z-index:60;
+  display:flex;align-items:center;justify-content:space-between;gap:2px;
+  width:calc(100% - 24px);max-width:430px;
+  padding:5px;border-radius:999px;
+  background:rgba(18,22,28,.90);
+  backdrop-filter:blur(22px) saturate(1.5);
+  -webkit-backdrop-filter:blur(22px) saturate(1.5);
+  border:1px solid rgba(255,255,255,.09);
+  box-shadow:0 12px 34px rgba(0,0,0,.5), 0 2px 8px rgba(0,0,0,.32);
 }
-.nav-wrap{flex:0 0 auto;background:rgba(10,12,15,.94);border-top:1px solid var(--line-soft)}
-.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 2px;
-  color:var(--faint);transition:color .2s ease;max-width:110px;position:relative}
-.nav-btn.on{color:var(--ember)}
-.nav-btn::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%) scaleX(0);
-  width:22px;height:2px;border-radius:100px;background:var(--ember);transition:transform .28s cubic-bezier(.3,1.3,.5,1)}
-.nav-btn.on::before{transform:translateX(-50%) scaleX(1)}
-.nav-btn svg{width:22px;height:22px;stroke-width:1.8}
-.nav-btn span{font-size:11px;font-weight:600;letter-spacing:.02em}
+.nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;padding:7px 2px;min-height:46px;border-radius:999px;
+  color:var(--faint);transition:color .2s ease,background .2s ease;position:relative}
+/* The selected tab is a filled pill rather than a hairline above the icon —
+   a 2px rule antialiases away at this size, which is the same reason the
+   arrows in this app are stroked paths and not text glyphs. */
+.nav-btn.on{color:var(--ember);background:var(--ember-dim)}
+.nav-btn svg{width:20px;height:20px;stroke-width:1.9}
+.nav-btn span{font-size:11px;font-weight:600;letter-spacing:.01em}
+
+/* The nav no longer takes up flow space, so every screen it floats over has
+   to be able to scroll past it. Boot and onboarding run with the nav hidden
+   and keep their own spacing. */
+#s-today,#s-plan,#s-train,#s-fuel,#s-progress,#s-more{
+  padding-bottom:calc(var(--safe-b) + 96px);
+}
 
 /* ---------- header ---------- */
 .hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
@@ -1149,7 +1170,7 @@ function bootFail(err) {
 }
 window.addEventListener('error', e => { if (!window.__guzoBooted) bootFail(e.error || e.message); });
 
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const KEY = 'guzo.v1';
 const LEGACY_KEYS = ['fittrek.v1'];
 
@@ -5116,6 +5137,291 @@ function resetPlanOrder() {
   save(true);
 }
 /* ============================================================
+   DIET PREFERENCES & SUGGESTED MEALS
+   ------------------------------------------------------------
+   Fuel knew what you ate. It knew nothing about how you eat — how
+   many times a day you actually get to, or what you will not put on
+   the plate. Both change what a useful suggestion looks like far
+   more than the calorie number does.
+
+   Suggestions are built from the same 113-food library the logger
+   uses. No recipes are downloaded, nothing is generated remotely,
+   and the same day produces the same suggestions every time it is
+   opened: the variety comes from the date, not from a dice roll.
+   ============================================================ */
+
+const DIET_PATTERNS = [
+  { k:'omni',  label:'Everything',   note:'Nothing off the table' },
+  { k:'pesc',  label:'Pescatarian',  note:'Fish and seafood, no other meat' },
+  { k:'veg',   label:'Vegetarian',   note:'No meat, no fish' },
+  { k:'vegan', label:'Vegan',        note:'No animal products at all' }
+];
+
+const EXCLUSIONS = [
+  { k:'dairy',     label:'Dairy' },
+  { k:'gluten',    label:'Gluten' },
+  { k:'nuts',      label:'Nuts' },
+  { k:'egg',       label:'Egg' },
+  { k:'soy',       label:'Soy' },
+  { k:'shellfish', label:'Shellfish' },
+  { k:'pork',      label:'Pork' }
+];
+
+/* Tags that cannot be read off a food's group. Conservative on purpose:
+   where a real product usually contains something, it is tagged, because the
+   cost of wrongly excluding a food is one fewer suggestion and the cost of
+   wrongly including one is somebody eating it.
+
+   Oats carry `gluten` for that reason — naturally free of it, routinely
+   contaminated in milling. Dark chocolate carries `dairy` on the same logic.
+
+   THIS IS NOT AN ALLERGEN DATABASE and the UI says so where it matters.
+   These are generic reference foods, not products with labels; a suggestion
+   is a starting point, not a clearance. */
+const FOOD_TAGS = {
+  'Prawns, cooked':      ['shellfish'],
+  'Bacon, grilled':      ['pork'],
+  'Ham, sliced':         ['pork'],
+  'Pork loin, cooked':   ['pork'],
+  'Whey protein':        ['dairy'],
+  'Casein protein':      ['dairy'],
+  'Pasta, cooked':       ['gluten'],
+  'Bread, white':        ['gluten'],
+  'Bread, wholemeal':    ['gluten'],
+  'Bagel':               ['gluten'],
+  'Tortilla wrap':       ['gluten'],
+  'Couscous, cooked':    ['gluten'],
+  'Cornflakes':          ['gluten'],
+  'Granola':             ['gluten', 'nuts'],
+  'Oats, dry':           ['gluten'],
+  'Noodles, egg, cooked':['gluten', 'egg'],
+  'Tofu, firm':          ['soy'],
+  'Tempeh':              ['soy'],
+  'Edamame':             ['soy'],
+  'Peanut butter':       ['nuts'],
+  'Almonds':             ['nuts'],
+  'Walnuts':             ['nuts'],
+  'Cashews':             ['nuts'],
+  'Dark chocolate 70%':  ['dairy'],
+  'Milk chocolate':      ['dairy'],
+  'Ice cream':           ['dairy'],
+  'Biscuit, digestive':  ['gluten', 'dairy'],
+  'Flapjack':            ['gluten'],
+  'Doughnut':            ['gluten', 'dairy', 'egg'],
+  'Protein bar':         ['dairy'],
+  'Coffee, flat white':  ['dairy'],
+  'Tea with milk':       ['dairy'],
+  'Beer, pint':          ['gluten'],
+  'Sandwich, shop-bought':['gluten'],
+  'Meal deal, full':     ['gluten'],
+  'Burrito':             ['gluten'],
+  'Pizza, 2 slices':     ['gluten', 'dairy'],
+  'Burger and chips':    ['gluten'],
+  'Sushi, 8 pieces':     ['fish', 'soy', 'gluten'],
+  'Fry-up, full':        ['meat', 'pork', 'egg', 'gluten'],
+  'Salad with chicken':  ['meat'],
+  'Porridge with milk':  ['gluten', 'dairy'],
+  'Protein shake, made up':['dairy'],
+  'Curry with rice':     ['dairy'],
+  'Crew catering plate': ['meat', 'gluten', 'dairy']
+};
+
+/* Group alone settles the animal-product questions. */
+const GROUP_TAGS = {
+  meat:  ['meat'],
+  fish:  ['fish'],
+  egg:   ['egg'],
+  dairy: ['dairy']
+};
+
+function foodTags(f) {
+  const out = new Set(GROUP_TAGS[f.g] || []);
+  (FOOD_TAGS[f.n] || []).forEach(t => out.add(t));
+  return out;
+}
+
+function dietPrefs() {
+  const n = S.nutrition || (S.nutrition = {});
+  if (!n.prefs) n.prefs = { meals:3, snacks:1, pattern:'omni', exclude:[] };
+  if (!Array.isArray(n.prefs.exclude)) n.prefs.exclude = [];
+  return n.prefs;
+}
+
+/* Does this food survive the pattern and the exclusion list? */
+function foodAllowed(f, prefs) {
+  prefs = prefs || dietPrefs();
+  const t = foodTags(f);
+  const pat = prefs.pattern || 'omni';
+
+  if (pat === 'vegan'  && (t.has('meat') || t.has('fish') || t.has('shellfish') || t.has('egg') || t.has('dairy'))) return false;
+  if (pat === 'veg'    && (t.has('meat') || t.has('fish') || t.has('shellfish'))) return false;
+  if (pat === 'pesc'   && t.has('meat')) return false;
+
+  return !(prefs.exclude || []).some(x => t.has(x));
+}
+
+function allowedFoods(prefs) { return FOODS.filter(f => foodAllowed(f, prefs)); }
+
+/* ---------- portions ----------
+   Every food is either per-100g or per-unit. Suggestions are rounded to
+   something a person would actually measure — 5 g, or a whole unit — because
+   "137 g of rice" is a number nobody has ever served. */
+function foodKcalPer(f) { return f.kcal / (f.per || 1); }
+function foodPPer(f)    { return f.p    / (f.per || 1); }
+
+function roundQty(f, qty) {
+  if (f.u === 'g' || f.u === 'ml') return Math.max(5, Math.round(qty / 5) * 5);
+  return Math.max(1, Math.round(qty));
+}
+
+function portionFor(f, targetKcal, lo, hi) {
+  const per = foodKcalPer(f);
+  if (!per) return null;
+  const raw = targetKcal / per;
+  const q = roundQty(f, Math.min(hi, Math.max(lo, raw)));
+  const scale = q / (f.per || 1);
+  const r = v => Math.round(v * 10) / 10;
+  /* Carbs and fat travel with the portion. Logging a suggestion writes a real
+     diary entry, and an entry missing two macros would quietly bend the
+     week's numbers — and adaptive TDEE reads those numbers back. */
+  return { foodId: f.id, n: f.n, u: f.u, qty: q,
+           kcal: Math.round(f.kcal * scale), p: r(f.p * scale),
+           c: r(f.c * scale), f: r(f.f * scale) };
+}
+
+/* ---------- what counts as what ----------
+   Deliberately narrower than the food groups. A suggestion should be a plate
+   somebody would build, so protein sources are the ones worth building a meal
+   around rather than everything that happens to contain some. */
+const MEAL_ROLES = {
+  protein: f => (['meat','fish','egg','plant'].includes(f.g) && foodPPer(f) >= 0.09) ||
+                (f.g === 'dairy' && foodPPer(f) >= 0.09) ||
+                (f.g === 'supp'),
+  carb:    f => f.g === 'carb',
+  veg:     f => f.g === 'veg',
+  fat:     f => f.g === 'fat',
+  snack:   f => (['fruit','dairy','supp','fat'].includes(f.g) && foodKcalPer(f) > 0) ||
+                (f.g === 'treat' && foodPPer(f) >= 0.08)
+};
+
+const MEAL_SLOTS = ['Breakfast', 'Lunch', 'Dinner', 'Fourth meal', 'Fifth meal', 'Sixth meal'];
+
+/* Stable pseudo-variety: the same date always yields the same plate, so
+   reopening Fuel does not reshuffle the day underneath you, while a different
+   date looks different. No Math.random anywhere — a suggestion that changed
+   every render would be noise, not advice. */
+function dayseed(k) {
+  let n = 0;
+  for (let i = 0; i < k.length; i++) n = (n * 31 + k.charCodeAt(i)) % 100000;
+  return n;
+}
+function pick(list, seed) { return list.length ? list[seed % list.length] : null; }
+
+/* ---------- the suggestion ---------- */
+function suggestMeals(kIn) {
+  const k = key(kIn || today());
+  const prefs = dietPrefs();
+  const e = energyTargets();
+  const tg = (S.nutrition && S.nutrition.targets) || {};
+  const kcalTarget = tg.kcal || (e && e.kcal) || 0;
+  const pTarget = proteinTarget() || 0;
+
+  /* Without a calorie target there is nothing to portion against, and
+     inventing one would be worse than saying so. */
+  if (!kcalTarget) return { ok:false, reason:'no-target' };
+
+  const meals = Math.max(1, Math.min(6, prefs.meals || 3));
+  const snacks = Math.max(0, Math.min(3, prefs.snacks || 0));
+
+  const pool = allowedFoods(prefs);
+  const proteins = pool.filter(MEAL_ROLES.protein);
+  const carbs = pool.filter(MEAL_ROLES.carb);
+  const vegs = pool.filter(MEAL_ROLES.veg);
+  const snackables = pool.filter(MEAL_ROLES.snack);
+
+  /* A pattern plus a long exclusion list can empty a shelf. Better to say
+     which one than to hand back a plate of vegetables. */
+  if (!proteins.length) return { ok:false, reason:'no-protein' };
+
+  /* Snacks take a slice off the top, capped so they cannot crowd out the
+     meals; whatever is left is split evenly. */
+  const snackShare = Math.min(0.30, snacks * 0.12);
+  const snackKcal = snacks ? Math.round(kcalTarget * snackShare / snacks) : 0;
+  const mealKcal = Math.round(kcalTarget * (1 - (snacks ? snackShare : 0)) / meals);
+  const mealP = pTarget ? Math.round(pTarget * (1 - (snacks ? snackShare : 0)) / meals) : 0;
+
+  const seed = dayseed(k);
+  const out = [];
+
+  for (let i = 0; i < meals; i++) {
+    const s = seed + i * 17;
+    const prot = pick(proteins, s);
+    const carb = pick(carbs, s * 3 + 1);
+    const veg = pick(vegs, s * 7 + 2);
+    if (!prot) continue;
+
+    /* Protein leads: portion it to the meal's protein share, then let the
+       carb fill whatever calories are left. Protein is the number that moves
+       the outcome, so it is the one that gets solved first. */
+    const pPer = foodPPer(prot);
+    const wantQty = pPer ? mealP / pPer : 0;
+    const protItem = portionFor(prot, foodKcalPer(prot) * (wantQty || 1),
+                                prot.u === 'g' ? 60 : 1, prot.u === 'g' ? 300 : 4);
+
+    const vegItem = veg ? portionFor(veg, foodKcalPer(veg) * (veg.u === 'g' ? 120 : 1),
+                                     veg.u === 'g' ? 80 : 1, veg.u === 'g' ? 200 : 2) : null;
+
+    const used = (protItem ? protItem.kcal : 0) + (vegItem ? vegItem.kcal : 0);
+    const left = Math.max(0, mealKcal - used);
+    const carbItem = carb && left > 40
+      ? portionFor(carb, left, carb.u === 'g' ? 40 : 1, carb.u === 'g' ? 300 : 3)
+      : null;
+
+    const items = [protItem, carbItem, vegItem].filter(Boolean);
+    out.push({
+      slot: MEAL_SLOTS[i] || ('Meal ' + (i + 1)),
+      items,
+      kcal: items.reduce((a, x) => a + x.kcal, 0),
+      p: Math.round(items.reduce((a, x) => a + x.p, 0))
+    });
+  }
+
+  for (let i = 0; i < snacks; i++) {
+    const f = pick(snackables, seed + 101 + i * 29);
+    if (!f) break;
+    const item = portionFor(f, snackKcal, f.u === 'g' ? 15 : 1, f.u === 'g' ? 120 : 3);
+    if (!item) continue;
+    out.push({ slot: snacks > 1 ? 'Snack ' + (i + 1) : 'Snack', items:[item],
+               kcal:item.kcal, p:Math.round(item.p) });
+  }
+
+  return {
+    ok: true,
+    slots: out,
+    kcal: out.reduce((a, s) => a + s.kcal, 0),
+    p: out.reduce((a, s) => a + s.p, 0),
+    kcalTarget, pTarget,
+    poolSize: pool.length
+  };
+}
+
+/* Log a whole suggested slot in one go. Returns how many items landed.
+
+   Goes through logFood() rather than pushing entries directly: that is where
+   an entry gets its id and timestamp, and where portions are scaled. A
+   hand-rolled push here would produce diary rows that looked right and could
+   not be edited, because the row's edit action keys on the id. */
+function logSuggestedSlot(kIn, slotIndex) {
+  const k = key(kIn || today());
+  const sug = suggestMeals(k);
+  if (!sug.ok) return 0;
+  const slot = sug.slots[slotIndex];
+  if (!slot) return 0;
+  let n = 0;
+  slot.items.forEach(it => { if (logFood(it.foodId, it.qty, k)) n++; });
+  return n;
+}
+/* ============================================================
    ONBOARDING
    One decision per screen, grouped into four short chapters.
    Every question changes generated sessions — nothing is asked
@@ -5126,7 +5432,12 @@ const OB_DEFAULT = {
   name:'', units:'kg', bodyweight:null, goals:['strength','muscle'],
   level:'some', priorities:[], cardioAmount:'light', cardioModes:['car-walk'],
   injuries:[], sleepNorm:7.5, envs:['full'], gearMode:'commercial', seedOverrides:{}, seedExact:{},
-  gear:{ ...GEAR_ALL }, programId:'anchor3', sessionMins:60, nutrition:false
+  gear:{ ...GEAR_ALL }, programId:'anchor3', sessionMins:60, nutrition:false,
+  /* Fuel intake. Only asked when Fuel is switched on, because none of it
+     changes a single set or rep — it feeds the energy equation and nothing
+     else, and this form does not collect anything for its own sake. */
+  heightCm:null, birthYear:null, sex:'na', activity:'light',
+  mealsPerDay:3, snacksPerDay:1, dietPattern:'omni', dietExclude:[]
 };
 let obDraft = { ...OB_DEFAULT, gear:{ ...GEAR_ALL }, seedOverrides:{}, seedExact:{} };
 
@@ -5166,7 +5477,14 @@ const OB_STEPS = [
   { k:'length',      q:14, ch:3 },
   { k:'ch-finish',   c:4 },
   { k:'nutrition',   q:15, ch:4 },
-  { k:'seed',        q:16, ch:4 },
+  /* Both skipped unless Fuel was just switched on. Height, age and sex change
+     nothing about training — they are the Mifflin-St Jeor inputs, and without
+     them energyTargets() returns null and Fuel opens with no target at all. */
+  { k:'measure',     q:16, ch:4 },
+  { k:'activity',    q:17, ch:4 },
+  { k:'meals',       q:18, ch:4 },
+  { k:'diet',        q:19, ch:4 },
+  { k:'seed',        q:20, ch:4 },
   { k:'ready' }
 ];
 const CHAPTERS = { 1:'You', 2:'Your training', 3:'Where and how', 4:'Finishing up' };
@@ -5177,6 +5495,7 @@ function obSkip(step) {
   if (step.k === 'cardiomode' && obDraft.cardioAmount === 'none') return true;
   if (step.k === 'gear' && !obDraft.envs.includes('full')) return true;
   if (step.k === 'geardetail' && (!obDraft.envs.includes('full') || obDraft.gearMode === 'commercial')) return true;
+  if (['measure','activity','meals','diet'].includes(step.k) && !obDraft.nutrition) return true;
   return false;
 }
 function obAdvance(dir) {
@@ -5312,6 +5631,120 @@ OB_RENDER.body = () => {
   `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>
              <button class="btn quiet block mt-s" data-act="ob-skip-bw">Skip this</button>` });
 };
+
+/* Read the measure screen's fields into the draft. Called before any
+   re-render of that screen and on both navigation directions, because the
+   screen is rebuilt wholesale by innerHTML and anything typed but not
+   captured is simply gone — tapping a sex button would otherwise wipe a
+   height that had just been entered.
+
+   Validation is deliberately loose here and strict at the end: setHeight()
+   and setBirthYear() reject out-of-range values, so a typo lands as null
+   and Fuel falls back to bodyweight rather than reporting nonsense. */
+function collectMeasureInputs() {
+  const imperial = obDraft.units === 'lb';
+  if (imperial) {
+    const ft = parseFloat(($('#ob-focus') || {}).value);
+    const inch = parseFloat(($('#ob-in') || {}).value) || 0;
+    const cm = (isNaN(ft) ? NaN : (ft * 12 + inch) * 2.54);
+    obDraft.heightCm = (isNaN(cm) || cm < 120 || cm > 230) ? null : Math.round(cm * 10) / 10;
+  } else {
+    const cm = parseFloat(($('#ob-focus') || {}).value);
+    obDraft.heightCm = (isNaN(cm) || cm < 120 || cm > 230) ? null : Math.round(cm * 10) / 10;
+  }
+  const now = new Date().getFullYear();
+  const y = parseInt(($('#ob-year') || {}).value, 10);
+  obDraft.birthYear = (isNaN(y) || y < now - 100 || y > now - 13) ? null : y;
+}
+
+/* ---------- Fuel intake: the energy equation ----------
+   Only reached when Fuel was switched on one screen earlier. Mifflin-St Jeor
+   needs weight, height, age and sex; weight is already asked for in chapter
+   one because it seeds starting loads, so this collects the other three.
+   Skippable — Fuel still works from bodyweight alone, just less precisely,
+   and the app says so rather than pretending otherwise. */
+OB_RENDER.measure = () => {
+  const imperial = obDraft.units === 'lb';
+  const inches = obDraft.heightCm ? obDraft.heightCm / 2.54 : null;
+  const now = new Date().getFullYear();
+  return obShell(`
+    <h1 class="ob-q">Three numbers for the energy equation</h1>
+    <p class="ob-sub">Resting energy is worked out from weight, height, age and sex. You have given the first already. None of this changes your training — it only decides what your calorie and protein targets are.</p>
+
+    <div class="label mt-l mb-s">Height</div>
+    ${imperial ? `
+      <div class="pf-grid mb">
+        <div class="field"><div class="label">Feet</div>
+          <input class="input mono" id="ob-focus" type="text" inputmode="numeric" enterkeyhint="next"
+                 value="${inches ? Math.floor(inches/12) : ''}" placeholder="5"></div>
+        <div class="field"><div class="label">Inches</div>
+          <input class="input mono" id="ob-in" type="text" inputmode="numeric" enterkeyhint="next"
+                 value="${inches ? Math.round(inches - Math.floor(inches/12)*12) : ''}" placeholder="10"></div>
+      </div>` : `
+      <div class="field mb">
+        <input class="input mono" id="ob-focus" type="text" inputmode="decimal" enterkeyhint="next"
+               value="${obDraft.heightCm || ''}" placeholder="178"> </div>`}
+
+    <div class="label mt mb-s">Year you were born</div>
+    <div class="field mb">
+      <input class="input mono" id="ob-year" type="text" inputmode="numeric" enterkeyhint="done"
+             value="${obDraft.birthYear || ''}" placeholder="${now - 32}"></div>
+
+    <div class="label mt mb-s">Sex</div>
+    <div class="seg">
+      ${SEXES.map(x => `<button class="${obDraft.sex === x.k ? 'on' : ''}" data-act="ob-sex" data-v="${x.k}">${x.label}</button>`).join('')}
+    </div>
+    <p class="ob-why">Sex is used for one constant in the equation and nothing else. "Rather not say" averages the two, which costs about 80 kcal of precision.</p>
+  `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>
+             <button class="btn quiet block mt-s" data-act="ob-skip-measure">Skip this</button>` });
+};
+
+OB_RENDER.activity = () => obShell(`
+  <h1 class="ob-q">How much are you moving the rest of the day?</h1>
+  <p class="ob-sub">This is about the day around the training, not the training. A camera operator on their feet for fourteen hours is not sedentary because they only lifted three times this week.</p>
+  <div class="opts">
+    ${ACTIVITY.map(a => opt({ act:'ob-activity', v:a.k, on:obDraft.activity === a.k,
+                              title:a.label, desc:a.note })).join('')}
+  </div>
+  <p class="ob-why">Change it whenever the work changes — a studio month and a location month are not the same job.</p>
+`, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>` });
+
+OB_RENDER.meals = () => {
+  const n = obDraft.mealsPerDay, sn = obDraft.snacksPerDay;
+  const btn = (act, val, cur, label) =>
+    `<button class="${cur === val ? 'on' : ''}" data-act="${act}" data-v="${val}">${label}</button>`;
+  return obShell(`
+    <h1 class="ob-q">How many times do you actually get to eat?</h1>
+    <p class="ob-sub">Not how many you think you should. On a fourteen-hour day the honest answer might be two and a handful of things out of a van, and the suggestions are more useful if they know that.</p>
+
+    <div class="label mt-l mb-s">Proper meals</div>
+    <div class="seg">${[2,3,4,5].map(x => btn('ob-meals', x, n, x)).join('')}</div>
+
+    <div class="label mt mb-s">Snacks on top</div>
+    <div class="seg">${[0,1,2,3].map(x => btn('ob-snacks', x, sn, x)).join('')}</div>
+
+    <p class="ob-why">Your day's calories and protein get split across these. Nothing is forced — a day you eat once is not a failed day, and nothing turns red.</p>
+  `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>` });
+};
+
+OB_RENDER.diet = () => obShell(`
+  <h1 class="ob-q">Anything off the plate?</h1>
+  <p class="ob-sub">This filters what gets suggested. It does not restrict what you can log — you can always record whatever you actually ate.</p>
+
+  <div class="label mt-l mb-s">Pattern</div>
+  <div class="opts">
+    ${DIET_PATTERNS.map(d => opt({ act:'ob-diet-pattern', v:d.k, on:obDraft.dietPattern === d.k,
+                                   title:d.label, desc:d.note })).join('')}
+  </div>
+
+  <div class="label mt-l mb-s">Leave out</div>
+  <div class="chips">
+    ${EXCLUSIONS.map(x => `<button class="chip ${obDraft.dietExclude.includes(x.k) ? 'on' : ''}"
+       data-act="ob-diet-exclude" data-v="${x.k}">${x.label}</button>`).join('')}
+  </div>
+
+  <p class="ob-why">Guzo is not an allergen database. These are generic reference foods, not products with labels — if something matters medically, read the packet.</p>
+`, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>` });
 
 /* ---------- 3. goals ---------- */
 OB_RENDER.goals = () => obShell(`
@@ -8031,6 +8464,9 @@ function renderFuel() {
     </div>
   </div>`;
 
+  /* ── suggested meals ─────────────────────────────────────── */
+  html += suggestionsHTML(k);
+
   /* ── what's logged ───────────────────────────────────────── */
   const items = nutDay(k).items;
   if (items.length) {
@@ -8055,6 +8491,44 @@ function renderFuel() {
 
   const el = document.getElementById('fuel-body');
   if (el) el.innerHTML = html;
+}
+
+/* ---------- suggested meals ----------
+   A shape for the day, not a prescription. It never claims you must eat this,
+   and logging one is a single deliberate tap rather than something that
+   happens to your diary on its own. */
+function suggestionsHTML(k) {
+  const prefs = dietPrefs();
+  const sug = suggestMeals(k);
+
+  if (!sug.ok) {
+    /* Say which thing is missing. "No suggestions" with no reason is the sort
+       of dead end that makes someone assume the feature is broken. */
+    const why = sug.reason === 'no-protein'
+      ? 'Those restrictions leave nothing to build a meal around. Loosening one would give the suggestions something to work with.'
+      : 'Suggestions need a calorie target. Add your height and age and one gets worked out for you.';
+    return `<div class="sec-head"><span class="sec-t">Suggested</span></div>
+      <div class="note mb"><p class="note-t">Nothing to suggest yet.</p><p class="note-b">${why}</p>
+      <button class="btn ghost block mt-s" data-act="open-diet-prefs">How you eat</button></div>`;
+  }
+
+  const pOnly = proteinOnly();
+  return `<div class="sec-head"><span class="sec-t">Suggested</span>
+      <button class="sec-a" data-act="open-diet-prefs">How you eat</button></div>
+    <div class="list mb">
+      ${sug.slots.map((s, i) => `<div class="lrow" style="align-items:flex-start">
+        <div class="grow">
+          <div class="h3" style="font-size:14.5px">${h(s.slot)}</div>
+          <div class="tiny mt-s">${s.items.map(it =>
+            h(it.n) + ' ' + it.qty + (unitLabel(it.u) || '×')).join(' · ')}</div>
+          <div class="tiny mt-s mono em">${pOnly ? Math.round(s.p) + 'g protein' : s.kcal + ' kcal · ' + Math.round(s.p) + 'g protein'}</div>
+        </div>
+        <button class="btn xs" data-act="fuel-log-slot" data-v="${k}" data-i="${i}">Log</button>
+      </div>`).join('')}
+    </div>
+    <p class="tiny mb">${pOnly
+      ? 'Built from your protein target and how often you said you eat.'
+      : `Roughly ${sug.kcal} kcal and ${Math.round(sug.p)}g protein across the day, against a target of ${sug.kcalTarget}${sug.pTarget ? ' and ' + sug.pTarget + 'g' : ''}.`} Generic reference foods, not products — check labels if something matters medically.</p>`;
 }
 
 /* Protein-only gets its own reasoning panel. Same honesty, one number. */
@@ -8446,6 +8920,47 @@ function sheetNutTargets() {
   `);
 }
 
+
+/* ---------- how you eat ----------
+   The same questions the onboarding asks, reachable forever after. Fuel can
+   be switched on long after onboarding — from the More screen — and someone
+   who did that has never been asked any of this. */
+function sheetDietPrefs() {
+  const p = dietPrefs();
+  const seg = (act, vals, cur) => `<div class="seg">${vals.map(x =>
+    `<button class="${cur === x ? 'on' : ''}" data-act="${act}" data-v="${x}">${x}</button>`).join('')}</div>`;
+
+  const gaps = bodyGaps ? bodyGaps() : [];
+  openSheet(`
+    <div class="row between mb">
+      <h2 class="h1">How you eat</h2>
+      <button class="btn xs quiet" data-act="close">Done</button>
+    </div>
+    <p class="small mb">This shapes what gets suggested. It never limits what you can log — whatever you actually ate can always be recorded.</p>
+
+    ${gaps.length ? `<div class="banner soft mb">Your calorie target is estimated from bodyweight alone. Adding ${gaps.join(' and ')} in Profile makes it meaningfully better.</div>` : ''}
+
+    <div class="label mb-s">Proper meals a day</div>
+    ${seg('diet-meals', [2,3,4,5], p.meals)}
+
+    <div class="label mt mb-s">Snacks on top</div>
+    ${seg('diet-snacks', [0,1,2,3], p.snacks)}
+
+    <div class="label mt-l mb-s">Pattern</div>
+    <div class="opts mb">
+      ${DIET_PATTERNS.map(d => opt({ act:'diet-pattern', v:d.k, on:p.pattern === d.k,
+                                     title:d.label, desc:d.note })).join('')}
+    </div>
+
+    <div class="label mt mb-s">Leave out</div>
+    <div class="chips mb">
+      ${EXCLUSIONS.map(x => `<button class="chip ${p.exclude.includes(x.k) ? 'on' : ''}"
+         data-act="diet-exclude" data-v="${x.k}">${x.label}</button>`).join('')}
+    </div>
+
+    <p class="tiny">${allowedFoods(p).length} of ${FOODS.length} foods pass these. Guzo is not an allergen database — these are generic reference foods, not products with labels. If something matters medically, read the packet.</p>
+  `);
+}
 /* ============================================================
    THE ORDER — screens for rearranging the week
    ============================================================ */
@@ -8888,15 +9403,33 @@ document.addEventListener('click', ev => {
       if (k === 'env' && !obDraft.envs.length) { toast('Pick at least one place'); return; }
       if (k === 'cardiomode' && !obDraft.cardioModes.length) { toast('Pick at least one you would actually do'); return; }
       if (k === 'geardetail' && !Object.values(obDraft.gear).some(Boolean)) { toast('You must have something'); return; }
+      if (k === 'measure') collectMeasureInputs();
       if (k === 'seed') collectSeedInputs();
       obAdvance(1); renderOnboard(); break;
     }
     case 'ob-skip-bw': { obDraft.bodyweight = null; obAdvance(1); renderOnboard(); break; }
+    /* Skipping is a real answer, so it clears rather than leaves whatever was
+       half-typed. Fuel still works from bodyweight alone. */
+    case 'ob-skip-measure': {
+      obDraft.heightCm = null; obDraft.birthYear = null;
+      obAdvance(1); renderOnboard(); break;
+    }
+    case 'ob-sex': { collectMeasureInputs(); obDraft.sex = v; renderOnboard(); break; }
+    case 'ob-activity': { obDraft.activity = v; renderOnboard(); break; }
+    case 'ob-meals':  { obDraft.mealsPerDay = +v; renderOnboard(); break; }
+    case 'ob-snacks': { obDraft.snacksPerDay = +v; renderOnboard(); break; }
+    case 'ob-diet-pattern': { obDraft.dietPattern = v; renderOnboard(); break; }
+    case 'ob-diet-exclude': {
+      const ix = obDraft.dietExclude.indexOf(v);
+      if (ix >= 0) obDraft.dietExclude.splice(ix, 1); else obDraft.dietExclude.push(v);
+      renderOnboard(); break;
+    }
     case 'ob-back': {
       const k = OB_STEPS[obStep].k;
       if (k === 'name') { const n = $('#ob-focus'); if (n) obDraft.name = n.value.trim(); }
       if (k === 'body') { const n = $('#ob-focus'); const val = n ? parseFloat(n.value) : NaN; obDraft.bodyweight = isNaN(val) ? null : val; }
       if (k === 'sleep') { const n = $('#ob-focus'); const val = n ? parseFloat(n.value) : NaN; if (!isNaN(val)) obDraft.sleepNorm = val; }
+      if (k === 'measure') collectMeasureInputs();
       if (k === 'seed') collectSeedInputs();
       obAdvance(-1); renderOnboard(); break;
     }
@@ -8961,6 +9494,19 @@ document.addEventListener('click', ev => {
       P.gear = obDraft.envs.includes('full') ? { ...obDraft.gear } : { ...GEAR_ALL };
       P.programId = obDraft.programId;
       S.settings.nutrition = obDraft.nutrition;
+      /* Only written when Fuel is on — the measure screens are skipped
+         otherwise, so the draft still holds its defaults and writing them
+         would fabricate a height nobody gave. */
+      if (obDraft.nutrition) {
+        if (obDraft.heightCm) P.heightCm = obDraft.heightCm;
+        if (obDraft.birthYear) P.birthYear = obDraft.birthYear;
+        P.sex = obDraft.sex;
+        P.activity = obDraft.activity;
+        S.nutrition.prefs = {
+          meals: obDraft.mealsPerDay, snacks: obDraft.snacksPerDay,
+          pattern: obDraft.dietPattern, exclude: [...obDraft.dietExclude]
+        };
+      }
       seedStartingWeights(obDraft.level, obDraft.bodyweight || 0, obDraft.seedOverrides, obDraft.seedExact);
       if (obDraft.bodyweight > 0) {
         P.bodyweight = [{ d: today(), w: obDraft.bodyweight }];
@@ -9350,6 +9896,24 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'open-profile': sheetProfile(); break;
+    case 'open-diet-prefs': sheetDietPrefs(); break;
+    case 'diet-meals':  { dietPrefs().meals  = +v; save(true); sheetDietPrefs(); if (SCREEN === 'fuel') renderFuel(); break; }
+    case 'diet-snacks': { dietPrefs().snacks = +v; save(true); sheetDietPrefs(); if (SCREEN === 'fuel') renderFuel(); break; }
+    case 'diet-pattern':{ dietPrefs().pattern = v; save(true); sheetDietPrefs(); if (SCREEN === 'fuel') renderFuel(); break; }
+    case 'diet-exclude': {
+      const ex = dietPrefs().exclude;
+      const ix = ex.indexOf(v);
+      if (ix >= 0) ex.splice(ix, 1); else ex.push(v);
+      save(true); sheetDietPrefs(); if (SCREEN === 'fuel') renderFuel();
+      break;
+    }
+    case 'fuel-log-slot': {
+      const n = logSuggestedSlot(v, i);
+      if (!n) { toast('That suggestion is no longer available'); break; }
+      renderFuel();
+      toast(n + ' item' + (n === 1 ? '' : 's') + ' logged', true);
+      break;
+    }
     case 'toggle-fuel': {
       S.settings.nutrition = !S.settings.nutrition;
       save(true); syncNav();
