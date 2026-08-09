@@ -108,8 +108,15 @@ function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate()+n); return
    misses — so anything that takes a date key normalises through here. */
 function key(k) { return typeof k === 'string' ? k : dk(k); }
 function today() { return dk(); }
+/* Defaults through today() rather than reading the clock a second time. The
+   two used to be independent sources of "now": pinning today() in a fixture
+   left weekStart() still on the real clock, so a test pinned to a Tuesday
+   silently drifted into a different week whenever the real date crossed a
+   Monday. It happened to be correct on the day it was written, which is the
+   worst kind of correct. One clock, one entry point — stub today() and
+   everything downstream moves with it. */
 function weekStart(d) {
-  d = d || new Date();
+  d = d || fromKey(today());
   const x = new Date(d);
   const dow = (x.getDay() + 6) % 7; // Monday = 0
   x.setDate(x.getDate() - dow);
@@ -598,6 +605,49 @@ function typeLabel(t) {
 }
 
 /* Distribute the program's target sessions across the week's usable days */
+/* Choose n training days from `scored` (already sorted by available minutes,
+   descending).
+
+   Minutes still decide outright — the most available days are taken first,
+   which is the whole point of asking. What changed is what happens inside a
+   tie, and a tie is the ordinary case: a fresh profile has all seven days at
+   the same default, so the entire week is one band. `.sort()` is stable, so
+   the band stayed in calendar order and `.slice(0, n)` took the first n —
+   Monday through Friday, every time. A programme of five landed nothing on
+   the weekend at all, and someone opening the app for the first time on a
+   Saturday met an empty plan and a hero reading "unplanned".
+
+   So: walk the bands from most to least available, and when a band holds more
+   candidates than there are slots left, space the picks across it instead of
+   taking the front. Seven equal days and a target of three gives Mon/Thu/Sun
+   rather than Mon/Tue/Wed. */
+function pickDays(scored, n) {
+  if (n <= 0) return [];
+
+  const bands = [];
+  scored.forEach(s => {
+    const last = bands[bands.length - 1];
+    if (last && last.mins === s.mins) last.days.push(s.k);
+    else bands.push({ mins: s.mins, days: [s.k] });
+  });
+
+  const out = [];
+  for (const band of bands) {
+    const left = n - out.length;
+    if (left <= 0) break;
+    if (band.days.length <= left) { out.push(...band.days); continue; }
+
+    /* Date keys are 'YYYY-MM-DD', so a plain sort is chronological. Spacing is
+       over indices, and because this branch only runs when the band is larger
+       than the slots left, the step is always greater than one — the rounded
+       positions cannot collide. */
+    const days = band.days.slice().sort();
+    const step = (days.length - 1) / Math.max(1, left - 1);
+    for (let i = 0; i < left; i++) out.push(days[Math.round(i * step)]);
+  }
+  return out;
+}
+
 function buildWeekPlan(force) {
   const ws = weekStart();
   const wsKey = dk(ws);
@@ -613,7 +663,7 @@ function buildWeekPlan(force) {
 
   const minUsable = Math.max(12, Math.round(baseMins() * 0.3));
   const n = Math.min(prog.target, scored.filter(s => s.mins >= minUsable).length || scored.length);
-  const chosen = scored.slice(0, n).map(s => s.k).sort();
+  const chosen = pickDays(scored, n).sort();
 
   /* Anything you decided yourself, and anything already spent, survives a
      rebuild. The app arranges the days you have not had an opinion about

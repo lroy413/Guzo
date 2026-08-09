@@ -157,6 +157,8 @@ The blob is already the natural sync unit. The honest shape would be one `profil
 
 **Dates.** Every store in the app is keyed `'YYYY-MM-DD'`. `dk(date)` makes a key, `fromKey(k)` makes a Date, `addDays(d, n)` returns a **Date**, and `key(k)` normalises either into a key. **Any function that accepts a date must pass it through `key()` first.** This has already caused one silent class of bug (see `docs/decisions.md`).
 
+**There is one clock, and it is `today()`.** `weekStart()` defaults through it rather than reading `new Date()` a second time, so pinning `today()` in a fixture pins the whole week. Do not reintroduce a second source of "now" — a fixture that pins one and not the other is correct only until the real date crosses a Monday.
+
 **Naming.**
 - `sheetX()` opens a modal sheet. `renderX()` writes into a screen container.
 - `S` is state. `A` is `S.active` inside session code.
@@ -223,12 +225,13 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node dupes.mjs` | duplicate top-level declarations (also runs in `build.sh`) |
 | `node sw.mjs` | the service worker registers, caches, survives the network being cut, and still lets an update through |
 | `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen, across the awkward empty states |
+| `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, and a Fuel bar means what it looks like |
 
 `png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.
 
-The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping. `sw.mjs` and `blanks.mjs` need `npm install` first, and take about a minute between them.
+The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping. `sw.mjs`, `blanks.mjs` and `engine.mjs` need `npm install` first, and take about ninety seconds between them.
 
-Every instrument here has to be able to fail, and both new ones were checked against the bug they were written for. Reinstate the Blob registration and `sw.mjs` goes from 17 passed to 12 failed rather than hanging or crashing. Put the legacy Fuel tile back and `blanks.mjs` goes red on Today with `"0 / undefined kcal"`. If you add an instrument, prove it red before you trust it green.
+Every instrument here has to be able to fail, and both new ones were checked against the bug they were written for. Reinstate the Blob registration and `sw.mjs` goes from 17 passed to 12 failed rather than hanging or crashing. Put the legacy Fuel tile back and `blanks.mjs` goes red on Today with `"0 / undefined kcal"`. Each of `engine.mjs`'s four subjects was reverted individually and the matching checks confirmed red — the weekend one prints `[0,1,2,3,4]`, the bar one prints `["100%","100%","50%"]`. If you add an instrument, prove it red before you trust it green.
 
 ---
 

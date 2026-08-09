@@ -16,6 +16,19 @@
 
 function fuelOn() { return !!(S.settings && S.settings.nutrition); }
 
+/* How far above target a week bar can climb before it stops growing, as a
+   percentage. The track spans this whole range and carries a hairline at the
+   100% mark, so a day is read against where the target actually was.
+
+   It used to compute the percentage up to 140 and then clamp the *fill* to
+   100, which meant a day 40% over target was drawn identically to a day that
+   landed exactly on it. The number underneath was right and the bar was a lie.
+
+   Deliberately not a colour change: Fuel never goes red, and being over on a
+   Tuesday is information, not a failure. The marker says where the target
+   was and lets the bar say the rest. */
+const FUEL_BAR_CEIL = 140;
+
 /* Route leaves the bar when Fuel joins it, so the count stays at five. */
 function syncNav() {
   const fuel = document.getElementById('nav-fuel');
@@ -56,10 +69,13 @@ function renderFuel() {
       ${wk.days.map(d => {
         const val = pOnly ? d.p : d.kcal;
         const target = pOnly ? pTarget : kcalTarget;
-        const pct = target && val ? Math.min(140, Math.round(val / target * 100)) : 0;
+        const pct = target && val ? Math.min(FUEL_BAR_CEIL, Math.round(val / target * 100)) : 0;
         const isToday = d.d === today();
         return `<button class="fuel-bar ${isToday ? 'today' : ''} ${d.d === k ? 'on' : ''}" data-act="fuel-day" data-v="${d.d}">
-          <span class="fuel-bar-track"><span class="fuel-bar-fill" style="height:${Math.min(100, pct)}%"></span></span>
+          <span class="fuel-bar-track">
+            <span class="fuel-bar-fill" style="height:${pct / FUEL_BAR_CEIL * 100}%"></span>
+            ${target ? `<span class="fuel-bar-target" style="bottom:${100 / FUEL_BAR_CEIL * 100}%"></span>` : ''}
+          </span>
           <span class="fuel-bar-d">${DAYNAMES[fromKey(d.d).getDay()].slice(0,1)}</span>
         </button>`;
       }).join('')}

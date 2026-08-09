@@ -341,9 +341,14 @@ button.recall:active{transform:scale(.99)}
 .fuel-bars{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end}
 .fuel-bar{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:44px;padding:2px 0}
 .fuel-bar-track{width:100%;height:46px;border-radius:6px;background:var(--surface-3);
-  display:flex;align-items:flex-end;overflow:hidden}
+  display:flex;align-items:flex-end;overflow:hidden;position:relative}
 .fuel-bar-fill{width:100%;background:var(--ember);border-radius:6px;min-height:2px;
   transition:height .3s ease}
+/* Where the target sits. The track runs past it to FUEL_BAR_CEIL so a day over
+   target is visibly over, rather than clamped flat against a day that landed
+   on it. Deliberately not rose — nothing in Fuel goes red. */
+.fuel-bar-target{position:absolute;left:0;right:0;height:1.5px;border-radius:2px;
+  background:rgba(255,255,255,.30);pointer-events:none}
 .fuel-bar.today .fuel-bar-fill{background:var(--ember-2)}
 .fuel-bar.on .fuel-bar-track{outline:1px solid var(--ember-line);outline-offset:1px}
 .fuel-bar-d{font-size:10.5px;font-weight:650;color:var(--muted)}
@@ -2623,8 +2628,15 @@ function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate()+n); return
    misses — so anything that takes a date key normalises through here. */
 function key(k) { return typeof k === 'string' ? k : dk(k); }
 function today() { return dk(); }
+/* Defaults through today() rather than reading the clock a second time. The
+   two used to be independent sources of "now": pinning today() in a fixture
+   left weekStart() still on the real clock, so a test pinned to a Tuesday
+   silently drifted into a different week whenever the real date crossed a
+   Monday. It happened to be correct on the day it was written, which is the
+   worst kind of correct. One clock, one entry point — stub today() and
+   everything downstream moves with it. */
 function weekStart(d) {
-  d = d || new Date();
+  d = d || fromKey(today());
   const x = new Date(d);
   const dow = (x.getDay() + 6) % 7; // Monday = 0
   x.setDate(x.getDate() - dow);
@@ -3113,6 +3125,49 @@ function typeLabel(t) {
 }
 
 /* Distribute the program's target sessions across the week's usable days */
+/* Choose n training days from `scored` (already sorted by available minutes,
+   descending).
+
+   Minutes still decide outright — the most available days are taken first,
+   which is the whole point of asking. What changed is what happens inside a
+   tie, and a tie is the ordinary case: a fresh profile has all seven days at
+   the same default, so the entire week is one band. `.sort()` is stable, so
+   the band stayed in calendar order and `.slice(0, n)` took the first n —
+   Monday through Friday, every time. A programme of five landed nothing on
+   the weekend at all, and someone opening the app for the first time on a
+   Saturday met an empty plan and a hero reading "unplanned".
+
+   So: walk the bands from most to least available, and when a band holds more
+   candidates than there are slots left, space the picks across it instead of
+   taking the front. Seven equal days and a target of three gives Mon/Thu/Sun
+   rather than Mon/Tue/Wed. */
+function pickDays(scored, n) {
+  if (n <= 0) return [];
+
+  const bands = [];
+  scored.forEach(s => {
+    const last = bands[bands.length - 1];
+    if (last && last.mins === s.mins) last.days.push(s.k);
+    else bands.push({ mins: s.mins, days: [s.k] });
+  });
+
+  const out = [];
+  for (const band of bands) {
+    const left = n - out.length;
+    if (left <= 0) break;
+    if (band.days.length <= left) { out.push(...band.days); continue; }
+
+    /* Date keys are 'YYYY-MM-DD', so a plain sort is chronological. Spacing is
+       over indices, and because this branch only runs when the band is larger
+       than the slots left, the step is always greater than one — the rounded
+       positions cannot collide. */
+    const days = band.days.slice().sort();
+    const step = (days.length - 1) / Math.max(1, left - 1);
+    for (let i = 0; i < left; i++) out.push(days[Math.round(i * step)]);
+  }
+  return out;
+}
+
 function buildWeekPlan(force) {
   const ws = weekStart();
   const wsKey = dk(ws);
@@ -3128,7 +3183,7 @@ function buildWeekPlan(force) {
 
   const minUsable = Math.max(12, Math.round(baseMins() * 0.3));
   const n = Math.min(prog.target, scored.filter(s => s.mins >= minUsable).length || scored.length);
-  const chosen = scored.slice(0, n).map(s => s.k).sort();
+  const chosen = pickDays(scored, n).sort();
 
   /* Anything you decided yourself, and anything already spent, survives a
      rebuild. The app arranges the days you have not had an opinion about
@@ -4008,7 +4063,58 @@ function deleteRoutine(id) {
   const list = ensureRoutines();
   const i = list.findIndex(r => r.id === id);
   if (i < 0) return false;
-  list.splice(i, 1); save(true); return true;
+  list.splice(i, 1);
+  /* Clear the day it was standing in for, in the same breath. Splicing alone
+     left week.plan[k].routineId pointing at nothing: planLabel() rendered
+     "Deleted routine" so the day looked fine and did not crash, but the hero's
+     Start called buildRoutineSession(), which returned null, and the day was
+     simply unstartable with no way to repair it from the UI. */
+  repairRefs();
+  save(true);
+  return true;
+}
+
+/* Nothing in the app enforces referential integrity — every link between
+   stores is a bare string key — so this sweeps the ones that can be left
+   pointing at something deleted. Called once at boot and again whenever a
+   routine is removed.
+
+   A day that loses its routine falls back to an ordinary planned session
+   rather than being emptied: the day was chosen deliberately, and taking it
+   off the route entirely would be a bigger edit than the one that was asked
+   for. Anything already done or spent is never touched.
+
+   Returns the number of references cleared, so a caller can tell whether
+   anything actually changed rather than saving unconditionally. */
+function repairRefs() {
+  let fixed = 0;
+
+  const plan = (S.week && S.week.plan) || {};
+  Object.keys(plan).forEach(k => {
+    const e = plan[k];
+    if (!e || !e.routineId) return;
+    if (routineById(e.routineId)) return;
+    delete e.routineId;
+    /* 'custom' only ever meant "a routine is standing in here". With the
+       routine gone the label would read as a session type that does not
+       exist, so hand the day back to the rotation. */
+    if (e.type === 'custom' || !e.type) e.type = nextType ? nextType() : 'full';
+    fixed++;
+  });
+
+  /* Learned weights and form videos are keyed by exercise id. The catalogue is
+     static today, so these only strand if an id is retired between releases —
+     cheap to check, and it keeps a stale key from silently shadowing a reused
+     id later. */
+  ['lifts', 'videos'].forEach(store => {
+    const m = S[store];
+    if (!m) return;
+    Object.keys(m).forEach(exId => {
+      if (!EX[exId]) { delete m[exId]; fixed++; }
+    });
+  });
+
+  return fixed;
 }
 
 function addToRoutine(id, exId) {
@@ -7827,6 +7933,19 @@ function sheetSleepNorm() {
 
 function fuelOn() { return !!(S.settings && S.settings.nutrition); }
 
+/* How far above target a week bar can climb before it stops growing, as a
+   percentage. The track spans this whole range and carries a hairline at the
+   100% mark, so a day is read against where the target actually was.
+
+   It used to compute the percentage up to 140 and then clamp the *fill* to
+   100, which meant a day 40% over target was drawn identically to a day that
+   landed exactly on it. The number underneath was right and the bar was a lie.
+
+   Deliberately not a colour change: Fuel never goes red, and being over on a
+   Tuesday is information, not a failure. The marker says where the target
+   was and lets the bar say the rest. */
+const FUEL_BAR_CEIL = 140;
+
 /* Route leaves the bar when Fuel joins it, so the count stays at five. */
 function syncNav() {
   const fuel = document.getElementById('nav-fuel');
@@ -7867,10 +7986,13 @@ function renderFuel() {
       ${wk.days.map(d => {
         const val = pOnly ? d.p : d.kcal;
         const target = pOnly ? pTarget : kcalTarget;
-        const pct = target && val ? Math.min(140, Math.round(val / target * 100)) : 0;
+        const pct = target && val ? Math.min(FUEL_BAR_CEIL, Math.round(val / target * 100)) : 0;
         const isToday = d.d === today();
         return `<button class="fuel-bar ${isToday ? 'today' : ''} ${d.d === k ? 'on' : ''}" data-act="fuel-day" data-v="${d.d}">
-          <span class="fuel-bar-track"><span class="fuel-bar-fill" style="height:${Math.min(100, pct)}%"></span></span>
+          <span class="fuel-bar-track">
+            <span class="fuel-bar-fill" style="height:${pct / FUEL_BAR_CEIL * 100}%"></span>
+            ${target ? `<span class="fuel-bar-target" style="bottom:${100 / FUEL_BAR_CEIL * 100}%"></span>` : ''}
+          </span>
           <span class="fuel-bar-d">${DAYNAMES[fromKey(d.d).getDay()].slice(0,1)}</span>
         </button>`;
       }).join('')}
@@ -9553,6 +9675,11 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
     const had = load();
     const ingested = ingestFromURL();
     S.meta.lastOpen = new Date().toISOString();
+
+    /* Before the week is built, not after: a plan entry still pointing at a
+       deleted routine would otherwise be treated as a settled day and kept
+       through the rebuild. */
+    if (S.onboarded) repairRefs();
 
     // roll the week over if needed
     if (S.onboarded) buildWeekPlan();

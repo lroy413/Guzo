@@ -1028,6 +1028,11 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
     const ingested = ingestFromURL();
     S.meta.lastOpen = new Date().toISOString();
 
+    /* Before the week is built, not after: a plan entry still pointing at a
+       deleted routine would otherwise be treated as a settled day and kept
+       through the rebuild. */
+    if (S.onboarded) repairRefs();
+
     // roll the week over if needed
     if (S.onboarded) buildWeekPlan();
 

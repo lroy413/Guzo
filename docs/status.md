@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **486,650 bytes**, `VERSION = '1.1.0'`.
-Last full sweep: all instruments green except the known bug below, which no instrument covers.
+Verified against the build at **492,541 bytes**, `VERSION = '1.1.0'`.
+Last full sweep: all instruments green. Nothing known is broken.
 
 ---
 
@@ -72,6 +72,16 @@ Gone with it: `nutritionTileHTML`, `QUICKFOODS`, and the five orphaned handlers 
 
 `blanks.mjs` is the regression test, and it is the assertion this document asked for: no `undefined`, `NaN` or `[object Object]` on any screen, across three empty states. Proven red — reinstate the tile and it fails on Today with the exact observed string.
 
+### The last four bugs — all fixed, all covered
+
+**Weekend days never got a session.** `buildWeekPlan` sorted usable days by available minutes and took the top n. `.sort()` is stable, so with every day at the same default the whole week was one band in calendar order and `.slice(0, n)` took Mon–Fri every time; a five-day programme put nothing on the weekend, and a Saturday-first user met an empty plan. Minutes still decide outright — `pickDays()` walks the bands from most to least available — but when a band holds more candidates than slots left, the picks are spaced across it. Seven equal days at a target of three now gives Mon/Thu/Sun.
+
+**Fuel week bars saturated at 100%.** `pct` was computed up to 140 and then the fill was clamped to 100, so a day 40% over target was drawn identically to one that landed on it. The track now spans to `FUEL_BAR_CEIL` with a hairline at the 100% mark, so a bar is read against where the target actually was. Deliberately not a colour change: nothing in Fuel goes red, and the instrument asserts that.
+
+**Deleting a routine left a dangling reference.** `deleteRoutine` spliced the list and nothing else, so `week.plan[k].routineId` kept pointing at nothing: the day rendered as "Deleted routine" and was unstartable, with no repair path in the UI. `repairRefs()` now runs on delete and again at boot — before `buildWeekPlan`, so a stale entry is not mistaken for a settled day — and the day falls back to an ordinary planned session rather than being emptied. It also drops `lifts` and `videos` keyed to exercise ids that no longer resolve. The boot sweep matters for devices that already deleted a routine before this existed.
+
+**Two clocks.** `weekStart()` defaulted to `new Date()` while `today()` went through `dk()`, so a fixture pinning `today()` left `weekStart()` on the real clock. It was correct on the day it was written and would have drifted the next time the real date crossed a Monday. `weekStart()` now defaults through `today()`.
+
 ### The Fuel module row read as a paywall
 
 The More row rendered `Fuel PRO` with an empty chevron slot when off. No affordance said "switch", and the badge said "locked" — so the reasonable move was to go and activate Pro, which does nothing at all, and Fuel stayed out of the navbar. This cost a real debugging session that started as "is the latest file deployed?".
@@ -84,31 +94,12 @@ The badge is now `${can('nutrition') ? '' : ' <span class="pro-tag">PRO</span>'}
 
 ## Broken
 
-### 1. Weekend days never get a session by default
-
-**Repro:** fresh profile, all seven days at default availability, any programme with `target ≤ 5`. Open Today on a Saturday.
-
-**Observed:** the whole week's plan sits on Mon–Fri; Saturday and Sunday are empty and the hero reads "unplanned".
-
-**Cause:** `buildWeekPlan` sorts usable days by available minutes and takes the top N. With every day equal, the sort is stable and `.sort()` on the date keys leaves Monday first — so the first five calendar days always win.
-
-**Severity:** low now that the order list offers empty days explicitly, but it means a Saturday-first user meets an empty plan.
-
-### 2. Fuel week bars saturate at 100%
-
-`renderFuel` computes `pct` up to 140 and then clamps the bar height to 100. A day 40% over target is visually identical to a day exactly on target. The numeric readout is correct; only the bar misleads.
-
-### 3. Deleting a routine leaves a dangling reference
-
-If a routine is assigned to a planned day and then deleted, `week.plan[k].routineId` still points at it. `planLabel()` renders `"Deleted routine"` and nothing crashes, but the day is unstartable — the hero's Start button calls `buildRoutineSession`, which returns null. There is no cleanup and no repair path in the UI.
-
-### 4. Test-suite clock dependency
-
-The week-ordering tests override `today()` to a fixed Tuesday. Anything that reads the real clock instead — `weekStart()` does — can drift relative to the override. It is correct today; it is fragile. Any new time-sensitive test must pin the clock the same way and should not mix pinned and real time in one fixture.
+Nothing known. The four that were listed here are fixed below; each one has a
+check in `engine.mjs` that was proven red against it first.
 
 ---
 
-## Next four, in priority order
+## Next three, in priority order
 
 ### 1. Wire HealthKit sleep in the native wrap
 Sleep is the signal that changes what the app does; it drives readiness, which sizes the session. Steps are noise by comparison. `@capgo/capacitor-health` is already pinned. This is also what makes the native build worth shipping at all, alongside a wake lock that actually holds.
@@ -118,9 +109,6 @@ Given a working weight, produce the ramp sets. It is deterministic, it is the mo
 
 ### 3. Supersets
 Structurally the largest remaining gap in the session model. `S.active.exercises` is a flat list; supersets need a grouping concept that survives generation, reordering, the rest timer, and progression. Design it before writing it — and note that the routine builder will need to express it too.
-
-### 4. Repair paths for dangling references
-Fixes bug #3 and the class it belongs to. On load, sweep `week.plan` for `routineId`s that no longer resolve and clear them; do the same for `lifts` and `videos` keyed to exercise ids that no longer exist. One function, called once at boot, plus a test that deletes a referenced routine and asserts the week is still startable.
 
 ---
 

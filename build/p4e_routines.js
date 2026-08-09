@@ -56,7 +56,58 @@ function deleteRoutine(id) {
   const list = ensureRoutines();
   const i = list.findIndex(r => r.id === id);
   if (i < 0) return false;
-  list.splice(i, 1); save(true); return true;
+  list.splice(i, 1);
+  /* Clear the day it was standing in for, in the same breath. Splicing alone
+     left week.plan[k].routineId pointing at nothing: planLabel() rendered
+     "Deleted routine" so the day looked fine and did not crash, but the hero's
+     Start called buildRoutineSession(), which returned null, and the day was
+     simply unstartable with no way to repair it from the UI. */
+  repairRefs();
+  save(true);
+  return true;
+}
+
+/* Nothing in the app enforces referential integrity — every link between
+   stores is a bare string key — so this sweeps the ones that can be left
+   pointing at something deleted. Called once at boot and again whenever a
+   routine is removed.
+
+   A day that loses its routine falls back to an ordinary planned session
+   rather than being emptied: the day was chosen deliberately, and taking it
+   off the route entirely would be a bigger edit than the one that was asked
+   for. Anything already done or spent is never touched.
+
+   Returns the number of references cleared, so a caller can tell whether
+   anything actually changed rather than saving unconditionally. */
+function repairRefs() {
+  let fixed = 0;
+
+  const plan = (S.week && S.week.plan) || {};
+  Object.keys(plan).forEach(k => {
+    const e = plan[k];
+    if (!e || !e.routineId) return;
+    if (routineById(e.routineId)) return;
+    delete e.routineId;
+    /* 'custom' only ever meant "a routine is standing in here". With the
+       routine gone the label would read as a session type that does not
+       exist, so hand the day back to the rotation. */
+    if (e.type === 'custom' || !e.type) e.type = nextType ? nextType() : 'full';
+    fixed++;
+  });
+
+  /* Learned weights and form videos are keyed by exercise id. The catalogue is
+     static today, so these only strand if an id is retired between releases —
+     cheap to check, and it keeps a stale key from silently shadowing a reused
+     id later. */
+  ['lifts', 'videos'].forEach(store => {
+    const m = S[store];
+    if (!m) return;
+    Object.keys(m).forEach(exId => {
+      if (!EX[exId]) { delete m[exId]; fixed++; }
+    });
+  });
+
+  return fixed;
 }
 
 function addToRoutine(id, exId) {
