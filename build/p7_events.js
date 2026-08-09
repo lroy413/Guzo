@@ -1104,18 +1104,23 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
     } catch (e2) { bootFail(err); return; }
   }
 
-  // PWA service worker (only works when served over http/https)
+  /* PWA service worker (only works when served over http/https).
+
+     This used to build the worker as a Blob and register it by object URL, to
+     keep the whole app to one deployable file. It never once worked: a service
+     worker script has to be fetched over http(s), so every browser rejected the
+     blob: URL, and the empty catch around it meant the failure was invisible.
+     The app reported offline support it did not have. So: a real sw.js, emitted
+     next to index.html by build.sh.
+
+     Registration is still allowed to fail. If only index.html was uploaded
+     somewhere, sw.js 404s, the app stays online-only, and nothing else breaks —
+     but it says so in the console rather than pretending. The version rides on
+     the query string so a release installs a fresh worker and retires the
+     previous cache. */
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    const sw = `self.addEventListener('install',e=>self.skipWaiting());
-self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
-self.addEventListener('fetch',e=>{
-  e.respondWith(caches.open('guzo').then(c=>c.match(e.request).then(r=>r||fetch(e.request).then(res=>{
-    if(e.request.method==='GET'&&res.ok){c.put(e.request,res.clone())}return res;
-  }).catch(()=>c.match('/'))))); });`;
-    try {
-      const url = URL.createObjectURL(new Blob([sw], { type:'text/javascript' }));
-      navigator.serviceWorker.register(url).catch(() => {});
-    } catch (e) {}
+    navigator.serviceWorker.register('sw.js?v=' + encodeURIComponent(VERSION))
+      .catch(err => console.warn('guzo: running online-only, sw.js did not register —', (err && err.message) || err));
   }
 
   window.addEventListener('beforeunload', () => save(true));

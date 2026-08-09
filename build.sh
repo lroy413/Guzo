@@ -62,5 +62,12 @@ cat "${PARTS[@]}" > GuzoFit.html
 # is what a static host needs it to be called.
 cp GuzoFit.html index.html
 
+# The service worker cannot be inlined — a worker script has to be fetched over
+# http(s), so it ships as its own file next to index.html. Deploying without it
+# is survivable: registration fails, the app runs online-only and says so.
+[ -f build/sw.js ] || { echo "build: missing build/sw.js" >&2; exit 1; }
+cp build/sw.js sw.js
+
 bytes=$(wc -c < GuzoFit.html | tr -d ' ')
-echo "build: ${#PARTS[@]} parts → GuzoFit.html, index.html (${bytes} bytes)"
+swbytes=$(wc -c < sw.js | tr -d ' ')
+echo "build: ${#PARTS[@]} parts → GuzoFit.html, index.html (${bytes} bytes) + sw.js (${swbytes} bytes)"

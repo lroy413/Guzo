@@ -4,5 +4,7 @@
 # that touches the build. Run ./build.sh to produce it.
 GuzoFit.html
 
-# Playwright and the test instruments, once they land.
-node_modules/
+# Playwright, for the test instruments. No trailing slash — a symlinked
+# node_modules is not a directory as far as gitignore is concerned.
+node_modules
+package-lock.json

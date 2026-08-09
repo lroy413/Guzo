@@ -7,7 +7,7 @@
 
 ## What it is
 
-Guzo Fit is a strength-and-health training app for people whose hours change week to week — it was built for a camera operator working long, unpredictable shoot days. It plans a week of training around the time you actually expect to have, shrinks each session to fit the day you actually got, and never punishes you for a day that didn't happen. It is a single self-contained HTML file that runs as an offline PWA with all data on the device.
+Guzo Fit is a strength-and-health training app for people whose hours change week to week — it was built for a camera operator working long, unpredictable shoot days. It plans a week of training around the time you actually expect to have, shrinks each session to fit the day you actually got, and never punishes you for a day that didn't happen. It is a self-contained HTML file plus a service worker, running as an offline PWA with all data on the device.
 
 `ጉዞ (guzo)` is Amharic for "journey"; `የእግር ጉዞ` ("foot journey") is the everyday word for hiking. The whole product metaphor — the route, waypoints, distance covered, base camp — comes from that.
 
@@ -15,18 +15,20 @@ Guzo Fit is a strength-and-health training app for people whose hours change wee
 
 ## Stack
 
-There is no framework, no bundler, no package manager, and no server.
+There is no framework, no bundler and no server. `package.json` exists only to pull in Playwright for the instruments; nothing in the app depends on it.
 
 | Layer | What it actually is |
 |---|---|
-| App | One HTML file: inline `<style>`, inline `<script>`, no external requests |
+| App | One HTML file — inline `<style>`, inline `<script>` — plus `sw.js`. No third-party requests, ever. |
 | Language | ES2020 vanilla JS, `'use strict'`, one global script scope |
 | Persistence | `localStorage`, single key `guzo.v1` |
 | Build | `build.sh` — `cat` of ordered part files |
 | Tests | Playwright (headless Chromium) driving the built file over a local `http.createServer` |
 | Native shell | Capacitor 8 (iOS), in `guzo-native/` — scaffolded, not yet wired |
 
-**The only network code in the entire app** is a service worker that caches the app shell (`p7_events.js`, around line 1108). Nothing else fetches anything, ever. This is deliberate — see `docs/decisions.md`.
+**The only network code in the entire app** is a service worker that caches the app shell — `build/sw.js`, emitted to the site root as `sw.js` and registered from `p7_events.js`. Nothing else fetches anything, ever. This is deliberate — see `docs/decisions.md`.
+
+**The deploy is two files, not one.** `index.html` and `sw.js`. A worker script has to be fetched over http(s), so it cannot be inlined, built from a Blob, or served as a `data:` URL — an earlier version tried the Blob route and registered nothing at all, silently, for the entire life of the file. If only `index.html` is uploaded the app still runs, online-only, and says so in the console.
 
 ---
 
@@ -35,8 +37,11 @@ There is no framework, no bundler, no package manager, and no server.
 ```
 /
 ├── build.sh                  ← the build. PARTS order IS the load order.
-├── GuzoFit.html              ← build output
-├── index.html                ← identical copy; this is what gets deployed
+├── GuzoFit.html              ← build output (gitignored; identical to index.html)
+├── index.html                ← deployed file 1 of 2
+├── sw.js                     ← deployed file 2 of 2; copied from build/sw.js
+├── package.json              ← playwright, for the instruments
+├── .nojekyll                 ← Pages serves the tree verbatim
 ├── build/
 │   ├── p1_head.html          ← <head> + ALL CSS (~63 KB). Design tokens at the top.
 │   ├── p2_body.html          ← all screen markup, nav, sheet container, boot fallback
@@ -62,7 +67,8 @@ There is no framework, no bundler, no package manager, and no server.
 │   ├── p6f_fuel.js           ← Fuel screen + all food sheets
 │   ├── p6g_order.js          ← week-order sheets
 │   ├── p7_events.js          ← ONE delegated click listener, input listeners, SW registration
-│   └── p8_tail.html          ← closing tags
+│   ├── p8_tail.html          ← closing tags
+│   └── sw.js                 ← service worker source; build.sh copies it to the root
 ├── docs/
 │   ├── decisions.md
 │   └── status.md
@@ -195,7 +201,7 @@ The blob is already the natural sync unit. The honest shape would be one `profil
 ## Running it locally
 
 ```sh
-./build.sh                  # → GuzoFit.html and index.html (~490 KB)
+./build.sh                  # → GuzoFit.html, index.html (~491 KB) and sw.js
 python3 -m http.server 8000 # then open http://localhost:8000/index.html
 ```
 
@@ -215,16 +221,23 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node ux.mjs` | touch targets, font floors, input modes, reachability |
 | `node knees.mjs` | anatomical check on the SVG form diagrams |
 | `node dupes.mjs` | duplicate top-level declarations (also runs in `build.sh`) |
+| `node sw.mjs` | the service worker registers, caches, survives the network being cut, and still lets an update through |
 
 `png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.
 
-The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping.
+The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping. `sw.mjs` needs `npm install` first, and takes about 40 seconds.
+
+Every instrument here has to be able to fail. `sw.mjs` is checked against the bug it was written for — reinstate the Blob registration and it goes from 17 passed to 12 failed rather than hanging or crashing. If you add an instrument, prove it red before you trust it green.
 
 ---
 
 ## Deployment
 
-**Today:** upload `index.html` to any static host — Cloudflare Pages, GitHub Pages, Netlify. One file. Updates are a single file replacement. Then on the phone: Safari → Share → Add to Home Screen.
+**Today:** upload `index.html` **and `sw.js`** to any static host — Cloudflare Pages, GitHub Pages, Netlify. Then on the phone: Safari → Share → Add to Home Screen.
+
+Live at **https://lroy413.github.io/Guzo/**, served by GitHub Pages from `main` (enabled in repo settings, so there is no workflow file in the tree). Pushing to `main` redeploys.
+
+Updates reach an installed app because the worker is network-first on navigation: it serves the cached shell only when the network fails or is slower than 3.5s. Cache-first would pin a phone to whatever it first installed, and there is no in-app update prompt to rescue it.
 
 **Domain:** `guzo.app` was already taken, which is why the product is "Guzo Fit". No domain is wired up yet.
 

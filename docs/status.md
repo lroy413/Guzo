@@ -1,6 +1,6 @@
 # Status
 
-Verified against the build at **490,608 bytes**, `VERSION = '1.1.0'`.
+Verified against the build at **491,010 bytes**, `VERSION = '1.1.0'`.
 Last full sweep: all instruments green except the known bug below, which no instrument covers.
 
 ---
@@ -28,6 +28,8 @@ Last full sweep: all instruments green except the known bug below, which no inst
 | Journey / milestones | Complete. |
 | Export / import | Complete, JSON only. |
 | Boot resilience | Complete. Static fallback panel; a blank screen is impossible. |
+| Offline / PWA | Complete, and only recently true — see below. `sw.js` registers, caches the shell, opens with the network off, and stays network-first so updates still land. Covered by `sw.mjs`. |
+| Deployment | Live on GitHub Pages from `main` at https://lroy413.github.io/Guzo/. Two files: `index.html` + `sw.js`. |
 | Accessibility | 44px minimum targets, 11px font floor, WCAG AA on 527 screen + 818 sheet text nodes, reduced-motion honoured, pinch zoom unblocked. |
 
 ---
@@ -43,6 +45,22 @@ Last full sweep: all instruments green except the known bug below, which no inst
 **Version drift.** `VERSION = '1.1.0'` in `p3_data.js`; `guzo-native/package.json` says `1.2.0`. Nothing reconciles them.
 
 **Programme switching mid-week.** `set-program` changes `S.profile.programId` but does not rebuild or re-flow the current week, so the rotation shown can belong to the previous programme until the week rolls over. Not obviously wrong, not obviously right — undecided.
+
+---
+
+## Fixed since the last sweep
+
+### The service worker never registered — offline support did not exist
+
+The worker was assembled as a Blob and registered by object URL. A worker script has to be fetched over http(s), so every browser rejected it with *"The URL protocol of the script is not supported"*, and the `.catch(() => {})` around the call meant nothing was ever reported. Verified in Chromium before fixing: zero registrations, zero caches, zero console output.
+
+So the app had **no offline capability at all**, for the whole life of that code, while `decisions.md` called working with no signal "a product promise, not a nice-to-have". Nothing caught it because no instrument drove a browser and pulled the network out, and reading the caching strategy told you nothing about whether it ran.
+
+Fixed by shipping a real `build/sw.js`, copied to the site root by `build.sh`. Navigation is network-first with a 3.5s bound, everything else cache-first; the cache is keyed to `VERSION` via the registration query string and stale caches are retired on activate. Registration is still allowed to fail — upload only `index.html` and the app runs online-only — but it now says so in the console instead of pretending.
+
+Cost: the deploy is two files rather than one. That constraint was explicitly released.
+
+`sw.mjs` covers it, and was itself checked against the bug: reinstating the Blob registration takes it from 17 passed to 12 failed.
 
 ---
 
