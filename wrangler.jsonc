@@ -11,10 +11,10 @@
   // bound to the old one — the deploy goes green and nothing changes, which is
   // the most confusing possible outcome.
   //
-  // Capital G is deliberate: that is how the Worker is named in the dashboard.
-  // If wrangler ever rejects the casing, that is a loud validation error and a
-  // one-character fix — far better than the silent second Worker.
-  "name": "Guzo",
+  // Lowercase, confirmed against the dashboard. Worker names are
+  // case-sensitive to wrangler, and it does not warn on a miss — it just
+  // deploys somewhere else.
+  "name": "guzo",
 
   "compatibility_date": "2025-06-01",
 
