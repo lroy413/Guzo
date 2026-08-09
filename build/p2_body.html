@@ -1,0 +1,109 @@
+<body>
+<div id="app">
+
+  <!-- ============ BOOT FALLBACK ============
+       Visible in the raw markup and switched off by the first line of the
+       script. If it is still on screen, JavaScript did not run — which is
+       what happens inside an in-app document preview. Better a signed
+       explanation than a blank page. -->
+  <section class="screen on" id="s-boot">
+    <div class="boot-wrap">
+      <svg class="boot-mark" width="58" height="58" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#12161b"/><path d="M50 14c19.9 0 36 16.1 36 36S69.9 86 50 86 14 69.9 14 50" fill="none" stroke="#E9B44C" stroke-width="7.5" stroke-linecap="round"/><path d="M50 30c11 0 20 9 20 20s-9 20-20 20-20-9-20-20" fill="none" stroke="#E9B44C" stroke-width="7.5" stroke-linecap="round" opacity=".55"/><circle cx="50" cy="50" r="7.5" fill="#E9B44C"/></svg>
+      <div class="boot-title">Guzo<span class="wm-suf">Fit</span></div>
+      <div class="boot-sub" id="boot-sub">This window can&rsquo;t run the app.</div>
+      <div class="boot-card">
+        <div class="boot-step"><b>Why.</b> iPhones refuse to run scripts in a file opened from storage &mdash; a preview sheet, the Files app, an email attachment. The page draws and then stops. Nothing on the phone gets around it.</div>
+        <div class="boot-step"><b>The fix.</b> Guzo needs a web address. Put this file on any free static host &mdash; Cloudflare Pages, GitHub Pages, Netlify &mdash; and open the link it gives you.</div>
+        <div class="boot-step"><b>Then.</b> In Safari, tap <b>Share &rarr; Add to Home Screen</b>. It opens full screen with its own icon and keeps your training on the device.</div>
+      </div>
+      <div class="boot-note" id="boot-note">One upload, once. After that it updates by replacing a single file.</div>
+    </div>
+  </section>
+
+  <!-- ============ ONBOARDING ============ -->
+  <section class="screen" id="s-onboard">
+    <div id="ob-content"></div>
+  </section>
+
+  <!-- ============ TODAY ============ -->
+  <section class="screen" id="s-today">
+    <div class="hdr">
+      <div>
+        <div class="brand"><svg class="brand-mark" width="30" height="30" viewBox="0 0 100 100"><rect width="100" height="100" rx="24" fill="#12161b"/><path d="M50 14c19.9 0 36 16.1 36 36S69.9 86 50 86 14 69.9 14 50" fill="none" stroke="#E9B44C" stroke-width="7.5" stroke-linecap="round"/><path d="M50 30c11 0 20 9 20 20s-9 20-20 20-20-9-20-20" fill="none" stroke="#E9B44C" stroke-width="7.5" stroke-linecap="round" opacity=".55"/><circle cx="50" cy="50" r="7.5" fill="#E9B44C"/></svg>
+        <span class="brand-name">Gu<span class="k">z</span>o<span class="brand-suf">Fit</span></span></div>
+      </div>
+      
+    </div>
+    <div id="today-body"></div>
+  </section>
+
+  <!-- ============ PLAN ============ -->
+  <section class="screen" id="s-plan">
+    <div class="hdr"><h1 class="h1">The route</h1></div>
+    <div id="plan-body"></div>
+  </section>
+
+  <!-- ============ TRAIN ============ -->
+  <section class="screen" id="s-train">
+    <div id="train-body"></div>
+  </section>
+
+  <!-- ============ FUEL ============ -->
+  <section class="screen" id="s-fuel">
+    <div class="hdr"><h1 class="h1">Fuel</h1></div>
+    <div id="fuel-body"></div>
+  </section>
+
+  <!-- ============ PROGRESS ============ -->
+  <section class="screen" id="s-progress">
+    <div class="hdr"><h1 class="h1">Distance covered</h1></div>
+    <div id="progress-body"></div>
+  </section>
+
+  <!-- ============ MORE ============ -->
+  <section class="screen" id="s-more">
+    <div class="hdr"><h1 class="h1">Base camp</h1></div>
+    <div id="more-body"></div>
+  </section>
+
+  <!-- ============ REST TIMER ============ -->
+  <div class="rest" id="rest-bar">
+    <span class="t mono" id="rest-t">1:30</span>
+    <div class="grow">
+      <div class="bar thin"><i id="rest-bar-fill" style="width:100%"></i></div>
+      <div class="tiny mt-s" id="rest-label">Rest</div>
+    </div>
+    <button class="btn xs ghost" id="rest-add">+30s</button>
+    <button class="btn xs" id="rest-skip">Skip</button>
+  </div>
+
+  <!-- ============ NAV ============ -->
+  <nav class="nav hide" id="nav">
+    <button class="nav-btn on" data-go="today">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 12l9-9 9 9M5 10v10h14V10" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Today</span></button>
+    <button class="nav-btn" data-go="plan" id="nav-plan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 17l5-9 4 5 3-6 6 10z" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Route</span></button>
+    <button class="nav-btn hide" data-go="fuel" id="nav-fuel">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3c0 4-4 5-4 9a4 4 0 0 0 8 0c0-4-4-5-4-9z" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 21h6" stroke-linecap="round"/></svg><span>Fuel</span></button>
+    <button class="nav-btn" data-go="train">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 9v6M19 9v6M8 7v10M16 7v10M8 12h8M2 11v2M22 11v2" stroke-linecap="round"/></svg><span>Train</span></button>
+    <button class="nav-btn" data-go="progress">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" stroke-linecap="round"/></svg><span>Progress</span></button>
+    <button class="nav-btn" data-go="more">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke-linecap="round"/></svg><span>More</span></button>
+  </nav>
+
+  <!-- ============ SHEETS ============ -->
+  <div class="scrim" id="scrim"></div>
+  <div class="sheet" id="sheet">
+    <div class="sheet-grip" id="sheet-grip">
+      <div class="grabber"></div>
+      <button class="sheet-x" id="sheet-x" aria-label="Close">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div id="sheet-body"></div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+<script>

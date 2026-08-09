@@ -1,0 +1,8 @@
+# build.sh emits GuzoFit.html and then copies it to index.html. The two are
+# byte-identical by construction, so only the deployed name is tracked —
+# committing both would put a second copy of a 490 KB file in every commit
+# that touches the build. Run ./build.sh to produce it.
+GuzoFit.html
+
+# Playwright and the test instruments, once they land.
+node_modules/
