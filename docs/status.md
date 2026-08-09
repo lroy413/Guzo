@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **533,894 bytes**, `VERSION = '1.2.0'`.
-Last full sweep: all instruments green. Nothing known is broken.
+Verified against the build at **537,188 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (86) + `engine` (19) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -10,13 +10,13 @@ Last full sweep: all instruments green. Nothing known is broken.
 | Area | State |
 |---|---|
 | Onboarding | Complete. Seeds starting weights from stated experience, deliberately conservative. |
-| Session generation | Complete. 236 exercises, 6 programmes, 3 environments, 4 session sizes. |
+| Session generation | Complete. 251 exercises, 6 programmes, 3 environments, 4 session sizes. |
 | Progression | Complete. Learned weights per lift, deload after two sessions short of target. |
 | Readiness check-in | Complete. Scored against your own sleep norm, sizes the session, explains itself. |
 | Week planning | Complete. Availability + environment per day, plan distributed across the days with the most time. |
 | Week ordering | Complete and new. Pin / swap / reflow, move a session between days, place one on an empty day. |
 | "Already trained this week" | Complete. Marks days spent without inventing session records. |
-| Custom routines | Complete. Build, reorder, run as an extra, or assign to a planned day. |
+| Custom routines | Complete. Build, reorder, run as an extra, or assign to a planned day. The builder and the picker hold their scroll position through every tap. |
 | Form guides | 45 SVG diagrams, two frames each, anatomically checked. Reachable mid-session. |
 | Plate calculator | Complete. Owned-plate aware, persists bar weight, follows the weight you type. |
 | Last-time recall | Complete. |
@@ -31,7 +31,7 @@ Last full sweep: all instruments green. Nothing known is broken.
 | Export / import | Complete, JSON only. |
 | Boot resilience | Complete. Static fallback panel; a blank screen is impossible. |
 | Offline / PWA | Complete, and only recently true — see below. `sw.js` registers, caches the shell, opens with the network off, and stays network-first so updates still land. Covered by `sw.mjs`. |
-| Deployment | Live on GitHub Pages from `main` at https://lroy413.github.io/Guzo/. Two files: `index.html` + `sw.js`. |
+| Deployment | Live at https://guzofit.app via a Cloudflare Worker building from `main` (`wrangler.jsonc`, published directory `dist/`). GitHub Pages still serves the same build at https://lroy413.github.io/Guzo/ and is useful as a staging URL. Two files either way: `index.html` + `sw.js`. |
 | Accessibility | 44px minimum targets, 11px font floor, WCAG AA on 527 screen + 818 sheet text nodes, reduced-motion honoured, pinch zoom unblocked. |
 
 ---
@@ -147,6 +147,22 @@ The evidence card that sat at the bottom of More is gone. It was a shorter copy 
 
 The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
 
+### Building a routine threw you back to the top on every tap
+
+Reported from use, not found by an instrument: *"everytime I choose an exercise it auto scrolls to the top, also when trying to adjust the reps/time it auto scrolls up."*
+
+`openSheet()` is a wholesale `innerHTML` write followed by an unconditional `scrollTop = 0`, which is right for a sheet you are opening and wrong for one that redraws itself. Building a routine does nothing but redraw: the picker rebuilds on every exercise you add, the builder rebuilds on every nudge of the sets or reps, and the two hand back and forth. Past the third movement, every single tap threw you to the top of a long list and you scrolled back down to make the next one.
+
+`openSheet(html, { key })` now remembers a scroll position per key for as long as the sheet stack is open — so a sheet keeps its place both when it redraws itself and when you come back to it from another sheet, which is the builder → picker → builder round trip. Keys are on the eight sheets that call themselves: the routine builder, the exercise picker, Settings, How you eat, profile, readiness, nutrition targets and the week sheet. Unkeyed sheets still open at the top, and `closeSheet()` forgets everything, so reopening a builder tomorrow does not drop you mid-list.
+
+`pick-finish` also stopped calling `closeSheet()` before handing back to the builder. `rt-add` opens the picker over the builder without closing anything, so closing on the way back popped the one history entry the whole stack rides on, pushed a new one, and discarded the remembered positions. It now calls `sheetRoutineEdit(id)` directly; the train path still closes, because that returns to a screen rather than a sheet.
+
+Measured in `blanks.mjs` rather than described: the probe builds a twelve-movement routine, parks the sheet halfway down, and asserts the position survives a rep nudge, an exercise being added in the picker, and the trip back. Proven red both halves — reinstating `scrollTop = 0` gives 83 passed / 3 failed printing `1211 → 0` and `10106 → 0`, and putting `closeSheet()` back in `pick-finish` alone gives 85 / 1.
+
+### Fifteen more core exercises
+
+`bw-hollow-rock` aside, the catalogue's core work was mostly planks and carries — nothing you would actually pick to build a routine called "abs before bed". Added: Crunch, Bicycle Crunch, Reverse Crunch, Oblique Crunch, Flutter Kick, Scissor Kick, Lying Leg Raise, Heel Tap, Seated Knee Tuck, Plank Up-Down, Side Plank Hip Dip, Dragon Flag, Weighted Crunch, Weighted Russian Twist and Rope Crunch. 236 → 251 exercises, Core 27 → 42. All bodyweight ones carry the `fhb` environment flag, so they are available in a hotel room and with no kit at all, which is where a core routine is most likely to be run.
+
 ### The Fuel module row read as a paywall
 
 The More row rendered `Fuel PRO` with an empty chevron slot when off. No affordance said "switch", and the badge said "locked" — so the reasonable move was to go and activate Pro, which does nothing at all, and Fuel stayed out of the navbar. This cost a real debugging session that started as "is the latest file deployed?".
@@ -180,6 +196,6 @@ Structurally the largest remaining gap in the session model. `S.active.exercises
 ## Explicitly deferred
 
 - **CSV export.** JSON export works and round-trips. CSV is a nicety.
-- **AI-assisted workout building.** Scoped, not started. Needs a proxy to hold an API key (the app has no backend). The recommended shape is constrained generation against the existing 236-exercise catalogue with client-side validation — the model proposes IDs, the deterministic engine still disposes. Estimated a weekend to function, a week to trust. Cost is negligible (~$0.004 per generated session on Haiku with the catalogue cached).
+- **AI-assisted workout building.** Scoped, not started. Needs a proxy to hold an API key (the app has no backend). The recommended shape is constrained generation against the existing 251-exercise catalogue with client-side validation — the model proposes IDs, the deterministic engine still disposes. Estimated a weekend to function, a week to trust. Cost is negligible (~$0.004 per generated session on Haiku with the catalogue cached).
 - **Scheduling routines into future weeks.** They can be assigned to any day of the current week; next week's plan is not addressable yet.
 - **Multi-device sync.** See `docs/decisions.md` — deliberately out of scope.

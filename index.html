@@ -1414,6 +1414,21 @@ bw-ring-row|Ring Row|Bodyweight|fh|pull-h|Back|Biceps|2|8|15|bw
 bw-dead-hang|Dead Hang|Bodyweight|fh|mobility|Back|Shoulders|4|20|60|time
 bw-ab-wheel|Ab Wheel Rollout|Bodyweight|fh|core|Core|Back|2|6|12|bw
 bw-hollow-rock|Hollow Rock|Bodyweight|fhb|core|Core||4|15|30|bw
+bw-crunch|Crunch|Bodyweight|fhb|core|Core||4|15|30|bw
+bw-bicycle|Bicycle Crunch|Bodyweight|fhb|core|Core||4|20|40|bw
+bw-reverse-crunch|Reverse Crunch|Bodyweight|fhb|core|Core||4|12|25|bw
+bw-oblique-crunch|Oblique Crunch|Bodyweight|fhb|core|Core||4|12|25|bw
+bw-flutter|Flutter Kick|Bodyweight|fhb|core|Core||4|20|40|bw
+bw-scissor|Scissor Kick|Bodyweight|fhb|core|Core||4|20|40|bw
+bw-lying-leg-raise|Lying Leg Raise|Bodyweight|fhb|core|Core||3|10|20|bw
+bw-heel-tap|Heel Tap|Bodyweight|fhb|core|Core||4|20|40|bw
+bw-knee-tuck|Seated Knee Tuck|Bodyweight|fhb|core|Core||4|12|25|bw
+bw-plank-updown|Plank Up-Down|Bodyweight|fhb|core|Core|Shoulders,Triceps|3|8|16|bw
+bw-side-plank-dip|Side Plank Hip Dip|Bodyweight|fhb|core|Core||4|10|20|bw
+bw-dragon-flag|Dragon Flag|Bodyweight|fhb|core|Core||2|3|8|bw
+db-crunch|Weighted Crunch|Dumbbell|fh|core|Core||3|10|20|wt
+db-russian-twist|Weighted Russian Twist|Dumbbell|fh|core|Core||4|16|30|wt
+cab-rope-crunch|Rope Crunch|Cable|f|core|Core||3|12|20|wt
 bw-v-up|V-Up|Bodyweight|fhb|core|Core||3|10|20|bw
 bw-copenhagen|Copenhagen Plank|Bodyweight|fhb|core|Core|Glutes|4|15|40|time
 bw-frog-pump|Frog Pump|Bodyweight|fhb|hinge|Glutes||3|15|25|bw
@@ -6201,14 +6216,44 @@ function buzz(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms || 12); 
 let sheetOpen = false;
 let sheetDepth = 0;
 
-function openSheet(html) {
+/* Which sheet is currently showing, and where each keyed sheet had been
+   scrolled to. See openSheet. */
+let sheetKey = null;
+let sheetScroll = Object.create(null);
+
+/* A sheet that re-renders itself must not throw you back to the top.
+   ------------------------------------------------------------------
+   Every sheet is a wholesale innerHTML write, and several of them redraw on
+   every single tap. Building a routine is the worst case: the picker redraws
+   on each exercise you add, the builder redraws on each nudge of the reps,
+   and the two hand back and forth. openSheet reset scrollTop unconditionally,
+   so past the third movement every single tap threw you to the top of a long
+   list and you scrolled back down to make the next one.
+
+   Pass a key and that sheet keeps its own scroll position — both when it
+   redraws itself and when you come back to it from another sheet, which is
+   the routine builder → picker → builder round trip. An unkeyed sheet, or a
+   key never seen before, still starts at the top; that is what you want when
+   the content is genuinely new.
+
+   The positions are remembered only for as long as the sheet stack is open.
+   Closing it clears them, so reopening the same builder tomorrow starts at
+   the top rather than somewhere you left off in a session you have
+   forgotten. */
+function openSheet(html, opts) {
+  opts = opts || {};
   const sh = $('#sheet');
+  const nextKey = opts.key != null ? opts.key : null;
+  /* Record where the outgoing sheet was before its markup is replaced —
+     afterwards scrollTop has already been clamped by the new content. */
+  if (sheetKey != null) sheetScroll[sheetKey] = sh.scrollTop;
   $('#sheet-body').innerHTML = html;
   a11yPass($('#sheet-body'));   // synchronous, for the same reason as in go()
   sh.style.transform = '';
   sh.classList.add('on');
   $('#scrim').classList.add('on');
-  sh.scrollTop = 0;
+  sheetKey = nextKey;
+  sh.scrollTop = (nextKey != null && sheetScroll[nextKey] != null) ? sheetScroll[nextKey] : 0;
   if (!sheetOpen) {
     sheetOpen = true;
     sheetDepth++;
@@ -6217,6 +6262,8 @@ function openSheet(html) {
 }
 
 function closeSheet(fromHistory) {
+  sheetKey = null;
+  sheetScroll = Object.create(null);
   const sh = $('#sheet');
   sh.classList.remove('on');
   sh.style.transform = '';
@@ -7158,7 +7205,7 @@ function sheetReadiness(draft) {
     </div>
     <button class="btn primary block lg mt" data-act="rd-save">Save check-in</button>
     <p class="tiny center mt-s">This only ever shrinks a session. It never tells you to do more than you planned.</p>
-  `);
+  `, { key: 'readiness' });
   window._rdDraft = r;
 }
 
@@ -7239,7 +7286,7 @@ function sheetWeek() {
       ${planOrderHTML()}` : ''}
 
     <button class="btn primary block lg mt" data-act="wk-save">${isNext ? 'Save next week' : 'Set my week'}</button>
-  `);
+  `, { key: 'week' });
 }
 
 /* One day at a time — big options, each explained */
@@ -7431,7 +7478,7 @@ function renderPicker(query, env) {
     ${multi ? `<div class="pick-done">
       <button class="btn primary block lg" data-act="pick-finish">${pickerAdded.length ? 'Done · ' + pickerAdded.length + ' added' : 'Done'}</button>
     </div>` : ''}
-  `);
+  `, { key: 'picker' });   /* redraws on every pick, search and accordion tap */
 
   const qi = document.getElementById('pick-q');
   if (qi) {
@@ -7599,7 +7646,7 @@ function sheetSettings() {
     </div>
 
     <p class="tiny center">Guzo Fit v${VERSION} · build ${VERSION}<br>All data stored locally on this device.</p>
-  `);
+  `, { key: 'settings' });
 }
 /* ============================================================
    HELP & GUIDES
@@ -8448,7 +8495,7 @@ function sheetRoutineEdit(id) {
     <div class="divide"></div>
     <button class="btn quiet block" data-act="rt-delete" data-v="${h(id)}" style="color:var(--rose)">Delete this routine</button>
     <p class="tiny center mt-s">Weights come from what you have been lifting, the same as any other session. Deleting a routine never touches the sessions you did with it.</p>
-  `);
+  `, { key: 'routine:' + id });
 }
 /* ============================================================
    PROFILE — the whole picture
@@ -8541,7 +8588,7 @@ function sheetProfile() {
       </div>
     </div>
     <button class="btn primary block lg" data-act="save-profile">Save</button>
-  `);
+  `, { key: 'profile' });
 }
 
 /* ---------- the small editors ---------- */
@@ -9179,7 +9226,7 @@ function sheetNutTargets() {
     </button>
 
     <button class="btn quiet block mt" data-act="open-profile">Height, weight and age</button>
-  `);
+  `, { key: 'nut-targets' });
 }
 
 
@@ -9221,7 +9268,7 @@ function sheetDietPrefs() {
     </div>
 
     <p class="tiny">${allowedFoods(p).length} of ${FOODS.length} foods pass these. Guzo is not an allergen database — these are generic reference foods, not products with labels. If something matters medically, read the packet.</p>
-  `);
+  `, { key: 'diet-prefs' });
 }
 /* ============================================================
    THE ORDER — screens for rearranging the week
@@ -9648,9 +9695,12 @@ document.addEventListener('click', ev => {
     const mode = pickerFor && pickerFor.mode;
     const id = pickerFor && pickerFor.id;
     const n = pickerAdded.length;
-    closeSheet();
+    /* The builder is a sheet too, and rt-add opened the picker over it without
+       closing anything — so hand straight back. Closing first would pop the
+       one history entry the whole sheet stack rides on, push a new one, and
+       throw away where the builder had been scrolled to. */
     if (mode === 'routine' && id) sheetRoutineEdit(id);
-    else renderTrain();
+    else { closeSheet(); renderTrain(); }
     if (n) toast(n + ' added', true);
     return;
   }

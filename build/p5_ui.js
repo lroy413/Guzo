@@ -20,14 +20,44 @@ function buzz(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms || 12); 
 let sheetOpen = false;
 let sheetDepth = 0;
 
-function openSheet(html) {
+/* Which sheet is currently showing, and where each keyed sheet had been
+   scrolled to. See openSheet. */
+let sheetKey = null;
+let sheetScroll = Object.create(null);
+
+/* A sheet that re-renders itself must not throw you back to the top.
+   ------------------------------------------------------------------
+   Every sheet is a wholesale innerHTML write, and several of them redraw on
+   every single tap. Building a routine is the worst case: the picker redraws
+   on each exercise you add, the builder redraws on each nudge of the reps,
+   and the two hand back and forth. openSheet reset scrollTop unconditionally,
+   so past the third movement every single tap threw you to the top of a long
+   list and you scrolled back down to make the next one.
+
+   Pass a key and that sheet keeps its own scroll position — both when it
+   redraws itself and when you come back to it from another sheet, which is
+   the routine builder → picker → builder round trip. An unkeyed sheet, or a
+   key never seen before, still starts at the top; that is what you want when
+   the content is genuinely new.
+
+   The positions are remembered only for as long as the sheet stack is open.
+   Closing it clears them, so reopening the same builder tomorrow starts at
+   the top rather than somewhere you left off in a session you have
+   forgotten. */
+function openSheet(html, opts) {
+  opts = opts || {};
   const sh = $('#sheet');
+  const nextKey = opts.key != null ? opts.key : null;
+  /* Record where the outgoing sheet was before its markup is replaced —
+     afterwards scrollTop has already been clamped by the new content. */
+  if (sheetKey != null) sheetScroll[sheetKey] = sh.scrollTop;
   $('#sheet-body').innerHTML = html;
   a11yPass($('#sheet-body'));   // synchronous, for the same reason as in go()
   sh.style.transform = '';
   sh.classList.add('on');
   $('#scrim').classList.add('on');
-  sh.scrollTop = 0;
+  sheetKey = nextKey;
+  sh.scrollTop = (nextKey != null && sheetScroll[nextKey] != null) ? sheetScroll[nextKey] : 0;
   if (!sheetOpen) {
     sheetOpen = true;
     sheetDepth++;
@@ -36,6 +66,8 @@ function openSheet(html) {
 }
 
 function closeSheet(fromHistory) {
+  sheetKey = null;
+  sheetScroll = Object.create(null);
   const sh = $('#sheet');
   sh.classList.remove('on');
   sh.style.transform = '';

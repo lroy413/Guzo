@@ -299,6 +299,96 @@ try {
   check('...which carries all the studies, not a subset', evidence.pageHasAll === true);
   check('no placeholder text on it', !BAD.test(evidence.text || ''));
 
+  /* ---- a self-redrawing sheet must not throw you back to the top ----
+     Building a routine is two sheets handing back and forth — the builder
+     redraws on every nudge of the reps, the picker redraws on every exercise
+     you add, and both are wholesale innerHTML writes. openSheet used to reset
+     scrollTop unconditionally, so past the third movement every tap threw you
+     to the top of a long list.
+
+     This is invisible to every other instrument here: the markup is correct,
+     the contrast is correct, nothing collides, and the app is still unusable
+     for the one job. So it gets measured directly. */
+  const scrollProbe = await page.evaluate(async () => {
+    S = blank(); S.onboarded = true; save(true);
+    go('today');
+    const sh = document.getElementById('sheet');
+    const out = {};
+
+    const r = newRoutine('Scroll probe');
+    /* Long enough that the builder genuinely overflows 88vh. */
+    EXLIST.slice(0, 12).forEach(e => addToRoutine(r.id, e.id));
+    save(true);
+
+    sheetRoutineEdit(r.id);
+    out.builderScrollable = sh.scrollHeight - sh.clientHeight;
+    out.opensAtTop = sh.scrollTop;
+
+    const mid = Math.round(out.builderScrollable / 2);
+    sh.scrollTop = mid;
+    out.parked = sh.scrollTop;
+
+    // 1. nudging the reps redraws the builder
+    document.querySelector('#sheet-body [data-act="rt-adj"][data-i="4"][data-f="reps"][data-d="1"]').click();
+    out.afterRepNudge = sh.scrollTop;
+
+    // 2. the picker opens over it, at its own top
+    document.querySelector('#sheet-body [data-act="rt-add"]').click();
+    out.pickerOpensAtTop = sh.scrollTop;
+
+    /* A query opens every accordion group, which is what makes the picker
+       long enough to have a scroll position worth keeping. */
+    const qi = document.getElementById('pick-q');
+    qi.value = 'e';
+    qi.dispatchEvent(new Event('input', { bubbles: true }));
+    out.pickerScrollable = sh.scrollHeight - sh.clientHeight;
+    sh.scrollTop = Math.round(out.pickerScrollable / 2);
+    const pickerAt = sh.scrollTop;
+
+    // 3. adding an exercise redraws the picker
+    const row = [...document.querySelectorAll('#sheet-body [data-act="pick-ex"]')]
+      .find(b => b.getBoundingClientRect().top > 0);
+    row.click();
+    out.pickerHeld = sh.scrollTop === pickerAt;
+    out.pickerWas = pickerAt; out.pickerNow = sh.scrollTop;
+    out.added = routineById(r.id).items.length;
+
+    // 4. Done hands back to the builder, where it was
+    document.querySelector('#sheet-body [data-act="pick-finish"]').click();
+    out.backOnBuilder = /Scroll probe/.test(document.getElementById('sheet-body').innerText || '');
+    out.builderRestored = sh.scrollTop;
+
+    // 5. a genuinely different sheet still starts at the top
+    sheetSettings();
+    out.otherSheetAtTop = sh.scrollTop;
+
+    // 6. and closing forgets, so tomorrow's open is not mid-list
+    closeSheet();
+    sheetRoutineEdit(r.id);
+    out.reopenAtTop = sh.scrollTop;
+    closeSheet();
+    return out;
+  });
+  check('the routine builder is long enough to have a scroll position',
+    scrollProbe.builderScrollable > 200, String(scrollProbe.builderScrollable));
+  check('it opens at the top', scrollProbe.opensAtTop === 0, String(scrollProbe.opensAtTop));
+  check('nudging the reps keeps your place', scrollProbe.afterRepNudge === scrollProbe.parked,
+    `${scrollProbe.parked} → ${scrollProbe.afterRepNudge}`);
+  check('the picker opens at its own top', scrollProbe.pickerOpensAtTop === 0,
+    String(scrollProbe.pickerOpensAtTop));
+  check('the picker is long enough to have a scroll position',
+    scrollProbe.pickerScrollable > 200, String(scrollProbe.pickerScrollable));
+  check('choosing an exercise keeps your place in the picker', scrollProbe.pickerHeld === true,
+    `${scrollProbe.pickerWas} → ${scrollProbe.pickerNow}`);
+  check('...and actually adds it', scrollProbe.added === 13, String(scrollProbe.added));
+  check('Done hands back to the builder', scrollProbe.backOnBuilder === true);
+  check('...where you left it, not at the top', scrollProbe.builderRestored === scrollProbe.parked,
+    `${scrollProbe.parked} → ${scrollProbe.builderRestored}`);
+  check('a different sheet still starts at the top', scrollProbe.otherSheetAtTop === 0,
+    String(scrollProbe.otherSheetAtTop));
+  check('closing the sheet forgets where you were', scrollProbe.reopenAtTop === 0,
+    String(scrollProbe.reopenAtTop));
+
   /* ---- App Store readiness ---- */
 
   /* A subscription offer with nothing behind it reads as an incomplete app. */

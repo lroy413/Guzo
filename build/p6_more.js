@@ -123,7 +123,7 @@ function sheetReadiness(draft) {
     </div>
     <button class="btn primary block lg mt" data-act="rd-save">Save check-in</button>
     <p class="tiny center mt-s">This only ever shrinks a session. It never tells you to do more than you planned.</p>
-  `);
+  `, { key: 'readiness' });
   window._rdDraft = r;
 }
 
@@ -204,7 +204,7 @@ function sheetWeek() {
       ${planOrderHTML()}` : ''}
 
     <button class="btn primary block lg mt" data-act="wk-save">${isNext ? 'Save next week' : 'Set my week'}</button>
-  `);
+  `, { key: 'week' });
 }
 
 /* One day at a time — big options, each explained */
@@ -396,7 +396,7 @@ function renderPicker(query, env) {
     ${multi ? `<div class="pick-done">
       <button class="btn primary block lg" data-act="pick-finish">${pickerAdded.length ? 'Done · ' + pickerAdded.length + ' added' : 'Done'}</button>
     </div>` : ''}
-  `);
+  `, { key: 'picker' });   /* redraws on every pick, search and accordion tap */
 
   const qi = document.getElementById('pick-q');
   if (qi) {
@@ -564,5 +564,5 @@ function sheetSettings() {
     </div>
 
     <p class="tiny center">Guzo Fit v${VERSION} · build ${VERSION}<br>All data stored locally on this device.</p>
-  `);
+  `, { key: 'settings' });
 }

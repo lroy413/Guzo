@@ -89,7 +89,7 @@ function sheetProfile() {
       </div>
     </div>
     <button class="btn primary block lg" data-act="save-profile">Save</button>
-  `);
+  `, { key: 'profile' });
 }
 
 /* ---------- the small editors ---------- */

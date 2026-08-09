@@ -223,9 +223,12 @@ document.addEventListener('click', ev => {
     const mode = pickerFor && pickerFor.mode;
     const id = pickerFor && pickerFor.id;
     const n = pickerAdded.length;
-    closeSheet();
+    /* The builder is a sheet too, and rt-add opened the picker over it without
+       closing anything — so hand straight back. Closing first would pop the
+       one history entry the whole sheet stack rides on, push a new one, and
+       throw away where the builder had been scrolled to. */
     if (mode === 'routine' && id) sheetRoutineEdit(id);
-    else renderTrain();
+    else { closeSheet(); renderTrain(); }
     if (n) toast(n + ' added', true);
     return;
   }

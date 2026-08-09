@@ -134,5 +134,5 @@ function sheetRoutineEdit(id) {
     <div class="divide"></div>
     <button class="btn quiet block" data-act="rt-delete" data-v="${h(id)}" style="color:var(--rose)">Delete this routine</button>
     <p class="tiny center mt-s">Weights come from what you have been lifting, the same as any other session. Deleting a routine never touches the sessions you did with it.</p>
-  `);
+  `, { key: 'routine:' + id });
 }

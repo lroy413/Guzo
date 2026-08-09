@@ -45,7 +45,7 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 ├── build/
 │   ├── p1_head.html          ← <head> + ALL CSS (~63 KB). Design tokens at the top.
 │   ├── p2_body.html          ← all screen markup, nav, sheet container, boot fallback
-│   ├── p3_data.js            ← constants, 236 exercises, 6 programmes, copy strings
+│   ├── p3_data.js            ← constants, 251 exercises, 6 programmes, copy strings
 │   ├── p3b_intake.js         ← onboarding question definitions
 │   ├── p3c_form.js           ← 45 hand-built SVG form diagrams
 │   ├── p4_engine.js          ← state, dates, units, readiness, session generation, week plan
@@ -173,6 +173,8 @@ The blob is already the natural sync unit. The honest shape would be one `profil
 
 **Escaping.** `h()` escapes anything user-supplied going into a template string. Routine names, profile names and custom food names must always be wrapped.
 
+**Sheets that redraw themselves need a key.** `openSheet(html, { key })` remembers scroll position per key for as long as the sheet stack is open. Without one, every redraw jumps to the top — which for the routine builder and the exercise picker, both of which redraw on every single tap, made them unusable past the third movement. If a new sheet ever calls itself from one of its own handlers, give it a key. If it does not, leave it alone; an unkeyed sheet correctly starts at the top. Hand back between sheets with a plain `sheetX()` call rather than `closeSheet()` first — closing pops the one history entry the whole stack rides on and discards the remembered positions.
+
 **CSS.** All in `p1_head.html`. Design tokens at the top (`--ember:#E9B44C` is the brand accent). Utility classes (`row`, `between`, `grow`, `mb`, `mt-s`, `tiny`, `small`, `mono`, `em`) plus component classes namespaced by feature (`.fuel-*`, `.ord-*`, `.pick-*`, `.rt-*`, `.pf-*`). Minimum touch target is 44px; nothing renders below 11px.
 
 **Comments.** Non-obvious code carries a comment explaining *why*, especially where a naive implementation would be wrong. This is load-bearing — several comments record bugs that were expensive to find. Do not strip them.
@@ -231,7 +233,7 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node knees.mjs` | anatomical check on the SVG form diagrams |
 | `node dupes.mjs` | duplicate top-level declarations (also runs in `build.sh`) |
 | `node sw.mjs` | the service worker registers, caches, survives the network being cut, and still lets an update through |
-| `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of |
+| `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of; a sheet that redraws itself keeps your scroll position |
 | `node fuel.mjs` | meal suggestions are deterministic, hit the target, and never break a stated dietary restriction |
 | `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, and a Fuel bar means what it looks like |
 | `node native.mjs` | the Capacitor bridge is inert on the web, mirrors saves on device, and never restores over live data |
@@ -240,7 +242,7 @@ Run from the repo root, against the built file. Each spins up its own server and
 
 The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping. `sw.mjs`, `blanks.mjs`, `engine.mjs` and `fuel.mjs` need `npm install` first, and take about two minutes between them.
 
-Every instrument here has to be able to fail, and both new ones were checked against the bug they were written for. Reinstate the Blob registration and `sw.mjs` goes from 17 passed to 12 failed rather than hanging or crashing. Put the legacy Fuel tile back and `blanks.mjs` goes red on Today with `"0 / undefined kcal"`. Each of `engine.mjs`'s four subjects was reverted individually and the matching checks confirmed red — the weekend one prints `[0,1,2,3,4]`, the bar one prints `["100%","100%","50%"]`. If you add an instrument, prove it red before you trust it green.
+Every instrument here has to be able to fail, and both new ones were checked against the bug they were written for. Reinstate the Blob registration and `sw.mjs` goes from 17 passed to 12 failed rather than hanging or crashing. Put the legacy Fuel tile back and `blanks.mjs` goes red on Today with `"0 / undefined kcal"`. Each of `engine.mjs`'s four subjects was reverted individually and the matching checks confirmed red — the weekend one prints `[0,1,2,3,4]`, the bar one prints `["100%","100%","50%"]`. Put `sh.scrollTop = 0` back in `openSheet` and `blanks.mjs` goes 83/3 with the real distances printed (`1211 → 0` on the builder, `10106 → 0` in the picker); restore that and put `closeSheet()` back in `pick-finish` and it goes 85/1. If you add an instrument, prove it red before you trust it green.
 
 ---
 

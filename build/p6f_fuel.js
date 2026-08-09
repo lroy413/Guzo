@@ -567,7 +567,7 @@ function sheetNutTargets() {
     </button>
 
     <button class="btn quiet block mt" data-act="open-profile">Height, weight and age</button>
-  `);
+  `, { key: 'nut-targets' });
 }
 
 
@@ -609,5 +609,5 @@ function sheetDietPrefs() {
     </div>
 
     <p class="tiny">${allowedFoods(p).length} of ${FOODS.length} foods pass these. Guzo is not an allergen database — these are generic reference foods, not products with labels. If something matters medically, read the packet.</p>
-  `);
+  `, { key: 'diet-prefs' });
 }

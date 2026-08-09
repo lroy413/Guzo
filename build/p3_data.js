@@ -278,6 +278,21 @@ bw-ring-row|Ring Row|Bodyweight|fh|pull-h|Back|Biceps|2|8|15|bw
 bw-dead-hang|Dead Hang|Bodyweight|fh|mobility|Back|Shoulders|4|20|60|time
 bw-ab-wheel|Ab Wheel Rollout|Bodyweight|fh|core|Core|Back|2|6|12|bw
 bw-hollow-rock|Hollow Rock|Bodyweight|fhb|core|Core||4|15|30|bw
+bw-crunch|Crunch|Bodyweight|fhb|core|Core||4|15|30|bw
+bw-bicycle|Bicycle Crunch|Bodyweight|fhb|core|Core||4|20|40|bw
+bw-reverse-crunch|Reverse Crunch|Bodyweight|fhb|core|Core||4|12|25|bw
+bw-oblique-crunch|Oblique Crunch|Bodyweight|fhb|core|Core||4|12|25|bw
+bw-flutter|Flutter Kick|Bodyweight|fhb|core|Core||4|20|40|bw
+bw-scissor|Scissor Kick|Bodyweight|fhb|core|Core||4|20|40|bw
+bw-lying-leg-raise|Lying Leg Raise|Bodyweight|fhb|core|Core||3|10|20|bw
+bw-heel-tap|Heel Tap|Bodyweight|fhb|core|Core||4|20|40|bw
+bw-knee-tuck|Seated Knee Tuck|Bodyweight|fhb|core|Core||4|12|25|bw
+bw-plank-updown|Plank Up-Down|Bodyweight|fhb|core|Core|Shoulders,Triceps|3|8|16|bw
+bw-side-plank-dip|Side Plank Hip Dip|Bodyweight|fhb|core|Core||4|10|20|bw
+bw-dragon-flag|Dragon Flag|Bodyweight|fhb|core|Core||2|3|8|bw
+db-crunch|Weighted Crunch|Dumbbell|fh|core|Core||3|10|20|wt
+db-russian-twist|Weighted Russian Twist|Dumbbell|fh|core|Core||4|16|30|wt
+cab-rope-crunch|Rope Crunch|Cable|f|core|Core||3|12|20|wt
 bw-v-up|V-Up|Bodyweight|fhb|core|Core||3|10|20|bw
 bw-copenhagen|Copenhagen Plank|Bodyweight|fhb|core|Core|Glutes|4|15|40|time
 bw-frog-pump|Frog Pump|Bodyweight|fhb|hinge|Glutes||3|15|25|bw
