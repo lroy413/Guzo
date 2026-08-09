@@ -1037,7 +1037,13 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
         <div class="boot-step"><b>The fix.</b> Guzo needs a web address. Put this file on any free static host &mdash; Cloudflare Pages, GitHub Pages, Netlify &mdash; and open the link it gives you.</div>
         <div class="boot-step"><b>Then.</b> In Safari, tap <b>Share &rarr; Add to Home Screen</b>. It opens full screen with its own icon and keeps your training on the device.</div>
       </div>
-      <div class="boot-note" id="boot-note">One upload, once. After that it updates by replacing a single file.</div>
+      <div class="boot-note" id="boot-note">Two files, once &mdash; index.html and sw.js. After that it updates itself.</div>
+      <!-- Static build stamp. Written by build.sh, present in the raw markup, so
+           "which version is that host actually serving?" can be answered by
+           looking at the page rather than by running it. That question cost two
+           rounds of debugging when the only copy of the version lived in a JS
+           constant that a fetch cannot see. -->
+      <div class="boot-note" id="boot-build">build 1.2.0</div>
     </div>
   </section>
 
@@ -6981,7 +6987,7 @@ function renderMore() {
     <p class="small mt">${EVIDENCE.micro}</p>
     <span class="src">${EVIDENCE.microSrc}</span>
   </div>
-  <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta build<br>ጉዞ · Amharic for “journey”<br>guzofit.com · all data stored locally on this device</p>`;
+  <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta build<br>ጉዞ · Amharic for “journey”<br>guzofit.app · all data stored locally on this device</p>`;
 
   $('#more-body').innerHTML = html;
 }
@@ -7406,7 +7412,7 @@ function sheetHelp() {
           <span class="chev">›</span>
         </button>`).join('')}
     </div>
-    <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta<br>ጉዞ · Amharic for “journey” · guzofit.com</p>
+    <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta<br>ጉዞ · Amharic for “journey” · guzofit.app</p>
   `);
 }
 

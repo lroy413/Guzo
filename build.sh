@@ -58,6 +58,15 @@ fi
 
 cat "${PARTS[@]}" > GuzoFit.html
 
+# Stamp the build with the one version that already exists, rather than adding a
+# second place to forget to update. __GUZO_BUILD__ lives in the boot panel, which
+# is plain markup — so the deployed version is readable without executing the
+# page, which is what makes "is this host current?" answerable at all.
+VERSION_STR=$(sed -n "s/^const VERSION = '\([^']*\)';.*/\1/p" build/p3_data.js | head -1)
+[ -n "$VERSION_STR" ] || { echo "build: could not read VERSION from build/p3_data.js" >&2; exit 1; }
+grep -q '__GUZO_BUILD__' GuzoFit.html || { echo "build: build stamp placeholder is missing" >&2; exit 1; }
+sed -i "s/__GUZO_BUILD__/${VERSION_STR}/g" GuzoFit.html
+
 # index.html is the deployed file and is byte-identical to GuzoFit.html. Two
 # names for one artefact: GuzoFit.html is what the build is called, index.html
 # is what a static host needs it to be called.
@@ -71,4 +80,4 @@ cp build/sw.js sw.js
 
 bytes=$(wc -c < GuzoFit.html | tr -d ' ')
 swbytes=$(wc -c < sw.js | tr -d ' ')
-echo "build: ${#PARTS[@]} parts → GuzoFit.html, index.html (${bytes} bytes) + sw.js (${swbytes} bytes)"
+echo "build: ${#PARTS[@]} parts → GuzoFit.html, index.html (${bytes} bytes) + sw.js (${swbytes} bytes) · v${VERSION_STR}"

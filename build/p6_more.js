@@ -109,7 +109,7 @@ function renderMore() {
     <p class="small mt">${EVIDENCE.micro}</p>
     <span class="src">${EVIDENCE.microSrc}</span>
   </div>
-  <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta build<br>ጉዞ · Amharic for “journey”<br>guzofit.com · all data stored locally on this device</p>`;
+  <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta build<br>ጉዞ · Amharic for “journey”<br>guzofit.app · all data stored locally on this device</p>`;
 
   $('#more-body').innerHTML = html;
 }

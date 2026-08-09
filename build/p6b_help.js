@@ -26,7 +26,7 @@ function sheetHelp() {
           <span class="chev">›</span>
         </button>`).join('')}
     </div>
-    <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta<br>ጉዞ · Amharic for “journey” · guzofit.com</p>
+    <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta<br>ጉዞ · Amharic for “journey” · guzofit.app</p>
   `);
 }
 

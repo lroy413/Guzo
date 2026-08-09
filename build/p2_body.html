@@ -16,7 +16,13 @@
         <div class="boot-step"><b>The fix.</b> Guzo needs a web address. Put this file on any free static host &mdash; Cloudflare Pages, GitHub Pages, Netlify &mdash; and open the link it gives you.</div>
         <div class="boot-step"><b>Then.</b> In Safari, tap <b>Share &rarr; Add to Home Screen</b>. It opens full screen with its own icon and keeps your training on the device.</div>
       </div>
-      <div class="boot-note" id="boot-note">One upload, once. After that it updates by replacing a single file.</div>
+      <div class="boot-note" id="boot-note">Two files, once &mdash; index.html and sw.js. After that it updates itself.</div>
+      <!-- Static build stamp. Written by build.sh, present in the raw markup, so
+           "which version is that host actually serving?" can be answered by
+           looking at the page rather than by running it. That question cost two
+           rounds of debugging when the only copy of the version lived in a JS
+           constant that a fetch cannot see. -->
+      <div class="boot-note" id="boot-build">build __GUZO_BUILD__</div>
     </div>
   </section>
 

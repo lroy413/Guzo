@@ -82,6 +82,18 @@ Gone with it: `nutritionTileHTML`, `QUICKFOODS`, and the five orphaned handlers 
 
 **Two clocks.** `weekStart()` defaulted to `new Date()` while `today()` went through `dk()`, so a fixture pinning `today()` left `weekStart()` on the real clock. It was correct on the day it was written and would have drifted the next time the real date crossed a Monday. `weekStart()` now defaults through `today()`.
 
+### The deploys were going to a URL nobody was looking at
+
+`guzofit.app` is a separate, much older deployment. `guzofit.app/sw.js` returns 404 — no service worker at all, so it predates the two-file deploy entirely — and its page still renders "Quick log" where the current build renders "Fuel", putting it before the Fuel screen existed. Nothing pushed to this repo has ever reached it.
+
+`https://lroy413.github.io/Guzo/` is and has been current: its live `sw.js` contains `cache: 'reload', credentials: 'same-origin'`, committed minutes before it was checked.
+
+**There are two deployments of this app and only one of them is wired to the repo.** Until `guzofit.app` is pointed at GitHub Pages, or the built files are uploaded to whatever serves it, every release lands somewhere the user does not look.
+
+The app's own footer said `guzofit.com`, which does not resolve at all. Corrected to `guzofit.app`.
+
+Also added: a static build stamp in the boot panel, written by `build.sh` from the single `VERSION` constant. It is plain markup, so which version a host is serving can now be read off the page without executing it — the question that made this take two rounds to pin down.
+
 ### Deploys were live but never reached the phone
 
 Two separate reasons, both in our code, neither on the host:
