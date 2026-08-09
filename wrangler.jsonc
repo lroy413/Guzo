@@ -9,9 +9,12 @@
   // >>> `name` MUST match the existing Worker exactly. <<<
   // If it does not, wrangler creates a SECOND Worker and guzofit.app stays
   // bound to the old one — the deploy goes green and nothing changes, which is
-  // the most confusing possible outcome. Check the name at the top of the
-  // Worker's dashboard page and correct this line if it differs.
-  "name": "guzo",
+  // the most confusing possible outcome.
+  //
+  // Capital G is deliberate: that is how the Worker is named in the dashboard.
+  // If wrangler ever rejects the casing, that is a loud validation error and a
+  // one-character fix — far better than the silent second Worker.
+  "name": "Guzo",
 
   "compatibility_date": "2025-06-01",
 
