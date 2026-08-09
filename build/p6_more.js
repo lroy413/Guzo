@@ -207,15 +207,22 @@ function sheetWeek() {
   `, { key: 'week' });
 }
 
-/* One day at a time — big options, each explained */
-function sheetDayEdit(k) {
+/* One day at a time — big options, each explained.
+   `back` is where the two buttons return to. It used to be the week screen
+   unconditionally, which meant tapping a day on the dashboard and changing its
+   availability dumped you into a screen you had not asked for and had to
+   dismiss. Opened from a day sheet it goes back to that day. */
+function sheetDayEdit(k, back) {
+  k = key(k);
   const d = fromKey(k);
   const c = dayConstraint(k);
+  const toDay = back === 'day';
+  const backAct = toDay ? `data-act="day-open" data-k="${k}"` : 'data-act="open-week"';
   const envIcos = { full:'🏋️', hotel:'🧳', bw:'🧘' };
   openSheet(`
     <div class="row between mb-s">
-      <button class="btn xs quiet" data-act="open-week">‹ Week</button>
-      
+      <button class="btn xs quiet" ${backAct}>‹ ${toDay ? DAYNAMES[d.getDay()] : 'Week'}</button>
+
     </div>
     <div class="eyebrow">${DAYNAMES[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</div>
     <h2 class="h1 mt-s">How much time will you have?</h2>
@@ -224,7 +231,7 @@ function sheetDayEdit(k) {
     <div class="opts" style="margin-top:20px">
       ${['long','normal','short','micro','none'].map(a => {
         const A = availOf(a);
-        return `<div class="opt ${c.avail===a?'on':''}" data-act="wk-avail" data-k="${k}" data-v="${a}">
+        return `<div class="opt ${c.avail===a?'on':''}" data-act="wk-avail" data-k="${k}" data-v="${a}" data-b="${h(back || '')}">
           <div class="opt-ico">${A.ico}</div>
           <div class="grow">
             <div class="opt-t">${A.label}</div>
@@ -240,7 +247,7 @@ function sheetDayEdit(k) {
       <p class="small mt-s">This decides which exercises you get. A hotel day gets dumbbell work, a floor day gets bodyweight — same plan, different tools.</p>
       <div class="opts" style="margin-top:16px">
         ${S.profile.envs.map(e => `
-          <div class="opt ${c.env===e?'on':''}" data-act="wk-env" data-k="${k}" data-v="${e}">
+          <div class="opt ${c.env===e?'on':''}" data-act="wk-env" data-k="${k}" data-v="${e}" data-b="${h(back || '')}">
             <div class="opt-ico">${envIcos[e]}</div>
             <div class="grow">
               <div class="opt-t">${ENVS[e].label}</div>
@@ -250,8 +257,8 @@ function sheetDayEdit(k) {
           </div>`).join('')}
       </div>` : ''}
 
-    <button class="btn primary block lg mt-l" data-act="open-week">Done</button>
-  `);
+    <button class="btn primary block lg mt-l" ${backAct}>Done</button>
+  `, { key: 'dayedit:' + k });
 }
 
 function sheetLadder(type) {

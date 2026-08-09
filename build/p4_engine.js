@@ -365,7 +365,11 @@ function applyProgression(sess) {
     const done = item.sets.filter(s => s.done);
     if (!done.length) return;
     const L = liftOf(item.exId);
-    L.lastDate = sess.date;
+    /* Forward only. A session logged after the fact carries the date it
+       actually happened, so writing it in unconditionally would move
+       "last done" backwards — and every rotation in the app reads that
+       field to decide what has gone longest. */
+    if (!L.lastDate || sess.date > L.lastDate) L.lastDate = sess.date;
 
     /* Mobility is never progressed. A stretch has a range that is correct,
        not one to beat, and the unloaded branch below would otherwise add a

@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **548,815 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (113) + `engine` (57) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **565,198 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (153) + `engine` (66) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -17,6 +17,8 @@ Last sweep: `dupes` + `blanks` (113) + `engine` (57) + `fuel` (37) + `sw` (17) +
 | Week ordering | Complete and new. Pin / swap / reflow, move a session between days, place one on an empty day. |
 | "Already trained this week" | Complete. Marks days spent without inventing session records. |
 | Custom routines | Complete. Build, reorder, run as an extra, or assign to a planned day, with an optional warm-up per routine. The builder and the picker hold their scroll position through every tap. |
+| The week strip | Complete. Arrows and swipe move it between weeks — back as far as your first session, forward to next week. A day opens on a summary; the editors are one tap in. |
+| Logging a past day | Complete. A day that has gone offers "Add something you did"; the session lands on that date, with its length worked out from the work rather than the clock. |
 | Recovery days | Complete. Any day can be set to Recovery: mobility and stretching spread across the body, nothing loaded, nothing to beat. Choosable, never scheduled. |
 | Form guides | 45 SVG diagrams, two frames each, anatomically checked. Reachable mid-session. |
 | Plate calculator | Complete. Owned-plate aware, persists bar weight, follows the weight you type. |
@@ -147,6 +149,22 @@ The evidence card that sat at the bottom of More is gone. It was a shorter copy 
 ### The nav is a floating pill
 
 The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
+
+### The week strip only ever showed this week, and every day opened on an editor
+
+Three complaints, one shape: the dashboard could not answer a question, it could only offer to change something.
+
+**The strip moves now.** Arrows either side of the label, and a horizontal swipe. Forward reaches next week — no further, because the plan is only ever built one week ahead and inventing sessions beyond that would be a promise the app has not made. Backward reaches as far as your first logged session, which for a fresh profile is nowhere and for an old one is a year; past weeks show what was actually logged rather than what was planned, because plans are not kept — `S.week` holds exactly one week and is rebuilt when its start key changes. Leaving the screen resets it, since "this week" on a dashboard has to mean this week.
+
+The Plan screen's day list follows the same offset. Two controls on one screen disagreeing about which week you are looking at would be worse than no navigation at all.
+
+**Tapping a day opens on what the day is.** It used to route by whether a session happened to be placed: chips if yes, the availability ladder if no. A day that had gone always took the second branch — so tapping Tuesday asked how much time you expect to have on Tuesday, a question about a day that has already happened, and the way out was a button marked "Done" that went to the week screen rather than back where you tapped from.
+
+Now the calendar decides. A past day gets a summary of what you logged and one action; today and the days ahead get a summary of what is planned, with "Change the session" and "Time and place" one tap further in. The availability editor returns to the day it was opened from, and keeps that route through its own redraws. Nothing routes through the week screen unless you went there yourself.
+
+**A day that has gone can be logged.** "Add something you did" opens an empty session dated to that day, so a day you trained without the app in your hand stops sitting there as a blank forever. Two numbers would have been lies if this were left alone: the duration, because the wall clock measures how long you spent typing (six sets of squats entered on the bus would record as twenty seconds), and `lifts[].lastDate`, which every rotation in the app reads to decide what has gone longest — writing an older date into it unconditionally would send it backwards and re-suggest something you did this morning. The length now comes from the completed work, and `lastDate` only ever moves forward.
+
+**One bug of my own.** The strip carried `id="week-strip"`. Today and Plan both render it and screens are hidden rather than removed, so the id was in the document twice and every lookup found whichever screen had rendered first. It is a class now, scoped per screen. Recorded in CLAUDE.md, because nothing about the symptom points at the cause.
 
 ### Recovery days, and an optional warm-up on a routine
 

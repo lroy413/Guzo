@@ -700,7 +700,19 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .rung.on .n{background:var(--ember);color:#1F1704}
 
 /* ---------- week strip ---------- */
-.week{margin-bottom:12px;display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.week{margin-bottom:12px;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;touch-action:pan-y}
+/* The header of the strip: arrows either side of the week's name. Baseline
+   alignment is wrong here — .sec-head aligns to baseline for text, and a
+   square button has none worth aligning to — so this row re-centres itself. */
+.wk-head{display:flex;align-items:center;gap:2px}
+.wk-nav{width:44px;height:44px;margin:-11px 0;flex:none;border-radius:50%;
+  background:transparent;border:0;color:var(--muted);
+  display:inline-flex;align-items:center;justify-content:center;transition:all .15s ease}
+.wk-nav svg{width:15px;height:15px}
+.wk-nav:active:not(.is-off){background:var(--surface-2);color:var(--text)}
+/* Kept in the flow rather than hidden, so the label does not jump sideways
+   when you reach the end of the range. */
+.wk-nav.is-off{opacity:.22}
 .day{padding:11px 3px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);text-align:center;transition:all .15s ease;min-height:76px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
 .day.today{border-color:var(--ember-line)}
 .day.done{background:var(--teal-dim);border-color:rgba(79,209,165,.35)}
@@ -2954,7 +2966,11 @@ function applyProgression(sess) {
     const done = item.sets.filter(s => s.done);
     if (!done.length) return;
     const L = liftOf(item.exId);
-    L.lastDate = sess.date;
+    /* Forward only. A session logged after the fact carries the date it
+       actually happened, so writing it in unconditionally would move
+       "last done" backwards — and every rotation in the app reads that
+       field to decide what has gone longest. */
+    if (!L.lastDate || sess.date > L.lastDate) L.lastDate = sess.date;
 
     /* Mobility is never progressed. A stretch has a range that is correct,
        not one to beat, and the unloaded branch below would otherwise add a
@@ -3558,6 +3574,16 @@ function exerciseSeconds(item) {
     if (i < done.length - 1) secs += rest;
   });
   return secs;
+}
+
+/* How long a session's completed work would have taken.
+   Used for a session logged after the fact, where the wall clock measures how
+   long you spent typing rather than how long you trained — an hour of squats
+   entered on the bus would otherwise be recorded as four minutes, and that
+   number goes straight into the totals on Progress. */
+function sessionMinsEstimate(sess) {
+  const secs = ((sess && sess.exercises) || []).reduce((a, i) => a + exerciseSeconds(i), 0);
+  return Math.max(1, Math.round(secs / 60));
 }
 
 function exerciseKcal(item) {
@@ -6503,6 +6529,9 @@ document.addEventListener('keydown', e => {
 let SCREEN = 'today';
 function go(name) {
   SCREEN = name;
+  /* Leaving a screen and coming back lands on this week. "This week" on a
+     dashboard has to mean this week, not wherever you last browsed to. */
+  stripOffset = 0;
   $$('.screen').forEach(s => s.classList.remove('on'));
   const el = $('#s-' + name);
   if (el) el.classList.add('on');
@@ -6580,10 +6609,10 @@ function renderToday() {
     html += `<div class="hero live">
       <div class="hero-glow"></div>
       <div class="hero-in">
-        <div class="row between"><span class="hero-eyebrow"><span class="live-dot"></span>In progress</span><span class="pill em">${doneSets}/${allSets} sets</span></div>
-        <h1 class="hero-title">${h(sessionTitle(S.active))}</h1>
+        <div class="row between"><span class="hero-eyebrow"><span class="live-dot"></span>${S.active.backdated ? 'Logging ' + h(prettyDate(S.active.date)) : 'In progress'}</span><span class="pill em">${doneSets}/${allSets} sets</span></div>
+        <h1 class="hero-title">${S.active.backdated ? 'A day you already did' : h(sessionTitle(S.active))}</h1>
         <div class="bar mt"><i style="width:${pct}%"></i></div>
-        <button class="btn primary block lg mt" data-act="goto-train">Back to the session</button>
+        <button class="btn primary block lg mt" data-act="goto-train">${S.active.backdated ? 'Back to it' : 'Back to the session'}</button>
       </div>
     </div>`;
   } else if (c.avail === 'none') {
@@ -6686,8 +6715,7 @@ function renderToday() {
   html += dayStripHTML();
 
   /* ── 4. the week ──────────────────────────────────────────── */
-  html += `<div class="sec-head"><span class="sec-t">This week</span><button class="sec-a" data-act="open-week">Shape it</button></div>`;
-  html += weekStripHTML();
+  html += weekStripHTML('<button class="sec-a" data-act="open-week">Shape it</button>');
 
   /* ── 5. your own routines ─────────────────────────────────── */
   html += routineStripHTML();
@@ -6769,12 +6797,71 @@ function sheetCoachNote(kind) {
   `);
 }
 
-function weekStripHTML() {
-  const plan = buildWeekPlan();
-  const ws = weekStart();
+/* Which week the strip is showing. 0 is this one.
+   ------------------------------------------------
+   Deliberately separate from `weekOffset`, which is the segmented control
+   inside the week sheet: browsing the dashboard back to last month should not
+   silently rearm "Save next week" behind a sheet you are not looking at.
+
+   Reset in go(), so leaving the screen and coming back lands on this week —
+   which is what "this week" on a dashboard has to mean. */
+let stripOffset = 0;
+
+/* How far back there is anything to look at. Plans are not kept — S.week holds
+   exactly one week and is rebuilt when its start key changes — so a past week
+   can only ever show what was actually logged. Bounded by the first session
+   rather than a fixed number of weeks, so a new profile has nowhere to go and
+   an old one has everywhere. */
+function stripRange() {
+  const dates = S.sessions.filter(s => s.ended).map(s => s.date).sort();
+  const earliest = dates[0] || (S.meta && S.meta.created) || today();
+  const backWeeks = Math.max(0, Math.ceil(daysBetween(dk(weekStart(fromKey(earliest))), dk(weekStart())) / 7));
+  return { min: -Math.min(backWeeks, 52), max: 1 };
+}
+
+function stripLabel(offset, ws) {
+  if (offset === 0) return 'This week';
+  if (offset === 1) return 'Next week';
+  if (offset === -1) return 'Last week';
+  const d = fromKey(dk(ws));
+  return 'Week of ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
+}
+
+const NAV_L = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg>';
+const NAV_R = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
+
+/* The header is part of the component rather than the screen, because the
+   label and the arrows have to agree with the row of days underneath them —
+   two screens each rendering their own version of that is two places for them
+   to disagree. `extra` is whatever that screen wants on the right. */
+function weekStripHTML(extra) {
+  const off = stripOffset;
+  const range = stripRange();
+  const ws = addDays(weekStart(), off * 7);
+  const plan = off === 0 ? buildWeekPlan() : {};
   const doneDates = {};
   S.sessions.filter(s => s.ended).forEach(s => { doneDates[s.date] = s; });
-  let html = '<div class="week">';
+
+  const arrow = (d, svg, label) => {
+    const to = off + d;
+    const off_ = to < range.min || to > range.max;
+    return `<button class="wk-nav${off_ ? ' is-off' : ''}" data-act="strip-week" data-d="${d}"
+      aria-label="${label}"${off_ ? ' disabled' : ''}>${svg}</button>`;
+  };
+
+  let html = `<div class="sec-head">
+    <span class="wk-head">
+      ${arrow(-1, NAV_L, 'Previous week')}
+      <span class="sec-t">${h(stripLabel(off, ws))}</span>
+      ${arrow(1, NAV_R, 'Next week')}
+    </span>
+    ${extra || ''}
+  </div>`;
+
+  /* A class, not an id. Today and Plan both render a strip and screens are
+     hidden rather than removed, so an id here would be in the document twice
+     — invalid, and every lookup would find whichever screen rendered first. */
+  html += '<div class="week">';
   for (let i = 0; i < 7; i++) {
     const d = addDays(ws, i);
     const k = dk(d);
@@ -6795,6 +6882,10 @@ function weekStripHTML() {
     else if (c.avail === 'none') sub = 'Off';
     else if (p && past) sub = '—';
     else if (p) sub = planShortLabel(p);
+    /* Beyond this week there is no plan to show and inventing one would be a
+       promise the app has not made yet — so a future day states the only thing
+       that is actually true about it, which is how much time you expect. */
+    else if (past) sub = '—';
     else sub = availOf(c.avail).label;
     if (p && p.elsewhere) cls += ' done';
     html += `<div class="${cls}" data-act="day-tap" data-k="${k}">
@@ -6804,7 +6895,51 @@ function weekStripHTML() {
     </div>`;
   }
   html += '</div>';
+  if (off > 0) html += `<p class="tiny mt-s">Sessions are laid out when the week starts. What you set here is the time you expect to have.</p>`;
+  if (off < 0) html += `<p class="tiny mt-s">A week that has gone. Tap a day to see what you logged, or add something you did.</p>`;
   return html;
+}
+
+/* Swipe the strip sideways, as well as the arrows.
+   ------------------------------------------------
+   Delegated on document rather than bound to the element, because the strip is
+   destroyed and rebuilt by every render — a listener attached to the node
+   would be attached to a node that no longer exists after the first swipe.
+
+   Horizontal intent only: the strip sits inside a scrolling screen, so a
+   gesture that has travelled further vertically than horizontally is someone
+   scrolling past it, and stealing that would make the dashboard feel broken.
+   The CSS says touch-action:pan-y for the same reason. */
+(function weekSwipe() {
+  let x0 = null, y0 = null, on = false;
+  const SLOP = 44;
+  document.addEventListener('touchstart', e => {
+    on = !!(e.target.closest && e.target.closest('.week'));
+    if (!on) return;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!on || x0 == null) { on = false; return; }
+    const t = e.changedTouches && e.changedTouches[0];
+    on = false;
+    if (!t) return;
+    const dx = t.clientX - x0, dy = t.clientY - y0;
+    x0 = y0 = null;
+    if (Math.abs(dx) < SLOP || Math.abs(dx) <= Math.abs(dy)) return;
+    stepStripWeek(dx < 0 ? 1 : -1);   // drag left, move forward
+  }, { passive: true });
+})();
+
+/* One place that moves the strip, so the arrows and the swipe cannot disagree
+   about the bounds. Returns whether it actually moved. */
+function stepStripWeek(d) {
+  const r = stripRange();
+  const to = stripOffset + d;
+  if (to < r.min || to > r.max) return false;
+  stripOffset = to;
+  render();
+  buzz();
+  return true;
 }
 
 /* ============================================================
@@ -6823,16 +6958,29 @@ function renderPlan() {
     <button class="btn primary block mt" data-act="open-week">Shape this week</button>
   </div>`;
 
-  html += `<div class="eyebrow mb-s">Week of ${prettyDate(dk(ws))}</div>`;
   html += weekStripHTML();
 
+  /* The list under the strip has to be the same week as the strip. Two
+     controls on one screen disagreeing about which week you are looking at is
+     worse than not being able to move at all. */
+  const sws = addDays(weekStart(), stripOffset * 7);
+  const splan = stripOffset === 0 ? plan : {};
   html += `<div class="list mt-l">`;
   for (let i = 0; i < 7; i++) {
-    const d = addDays(ws, i);
+    const d = addDays(sws, i);
     const k = dk(d);
     const c = dayConstraint(k);
-    const p = plan[k];
+    const p = splan[k];
     const done = S.sessions.find(s => s.ended && s.date === k);
+    const past = daysBetween(k, today()) > 0;
+    let sub;
+    if (done) sub = 'Logged · ' + (done.routineName || typeLabel(done.type));
+    else if (p && p.elsewhere) sub = 'Trained elsewhere';
+    else if (p) sub = typeLabel(p.type) + ' · ' + (ENVS[c.env] ? ENVS[c.env].label : '');
+    else if (c.avail === 'none') sub = 'Off the route';
+    else if (past) sub = 'Nothing logged';
+    else if (stripOffset > 0) sub = availOf(c.avail).label + ' · ' + availOf(c.avail).mins + ' min expected';
+    else sub = 'Open';
     html += `<div class="lrow" data-act="day-tap" data-k="${k}">
       <div class="ico">${done ? '✓' : c.avail === 'none' ? '·' : p ? '▲' : '–'}</div>
       <div class="grow">
@@ -6840,7 +6988,7 @@ function renderPlan() {
           <div class="h3">${prettyDate(k)}${k===today()?' <span class="pill em">today</span>':''}</div>
           <div class="pill">${availOf(c.avail).label}</div>
         </div>
-        <div class="tiny mt-s">${done ? 'Logged · ' + typeLabel(done.type) : p ? typeLabel(p.type) + ' · ' + (ENVS[c.env]?ENVS[c.env].label:'') : c.avail === 'none' ? 'Off the route' : 'Open'}</div>
+        <div class="tiny mt-s">${h(sub)}</div>
       </div>
     </div>`;
   }
@@ -6908,17 +7056,24 @@ function renderTrain() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg>
     </button>
     <div class="grow">
-      <div class="eyebrow em">${RUNGS.find(r=>r.k===A.rung) ? RUNGS.find(r=>r.k===A.rung).label : ''}</div>
-      <h1 class="h1 mt-s">${typeLabel(A.type)}</h1>
+      <div class="eyebrow em">${A.backdated ? h(prettyDate(A.date)) : (RUNGS.find(r=>r.k===A.rung) ? RUNGS.find(r=>r.k===A.rung).label : '')}</div>
+      <h1 class="h1 mt-s">${A.backdated ? 'Logging a past day' : typeLabel(A.type)}</h1>
     </div>
   </div>
   <div class="card tight mb">
     <div class="row between mb-s">
       <span class="small" id="tp-count">${doneSets} of ${allSets} sets</span>
-      <span class="row gap-s"><span class="small mono em" id="tp-kcal">${sessionKcal(A)} kcal</span><span class="small mono" id="tp-time">${elapsed} min</span></span>
+      <span class="row gap-s"><span class="small mono em" id="tp-kcal">${sessionKcal(A)} kcal</span>
+      <!-- A running clock on a session you are typing in after the fact would
+           be measuring the wrong thing entirely. -->
+      <span class="small mono" id="tp-time">${A.backdated ? sessionMinsEstimate(A) : elapsed} min</span></span>
     </div>
     <div class="bar"><i id="tp-fill" style="width:${pct}%"></i></div>
   </div>`;
+
+  if (A.backdated) {
+    html += `<div class="banner soft mb"><strong>This is going on ${h(prettyDate(A.date))}, not today.</strong> Add what you did, tick the sets off, and finish. The length is worked out from the work rather than the clock.</div>`;
+  }
 
   /* Say so when the browser cannot hold the screen on. Silently failing to
      keep the screen awake is worse than admitting it, because the fix — one
@@ -7503,15 +7658,22 @@ function sheetWeek() {
   `, { key: 'week' });
 }
 
-/* One day at a time — big options, each explained */
-function sheetDayEdit(k) {
+/* One day at a time — big options, each explained.
+   `back` is where the two buttons return to. It used to be the week screen
+   unconditionally, which meant tapping a day on the dashboard and changing its
+   availability dumped you into a screen you had not asked for and had to
+   dismiss. Opened from a day sheet it goes back to that day. */
+function sheetDayEdit(k, back) {
+  k = key(k);
   const d = fromKey(k);
   const c = dayConstraint(k);
+  const toDay = back === 'day';
+  const backAct = toDay ? `data-act="day-open" data-k="${k}"` : 'data-act="open-week"';
   const envIcos = { full:'🏋️', hotel:'🧳', bw:'🧘' };
   openSheet(`
     <div class="row between mb-s">
-      <button class="btn xs quiet" data-act="open-week">‹ Week</button>
-      
+      <button class="btn xs quiet" ${backAct}>‹ ${toDay ? DAYNAMES[d.getDay()] : 'Week'}</button>
+
     </div>
     <div class="eyebrow">${DAYNAMES[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</div>
     <h2 class="h1 mt-s">How much time will you have?</h2>
@@ -7520,7 +7682,7 @@ function sheetDayEdit(k) {
     <div class="opts" style="margin-top:20px">
       ${['long','normal','short','micro','none'].map(a => {
         const A = availOf(a);
-        return `<div class="opt ${c.avail===a?'on':''}" data-act="wk-avail" data-k="${k}" data-v="${a}">
+        return `<div class="opt ${c.avail===a?'on':''}" data-act="wk-avail" data-k="${k}" data-v="${a}" data-b="${h(back || '')}">
           <div class="opt-ico">${A.ico}</div>
           <div class="grow">
             <div class="opt-t">${A.label}</div>
@@ -7536,7 +7698,7 @@ function sheetDayEdit(k) {
       <p class="small mt-s">This decides which exercises you get. A hotel day gets dumbbell work, a floor day gets bodyweight — same plan, different tools.</p>
       <div class="opts" style="margin-top:16px">
         ${S.profile.envs.map(e => `
-          <div class="opt ${c.env===e?'on':''}" data-act="wk-env" data-k="${k}" data-v="${e}">
+          <div class="opt ${c.env===e?'on':''}" data-act="wk-env" data-k="${k}" data-v="${e}" data-b="${h(back || '')}">
             <div class="opt-ico">${envIcos[e]}</div>
             <div class="grow">
               <div class="opt-t">${ENVS[e].label}</div>
@@ -7546,8 +7708,8 @@ function sheetDayEdit(k) {
           </div>`).join('')}
       </div>` : ''}
 
-    <button class="btn primary block lg mt-l" data-act="open-week">Done</button>
-  `);
+    <button class="btn primary block lg mt-l" ${backAct}>Done</button>
+  `, { key: 'dayedit:' + k });
 }
 
 function sheetLadder(type) {
@@ -9559,9 +9721,137 @@ function planOrderHTML() {
     ${planIsCustom() ? `<button class="btn quiet block" data-act="plan-reset">Back to the app&rsquo;s own order</button>` : ''}`;
 }
 
+/* ============================================================
+   ONE DAY
+   ------------------------------------------------------------
+   Tapping a day used to drop you straight into whichever editor the app
+   guessed you wanted: the session-type chips if the day had a plan on it, the
+   availability ladder if it did not. Two problems with that.
+
+   A day that has gone was always sent to the availability ladder, because a
+   past day is "settled" and settled days fall through to the other branch. So
+   tapping Tuesday asked you how much time you expect to have on Tuesday —
+   a question about a day that has already happened — and the way out was a
+   button marked "Done" that went to the week screen rather than back to where
+   you tapped from.
+
+   And even ahead of today, an editor is the wrong first screen. The question
+   people arrive with is "what is this day", not "let me change this day".
+
+   So there are two sheets, and both open on the answer with the editors one
+   tap further in. Which one you get is decided by the calendar, not by
+   whether the app happened to place a session.
+   ============================================================ */
+
+/* What actually happened on a day, in the app's own words. Shared by both
+   sheets and by nothing else — it is a summary, not a component. */
+function daySummaryHTML(k) {
+  const done = sessionsOn(k);
+  if (!done.length) return '';
+  return `<div class="list mb">
+    ${done.map(s => {
+      const v = sessionVolume(s);
+      const kc = s.kcal != null ? s.kcal : sessionKcal(s);
+      return `<div class="lrow">
+        <div class="ico">${s.extra ? h((routineById(s.routineId) || {}).emoji || '✓') : '✓'}</div>
+        <div class="grow">
+          <div class="h3">${h(sessionTitle(s))}</div>
+          <div class="tiny mt-s">${v.sets} set${v.sets === 1 ? '' : 's'} · ${s.dur || 0} min${kc ? ' · ' + kc + ' kcal' : ''}${v.tonnage ? ' · ' + (v.tonnage / 1000).toFixed(1) + 'k ' + unit() : ''}${s.extra ? ' · extra' : ''}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* ---------- a day that has gone ---------- */
+function sheetDayPast(k) {
+  k = key(k);
+  const d = fromKey(k);
+  const c = dayConstraint(k);
+  const e = planEntry(k);
+  const done = sessionsOn(k);
+  const inThisWeek = !!S.week.plan && daysBetween(dk(weekStart()), k) >= 0;
+
+  /* Every branch of this has to be readable as a statement of fact. Nothing
+     here is an instruction, and nothing counts a day against you — the day is
+     closed and the app's whole argument is that a closed day is free. */
+  let verdict;
+  if (done.length) verdict = done.length === 1 ? 'You trained.' : `You trained ${done.length} times.`;
+  else if (e && e.elsewhere) verdict = 'Trained elsewhere.';
+  else if (c.avail === 'none') verdict = 'A day off. Nothing was owed.';
+  else if (e && inThisWeek) verdict = `${typeLabel(e.type)} was planned. Nothing logged.`;
+  else verdict = 'Nothing logged.';
+
+  openSheet(`
+    <div class="eyebrow">${DAYNAMES[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</div>
+    <h2 class="h1 mt-s mb">${h(verdict)}</h2>
+
+    ${done.length ? daySummaryHTML(k) : `<p class="small mb">${
+      c.avail === 'none' || (e && e.elsewhere)
+        ? 'This day is closed. It never counted as missed and it never will.'
+        : 'A day that did not happen costs you nothing &mdash; there is no streak here to break. If you did train and the app was not in your hand, put it in below.'
+    }</p>`}
+
+    <button class="btn ${done.length ? 'ghost' : 'primary'} block lg" data-act="log-past" data-k="${k}">
+      ${done.length ? 'Add something else you did' : 'Add something you did'}
+    </button>
+    <p class="tiny center mt-s">Logged against ${DAYNAMES[d.getDay()]}, not today. Weights carry into your history the same as any session.</p>
+  `, { key: 'day:' + k });
+}
+
+/* ---------- today, or a day still ahead ---------- */
+function sheetDay(k) {
+  k = key(k);
+  const d = fromKey(k);
+  const c = dayConstraint(k);
+  const av = availOf(c.avail);
+  const isToday = k === today();
+  const thisWeek = daysBetween(k, dk(addDays(weekStart(), 6))) >= 0 && daysBetween(dk(weekStart()), k) >= 0;
+  const e = thisWeek ? planEntry(k) : null;
+  const done = sessionsOn(k);
+  const rt = e && e.routineId ? routineById(e.routineId) : null;
+
+  let title, sub;
+  if (done.length && e && e.done) { title = 'Done'; sub = 'That day is marked. Anything else is a bonus.'; }
+  else if (e && e.elsewhere) { title = 'Trained elsewhere'; sub = 'Marked as spent without inventing a session record for it.'; }
+  else if (c.avail === 'none') { title = 'Off the route'; sub = 'No session goes here, and none is owed.'; }
+  else if (e) { title = planLabel(e); sub = rt ? `Your routine · ${rt.items.length} movement${rt.items.length === 1 ? '' : 's'}` : `${av.mins} min · ${ENVS[c.env] ? ENVS[c.env].label : 'Full gym'}`; }
+  else if (!thisWeek) { title = av.label; sub = `${av.mins ? 'About ' + av.mins + ' min expected' : 'Nothing will be placed here'} · sessions are laid out when the week starts`; }
+  else { title = 'Nothing placed'; sub = `${av.label} · ${av.mins} min. Pick a session and it goes on.`; }
+
+  openSheet(`
+    <div class="eyebrow">${DAYNAMES[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}${isToday ? ' <span class="pill em" style="font-size:10px;padding:2px 7px">today</span>' : ''}</div>
+    <h2 class="h1 mt-s">${h(title)}</h2>
+    <p class="small mt-s mb">${h(sub)}</p>
+
+    ${done.length ? daySummaryHTML(k) : ''}
+
+    ${isToday && e && !e.done && c.avail !== 'none' ? (rt
+      ? `<button class="btn primary block lg mb" data-act="routine-start" data-v="${h(rt.id)}" data-planned="1">Start it</button>`
+      : `<button class="btn primary block lg mb" data-act="start-session" data-type="${h(e.type)}" data-rung="full">Start it</button>`) : ''}
+
+    <div class="list">
+      ${thisWeek && !planDaySettled(k) ? `<div class="lrow" data-act="plan-day" data-k="${k}">
+        <div class="ico">▲</div>
+        <div class="grow"><div class="h3">Change the session</div>
+          <div class="tiny mt-s">Pick a different split, or one of your routines</div></div>
+        <span class="chev">›</span>
+      </div>` : ''}
+      <div class="lrow" data-act="day-edit" data-k="${k}" data-b="day">
+        <div class="ico">${av.ico}</div>
+        <div class="grow"><div class="h3">Time and place</div>
+          <div class="tiny mt-s">${h(av.label)}${av.mins ? ' · ' + av.mins + ' min' : ''}${ENVS[c.env] ? ' · ' + ENVS[c.env].label.toLowerCase() : ''}</div></div>
+        <span class="chev">›</span>
+      </div>
+    </div>
+  `, { key: 'day:' + k });
+}
+
 /* ---------- picking what a day is ---------- */
 function sheetPlanDay(k) {
-  if (daysBetween(k, today()) > 0 || planDaySettled(k)) { closeSheet(); sheetWeek(); return; }
+  /* Both of these used to dead-end in the week screen. */
+  if (daysBetween(k, today()) > 0) { sheetDayPast(k); return; }
+  if (planDaySettled(k)) { sheetDay(k); return; }
   const e = planEntry(k) || {};
   const d = fromKey(k);
   const cycle = [...new Set(programOf().cycle)];
@@ -9574,7 +9864,7 @@ function sheetPlanDay(k) {
 
   openSheet(`
     <div class="row gap-s mb" style="align-items:center">
-      <button class="btn xs back" data-act="open-week" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <button class="btn xs back" data-act="day-open" data-k="${k}" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
       <h2 class="h1 grow" style="padding-right:44px">${DAYNAMES[d.getDay()]} ${d.getDate()}</h2>
     </div>
     <p class="small mb">${planEntry(k) ? 'What are you actually doing that day? Your body knows what it did yesterday and the app doesn&rsquo;t &mdash; if today is your back day, make it your back day.'
@@ -9600,7 +9890,7 @@ function sheetPlanDay(k) {
       <p class="tiny mb">A routine put on a planned day counts as that day&rsquo;s session. Run one on any other day and it stays what it has always been &mdash; an extra, on top.</p>`
     : ''}
 
-    <button class="btn quiet block" data-act="day-edit" data-k="${k}">Time and place for this day</button>
+    <button class="btn quiet block" data-act="day-edit" data-k="${k}" data-b="day">Time and place for this day</button>
   `);
 }
 
@@ -9745,13 +10035,20 @@ function startSession(type, rung) {
   buzz();
 }
 
-function blankSession() {
-  const c = dayConstraint(today());
+/* An empty session, optionally dated to a day that has already gone.
+   Back-dating exists because a day you trained without the app in your hand is
+   still a day you trained, and the alternative — the day sitting there as a
+   blank forever — is the app being wrong about your own week. Everything
+   downstream reads sess.date, so one parameter is the whole feature. */
+function blankSession(dateKey) {
+  const k = dateKey ? key(dateKey) : today();
+  const c = dayConstraint(k);
   S.active = {
-    id: 'sx' + Date.now().toString(36), date: today(), type: 'full',
+    id: 'sx' + Date.now().toString(36), date: k, type: 'full',
     env: c.env || 'full', rung: 'full', planMins: 0,
+    backdated: daysBetween(k, today()) > 0,
     exercises: [], started: Date.now(), ended: null, dur: 0,
-    readiness: (S.readiness[today()] || {}).score || null
+    readiness: (S.readiness[k] || {}).score || null
   };
   save(true); go('train');
 }
@@ -9765,7 +10062,9 @@ function finishSession() {
     S.active = null; wakeOff(); save(true); render(); return;
   }
   A.ended = Date.now();
-  A.dur = Math.max(1, Math.round((A.ended - A.started) / 60000));
+  /* The clock measured how long you spent typing, not how long you trained. */
+  A.dur = A.backdated ? sessionMinsEstimate(A)
+                      : Math.max(1, Math.round((A.ended - A.started) / 60000));
   A.exercises = A.exercises.filter(i => i.sets.some(s => s.done));
   A.kcal = sessionKcal(A);
   applyProgression(A);
@@ -10109,16 +10408,17 @@ document.addEventListener('click', ev => {
     /* ---- week shaping ---- */
     case 'open-week': sheetWeek(); break;
     case 'wk-offset': weekOffset = +v; sheetWeek(); break;
-    case 'day-edit': sheetDayEdit(t.dataset.k); break;
+    case 'day-edit': sheetDayEdit(t.dataset.k, t.dataset.b); break;
+    case 'day-open': sheetDay(t.dataset.k); break;
     case 'wk-avail': {
       const k = t.dataset.k;
       setDayAvail(k, v);
-      save(); buzz(); sheetDayEdit(k); break;
+      save(); buzz(); render(); sheetDayEdit(k, t.dataset.b); break;
     }
     case 'wk-env': {
       const k = t.dataset.k;
       S.week.days[k] = Object.assign(dayConstraint(k), { env:v });
-      save(); buzz(); sheetDayEdit(k); break;
+      save(); buzz(); render(); sheetDayEdit(k, t.dataset.b); break;
     }
     case 'wk-save': {
       if (weekOffset === 0) {
@@ -10134,13 +10434,21 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'day-tap': {
-      /* From Today's strip: if there is a session on that day, go straight
-         to what it is. Time-and-place is one tap further in, because
-         "what am I doing" is the question people actually arrive with. */
-      const k = t.dataset.k;
-      if (planEntry(k) && !planDaySettled(k)) sheetPlanDay(k); else sheetDayEdit(k);
+      /* Decided by the calendar, not by whether a session happens to be
+         placed. Every day opens on what it is; the editors are one tap in. */
+      const k = key(t.dataset.k);
+      if (daysBetween(k, today()) > 0) sheetDayPast(k); else sheetDay(k);
       break;
     }
+    case 'log-past': {
+      const k = key(t.dataset.k);
+      if (S.active) { toast('Finish the session you are in first'); go('train'); return; }
+      closeSheet();
+      blankSession(k);
+      break;
+    }
+    /* ---- moving the dashboard strip between weeks ---- */
+    case 'strip-week': stepStripWeek(+t.dataset.d); break;
 
     /* ---- the order of the week ---- */
     case 'plan-day': sheetPlanDay(t.dataset.k); break;

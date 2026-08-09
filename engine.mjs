@@ -449,6 +449,83 @@ try {
   check('...it is backfilled to off, not on', legacy.after === false, String(legacy.after));
   check('...so nothing is added to a routine you already wrote', legacy.n === 1, String(legacy.n));
 
+  // ================= 6. logging a day after the fact =====================
+  console.log('\nback-dated logging\n');
+
+  /* A day you trained without the app in your hand is still a day you
+     trained. The whole feature is one parameter on blankSession, so what needs
+     proving is that everything downstream honours it — the date it lands on,
+     the day it discharges, and the two numbers that would otherwise be lies. */
+  const back = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.profile.bodyweight = [{ d: today(), w: 80 }];
+    save(true);
+    buildWeekPlan(true);
+    const k = dk(addDays(fromKey(today()), -2));
+    const inWeek = !!S.week.plan[k];
+    if (!inWeek) S.week.plan[k] = { type: 'full', done: false, pinned: true };
+    save(true);
+
+    blankSession(k);
+    const A = S.active;
+    const started = A.date;
+    /* Two exercises, ticked off, as if entered from the sofa. */
+    ['bb-back-squat', 'bb-bench'].forEach(id => {
+      const ex = EX[id];
+      A.exercises.push({
+        exId: id, name: ex.name, load: ex.load, targetW: 60, targetR: 8,
+        sets: Array.from({ length: 3 }, () => ({ w: 60, r: 8, rpe: 8, done: true })),
+        note: ''
+      });
+    });
+    A.started = Date.now() - 20000;          // twenty seconds of typing
+    finishSession();
+
+    const logged = S.sessions[S.sessions.length - 1] || {};
+    return {
+      flagged: A.backdated === true,
+      startedOn: started, k,
+      loggedDate: logged.date,
+      today: today(),
+      dur: logged.dur,
+      kcal: logged.kcal,
+      dayDone: (S.week.plan[k] || {}).done,
+      onThatDay: sessionsOn(k).length,
+      onToday: sessionsOn(today()).length
+    };
+  });
+  check('an empty session can be dated to a past day', back.startedOn === back.k, back.startedOn);
+  check('...and is flagged as back-dated', back.flagged === true);
+  check('...it is logged against that day', back.loggedDate === back.k, back.loggedDate);
+  check('...not against today', back.loggedDate !== back.today);
+  check('...and it shows up on that day', back.onThatDay === 1 && back.onToday === 0,
+    `${back.onThatDay} then / ${back.onToday} today`);
+  check('...marking that day done', back.dayDone === true);
+  /* The clock measured twenty seconds of typing. Six sets of squats and bench
+     is not a twenty-second session, and that number goes into the totals. */
+  check('the length comes from the work, not the clock', back.dur >= 10 && back.dur <= 45, back.dur + ' min');
+  check('...and so does the energy estimate', back.kcal > 20, String(back.kcal));
+
+  /* Every rotation in the app reads lastDate to decide what has gone longest.
+     Writing a past date into it unconditionally would send that backwards and
+     quietly re-suggest something you did this morning. */
+  const noRewind = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const mk = (date) => {
+      const ex = EX['bb-back-squat'];
+      return { id: 'x' + date, date, type: 'full', env: 'full', rung: 'full', exercises: [{
+        exId: 'bb-back-squat', name: ex.name, load: ex.load, targetW: 60, targetR: 8,
+        sets: [{ w: 60, r: 8, rpe: 8, done: true }], note: ''
+      }] };
+    };
+    applyProgression(mk(today()));                                  // trained today
+    const afterToday = S.lifts['bb-back-squat'].lastDate;
+    applyProgression(mk(dk(addDays(fromKey(today()), -5))));        // then log last week
+    return { afterToday, after: S.lifts['bb-back-squat'].lastDate, today: today() };
+  });
+  check('logging an older day never moves "last done" backwards',
+    noRewind.after === noRewind.today, `${noRewind.afterToday} → ${noRewind.after}`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

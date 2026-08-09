@@ -700,7 +700,19 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .rung.on .n{background:var(--ember);color:#1F1704}
 
 /* ---------- week strip ---------- */
-.week{margin-bottom:12px;display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.week{margin-bottom:12px;display:grid;grid-template-columns:repeat(7,1fr);gap:6px;touch-action:pan-y}
+/* The header of the strip: arrows either side of the week's name. Baseline
+   alignment is wrong here — .sec-head aligns to baseline for text, and a
+   square button has none worth aligning to — so this row re-centres itself. */
+.wk-head{display:flex;align-items:center;gap:2px}
+.wk-nav{width:44px;height:44px;margin:-11px 0;flex:none;border-radius:50%;
+  background:transparent;border:0;color:var(--muted);
+  display:inline-flex;align-items:center;justify-content:center;transition:all .15s ease}
+.wk-nav svg{width:15px;height:15px}
+.wk-nav:active:not(.is-off){background:var(--surface-2);color:var(--text)}
+/* Kept in the flow rather than hidden, so the label does not jump sideways
+   when you reach the end of the range. */
+.wk-nav.is-off{opacity:.22}
 .day{padding:11px 3px;border-radius:12px;background:var(--surface-2);border:1px solid var(--line);text-align:center;transition:all .15s ease;min-height:76px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}
 .day.today{border-color:var(--ember-line)}
 .day.done{background:var(--teal-dim);border-color:rgba(79,209,165,.35)}

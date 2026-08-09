@@ -173,6 +173,8 @@ The blob is already the natural sync unit. The honest shape would be one `profil
 
 **Escaping.** `h()` escapes anything user-supplied going into a template string. Routine names, profile names and custom food names must always be wrapped.
 
+**A screen is hidden, never removed.** `go()` toggles a class; every other screen's markup stays in the document. So an `id` inside anything two screens render is an `id` that exists twice — Today and Plan both draw the week strip, and giving it one made every lookup find whichever screen had rendered first. Use a class and scope by screen (`#today-body .week`).
+
 **Sheets that redraw themselves need a key.** `openSheet(html, { key })` remembers scroll position per key for as long as the sheet stack is open. Without one, every redraw jumps to the top — which for the routine builder and the exercise picker, both of which redraw on every single tap, made them unusable past the third movement. If a new sheet ever calls itself from one of its own handlers, give it a key. If it does not, leave it alone; an unkeyed sheet correctly starts at the top. Hand back between sheets with a plain `sheetX()` call rather than `closeSheet()` first — closing pops the one history entry the whole stack rides on and discards the remembered positions.
 
 **CSS.** All in `p1_head.html`. Design tokens at the top (`--ember:#E9B44C` is the brand accent). Utility classes (`row`, `between`, `grow`, `mb`, `mt-s`, `tiny`, `small`, `mono`, `em`) plus component classes namespaced by feature (`.fuel-*`, `.ord-*`, `.pick-*`, `.rt-*`, `.pf-*`). Minimum touch target is 44px; nothing renders below 11px.
@@ -233,9 +235,9 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node knees.mjs` | anatomical check on the SVG form diagrams |
 | `node dupes.mjs` | duplicate top-level declarations (also runs in `build.sh`) |
 | `node sw.mjs` | the service worker registers, caches, survives the network being cut, and still lets an update through |
-| `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of; a sheet that redraws itself keeps your scroll position |
+| `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of; a sheet that redraws itself keeps your scroll position; the week strip moves by arrow and by swipe, and a day opens on what it is rather than on an editor |
 | `node fuel.mjs` | meal suggestions are deterministic, hit the target, and never break a stated dietary restriction |
-| `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, a Fuel bar means what it looks like, a recovery day is mobility spread across the body with nothing to beat, and a routine warm-up matches what the routine trains |
+| `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, a Fuel bar means what it looks like, a recovery day is mobility spread across the body with nothing to beat, a routine warm-up matches what the routine trains, and a session logged after the fact lands on the day it happened |
 | `node native.mjs` | the Capacitor bridge is inert on the web, mirrors saves on device, and never restores over live data |
 
 `png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.
@@ -243,6 +245,10 @@ Run from the repo root, against the built file. Each spins up its own server and
 The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every change; run the rest before shipping. `sw.mjs`, `blanks.mjs`, `engine.mjs` and `fuel.mjs` need `npm install` first, and take about two minutes between them.
 
 Every instrument here has to be able to fail, and both new ones were checked against the bug they were written for. Reinstate the Blob registration and `sw.mjs` goes from 17 passed to 12 failed rather than hanging or crashing. Put the legacy Fuel tile back and `blanks.mjs` goes red on Today with `"0 / undefined kcal"`. Each of `engine.mjs`'s four subjects was reverted individually and the matching checks confirmed red — the weekend one prints `[0,1,2,3,4]`, the bar one prints `["100%","100%","50%"]`. Put `sh.scrollTop = 0` back in `openSheet` and `blanks.mjs` goes 83/3 with the real distances printed (`1211 → 0` on the builder, `10106 → 0` in the picker); restore that and put `closeSheet()` back in `pick-finish` and it goes 85/1. The recovery and warm-up checks were reverted one subject at a time too — dropping the `type === 'recovery'` branch prints `squat, push-h, pull-h, pull-h, cardio`, a flat least-recent sort prints `6 glutes, 3 regions`, and removing the mobility guard in `applyProgression` prints `mob-cat-cow → 9 (from 8)`.
+
+The week-strip and day-sheet subjects were reverted the same way — the old `day-tap` routing prints `open-week, wk-avail, wk-avail, wk-avail, wk-avail, wk-avail, open-week`, which is exactly the complaint that prompted the change.
+
+Three probes in `blanks.mjs` had to be rewritten to *fail* rather than throw: a missing element meant `.click()` on `null`, which killed the instrument before it printed anything, so a reverted subject looked like a hang rather than a red. **A probe that throws has not run.** Return a fully shaped object on the miss.
 
 Two of those checks were written wrong first and passed for the wrong reason: on a fresh profile every mobility movement has the same `lastDate`, so the alphabetical tiebreak interleaved regions by luck and the spread check could not fail. Both now seed a real history. **A check whose subject you have not reverted is not a passing check, it is an untested one** — if you add an instrument, prove it red before you trust it green.
 

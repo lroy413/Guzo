@@ -46,13 +46,20 @@ function startSession(type, rung) {
   buzz();
 }
 
-function blankSession() {
-  const c = dayConstraint(today());
+/* An empty session, optionally dated to a day that has already gone.
+   Back-dating exists because a day you trained without the app in your hand is
+   still a day you trained, and the alternative — the day sitting there as a
+   blank forever — is the app being wrong about your own week. Everything
+   downstream reads sess.date, so one parameter is the whole feature. */
+function blankSession(dateKey) {
+  const k = dateKey ? key(dateKey) : today();
+  const c = dayConstraint(k);
   S.active = {
-    id: 'sx' + Date.now().toString(36), date: today(), type: 'full',
+    id: 'sx' + Date.now().toString(36), date: k, type: 'full',
     env: c.env || 'full', rung: 'full', planMins: 0,
+    backdated: daysBetween(k, today()) > 0,
     exercises: [], started: Date.now(), ended: null, dur: 0,
-    readiness: (S.readiness[today()] || {}).score || null
+    readiness: (S.readiness[k] || {}).score || null
   };
   save(true); go('train');
 }
@@ -66,7 +73,9 @@ function finishSession() {
     S.active = null; wakeOff(); save(true); render(); return;
   }
   A.ended = Date.now();
-  A.dur = Math.max(1, Math.round((A.ended - A.started) / 60000));
+  /* The clock measured how long you spent typing, not how long you trained. */
+  A.dur = A.backdated ? sessionMinsEstimate(A)
+                      : Math.max(1, Math.round((A.ended - A.started) / 60000));
   A.exercises = A.exercises.filter(i => i.sets.some(s => s.done));
   A.kcal = sessionKcal(A);
   applyProgression(A);
@@ -410,16 +419,17 @@ document.addEventListener('click', ev => {
     /* ---- week shaping ---- */
     case 'open-week': sheetWeek(); break;
     case 'wk-offset': weekOffset = +v; sheetWeek(); break;
-    case 'day-edit': sheetDayEdit(t.dataset.k); break;
+    case 'day-edit': sheetDayEdit(t.dataset.k, t.dataset.b); break;
+    case 'day-open': sheetDay(t.dataset.k); break;
     case 'wk-avail': {
       const k = t.dataset.k;
       setDayAvail(k, v);
-      save(); buzz(); sheetDayEdit(k); break;
+      save(); buzz(); render(); sheetDayEdit(k, t.dataset.b); break;
     }
     case 'wk-env': {
       const k = t.dataset.k;
       S.week.days[k] = Object.assign(dayConstraint(k), { env:v });
-      save(); buzz(); sheetDayEdit(k); break;
+      save(); buzz(); render(); sheetDayEdit(k, t.dataset.b); break;
     }
     case 'wk-save': {
       if (weekOffset === 0) {
@@ -435,13 +445,21 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'day-tap': {
-      /* From Today's strip: if there is a session on that day, go straight
-         to what it is. Time-and-place is one tap further in, because
-         "what am I doing" is the question people actually arrive with. */
-      const k = t.dataset.k;
-      if (planEntry(k) && !planDaySettled(k)) sheetPlanDay(k); else sheetDayEdit(k);
+      /* Decided by the calendar, not by whether a session happens to be
+         placed. Every day opens on what it is; the editors are one tap in. */
+      const k = key(t.dataset.k);
+      if (daysBetween(k, today()) > 0) sheetDayPast(k); else sheetDay(k);
       break;
     }
+    case 'log-past': {
+      const k = key(t.dataset.k);
+      if (S.active) { toast('Finish the session you are in first'); go('train'); return; }
+      closeSheet();
+      blankSession(k);
+      break;
+    }
+    /* ---- moving the dashboard strip between weeks ---- */
+    case 'strip-week': stepStripWeek(+t.dataset.d); break;
 
     /* ---- the order of the week ---- */
     case 'plan-day': sheetPlanDay(t.dataset.k); break;

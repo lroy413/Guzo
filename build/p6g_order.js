@@ -60,9 +60,137 @@ function planOrderHTML() {
     ${planIsCustom() ? `<button class="btn quiet block" data-act="plan-reset">Back to the app&rsquo;s own order</button>` : ''}`;
 }
 
+/* ============================================================
+   ONE DAY
+   ------------------------------------------------------------
+   Tapping a day used to drop you straight into whichever editor the app
+   guessed you wanted: the session-type chips if the day had a plan on it, the
+   availability ladder if it did not. Two problems with that.
+
+   A day that has gone was always sent to the availability ladder, because a
+   past day is "settled" and settled days fall through to the other branch. So
+   tapping Tuesday asked you how much time you expect to have on Tuesday —
+   a question about a day that has already happened — and the way out was a
+   button marked "Done" that went to the week screen rather than back to where
+   you tapped from.
+
+   And even ahead of today, an editor is the wrong first screen. The question
+   people arrive with is "what is this day", not "let me change this day".
+
+   So there are two sheets, and both open on the answer with the editors one
+   tap further in. Which one you get is decided by the calendar, not by
+   whether the app happened to place a session.
+   ============================================================ */
+
+/* What actually happened on a day, in the app's own words. Shared by both
+   sheets and by nothing else — it is a summary, not a component. */
+function daySummaryHTML(k) {
+  const done = sessionsOn(k);
+  if (!done.length) return '';
+  return `<div class="list mb">
+    ${done.map(s => {
+      const v = sessionVolume(s);
+      const kc = s.kcal != null ? s.kcal : sessionKcal(s);
+      return `<div class="lrow">
+        <div class="ico">${s.extra ? h((routineById(s.routineId) || {}).emoji || '✓') : '✓'}</div>
+        <div class="grow">
+          <div class="h3">${h(sessionTitle(s))}</div>
+          <div class="tiny mt-s">${v.sets} set${v.sets === 1 ? '' : 's'} · ${s.dur || 0} min${kc ? ' · ' + kc + ' kcal' : ''}${v.tonnage ? ' · ' + (v.tonnage / 1000).toFixed(1) + 'k ' + unit() : ''}${s.extra ? ' · extra' : ''}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+/* ---------- a day that has gone ---------- */
+function sheetDayPast(k) {
+  k = key(k);
+  const d = fromKey(k);
+  const c = dayConstraint(k);
+  const e = planEntry(k);
+  const done = sessionsOn(k);
+  const inThisWeek = !!S.week.plan && daysBetween(dk(weekStart()), k) >= 0;
+
+  /* Every branch of this has to be readable as a statement of fact. Nothing
+     here is an instruction, and nothing counts a day against you — the day is
+     closed and the app's whole argument is that a closed day is free. */
+  let verdict;
+  if (done.length) verdict = done.length === 1 ? 'You trained.' : `You trained ${done.length} times.`;
+  else if (e && e.elsewhere) verdict = 'Trained elsewhere.';
+  else if (c.avail === 'none') verdict = 'A day off. Nothing was owed.';
+  else if (e && inThisWeek) verdict = `${typeLabel(e.type)} was planned. Nothing logged.`;
+  else verdict = 'Nothing logged.';
+
+  openSheet(`
+    <div class="eyebrow">${DAYNAMES[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}</div>
+    <h2 class="h1 mt-s mb">${h(verdict)}</h2>
+
+    ${done.length ? daySummaryHTML(k) : `<p class="small mb">${
+      c.avail === 'none' || (e && e.elsewhere)
+        ? 'This day is closed. It never counted as missed and it never will.'
+        : 'A day that did not happen costs you nothing &mdash; there is no streak here to break. If you did train and the app was not in your hand, put it in below.'
+    }</p>`}
+
+    <button class="btn ${done.length ? 'ghost' : 'primary'} block lg" data-act="log-past" data-k="${k}">
+      ${done.length ? 'Add something else you did' : 'Add something you did'}
+    </button>
+    <p class="tiny center mt-s">Logged against ${DAYNAMES[d.getDay()]}, not today. Weights carry into your history the same as any session.</p>
+  `, { key: 'day:' + k });
+}
+
+/* ---------- today, or a day still ahead ---------- */
+function sheetDay(k) {
+  k = key(k);
+  const d = fromKey(k);
+  const c = dayConstraint(k);
+  const av = availOf(c.avail);
+  const isToday = k === today();
+  const thisWeek = daysBetween(k, dk(addDays(weekStart(), 6))) >= 0 && daysBetween(dk(weekStart()), k) >= 0;
+  const e = thisWeek ? planEntry(k) : null;
+  const done = sessionsOn(k);
+  const rt = e && e.routineId ? routineById(e.routineId) : null;
+
+  let title, sub;
+  if (done.length && e && e.done) { title = 'Done'; sub = 'That day is marked. Anything else is a bonus.'; }
+  else if (e && e.elsewhere) { title = 'Trained elsewhere'; sub = 'Marked as spent without inventing a session record for it.'; }
+  else if (c.avail === 'none') { title = 'Off the route'; sub = 'No session goes here, and none is owed.'; }
+  else if (e) { title = planLabel(e); sub = rt ? `Your routine · ${rt.items.length} movement${rt.items.length === 1 ? '' : 's'}` : `${av.mins} min · ${ENVS[c.env] ? ENVS[c.env].label : 'Full gym'}`; }
+  else if (!thisWeek) { title = av.label; sub = `${av.mins ? 'About ' + av.mins + ' min expected' : 'Nothing will be placed here'} · sessions are laid out when the week starts`; }
+  else { title = 'Nothing placed'; sub = `${av.label} · ${av.mins} min. Pick a session and it goes on.`; }
+
+  openSheet(`
+    <div class="eyebrow">${DAYNAMES[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}${isToday ? ' <span class="pill em" style="font-size:10px;padding:2px 7px">today</span>' : ''}</div>
+    <h2 class="h1 mt-s">${h(title)}</h2>
+    <p class="small mt-s mb">${h(sub)}</p>
+
+    ${done.length ? daySummaryHTML(k) : ''}
+
+    ${isToday && e && !e.done && c.avail !== 'none' ? (rt
+      ? `<button class="btn primary block lg mb" data-act="routine-start" data-v="${h(rt.id)}" data-planned="1">Start it</button>`
+      : `<button class="btn primary block lg mb" data-act="start-session" data-type="${h(e.type)}" data-rung="full">Start it</button>`) : ''}
+
+    <div class="list">
+      ${thisWeek && !planDaySettled(k) ? `<div class="lrow" data-act="plan-day" data-k="${k}">
+        <div class="ico">▲</div>
+        <div class="grow"><div class="h3">Change the session</div>
+          <div class="tiny mt-s">Pick a different split, or one of your routines</div></div>
+        <span class="chev">›</span>
+      </div>` : ''}
+      <div class="lrow" data-act="day-edit" data-k="${k}" data-b="day">
+        <div class="ico">${av.ico}</div>
+        <div class="grow"><div class="h3">Time and place</div>
+          <div class="tiny mt-s">${h(av.label)}${av.mins ? ' · ' + av.mins + ' min' : ''}${ENVS[c.env] ? ' · ' + ENVS[c.env].label.toLowerCase() : ''}</div></div>
+        <span class="chev">›</span>
+      </div>
+    </div>
+  `, { key: 'day:' + k });
+}
+
 /* ---------- picking what a day is ---------- */
 function sheetPlanDay(k) {
-  if (daysBetween(k, today()) > 0 || planDaySettled(k)) { closeSheet(); sheetWeek(); return; }
+  /* Both of these used to dead-end in the week screen. */
+  if (daysBetween(k, today()) > 0) { sheetDayPast(k); return; }
+  if (planDaySettled(k)) { sheetDay(k); return; }
   const e = planEntry(k) || {};
   const d = fromKey(k);
   const cycle = [...new Set(programOf().cycle)];
@@ -75,7 +203,7 @@ function sheetPlanDay(k) {
 
   openSheet(`
     <div class="row gap-s mb" style="align-items:center">
-      <button class="btn xs back" data-act="open-week" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
+      <button class="btn xs back" data-act="day-open" data-k="${k}" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg></button>
       <h2 class="h1 grow" style="padding-right:44px">${DAYNAMES[d.getDay()]} ${d.getDate()}</h2>
     </div>
     <p class="small mb">${planEntry(k) ? 'What are you actually doing that day? Your body knows what it did yesterday and the app doesn&rsquo;t &mdash; if today is your back day, make it your back day.'
@@ -101,7 +229,7 @@ function sheetPlanDay(k) {
       <p class="tiny mb">A routine put on a planned day counts as that day&rsquo;s session. Run one on any other day and it stays what it has always been &mdash; an extra, on top.</p>`
     : ''}
 
-    <button class="btn quiet block" data-act="day-edit" data-k="${k}">Time and place for this day</button>
+    <button class="btn quiet block" data-act="day-edit" data-k="${k}" data-b="day">Time and place for this day</button>
   `);
 }
 

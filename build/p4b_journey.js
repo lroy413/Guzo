@@ -52,6 +52,16 @@ function exerciseSeconds(item) {
   return secs;
 }
 
+/* How long a session's completed work would have taken.
+   Used for a session logged after the fact, where the wall clock measures how
+   long you spent typing rather than how long you trained — an hour of squats
+   entered on the bus would otherwise be recorded as four minutes, and that
+   number goes straight into the totals on Progress. */
+function sessionMinsEstimate(sess) {
+  const secs = ((sess && sess.exercises) || []).reduce((a, i) => a + exerciseSeconds(i), 0);
+  return Math.max(1, Math.round(secs / 60));
+}
+
 function exerciseKcal(item) {
   const kg = bodyKg();
   if (!kg) return 0;

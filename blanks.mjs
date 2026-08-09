@@ -526,6 +526,247 @@ try {
   check('...and tapping again turns it back off', rtWarm.off === false);
   check('no placeholder text in the builder', !BAD.test(rtWarm.text));
 
+  /* ---- moving between weeks from the dashboard ----
+     The strip only ever showed the current week, so "what does next week look
+     like" meant opening a sheet and reading a segmented control. */
+  const strip = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    go('today');
+    const head = () => document.querySelector('#today-body .sec-head');
+    const days = () => [...document.querySelectorAll('#today-body .week .day')].map(d => d.dataset.k);
+    const label = () => head().querySelector('.sec-t').textContent.trim();
+    const arrow = d => head().querySelector(`[data-act="strip-week"][data-d="${d}"]`);
+
+    const start = { label: label(), days: days(), hasToday: days().includes(today()),
+                    backOff: arrow(-1).disabled, fwdOff: arrow(1).disabled };
+    arrow(1).click();
+    const next = { label: label(), days: days(), fwdOff: arrow(1).disabled };
+    arrow(-1).click();
+    const home = { label: label(), days: days() };
+    return { start, next, home, count: days().length };
+  });
+  check('the strip shows seven days', strip.count === 7, String(strip.count));
+  check('it opens on this week', strip.start.label === 'This week' && strip.start.hasToday,
+    strip.start.label);
+  check('an arrow moves it to next week', strip.next.label === 'Next week', strip.next.label);
+  check('...and the dates actually change',
+    strip.next.days[0] !== strip.start.days[0] &&
+    strip.next.days[0] === new Date(new Date(strip.start.days[0]).getTime() + 7 * 864e5).toISOString().slice(0, 10),
+    `${strip.start.days[0]} → ${strip.next.days[0]}`);
+  check('...and it comes back', strip.home.label === 'This week' &&
+    strip.home.days.join() === strip.start.days.join());
+  /* Bounds, not silent no-ops: a fresh profile has no past to look at, and the
+     plan is only ever built one week ahead. */
+  check('a fresh profile cannot go back past this week', strip.start.backOff === true);
+  check('...and cannot go further than next week', strip.next.fwdOff === true);
+  check('...while forward is available from this week', strip.start.fwdOff === false);
+
+  /* Swiping the strip, which is the gesture anyone will try first.
+     Dispatched as real touch events rather than by calling the handler, so
+     what is being proved is that the listener is actually reachable — it is
+     delegated on document precisely because the strip is rebuilt by every
+     render, and a listener bound to the old node would silently stop working
+     after the first move. */
+  const swipe = await page.evaluate(() => {
+    go('today');
+    const label = () => document.querySelector('#today-body .sec-head .sec-t').textContent.trim();
+    const drag = (x0, y0, x1, y1) => {
+      const strip = document.querySelector('#today-body .week');
+      const touch = (x, y) => new Touch({ identifier: 1, target: strip, clientX: x, clientY: y });
+      const fire = (type, x, y) => {
+        const t = touch(x, y);
+        strip.dispatchEvent(new TouchEvent(type, {
+          bubbles: true, cancelable: true,
+          touches: type === 'touchend' ? [] : [t],
+          targetTouches: type === 'touchend' ? [] : [t],
+          changedTouches: [t]
+        }));
+      };
+      fire('touchstart', x0, y0);
+      fire('touchend', x1, y1);
+      return label();
+    };
+    const start = label();
+    const left = drag(300, 200, 180, 206);      // drag left → forward a week
+    const right = drag(180, 200, 300, 206);     // and back
+    const tiny = drag(300, 200, 280, 200);      // under the slop, must not move
+    const vertical = drag(300, 200, 220, 400);  // scrolling past, must not move
+    return { start, left, right, tiny, vertical };
+  });
+  check('dragging the strip left moves a week forward', swipe.left === 'Next week', swipe.left);
+  check('...and dragging it right comes back', swipe.right === 'This week', swipe.right);
+  check('a short drag is not a swipe', swipe.tiny === 'This week', swipe.tiny);
+  /* The strip sits inside a scrolling screen. Stealing a vertical gesture
+     would make the whole dashboard feel broken. */
+  check('a mostly-vertical drag is scrolling, not swiping', swipe.vertical === 'This week', swipe.vertical);
+
+  /* History unlocks the back arrow, because sessions are kept even though
+     plans are not. */
+  const history = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    const old = dk(addDays(fromKey(today()), -20));
+    S.sessions = [{ id: 'h1', date: old, type: 'full', env: 'full', rung: 'full',
+                    dur: 40, kcal: 300, exercises: [], ended: Date.now() }];
+    save(true);
+    go('today');
+    const arrow = d => document.querySelector(`#today-body [data-act="strip-week"][data-d="${d}"]`);
+    const opened = !arrow(-1).disabled;
+    arrow(-1).click();
+    const label = document.querySelector('#today-body .sec-head .sec-t').textContent.trim();
+    const days = [...document.querySelectorAll('#today-body .week .day')].map(d => d.dataset.k);
+    return { opened, label, reachesOld: days.length === 7, old };
+  });
+  check('a logged session opens the way back', history.opened === true);
+  check('...and the label names the week', history.label === 'Last week', history.label);
+  check('...still seven days', history.reachesOld === true);
+
+  /* Leaving the screen has to reset it — "this week" on a dashboard cannot
+     mean "wherever you last browsed to". */
+  const resets = await page.evaluate(() => {
+    go('today');
+    document.querySelector('#today-body [data-act="strip-week"][data-d="1"]').click();
+    const moved = document.querySelector('#today-body .sec-head .sec-t').textContent.trim();
+    go('more'); go('today');
+    return { moved, back: document.querySelector('#today-body .sec-head .sec-t').textContent.trim() };
+  });
+  check('leaving the screen resets the strip', resets.moved === 'Next week' && resets.back === 'This week',
+    `${resets.moved} → ${resets.back}`);
+
+  /* Plan renders the same strip plus a list. Two controls on one screen
+     disagreeing about which week you are looking at is worse than no
+     navigation at all. */
+  const planSync = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    go('plan');
+    const rows = () => [...document.querySelectorAll('#plan-body .list .lrow[data-act="day-tap"]')].map(r => r.dataset.k);
+    const strip = () => [...document.querySelectorAll('#plan-body .week .day')].map(d => d.dataset.k);
+    const before = { s: strip(), r: rows() };
+    document.querySelector('#plan-body [data-act="strip-week"][data-d="1"]').click();
+    const after = { s: strip(), r: rows() };
+    return { before, after };
+  });
+  check('the Plan list matches its strip', planSync.before.s.join() === planSync.before.r.join());
+  check('...and follows it to the next week', planSync.after.s.join() === planSync.after.r.join() &&
+    planSync.after.r[0] !== planSync.before.r[0], planSync.after.r[0]);
+
+  /* ---- a day that has gone ----
+     Tapping one used to open the availability ladder — asking how much time
+     you expect to have on a day that has already happened — and the only way
+     out was a button marked Done that went to the week screen. */
+  const pastDay = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    go('today');
+    const k = dk(addDays(fromKey(today()), -2));
+    const cell = document.querySelector(`#today-body .week .day[data-k="${k}"]`);
+    /* Fully shaped even on the miss, so a day the strip is not showing reads
+       as failed checks rather than a TypeError on the Node side. */
+    if (!cell) return { opened: false, k, text: '', acts: [], askedAvailability: false,
+                        forcedToWeek: false, canLog: false, straightToEditor: true,
+                        canEditSession: false, canEditTime: false, heading: '' };
+    cell.click();
+    const b = document.getElementById('sheet-body');
+    const acts = [...b.querySelectorAll('[data-act]')].map(e => e.dataset.act);
+    return {
+      opened: true, k, text: b.innerText || '', acts,
+      askedAvailability: acts.includes('wk-avail'),
+      forcedToWeek: acts.includes('open-week'),
+      canLog: acts.includes('log-past')
+    };
+  });
+  check('a past day in the strip opens something', pastDay.opened === true);
+  check('...it does not ask what time you will have', pastDay.askedAvailability === false,
+    pastDay.acts && pastDay.acts.join(', '));
+  check('...and does not route you through the week screen', pastDay.forcedToWeek === false);
+  check('...it offers to log what you did', pastDay.canLog === true);
+  check('...and says something about the day', pastDay.text.length > 40, String(pastDay.text.length));
+  check('no placeholder text on a past day', !BAD.test(pastDay.text || ''));
+
+  const pastLog = await page.evaluate(() => {
+    const btn = document.querySelector('#sheet-body [data-act="log-past"]');
+    if (!btn) return { started: false, missing: true, train: '' };
+    btn.click();
+    const A = S.active;
+    const train = document.getElementById('train-body').innerText || '';
+    return {
+      started: !!A, date: A && A.date, today: today(),
+      flagged: A && A.backdated === true,
+      /* The screen has to say which day this is going on, or you are one tap
+         from silently logging Tuesday's session onto Thursday. */
+      saysWhen: /not today/i.test(train), train
+    };
+  });
+  check('logging opens a session', pastLog.started === true);
+  check('...dated to that day, not today', pastLog.date === pastDay.k && pastLog.date !== pastLog.today,
+    String(pastLog.date));
+  check('...flagged as back-dated', pastLog.flagged === true);
+  check('...and the screen says so', pastLog.saysWhen === true);
+  check('no placeholder text while back-logging', !BAD.test(pastLog.train || ''));
+
+  /* ---- today and the days ahead ----
+     Summary first, editors one tap in. */
+  const aheadDay = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.active = null; save(true);
+    go('today');
+    /* Taken from the strip rather than computed as today+2, which lands
+       outside this week whenever the run happens late in one — and a day the
+       app has not planned yet correctly has no session to change, so the probe
+       would have been asserting against the wrong day, not a bug. */
+    const cells = [...document.querySelectorAll('#today-body .week .day')].map(d => d.dataset.k);
+    const k = cells.filter(x => daysBetween(x, today()) <= 0).pop();
+    const cell = document.querySelector(`#today-body .week .day[data-k="${k}"]`);
+    /* Fully shaped even on the miss, so a day the strip is not showing reads
+       as failed checks rather than a TypeError on the Node side. */
+    if (!cell) return { opened: false, k, text: '', acts: [], askedAvailability: false,
+                        forcedToWeek: false, canLog: false, straightToEditor: true,
+                        canEditSession: false, canEditTime: false, heading: '' };
+    cell.click();
+    const b = document.getElementById('sheet-body');
+    const acts = [...b.querySelectorAll('[data-act]')].map(e => e.dataset.act);
+    const text = b.innerText || '';
+    /* Opening straight into a ladder of five availability options is the
+       editor, not the answer. */
+    const straightToEditor = acts.includes('wk-avail');
+    return { opened: true, k, text, acts, straightToEditor,
+             canEditSession: acts.includes('plan-day'),
+             canEditTime: acts.includes('day-edit'),
+             heading: (b.querySelector('.h1') || {}).textContent };
+  });
+  check('a day ahead opens on a summary', aheadDay.opened === true && aheadDay.straightToEditor === false,
+    aheadDay.acts && aheadDay.acts.join(', '));
+  check('...with a heading that says what the day is', (aheadDay.heading || '').length > 2, aheadDay.heading);
+  check('...an option to change the session', aheadDay.canEditSession === true);
+  check('...and an option to change time and place', aheadDay.canEditTime === true);
+  check('no placeholder text on a day ahead', !BAD.test(aheadDay.text || ''));
+
+  /* And the editor it leads to comes back to the day, not to the week. */
+  const editBack = await page.evaluate(() => {
+    const open = document.querySelector('#sheet-body [data-act="day-edit"]');
+    if (!open) return { isEditor: false, backs: 0, toWeek: 99, keptBack: 0, returned: false, text: '' };
+    open.click();
+    const b = document.getElementById('sheet-body');
+    const isEditor = !!b.querySelector('[data-act="wk-avail"]');
+    const backs = [...b.querySelectorAll('[data-act="day-open"]')].length;
+    const toWeek = [...b.querySelectorAll('[data-act="open-week"]')].length;
+    /* Change something: the editor redraws itself, and must not lose the way
+       back in the process. */
+    const opt = b.querySelector('[data-act="wk-avail"][data-v="short"]');
+    if (opt) opt.click();
+    const b2 = document.getElementById('sheet-body');
+    const keptBack = [...b2.querySelectorAll('[data-act="day-open"]')].length;
+    const home = b2.querySelector('[data-act="day-open"]');
+    if (home) home.click();
+    const back = document.getElementById('sheet-body');
+    return { isEditor, backs, toWeek, keptBack,
+             returned: !!back.querySelector('[data-act="day-edit"]'),
+             text: back.innerText || '' };
+  });
+  check('the time-and-place editor opens from the day', editBack.isEditor === true);
+  check('...offering a way back to that day', editBack.backs >= 2, String(editBack.backs));
+  check('...and never to the week screen', editBack.toWeek === 0, String(editBack.toWeek));
+  check('...which survives the editor redrawing itself', editBack.keptBack >= 2, String(editBack.keptBack));
+  check('...and it does go back to the day', editBack.returned === true);
+  check('no placeholder text on the way back', !BAD.test(editBack.text || ''));
+
   /* ---- App Store readiness ---- */
 
   /* A subscription offer with nothing behind it reads as an incomplete app. */

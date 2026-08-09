@@ -119,6 +119,9 @@ document.addEventListener('keydown', e => {
 let SCREEN = 'today';
 function go(name) {
   SCREEN = name;
+  /* Leaving a screen and coming back lands on this week. "This week" on a
+     dashboard has to mean this week, not wherever you last browsed to. */
+  stripOffset = 0;
   $$('.screen').forEach(s => s.classList.remove('on'));
   const el = $('#s-' + name);
   if (el) el.classList.add('on');
@@ -196,10 +199,10 @@ function renderToday() {
     html += `<div class="hero live">
       <div class="hero-glow"></div>
       <div class="hero-in">
-        <div class="row between"><span class="hero-eyebrow"><span class="live-dot"></span>In progress</span><span class="pill em">${doneSets}/${allSets} sets</span></div>
-        <h1 class="hero-title">${h(sessionTitle(S.active))}</h1>
+        <div class="row between"><span class="hero-eyebrow"><span class="live-dot"></span>${S.active.backdated ? 'Logging ' + h(prettyDate(S.active.date)) : 'In progress'}</span><span class="pill em">${doneSets}/${allSets} sets</span></div>
+        <h1 class="hero-title">${S.active.backdated ? 'A day you already did' : h(sessionTitle(S.active))}</h1>
         <div class="bar mt"><i style="width:${pct}%"></i></div>
-        <button class="btn primary block lg mt" data-act="goto-train">Back to the session</button>
+        <button class="btn primary block lg mt" data-act="goto-train">${S.active.backdated ? 'Back to it' : 'Back to the session'}</button>
       </div>
     </div>`;
   } else if (c.avail === 'none') {
@@ -302,8 +305,7 @@ function renderToday() {
   html += dayStripHTML();
 
   /* ── 4. the week ──────────────────────────────────────────── */
-  html += `<div class="sec-head"><span class="sec-t">This week</span><button class="sec-a" data-act="open-week">Shape it</button></div>`;
-  html += weekStripHTML();
+  html += weekStripHTML('<button class="sec-a" data-act="open-week">Shape it</button>');
 
   /* ── 5. your own routines ─────────────────────────────────── */
   html += routineStripHTML();
@@ -385,12 +387,71 @@ function sheetCoachNote(kind) {
   `);
 }
 
-function weekStripHTML() {
-  const plan = buildWeekPlan();
-  const ws = weekStart();
+/* Which week the strip is showing. 0 is this one.
+   ------------------------------------------------
+   Deliberately separate from `weekOffset`, which is the segmented control
+   inside the week sheet: browsing the dashboard back to last month should not
+   silently rearm "Save next week" behind a sheet you are not looking at.
+
+   Reset in go(), so leaving the screen and coming back lands on this week —
+   which is what "this week" on a dashboard has to mean. */
+let stripOffset = 0;
+
+/* How far back there is anything to look at. Plans are not kept — S.week holds
+   exactly one week and is rebuilt when its start key changes — so a past week
+   can only ever show what was actually logged. Bounded by the first session
+   rather than a fixed number of weeks, so a new profile has nowhere to go and
+   an old one has everywhere. */
+function stripRange() {
+  const dates = S.sessions.filter(s => s.ended).map(s => s.date).sort();
+  const earliest = dates[0] || (S.meta && S.meta.created) || today();
+  const backWeeks = Math.max(0, Math.ceil(daysBetween(dk(weekStart(fromKey(earliest))), dk(weekStart())) / 7));
+  return { min: -Math.min(backWeeks, 52), max: 1 };
+}
+
+function stripLabel(offset, ws) {
+  if (offset === 0) return 'This week';
+  if (offset === 1) return 'Next week';
+  if (offset === -1) return 'Last week';
+  const d = fromKey(dk(ws));
+  return 'Week of ' + d.getDate() + ' ' + MONTHS[d.getMonth()];
+}
+
+const NAV_L = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg>';
+const NAV_R = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg>';
+
+/* The header is part of the component rather than the screen, because the
+   label and the arrows have to agree with the row of days underneath them —
+   two screens each rendering their own version of that is two places for them
+   to disagree. `extra` is whatever that screen wants on the right. */
+function weekStripHTML(extra) {
+  const off = stripOffset;
+  const range = stripRange();
+  const ws = addDays(weekStart(), off * 7);
+  const plan = off === 0 ? buildWeekPlan() : {};
   const doneDates = {};
   S.sessions.filter(s => s.ended).forEach(s => { doneDates[s.date] = s; });
-  let html = '<div class="week">';
+
+  const arrow = (d, svg, label) => {
+    const to = off + d;
+    const off_ = to < range.min || to > range.max;
+    return `<button class="wk-nav${off_ ? ' is-off' : ''}" data-act="strip-week" data-d="${d}"
+      aria-label="${label}"${off_ ? ' disabled' : ''}>${svg}</button>`;
+  };
+
+  let html = `<div class="sec-head">
+    <span class="wk-head">
+      ${arrow(-1, NAV_L, 'Previous week')}
+      <span class="sec-t">${h(stripLabel(off, ws))}</span>
+      ${arrow(1, NAV_R, 'Next week')}
+    </span>
+    ${extra || ''}
+  </div>`;
+
+  /* A class, not an id. Today and Plan both render a strip and screens are
+     hidden rather than removed, so an id here would be in the document twice
+     — invalid, and every lookup would find whichever screen rendered first. */
+  html += '<div class="week">';
   for (let i = 0; i < 7; i++) {
     const d = addDays(ws, i);
     const k = dk(d);
@@ -411,6 +472,10 @@ function weekStripHTML() {
     else if (c.avail === 'none') sub = 'Off';
     else if (p && past) sub = '—';
     else if (p) sub = planShortLabel(p);
+    /* Beyond this week there is no plan to show and inventing one would be a
+       promise the app has not made yet — so a future day states the only thing
+       that is actually true about it, which is how much time you expect. */
+    else if (past) sub = '—';
     else sub = availOf(c.avail).label;
     if (p && p.elsewhere) cls += ' done';
     html += `<div class="${cls}" data-act="day-tap" data-k="${k}">
@@ -420,7 +485,51 @@ function weekStripHTML() {
     </div>`;
   }
   html += '</div>';
+  if (off > 0) html += `<p class="tiny mt-s">Sessions are laid out when the week starts. What you set here is the time you expect to have.</p>`;
+  if (off < 0) html += `<p class="tiny mt-s">A week that has gone. Tap a day to see what you logged, or add something you did.</p>`;
   return html;
+}
+
+/* Swipe the strip sideways, as well as the arrows.
+   ------------------------------------------------
+   Delegated on document rather than bound to the element, because the strip is
+   destroyed and rebuilt by every render — a listener attached to the node
+   would be attached to a node that no longer exists after the first swipe.
+
+   Horizontal intent only: the strip sits inside a scrolling screen, so a
+   gesture that has travelled further vertically than horizontally is someone
+   scrolling past it, and stealing that would make the dashboard feel broken.
+   The CSS says touch-action:pan-y for the same reason. */
+(function weekSwipe() {
+  let x0 = null, y0 = null, on = false;
+  const SLOP = 44;
+  document.addEventListener('touchstart', e => {
+    on = !!(e.target.closest && e.target.closest('.week'));
+    if (!on) return;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!on || x0 == null) { on = false; return; }
+    const t = e.changedTouches && e.changedTouches[0];
+    on = false;
+    if (!t) return;
+    const dx = t.clientX - x0, dy = t.clientY - y0;
+    x0 = y0 = null;
+    if (Math.abs(dx) < SLOP || Math.abs(dx) <= Math.abs(dy)) return;
+    stepStripWeek(dx < 0 ? 1 : -1);   // drag left, move forward
+  }, { passive: true });
+})();
+
+/* One place that moves the strip, so the arrows and the swipe cannot disagree
+   about the bounds. Returns whether it actually moved. */
+function stepStripWeek(d) {
+  const r = stripRange();
+  const to = stripOffset + d;
+  if (to < r.min || to > r.max) return false;
+  stripOffset = to;
+  render();
+  buzz();
+  return true;
 }
 
 /* ============================================================
@@ -439,16 +548,29 @@ function renderPlan() {
     <button class="btn primary block mt" data-act="open-week">Shape this week</button>
   </div>`;
 
-  html += `<div class="eyebrow mb-s">Week of ${prettyDate(dk(ws))}</div>`;
   html += weekStripHTML();
 
+  /* The list under the strip has to be the same week as the strip. Two
+     controls on one screen disagreeing about which week you are looking at is
+     worse than not being able to move at all. */
+  const sws = addDays(weekStart(), stripOffset * 7);
+  const splan = stripOffset === 0 ? plan : {};
   html += `<div class="list mt-l">`;
   for (let i = 0; i < 7; i++) {
-    const d = addDays(ws, i);
+    const d = addDays(sws, i);
     const k = dk(d);
     const c = dayConstraint(k);
-    const p = plan[k];
+    const p = splan[k];
     const done = S.sessions.find(s => s.ended && s.date === k);
+    const past = daysBetween(k, today()) > 0;
+    let sub;
+    if (done) sub = 'Logged · ' + (done.routineName || typeLabel(done.type));
+    else if (p && p.elsewhere) sub = 'Trained elsewhere';
+    else if (p) sub = typeLabel(p.type) + ' · ' + (ENVS[c.env] ? ENVS[c.env].label : '');
+    else if (c.avail === 'none') sub = 'Off the route';
+    else if (past) sub = 'Nothing logged';
+    else if (stripOffset > 0) sub = availOf(c.avail).label + ' · ' + availOf(c.avail).mins + ' min expected';
+    else sub = 'Open';
     html += `<div class="lrow" data-act="day-tap" data-k="${k}">
       <div class="ico">${done ? '✓' : c.avail === 'none' ? '·' : p ? '▲' : '–'}</div>
       <div class="grow">
@@ -456,7 +578,7 @@ function renderPlan() {
           <div class="h3">${prettyDate(k)}${k===today()?' <span class="pill em">today</span>':''}</div>
           <div class="pill">${availOf(c.avail).label}</div>
         </div>
-        <div class="tiny mt-s">${done ? 'Logged · ' + typeLabel(done.type) : p ? typeLabel(p.type) + ' · ' + (ENVS[c.env]?ENVS[c.env].label:'') : c.avail === 'none' ? 'Off the route' : 'Open'}</div>
+        <div class="tiny mt-s">${h(sub)}</div>
       </div>
     </div>`;
   }
@@ -524,17 +646,24 @@ function renderTrain() {
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg>
     </button>
     <div class="grow">
-      <div class="eyebrow em">${RUNGS.find(r=>r.k===A.rung) ? RUNGS.find(r=>r.k===A.rung).label : ''}</div>
-      <h1 class="h1 mt-s">${typeLabel(A.type)}</h1>
+      <div class="eyebrow em">${A.backdated ? h(prettyDate(A.date)) : (RUNGS.find(r=>r.k===A.rung) ? RUNGS.find(r=>r.k===A.rung).label : '')}</div>
+      <h1 class="h1 mt-s">${A.backdated ? 'Logging a past day' : typeLabel(A.type)}</h1>
     </div>
   </div>
   <div class="card tight mb">
     <div class="row between mb-s">
       <span class="small" id="tp-count">${doneSets} of ${allSets} sets</span>
-      <span class="row gap-s"><span class="small mono em" id="tp-kcal">${sessionKcal(A)} kcal</span><span class="small mono" id="tp-time">${elapsed} min</span></span>
+      <span class="row gap-s"><span class="small mono em" id="tp-kcal">${sessionKcal(A)} kcal</span>
+      <!-- A running clock on a session you are typing in after the fact would
+           be measuring the wrong thing entirely. -->
+      <span class="small mono" id="tp-time">${A.backdated ? sessionMinsEstimate(A) : elapsed} min</span></span>
     </div>
     <div class="bar"><i id="tp-fill" style="width:${pct}%"></i></div>
   </div>`;
+
+  if (A.backdated) {
+    html += `<div class="banner soft mb"><strong>This is going on ${h(prettyDate(A.date))}, not today.</strong> Add what you did, tick the sets off, and finish. The length is worked out from the work rather than the clock.</div>`;
+  }
 
   /* Say so when the browser cannot hold the screen on. Silently failing to
      keep the screen awake is worse than admitting it, because the fix — one
