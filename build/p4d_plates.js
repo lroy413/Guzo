@@ -156,8 +156,57 @@ function lastLine(exId, maxSets) {
 }
 
 /* The set you did in this slot last time, for the per-row hint. */
+function prevSets(exId) {
+  let p = null;
+  try { p = lastPerformance(exId); } catch (e) { return []; }
+  return (p && p.sets) || [];
+}
 function lastSetAt(exId, idx) {
-  const p = lastPerformance(exId);
-  if (!p || !p.sets[idx]) return null;
-  return p.sets[idx];
+  return prevSets(exId)[idx] || null;
+}
+
+/* ------------------------------------------------------------
+   What an empty set row shows, and what ticking it records.
+   ------------------------------------------------------------
+   One flat "Last: 82.5×8, 82.5×8, 80×6" above the card made you parse a list
+   and count along it to find the row you were on. The row itself should just
+   say it. But the moment a placeholder shows a number, ticking the set has to
+   record *that* number — a row that offers 82.5 and logs the 80 sitting in
+   targetW is worse than a blank row, because you will not notice.
+
+   So the answer is resolved once, here, and the render, the live carry-down
+   and `toggle-set` all read it. Same reason supFor() is computed rather than
+   passed: three call sites that can disagree eventually will.
+
+   Precedence: what you are lifting today, then what you lifted last time,
+   then the prescription. Values come back raw — never through fmtW — because
+   the caller that stores them must not round 1.25 into 1.3. */
+function ghostFor(item, si, prev) {
+  prev = prev || prevSets(item.exId);
+  const out = { w:'', r:'', src:'' };
+  const first = item.sets && item.sets[0];
+
+  /* Carry-down. Once set 1 is filled in, the sets under it are almost always
+     the same weight, and last week stops being the better guess. */
+  if (si > 0 && first) {
+    if (first.w !== '' && first.w != null) { out.w = first.w; out.src = 'carry'; }
+    if (first.r !== '' && first.r != null) { out.r = first.r; out.src = 'carry'; }
+  }
+
+  const p = prev[si];
+  if (out.w === '' && p && +p.w > 0) { out.w = +p.w; out.src = out.src || 'last'; }
+  if (out.r === '' && p && p.r !== '' && p.r != null) { out.r = p.r; out.src = out.src || 'last'; }
+
+  if (out.w === '' && item.targetW != null && item.targetW !== '') {
+    out.w = item.targetW; out.src = out.src || 'target';
+  }
+  if (out.r === '' && item.targetR) { out.r = item.targetR; out.src = out.src || 'target'; }
+  return out;
+}
+
+/* The same value as the row paints it. Bodyweight work shows 0 rather than a
+   dash, because 0 added is a real answer there and a dash is not. */
+function ghostW(item, g) {
+  if (g.w === '' || g.w == null) return item.load === 'bw' ? '0' : '–';
+  return fmtW(+g.w);
 }

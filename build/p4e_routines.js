@@ -330,9 +330,30 @@ function adjustRoutineRest(id, delta) {
   save(true); return true;
 }
 
+/* ------------------------------------------------------------
+   Editing around a superset breaks it. It never re-forms it.
+   ------------------------------------------------------------
+   The flag says "this one runs into the next one", and it travels with the
+   item it is on. That is what makes it survive a reorder without renumbering —
+   and it is also what makes it dangerous: pull one half of a pair out and the
+   flag happily latches onto whatever slid in underneath. You would end up
+   supersetting a bench press with an overhead press because you moved a fly,
+   and nothing on screen would tell you, because a superset you never asked for
+   looks exactly like one you did.
+
+   So any edit that changes who is adjacent to whom clears every link in the
+   window it touched, including the one *pointing into* it. Breaking a pair is
+   visible and one tap to undo; re-forming one silently is neither. */
+function clearLinksAround(r, lo, hi) {
+  for (let k = Math.max(0, lo - 1); k <= Math.min(hi, r.items.length - 1); k++) {
+    if (r.items[k]) delete r.items[k].supNext;
+  }
+}
+
 function removeFromRoutine(id, idx) {
   const r = routineById(id);
   if (!r || !r.items[idx]) return false;
+  clearLinksAround(r, idx, idx);
   r.items.splice(idx, 1); normaliseSupersets(r); save(true); return true;
 }
 
@@ -341,6 +362,7 @@ function moveInRoutine(id, idx, dir) {
   if (!r) return false;
   const j = idx + dir;
   if (j < 0 || j >= r.items.length) return false;
+  clearLinksAround(r, Math.min(idx, j), Math.max(idx, j));
   const [it] = r.items.splice(idx, 1);
   r.items.splice(j, 0, it);
   normaliseSupersets(r); save(true); return true;

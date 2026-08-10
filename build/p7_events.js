@@ -575,9 +575,16 @@ document.addEventListener('click', ev => {
       const st = item.sets[si];
       st.done = !st.done;
       if (st.done) {
-        if (st.r === '' || st.r == null) st.r = item.targetR || '';
-        if ((st.w === '' || st.w == null) && item.targetW != null && item.targetW !== '') st.w = item.targetW;
-        buzz();
+        /* Records exactly what the row was showing. Filling from item.target*
+           here instead would mean a row whose placeholder offered last week's
+           82.5 quietly logging the 80 in the prescription — see ghostFor(). */
+        const g = ghostFor(item, si);
+        if (st.r === '' || st.r == null) st.r = g.r;
+        if (st.w === '' || st.w == null) st.w = g.w;
+        st.pr = isPR(item, st);
+        /* A record gets its own shape of buzz. It is the one thing that
+           happens in a session you did not already know was coming. */
+        buzz(st.pr ? [16, 44, 26] : 12);
         const ex = EX[item.exId];
         /* The whole of a superset: no rest between A and B, rest after the
            pair. Skipping the timer on anything that runs into a next movement
@@ -588,9 +595,11 @@ document.addEventListener('click', ev => {
           startRest(secs, item.name);
         }
       }
+      if (!st.done) delete st.pr;
       const row = t.closest('.set-row');
       if (row) {
         row.classList.toggle('done', st.done);
+        row.classList.toggle('pr', !!st.pr);
         t.classList.toggle('on', st.done);
         /* Transient, so the flourish belongs to the tap. Removed on a timer
            because the class is what triggers it and it has to be gone before
@@ -601,14 +610,40 @@ document.addEventListener('click', ev => {
         const ri = row.querySelector('[data-set="r"]');
         if (wi) wi.value = st.w === '' || st.w == null ? '' : st.w;
         if (ri) ri.value = st.r === '' || st.r == null ? '' : st.r;
+        /* The set number becomes the star and back again. Swapped in place
+           rather than by rebuilding the card, which would close the keyboard
+           on the row below. */
+        const sn = row.querySelector('.sn');
+        if (sn) {
+          if (st.pr) {
+            sn.setAttribute('role', 'img');
+            sn.setAttribute('aria-label', 'Personal best, set ' + (si + 1));
+            sn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.3 1.3 6.3L12 16.6l-5.6 3.2 1.3-6.3-4.8-4.3 6.4-.7z"/></svg>';
+          } else {
+            sn.removeAttribute('role');
+            sn.removeAttribute('aria-label');
+            sn.textContent = String(si + 1);
+          }
+        }
       }
+      /* Ticking set 1 fills it in, which is what the sets under it should now
+         be offering. In place, because the point of all of this is that the
+         screen never rebuilds under your thumb. */
+      refreshGhosts(i);
+      /* Announced from out here, not from inside the fold-away below: a record
+         set on set 2 of 4 is still a record, and that branch only runs on the
+         last one. */
+      if (st.pr) toast('Personal best — ' + item.name, true);
       // Last set ticked → fold the exercise away and move on to the next one.
       if (st.done && isComplete(item) && !item.collapsed) {
         item.collapsed = true;
         replaceExCard(i);
         const doneEx = S.active.exercises.filter(isComplete).length;
         const totalEx = S.active.exercises.length;
-        if (doneEx < totalEx) toast(encouragement(doneEx, totalEx), true);
+        /* A record outranks encouragement. Both fire into the same toast
+           element, so without the guard a PR on the last set of a movement is
+           overwritten by "nice work" a frame later. */
+        if (!st.pr && doneEx < totalEx) toast(encouragement(doneEx, totalEx), true);
         setTimeout(() => {
           if (!S.active || SCREEN !== 'train') return;   // session may have ended in the meantime
           const nextIdx = S.active.exercises.findIndex(x => !isComplete(x));
@@ -904,6 +939,18 @@ document.addEventListener('click', ev => {
       S.settings.warmup = !S.settings.warmup;
       save(true); renderMore(); sheetSettings();
       toast(S.settings.warmup ? 'Warm-up on' : 'Warm-up off', true);
+      break;
+    }
+    /* Written as an explicit false rather than a truthy flag, so an existing
+       save with no `rpe` key at all keeps the column — see rpeShown(). */
+    case 'set-toggle-rpe': {
+      S.settings.rpe = !rpeShown();
+      save(true); renderMore(); sheetSettings();
+      /* A live session is redrawn, because the column is in every set row on
+         it. Safe here and nowhere near the logging path: you are in Settings,
+         there is no keyboard open and no caret to lose. */
+      if (S.active && SCREEN === 'train') renderTrain();
+      toast(rpeShown() ? 'RPE column on' : 'RPE column off — more room for weight and reps', true);
       break;
     }
     case 'set-toggle-fuel': {
@@ -1247,7 +1294,12 @@ document.addEventListener('input', ev => {
   let v = el.value.replace(',', '.').replace(/[^0-9.]/g, '');
   if (v !== el.value) { const p = el.selectionStart; el.value = v; try { el.setSelectionRange(p, p); } catch (e) {} }
   item.sets[si][f] = v;
-  if (f === 'w' && si === 0) refreshPlateRow(i);
+  if (si === 0) {
+    if (f === 'w') refreshPlateRow(i);
+    /* Carry-down, live. Typing the day's weight into set 1 is the moment the
+       sets below it stop being last week's guess. */
+    if (f === 'w' || f === 'r') refreshGhosts(i);
+  }
   save();
 });
 

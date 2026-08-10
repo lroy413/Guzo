@@ -567,6 +567,9 @@ function sheetSettings() {
       ${row('rest-settings', '⏱', 'Rest timers', `${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest ? 'on' : 'off'}`)}
       ${row('plate-settings', '🏋️', 'Bar and plates', `${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand`)}
       ${toggle('set-toggle-warmup', '🤸', 'Mobility warm-up', 'One short mobility movement at the start of full sessions', S.settings.warmup)}
+      ${toggle('set-toggle-rpe', '◎', 'RPE column', rpeShown()
+        ? 'On — a third field on every set row, for how hard it felt'
+        : 'Off — weight and reps get the width instead', rpeShown())}
       ${row('day-start', '🌙', 'When your day ends',
         dayStartHour() ? `${dayStartLabel()} · a session before then counts as the day before`
                        : 'Midnight · the ordinary calendar day')}

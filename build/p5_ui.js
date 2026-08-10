@@ -1101,8 +1101,11 @@ function exCardHTML(item, ei) {
 
   const isTime = item.load === 'time' || item.load === 'min';
   const unitLbl = item.load === 'min' ? 'MIN' : isTime ? 'SECS' : 'REPS';
-  const L = S.lifts[item.exId] || {};
-  const last = L.history && L.history.length ? L.history[L.history.length-1] : null;
+  /* Fetched once for the whole card. ghostFor() will look it up itself if you
+     don't hand it over, and a four-set card would then walk the entire session
+     history four times inside the render path. */
+  const prev = prevSets(item.exId);
+  const rpeOn = rpeShown();
 
   return `<div class="ex-card" data-ei="${ei}">
     <div class="ex-head">
@@ -1131,25 +1134,38 @@ function exCardHTML(item, ei) {
             exercise was a spreadsheet header on a screen you use one-handed
             between sets; the unit now sits inside the field it belongs to,
             which says the same thing once and in the place you are looking. */''}
-      ${item.sets.map((st, si) => `
-        <div class="set-row ${st.done?'done':''}">
-          <div class="sn">${si+1}</div>
+      ${item.sets.map((st, si) => {
+        /* The row says what it will record. See ghostFor() — the placeholder
+           and the value `toggle-set` writes come from the same call, because
+           a row that offers one weight and logs another is worse than a row
+           that offers nothing. */
+        const g = ghostFor(item, si, prev);
+        return `
+        <div class="set-row ${st.done?'done':''}${st.pr?' pr':''}${rpeOn?'':' norpe'}">
+          ${/* A filled star rather than a glyph or an outline: hairline marks
+                at this size antialias to about half the contrast their colour
+                promises, pass a CSS reading and fail the pixel check. The
+                label rides on the element rather than on hidden text, which
+                would be one more box for the collision sweep to trip over. */''}
+          ${st.pr
+            ? `<div class="sn" role="img" aria-label="Personal best, set ${si+1}"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.3 1.3 6.3L12 16.6l-5.6 3.2 1.3-6.3-4.8-4.3 6.4-.7z"/></svg></div>`
+            : `<div class="sn">${si+1}</div>`}
           <label class="set-f">
-            <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${item.targetW != null && item.targetW !== '' ? fmtW(item.targetW) : (item.load==='bw'?'0':'–')}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
+            <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${h(ghostW(item, g))}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
             <span class="set-u">${item.load==='bw' ? '+' + unit() : unit()}</span>
           </label>
           <label class="set-f">
-            <input class="set-in" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" aria-label="${unitLbl==='REPS'?'Reps':unitLbl==='SECS'?'Seconds':'Minutes'}, set ${si+1}" placeholder="${item.targetR||''}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
+            <input class="set-in" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" aria-label="${unitLbl==='REPS'?'Reps':unitLbl==='SECS'?'Seconds':'Minutes'}, set ${si+1}" placeholder="${h(g.r === '' ? '' : String(g.r))}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
             <span class="set-u">${unitLbl==='REPS'?'reps':unitLbl==='SECS'?'sec':'min'}</span>
           </label>
-          <label class="set-f narrow">
+          ${rpeOn ? `<label class="set-f narrow">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="RPE, set ${si+1}" placeholder="–" value="${st.rpe===''?'':h(st.rpe)}" data-set="rpe" data-i="${ei}" data-s="${si}">
             <span class="set-u">rpe</span>
-          </label>
+          </label>` : ''}
           <button class="tick ${st.done?'on':''}" data-act="toggle-set" data-i="${ei}" data-s="${si}" aria-label="${st.done?'Undo set':'Mark set'} ${si+1} ${st.done?'':'done'}" aria-pressed="${st.done?'true':'false'}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
           </button>
-        </div>`).join('')}
+        </div>`; }).join('')}
       <div class="row gap-s" style="padding:8px 6px 0">
         <button class="btn xs ghost grow" data-act="add-set" data-i="${ei}">+ Set</button>
         ${item.sets.length>1?`<button class="btn xs quiet" data-act="del-set" data-i="${ei}">− Set</button>`:''}
@@ -1187,6 +1203,25 @@ function refreshPlateRow(ei) {
   const ago = row.querySelector('.recall-ago');
   if (v) v.textContent = line;
   if (ago) ago.textContent = r && !r.exact ? fmtP(r.achieved) + unit() : 'per side';
+}
+
+/* The rows under set 1 show what set 1 says, as soon as it says it. Updated
+   in place for the same reason the plate row is: the keyboard is open and the
+   caret is sitting in the field you are typing into. */
+function refreshGhosts(ei) {
+  if (!S.active) return;
+  const item = S.active.exercises[ei];
+  const card = document.querySelector('.ex-card[data-ei="' + ei + '"]');
+  if (!item || !card) return;
+  const prev = prevSets(item.exId);
+  card.querySelectorAll('.set-row').forEach((row, si) => {
+    if (!item.sets[si]) return;
+    const g = ghostFor(item, si, prev);
+    const wi = row.querySelector('[data-set="w"]');
+    const ri = row.querySelector('[data-set="r"]');
+    if (wi) wi.placeholder = ghostW(item, g);
+    if (ri) ri.placeholder = g.r === '' ? '' : String(g.r);
+  });
 }
 
 /* What you actually did last time, and what to hang on the bar today.

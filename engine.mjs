@@ -996,6 +996,227 @@ try {
   check('the catalogue was actually large enough to be worth checking', cat.rows > 250,
     String(cat.rows));
 
+  // ================= 12. supersets =========================================
+  console.log('\nsupersets\n');
+
+  const sup = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Push');
+    ['bb-bench', 'db-fly', 'bb-ohp', 'db-lateral'].forEach(id => addToRoutine(r.id, id));
+
+    toggleSupersetLink(r.id, 0);                       // bench + fly
+    const paired = { flags: r.items.map(x => !!x.supNext), groups: supersetGroups(r.items),
+                     at1: supersetAt(r.items, 1), name0: supersetName(r.items, 0) };
+
+    toggleSupersetLink(r.id, 3);                       // the last item has no next
+    const onLast = r.items.map(x => !!x.supNext);
+
+    /* Pull one half of the pair out from under the other. */
+    moveInRoutine(r.id, 0, 1);
+    const moved = { names: r.items.map(x => EX[x.exId].name),
+                    groups: supersetGroups(r.items) };
+
+    /* And delete the movement in the middle of a link. */
+    const r2 = newRoutine('Push2');
+    ['bb-bench', 'db-fly', 'bb-ohp'].forEach(id => addToRoutine(r2.id, id));
+    toggleSupersetLink(r2.id, 0);                      // bench + fly
+    removeFromRoutine(r2.id, 1);                       // fly goes
+    const deleted = { names: r2.items.map(x => EX[x.exId].name),
+                      groups: supersetGroups(r2.items) };
+
+    /* Into a session, across a block boundary: a tier-1 press paired with a
+       tier-3 raise, which the block sort would otherwise pull apart. */
+    const r3 = newRoutine('Sess');
+    ['bb-bench', 'db-lateral', 'bb-ohp'].forEach(id => addToRoutine(r3.id, id));
+    toggleSupersetLink(r3.id, 0);
+    const sess = buildRoutineSession(r3.id, false);
+    S.active = sess;
+    const order = sessionOrder(sess);
+
+    setRoutineCircuit(r3.id, true);
+    const circ = buildRoutineSession(r3.id, false);
+
+    return { paired, onLast, moved, deleted,
+      sess: { carried: sess.exercises.map(x => !!x.supNext),
+              blocks: sess.exercises.map(x => exBlock(x)),
+              orderNames: order.map(i => sess.exercises[i].name),
+              /* supFor reads S.active, which is why it is set above. */
+              letters: order.map(i => (supFor(i) || {}).letter || '-') },
+      circCarried: circ.exercises.map(x => !!x.supNext) };
+  });
+
+  check('linking two movements makes one group of two',
+    JSON.stringify(sup.paired.groups) === '[[0,1]]', JSON.stringify(sup.paired.groups));
+  check('...and the flag sits only on the first of them',
+    JSON.stringify(sup.paired.flags) === '[true,false,false,false]', JSON.stringify(sup.paired.flags));
+  check('the second of a pair knows it is the second',
+    sup.paired.at1 && sup.paired.at1.pos === 1 && sup.paired.at1.letter === 'B',
+    JSON.stringify(sup.paired.at1));
+  check('the first group is called A', sup.paired.name0 === 'A', String(sup.paired.name0));
+  /* Left set, it would silently suppress the rest after the final movement. */
+  check('the last movement cannot be linked to a next one that does not exist',
+    sup.onLast[3] === false, JSON.stringify(sup.onLast));
+
+  /* The bug this section was written for: the flag travels with the item, so
+     without clearLinksAround, moving the bench out of a bench+fly pair leaves
+     it linked to the overhead press that slid in underneath — a superset
+     nobody asked for, indistinguishable on screen from one they did. */
+  check('moving one half of a pair breaks the pair',
+    sup.moved.groups.length === 0,
+    sup.moved.groups.map(g => g.map(i => sup.moved.names[i]).join('+')).join(', '));
+  check('...rather than re-pairing it with whatever slid underneath',
+    !JSON.stringify(sup.moved.groups).includes('[1,2]'),
+    JSON.stringify(sup.moved.groups));
+  check('deleting the movement a link points at breaks the link',
+    sup.deleted.groups.length === 0,
+    sup.deleted.groups.map(g => g.map(i => sup.deleted.names[i]).join('+')).join(', '));
+
+  check('a session carries the link off the routine',
+    sup.sess.carried[0] === true && sup.sess.carried[1] === false,
+    JSON.stringify(sup.sess.carried));
+  /* Without the grouping in sessionOrder this reads Bench, Overhead, Lateral —
+     the block sort lifting the tier-1 press over the tier-3 raise and landing
+     it between the two halves of the pair. */
+  check('a pair stays adjacent even when its halves are in different blocks',
+    JSON.stringify(sup.sess.blocks) === '["main","accessory","main"]' &&
+    JSON.stringify(sup.sess.orderNames) === '["Bench Press","Lateral Raise","Overhead Press"]',
+    JSON.stringify(sup.sess.blocks) + ' → ' + JSON.stringify(sup.sess.orderNames));
+  check('...and the pair is lettered A, B while everything else is not lettered',
+    JSON.stringify(sup.sess.letters) === '["A","B","-"]', JSON.stringify(sup.sess.letters));
+  /* A circuit already runs every movement back to back. */
+  check('a circuit carries no links at all',
+    sup.circCarried.every(x => x === false), JSON.stringify(sup.circCarried));
+
+  // ================= 13. the badge vocabulary =============================
+  console.log('\nbadges\n');
+
+  const badge = await page.evaluate(() => {
+    const of = id => exBadges({ exId: id });
+    return {
+      bench: of('bb-bench'), lunge: of('db-lunge'), plank: of('bw-plank'),
+      cat: of('mob-cat-cow'), curl: of('db-curl'), walk: of('car-treadmill-walk'),
+      /* Every badge the vocabulary can emit has to have a tone, or it renders
+         as an unstyled word. */
+      toned: EXLIST.every(e => exBadges({ exId: e.id }).every(b => !!BADGE_TONE[b])),
+      unknown: [...new Set(EXLIST.flatMap(e => exBadges({ exId: e.id })))].filter(b => !BADGE_TONE[b]),
+      /* A row of six labels under every exercise is decoration. */
+      worst: Math.max(...EXLIST.map(e => exBadges({ exId: e.id }).length)),
+      capped: (document.createElement('div').innerHTML = badgeRowHTML({ exId:'db-lunge' }, 3),
+               (badgeRowHTML({ exId:'db-lunge' }, 3).match(/class="badge/g) || []).length),
+      uni: EXLIST.filter(e => UNILATERAL_RE.test(e.name)).length,
+      /* Both halves of the unilateral rule, on movements that are plainly one
+         or the other. A regex that matched everything would pass the first
+         of these and fail the second. */
+      uniHits: ['db-lunge', 'bw-side-plank', 'db-concentration'].every(id => UNILATERAL_RE.test(EX[id].name)),
+      uniMisses: ['bb-bench', 'bb-back-squat', 'bw-plank'].every(id => !UNILATERAL_RE.test(EX[id].name)),
+      empty: badgeRowHTML({ exId: 'nope-not-real' }, 3),
+    };
+  });
+  check('a heavy compound reads as Heavy', badge.bench.includes('Heavy'), JSON.stringify(badge.bench));
+  check('a lunge reads as Unilateral', badge.lunge.includes('Unilateral'), JSON.stringify(badge.lunge));
+  check('a plank reads as Core', badge.plank.includes('Core'), JSON.stringify(badge.plank));
+  check('a stretch reads as Mobility', badge.cat.includes('Mobility'), JSON.stringify(badge.cat));
+  check('a curl reads as Arms', badge.curl.includes('Arms'), JSON.stringify(badge.curl));
+  check('a walk reads as Endurance', badge.walk.includes('Endurance'), JSON.stringify(badge.walk));
+  check('every badge the catalogue can produce has a tone', badge.toned === true,
+    badge.unknown.join(', '));
+  check('no movement is given more than three badges', badge.worst <= 3, String(badge.worst));
+  check('...and the row renders at most three', badge.capped <= 3, String(badge.capped));
+  check('the unilateral rule matches one-sided work', badge.uniHits === true);
+  check('...and leaves two-sided work alone', badge.uniMisses === true);
+  check('it matches a real share of the catalogue, not one row and not all of it',
+    badge.uni > 20 && badge.uni < 80, String(badge.uni));
+  check('an exercise the catalogue has never heard of renders no badges',
+    badge.empty === '', badge.empty);
+
+  // ================= 14. what a set row offers, and what it records =======
+  console.log('\nwhat a row offers\n');
+
+  const ghost = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    /* A real last session, with a 1.25 in it — the weight fmtW rounds to 1.3
+       and the plate maths has to see as 1.25. */
+    S.sessions = [{ date: today(), ended: true, exercises: [
+      { exId:'bb-bench', name:'Bench Press', load:'wt', sets:[
+        { w:1.25, r:8, done:true }, { w:82.5, r:8, done:true }, { w:80, r:6, done:true }] }] }];
+    save(true);
+    const mk = () => ({ exId:'bb-bench', name:'Bench Press', load:'wt', targetW:70, targetR:5,
+      sets:[0,1,2,3].map(() => ({ w:'', r:'', rpe:'', done:false })) });
+
+    const item = mk();
+    const fresh = [0,1,2,3].map(i => ghostFor(item, i));
+    item.sets[0].w = '90'; item.sets[0].r = '4';
+    const carried = [0,1,2,3].map(i => ghostFor(item, i));
+
+    /* What the row *records* is checked in blanks.mjs by clicking the real
+       tick, not here: re-running the handler's own arithmetic in the probe
+       would prove two copies of it agree and nothing else. */
+    return { fresh, carried, painted: ghostW(item, ghostFor(item, 0)),
+             /* Bodyweight work offers 0 added, not a dash. */
+             bwBlank: ghostW({ exId:'bw-pushup', load:'bw' }, { w:'', r:'' }),
+             wtBlank: ghostW({ exId:'bb-bench', load:'wt' }, { w:'', r:'' }) };
+  });
+  check('an untouched row offers what you did in that slot last time',
+    ghost.fresh[1].w === 82.5 && ghost.fresh[1].r === 8 && ghost.fresh[1].src === 'last',
+    JSON.stringify(ghost.fresh[1]));
+  check('a row with no last set falls back to the prescription',
+    ghost.fresh[3].w === 70 && ghost.fresh[3].src === 'target', JSON.stringify(ghost.fresh[3]));
+  check('typing set 1 carries down to the sets under it',
+    ghost.carried[1].w === '90' && ghost.carried[3].w === '90' &&
+    ghost.carried[1].src === 'carry', JSON.stringify(ghost.carried[1]));
+  check('...and set 1 keeps offering last time rather than itself',
+    ghost.carried[0].src === 'last', JSON.stringify(ghost.carried[0]));
+  /* fmtW rounds to one decimal, which is right for a label and wrong for a
+     store — 1.25 kg painted as "1.3" and then *saved* as 1.3 sends you to the
+     wrong plate. The row may round what it paints; it may not round what it
+     records. */
+  check('the row paints a rounded weight', ghost.painted === '1.3', ghost.painted);
+  check('...while the value behind it stays unrounded',
+    ghost.fresh[0].w === 1.25, String(ghost.fresh[0].w));
+  check('bodyweight work offers 0 added rather than a dash',
+    ghost.bwBlank === '0' && ghost.wtBlank === '–', ghost.bwBlank + ' / ' + ghost.wtBlank);
+
+  const prc = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const wt = { exId:'bb-bench', load:'wt' };
+    const virgin = isPR(wt, { w:100, r:5, done:true });
+    S.lifts['bb-bench'] = { best:{ w:80, r:8, e1rm:e1rm(80, 8) }, history:[] };
+    S.lifts['bw-plank']  = { best:{ w:0, r:60, e1rm:1 }, history:[] };
+    S.lifts['mob-cat-cow'] = { best:{ w:0, r:8, e1rm:1 }, history:[] };
+    return { virgin,
+      beats: isPR(wt, { w:100, r:5, done:true }),
+      under: isPR(wt, { w:60, r:5, done:true }),
+      notDone: isPR(wt, { w:100, r:5, done:false }),
+      timed: isPR({ exId:'bw-plank', load:'time' }, { w:0, r:600, done:true }),
+      mobility: isPR({ exId:'mob-cat-cow', load:'bw' }, { w:0, r:99, done:true }) };
+  });
+  /* "PR" on the first set of a movement you have never done is a
+     participation medal, and this app does not hand those out. */
+  check('a movement with no history cannot set a record', prc.virgin === false);
+  check('beating the best estimated single is a record', prc.beats === true);
+  check('...and coming in under it is not', prc.under === false);
+  check('an unticked set is not a record', prc.notDone === false);
+  /* An e1RM off a duration is nonsense, and a stretch has a range that is
+     correct rather than one to beat — both for the same reasons
+     applyProgression skips them. */
+  check('held work sets no records however long you hold it', prc.timed === false);
+  check('neither does mobility', prc.mobility === false);
+
+  const rpe = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const on = rpeShown();
+    S.settings.rpe = false;
+    const off = rpeShown();
+    delete S.settings.rpe;
+    return { on, off, legacy: rpeShown() };
+  });
+  check('the RPE column is on by default', rpe.on === true);
+  check('...and can be turned off', rpe.off === false);
+  /* Stored as an explicit false: a save written before this setting existed
+     has no `rpe` key, and reading it as falsy would take the column away from
+     everyone who had been filling it in. */
+  check('a save from before the setting existed keeps the column', rpe.legacy === true);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

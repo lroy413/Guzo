@@ -834,6 +834,22 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .set-row.done .set-f{background:transparent;border-color:transparent}
 .set-row.done .set-in{color:var(--teal-soft)}
 .set-row.done .set-u{color:rgba(125,224,192,.6)}
+/* RPE off gives its fixed 64px back to weight and reps, which go from about
+   94px each to about 125px on a 390px screen. */
+.set-row.norpe{grid-template-columns:22px minmax(0,1fr) minmax(0,1fr) 62px}
+
+/* ---------- a personal best, in the row it happened in ---------- */
+/* Ember over the teal rather than instead of it: the set is still done, and
+   this is the one thing in a session you did not already know was coming. */
+.set-row.pr{background:var(--ember-dim);box-shadow:inset 0 0 0 1px var(--ember-line)}
+.set-row.pr .sn{color:var(--ember)}
+.set-row.pr .set-in{color:var(--ember-2)}
+.set-row.pr .set-u{color:rgba(233,180,76,.62)}
+.set-row .sn svg{width:13px;height:13px;display:block;margin:0 auto}
+@media (prefers-reduced-motion: no-preference){
+  .set-row.pr .sn svg{animation:prStar .42s var(--ease-spring)}
+}
+@keyframes prStar{from{opacity:0;transform:scale(.3) rotate(-40deg)}to{opacity:1;transform:none}}
 
 /* ---------- the session rail ----------
    A segment per movement, filling as its sets are ticked. */

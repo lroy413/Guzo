@@ -834,6 +834,22 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .set-row.done .set-f{background:transparent;border-color:transparent}
 .set-row.done .set-in{color:var(--teal-soft)}
 .set-row.done .set-u{color:rgba(125,224,192,.6)}
+/* RPE off gives its fixed 64px back to weight and reps, which go from about
+   94px each to about 125px on a 390px screen. */
+.set-row.norpe{grid-template-columns:22px minmax(0,1fr) minmax(0,1fr) 62px}
+
+/* ---------- a personal best, in the row it happened in ---------- */
+/* Ember over the teal rather than instead of it: the set is still done, and
+   this is the one thing in a session you did not already know was coming. */
+.set-row.pr{background:var(--ember-dim);box-shadow:inset 0 0 0 1px var(--ember-line)}
+.set-row.pr .sn{color:var(--ember)}
+.set-row.pr .set-in{color:var(--ember-2)}
+.set-row.pr .set-u{color:rgba(233,180,76,.62)}
+.set-row .sn svg{width:13px;height:13px;display:block;margin:0 auto}
+@media (prefers-reduced-motion: no-preference){
+  .set-row.pr .sn svg{animation:prStar .42s var(--ease-spring)}
+}
+@keyframes prStar{from{opacity:0;transform:scale(.3) rotate(-40deg)}to{opacity:1;transform:none}}
 
 /* ---------- the session rail ----------
    A segment per movement, filling as its sets are ticked. */
@@ -3409,6 +3425,37 @@ function targetFor(exId) {
 }
 function e1rm(w, r) { if (!w || !r) return 0; return w * (1 + r / 30); }
 
+/* ------------------------------------------------------------
+   A personal best, at the moment it happens.
+   ------------------------------------------------------------
+   applyProgression() only rewrites L.best when a session is *finished*, so
+   without this the app knows you set a record and waits until you have put
+   the phone away to mention it. This reads the same field against the same
+   estimate, so the two can never disagree about what a best is.
+
+   Deliberately withheld on a movement you have no history for: "PR" on the
+   first set of something you have never done is a participation medal, and
+   this app does not hand those out. Withheld on held and timed work for the
+   same reason applyProgression skips it — an e1RM off a duration is nonsense —
+   and on mobility, which has a range that is correct rather than one to beat. */
+function isPR(item, st) {
+  const ex = EX[item.exId];
+  if (!ex || !st || !st.done) return false;
+  if (ex.pattern === 'mobility') return false;
+  const load = item.load || ex.load;
+  if (load === 'time' || load === 'min') return false;
+  const L = S.lifts[item.exId];
+  if (!L || !L.best || !L.best.e1rm) return false;
+  return e1rm(+st.w || 0, +st.r || 0) > L.best.e1rm;
+}
+
+/* RPE is the one column most people never fill, and it costs a fixed 64px of
+   a row that is already tight on a phone. Off hands that width back to weight
+   and reps. Defaults ON, and stored as an explicit false: a save written
+   before this setting existed has no `rpe` key at all, and reading it as
+   merely falsy would take the column away from everyone who had been using it. */
+function rpeShown() { return !(S.settings && S.settings.rpe === false); }
+
 function applyProgression(sess) {
   sess.exercises.forEach(item => {
     const ex = EX[item.exId];
@@ -4680,10 +4727,59 @@ function lastLine(exId, maxSets) {
 }
 
 /* The set you did in this slot last time, for the per-row hint. */
+function prevSets(exId) {
+  let p = null;
+  try { p = lastPerformance(exId); } catch (e) { return []; }
+  return (p && p.sets) || [];
+}
 function lastSetAt(exId, idx) {
-  const p = lastPerformance(exId);
-  if (!p || !p.sets[idx]) return null;
-  return p.sets[idx];
+  return prevSets(exId)[idx] || null;
+}
+
+/* ------------------------------------------------------------
+   What an empty set row shows, and what ticking it records.
+   ------------------------------------------------------------
+   One flat "Last: 82.5×8, 82.5×8, 80×6" above the card made you parse a list
+   and count along it to find the row you were on. The row itself should just
+   say it. But the moment a placeholder shows a number, ticking the set has to
+   record *that* number — a row that offers 82.5 and logs the 80 sitting in
+   targetW is worse than a blank row, because you will not notice.
+
+   So the answer is resolved once, here, and the render, the live carry-down
+   and `toggle-set` all read it. Same reason supFor() is computed rather than
+   passed: three call sites that can disagree eventually will.
+
+   Precedence: what you are lifting today, then what you lifted last time,
+   then the prescription. Values come back raw — never through fmtW — because
+   the caller that stores them must not round 1.25 into 1.3. */
+function ghostFor(item, si, prev) {
+  prev = prev || prevSets(item.exId);
+  const out = { w:'', r:'', src:'' };
+  const first = item.sets && item.sets[0];
+
+  /* Carry-down. Once set 1 is filled in, the sets under it are almost always
+     the same weight, and last week stops being the better guess. */
+  if (si > 0 && first) {
+    if (first.w !== '' && first.w != null) { out.w = first.w; out.src = 'carry'; }
+    if (first.r !== '' && first.r != null) { out.r = first.r; out.src = 'carry'; }
+  }
+
+  const p = prev[si];
+  if (out.w === '' && p && +p.w > 0) { out.w = +p.w; out.src = out.src || 'last'; }
+  if (out.r === '' && p && p.r !== '' && p.r != null) { out.r = p.r; out.src = out.src || 'last'; }
+
+  if (out.w === '' && item.targetW != null && item.targetW !== '') {
+    out.w = item.targetW; out.src = out.src || 'target';
+  }
+  if (out.r === '' && item.targetR) { out.r = item.targetR; out.src = out.src || 'target'; }
+  return out;
+}
+
+/* The same value as the row paints it. Bodyweight work shows 0 rather than a
+   dash, because 0 added is a real answer there and a dash is not. */
+function ghostW(item, g) {
+  if (g.w === '' || g.w == null) return item.load === 'bw' ? '0' : '–';
+  return fmtW(+g.w);
 }
 /* ============================================================
    ROUTINES — your own sessions, on your own terms
@@ -5017,9 +5113,30 @@ function adjustRoutineRest(id, delta) {
   save(true); return true;
 }
 
+/* ------------------------------------------------------------
+   Editing around a superset breaks it. It never re-forms it.
+   ------------------------------------------------------------
+   The flag says "this one runs into the next one", and it travels with the
+   item it is on. That is what makes it survive a reorder without renumbering —
+   and it is also what makes it dangerous: pull one half of a pair out and the
+   flag happily latches onto whatever slid in underneath. You would end up
+   supersetting a bench press with an overhead press because you moved a fly,
+   and nothing on screen would tell you, because a superset you never asked for
+   looks exactly like one you did.
+
+   So any edit that changes who is adjacent to whom clears every link in the
+   window it touched, including the one *pointing into* it. Breaking a pair is
+   visible and one tap to undo; re-forming one silently is neither. */
+function clearLinksAround(r, lo, hi) {
+  for (let k = Math.max(0, lo - 1); k <= Math.min(hi, r.items.length - 1); k++) {
+    if (r.items[k]) delete r.items[k].supNext;
+  }
+}
+
 function removeFromRoutine(id, idx) {
   const r = routineById(id);
   if (!r || !r.items[idx]) return false;
+  clearLinksAround(r, idx, idx);
   r.items.splice(idx, 1); normaliseSupersets(r); save(true); return true;
 }
 
@@ -5028,6 +5145,7 @@ function moveInRoutine(id, idx, dir) {
   if (!r) return false;
   const j = idx + dir;
   if (j < 0 || j >= r.items.length) return false;
+  clearLinksAround(r, Math.min(idx, j), Math.max(idx, j));
   const [it] = r.items.splice(idx, 1);
   r.items.splice(j, 0, it);
   normaliseSupersets(r); save(true); return true;
@@ -8209,8 +8327,11 @@ function exCardHTML(item, ei) {
 
   const isTime = item.load === 'time' || item.load === 'min';
   const unitLbl = item.load === 'min' ? 'MIN' : isTime ? 'SECS' : 'REPS';
-  const L = S.lifts[item.exId] || {};
-  const last = L.history && L.history.length ? L.history[L.history.length-1] : null;
+  /* Fetched once for the whole card. ghostFor() will look it up itself if you
+     don't hand it over, and a four-set card would then walk the entire session
+     history four times inside the render path. */
+  const prev = prevSets(item.exId);
+  const rpeOn = rpeShown();
 
   return `<div class="ex-card" data-ei="${ei}">
     <div class="ex-head">
@@ -8239,25 +8360,38 @@ function exCardHTML(item, ei) {
             exercise was a spreadsheet header on a screen you use one-handed
             between sets; the unit now sits inside the field it belongs to,
             which says the same thing once and in the place you are looking. */''}
-      ${item.sets.map((st, si) => `
-        <div class="set-row ${st.done?'done':''}">
-          <div class="sn">${si+1}</div>
+      ${item.sets.map((st, si) => {
+        /* The row says what it will record. See ghostFor() — the placeholder
+           and the value `toggle-set` writes come from the same call, because
+           a row that offers one weight and logs another is worse than a row
+           that offers nothing. */
+        const g = ghostFor(item, si, prev);
+        return `
+        <div class="set-row ${st.done?'done':''}${st.pr?' pr':''}${rpeOn?'':' norpe'}">
+          ${/* A filled star rather than a glyph or an outline: hairline marks
+                at this size antialias to about half the contrast their colour
+                promises, pass a CSS reading and fail the pixel check. The
+                label rides on the element rather than on hidden text, which
+                would be one more box for the collision sweep to trip over. */''}
+          ${st.pr
+            ? `<div class="sn" role="img" aria-label="Personal best, set ${si+1}"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.3 1.3 6.3L12 16.6l-5.6 3.2 1.3-6.3-4.8-4.3 6.4-.7z"/></svg></div>`
+            : `<div class="sn">${si+1}</div>`}
           <label class="set-f">
-            <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${item.targetW != null && item.targetW !== '' ? fmtW(item.targetW) : (item.load==='bw'?'0':'–')}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
+            <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${h(ghostW(item, g))}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
             <span class="set-u">${item.load==='bw' ? '+' + unit() : unit()}</span>
           </label>
           <label class="set-f">
-            <input class="set-in" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" aria-label="${unitLbl==='REPS'?'Reps':unitLbl==='SECS'?'Seconds':'Minutes'}, set ${si+1}" placeholder="${item.targetR||''}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
+            <input class="set-in" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" aria-label="${unitLbl==='REPS'?'Reps':unitLbl==='SECS'?'Seconds':'Minutes'}, set ${si+1}" placeholder="${h(g.r === '' ? '' : String(g.r))}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
             <span class="set-u">${unitLbl==='REPS'?'reps':unitLbl==='SECS'?'sec':'min'}</span>
           </label>
-          <label class="set-f narrow">
+          ${rpeOn ? `<label class="set-f narrow">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="RPE, set ${si+1}" placeholder="–" value="${st.rpe===''?'':h(st.rpe)}" data-set="rpe" data-i="${ei}" data-s="${si}">
             <span class="set-u">rpe</span>
-          </label>
+          </label>` : ''}
           <button class="tick ${st.done?'on':''}" data-act="toggle-set" data-i="${ei}" data-s="${si}" aria-label="${st.done?'Undo set':'Mark set'} ${si+1} ${st.done?'':'done'}" aria-pressed="${st.done?'true':'false'}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
           </button>
-        </div>`).join('')}
+        </div>`; }).join('')}
       <div class="row gap-s" style="padding:8px 6px 0">
         <button class="btn xs ghost grow" data-act="add-set" data-i="${ei}">+ Set</button>
         ${item.sets.length>1?`<button class="btn xs quiet" data-act="del-set" data-i="${ei}">− Set</button>`:''}
@@ -8295,6 +8429,25 @@ function refreshPlateRow(ei) {
   const ago = row.querySelector('.recall-ago');
   if (v) v.textContent = line;
   if (ago) ago.textContent = r && !r.exact ? fmtP(r.achieved) + unit() : 'per side';
+}
+
+/* The rows under set 1 show what set 1 says, as soon as it says it. Updated
+   in place for the same reason the plate row is: the keyboard is open and the
+   caret is sitting in the field you are typing into. */
+function refreshGhosts(ei) {
+  if (!S.active) return;
+  const item = S.active.exercises[ei];
+  const card = document.querySelector('.ex-card[data-ei="' + ei + '"]');
+  if (!item || !card) return;
+  const prev = prevSets(item.exId);
+  card.querySelectorAll('.set-row').forEach((row, si) => {
+    if (!item.sets[si]) return;
+    const g = ghostFor(item, si, prev);
+    const wi = row.querySelector('[data-set="w"]');
+    const ri = row.querySelector('[data-set="r"]');
+    if (wi) wi.placeholder = ghostW(item, g);
+    if (ri) ri.placeholder = g.r === '' ? '' : String(g.r);
+  });
 }
 
 /* What you actually did last time, and what to hang on the bar today.
@@ -9346,6 +9499,9 @@ function sheetSettings() {
       ${row('rest-settings', '⏱', 'Rest timers', `${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest ? 'on' : 'off'}`)}
       ${row('plate-settings', '🏋️', 'Bar and plates', `${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand`)}
       ${toggle('set-toggle-warmup', '🤸', 'Mobility warm-up', 'One short mobility movement at the start of full sessions', S.settings.warmup)}
+      ${toggle('set-toggle-rpe', '◎', 'RPE column', rpeShown()
+        ? 'On — a third field on every set row, for how hard it felt'
+        : 'Off — weight and reps get the width instead', rpeShown())}
       ${row('day-start', '🌙', 'When your day ends',
         dayStartHour() ? `${dayStartLabel()} · a session before then counts as the day before`
                        : 'Midnight · the ordinary calendar day')}
@@ -11983,9 +12139,16 @@ document.addEventListener('click', ev => {
       const st = item.sets[si];
       st.done = !st.done;
       if (st.done) {
-        if (st.r === '' || st.r == null) st.r = item.targetR || '';
-        if ((st.w === '' || st.w == null) && item.targetW != null && item.targetW !== '') st.w = item.targetW;
-        buzz();
+        /* Records exactly what the row was showing. Filling from item.target*
+           here instead would mean a row whose placeholder offered last week's
+           82.5 quietly logging the 80 in the prescription — see ghostFor(). */
+        const g = ghostFor(item, si);
+        if (st.r === '' || st.r == null) st.r = g.r;
+        if (st.w === '' || st.w == null) st.w = g.w;
+        st.pr = isPR(item, st);
+        /* A record gets its own shape of buzz. It is the one thing that
+           happens in a session you did not already know was coming. */
+        buzz(st.pr ? [16, 44, 26] : 12);
         const ex = EX[item.exId];
         /* The whole of a superset: no rest between A and B, rest after the
            pair. Skipping the timer on anything that runs into a next movement
@@ -11996,9 +12159,11 @@ document.addEventListener('click', ev => {
           startRest(secs, item.name);
         }
       }
+      if (!st.done) delete st.pr;
       const row = t.closest('.set-row');
       if (row) {
         row.classList.toggle('done', st.done);
+        row.classList.toggle('pr', !!st.pr);
         t.classList.toggle('on', st.done);
         /* Transient, so the flourish belongs to the tap. Removed on a timer
            because the class is what triggers it and it has to be gone before
@@ -12009,14 +12174,40 @@ document.addEventListener('click', ev => {
         const ri = row.querySelector('[data-set="r"]');
         if (wi) wi.value = st.w === '' || st.w == null ? '' : st.w;
         if (ri) ri.value = st.r === '' || st.r == null ? '' : st.r;
+        /* The set number becomes the star and back again. Swapped in place
+           rather than by rebuilding the card, which would close the keyboard
+           on the row below. */
+        const sn = row.querySelector('.sn');
+        if (sn) {
+          if (st.pr) {
+            sn.setAttribute('role', 'img');
+            sn.setAttribute('aria-label', 'Personal best, set ' + (si + 1));
+            sn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.3 1.3 6.3L12 16.6l-5.6 3.2 1.3-6.3-4.8-4.3 6.4-.7z"/></svg>';
+          } else {
+            sn.removeAttribute('role');
+            sn.removeAttribute('aria-label');
+            sn.textContent = String(si + 1);
+          }
+        }
       }
+      /* Ticking set 1 fills it in, which is what the sets under it should now
+         be offering. In place, because the point of all of this is that the
+         screen never rebuilds under your thumb. */
+      refreshGhosts(i);
+      /* Announced from out here, not from inside the fold-away below: a record
+         set on set 2 of 4 is still a record, and that branch only runs on the
+         last one. */
+      if (st.pr) toast('Personal best — ' + item.name, true);
       // Last set ticked → fold the exercise away and move on to the next one.
       if (st.done && isComplete(item) && !item.collapsed) {
         item.collapsed = true;
         replaceExCard(i);
         const doneEx = S.active.exercises.filter(isComplete).length;
         const totalEx = S.active.exercises.length;
-        if (doneEx < totalEx) toast(encouragement(doneEx, totalEx), true);
+        /* A record outranks encouragement. Both fire into the same toast
+           element, so without the guard a PR on the last set of a movement is
+           overwritten by "nice work" a frame later. */
+        if (!st.pr && doneEx < totalEx) toast(encouragement(doneEx, totalEx), true);
         setTimeout(() => {
           if (!S.active || SCREEN !== 'train') return;   // session may have ended in the meantime
           const nextIdx = S.active.exercises.findIndex(x => !isComplete(x));
@@ -12312,6 +12503,18 @@ document.addEventListener('click', ev => {
       S.settings.warmup = !S.settings.warmup;
       save(true); renderMore(); sheetSettings();
       toast(S.settings.warmup ? 'Warm-up on' : 'Warm-up off', true);
+      break;
+    }
+    /* Written as an explicit false rather than a truthy flag, so an existing
+       save with no `rpe` key at all keeps the column — see rpeShown(). */
+    case 'set-toggle-rpe': {
+      S.settings.rpe = !rpeShown();
+      save(true); renderMore(); sheetSettings();
+      /* A live session is redrawn, because the column is in every set row on
+         it. Safe here and nowhere near the logging path: you are in Settings,
+         there is no keyboard open and no caret to lose. */
+      if (S.active && SCREEN === 'train') renderTrain();
+      toast(rpeShown() ? 'RPE column on' : 'RPE column off — more room for weight and reps', true);
       break;
     }
     case 'set-toggle-fuel': {
@@ -12655,7 +12858,12 @@ document.addEventListener('input', ev => {
   let v = el.value.replace(',', '.').replace(/[^0-9.]/g, '');
   if (v !== el.value) { const p = el.selectionStart; el.value = v; try { el.setSelectionRange(p, p); } catch (e) {} }
   item.sets[si][f] = v;
-  if (f === 'w' && si === 0) refreshPlateRow(i);
+  if (si === 0) {
+    if (f === 'w') refreshPlateRow(i);
+    /* Carry-down, live. Typing the day's weight into set 1 is the moment the
+       sets below it stop being last week's guess. */
+    if (f === 'w' || f === 'r') refreshGhosts(i);
+  }
   save();
 });
 

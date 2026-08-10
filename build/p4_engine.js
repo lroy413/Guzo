@@ -405,6 +405,37 @@ function targetFor(exId) {
 }
 function e1rm(w, r) { if (!w || !r) return 0; return w * (1 + r / 30); }
 
+/* ------------------------------------------------------------
+   A personal best, at the moment it happens.
+   ------------------------------------------------------------
+   applyProgression() only rewrites L.best when a session is *finished*, so
+   without this the app knows you set a record and waits until you have put
+   the phone away to mention it. This reads the same field against the same
+   estimate, so the two can never disagree about what a best is.
+
+   Deliberately withheld on a movement you have no history for: "PR" on the
+   first set of something you have never done is a participation medal, and
+   this app does not hand those out. Withheld on held and timed work for the
+   same reason applyProgression skips it — an e1RM off a duration is nonsense —
+   and on mobility, which has a range that is correct rather than one to beat. */
+function isPR(item, st) {
+  const ex = EX[item.exId];
+  if (!ex || !st || !st.done) return false;
+  if (ex.pattern === 'mobility') return false;
+  const load = item.load || ex.load;
+  if (load === 'time' || load === 'min') return false;
+  const L = S.lifts[item.exId];
+  if (!L || !L.best || !L.best.e1rm) return false;
+  return e1rm(+st.w || 0, +st.r || 0) > L.best.e1rm;
+}
+
+/* RPE is the one column most people never fill, and it costs a fixed 64px of
+   a row that is already tight on a phone. Off hands that width back to weight
+   and reps. Defaults ON, and stored as an explicit false: a save written
+   before this setting existed has no `rpe` key at all, and reading it as
+   merely falsy would take the column away from everyone who had been using it. */
+function rpeShown() { return !(S.settings && S.settings.rpe === false); }
+
 function applyProgression(sess) {
   sess.exercises.forEach(item => {
     const ex = EX[item.exId];
