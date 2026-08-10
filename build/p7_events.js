@@ -579,7 +579,11 @@ document.addEventListener('click', ev => {
         if ((st.w === '' || st.w == null) && item.targetW != null && item.targetW !== '') st.w = item.targetW;
         buzz();
         const ex = EX[item.exId];
-        if (S.settings.autoRest && ex && ex.load !== 'min') {
+        /* The whole of a superset: no rest between A and B, rest after the
+           pair. Skipping the timer on anything that runs into a next movement
+           is the entire behaviour — the one after it has no supNext and rests
+           normally. */
+        if (S.settings.autoRest && ex && ex.load !== 'min' && !item.supNext) {
           const secs = (ex.tier <= 2) ? S.settings.restMain : S.settings.restAcc;
           startRest(secs, item.name);
         }
@@ -1059,6 +1063,7 @@ document.addEventListener('click', ev => {
     case 'rt-adj':    { adjustRoutineItem(v, i, t.dataset.f, +t.dataset.d); sheetRoutineEdit(v); break; }
     case 'rt-emoji':  { setRoutineEmoji(v, t.dataset.e); sheetRoutineEdit(v); break; }
     case 'rt-mode':   { setItemMode(v, i, t.dataset.m); sheetRoutineEdit(v); break; }
+    case 'rt-superset': { toggleSupersetLink(v, i); sheetRoutineEdit(v); render(); buzz(); break; }
     case 'rt-circuit': {
       const r = routineById(v);
       if (!r) break;

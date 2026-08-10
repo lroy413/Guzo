@@ -734,6 +734,45 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   line-height:1.45;letter-spacing:.04em}
 .who-since b{color:var(--text-dim);font-weight:650;font-size:11.5px}
 
+/* The link between two movements in the builder. Drawn as a connector rather
+   than a row, so it reads as joining the two cards it sits between. */
+.rt-link{display:flex;align-items:center;gap:9px;width:100%;min-height:44px;
+  margin:-4px 0 9px;padding:0 12px;border:0;background:none;
+  font:inherit;font-size:12px;font-weight:600;color:var(--faint);text-align:left;
+  transition:color var(--t-fast) ease}
+.rt-link-i{width:22px;height:22px;flex:none;border-radius:50%;font-size:12px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
+.rt-link.on{color:var(--ember-2)}
+.rt-link.on .rt-link-i{background:var(--ember-dim);border-color:var(--ember-line);color:var(--ember)}
+.rt-link:active .rt-link-i{transform:scale(.9)}
+/* Paired items carry the bracket the superset heading uses on Train. */
+.rt-item.sup{border-left:2px solid var(--ember-line)}
+.rt-sup{font-size:10.5px;font-weight:700;letter-spacing:.1em;color:var(--ember-2);
+  background:var(--ember-dim);border-radius:5px;padding:2px 6px;margin-left:8px;
+  vertical-align:middle}
+
+/* ---------- badges ----------
+   A written programme tags its movements so you can read the shape of a
+   session without reading every line. Small, quiet, and capped at three. */
+.badges{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.badge{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 7px;border-radius:5px;line-height:1.35;
+  background:var(--surface-3);color:var(--muted);border:1px solid transparent}
+.badge.ember{background:var(--ember-dim);border-color:var(--ember-line);color:var(--ember-2)}
+.badge.teal{background:var(--teal-dim);border-color:rgba(79,209,165,.28);color:var(--teal-soft)}
+.badge.sky{background:var(--sky-dim);border-color:rgba(107,168,245,.28);color:#a8caf9}
+
+/* ---------- a superset ----------
+   The pair's own heading, sitting inside whatever block it belongs to. The
+   bracket down the left is what makes two cards read as one thing. */
+.sup-head{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;
+  margin:14px 2px 8px;padding-left:11px;
+  border-left:2px solid var(--ember-line)}
+.sup-tag{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ember-2)}
+.sup-note{font-size:11.5px;color:var(--muted)}
+
 /* A block heading inside the session. Tighter than a screen section header —
    it separates cards rather than screens. */
 .sec-head.blk{margin:20px 2px 9px}
@@ -1827,6 +1866,46 @@ const EXLIST = EXDATA.split('\n').map(line => {
 });
 
 const MUSCLES = ['Chest','Back','Quads','Hamstrings','Glutes','Shoulders','Biceps','Triceps','Core','Calves'];
+/* ============================================================
+   BADGES
+   ------------------------------------------------------------
+   A written programme tags its movements — Priority, Arms, Unilateral, Core,
+   Mobility, Endurance — so you can read a session and see its shape without
+   reading every line of it.
+
+   Derived, not stored. A twelfth column on 281 rows would be 281 judgements to
+   get right by hand and 281 chances to get one wrong; everything here is
+   already known from the pattern, the tier, the name, or a flag the session
+   itself carries.
+
+   `UNILATERAL_RE` is the one rule that reads a name rather than a field, so it
+   is written out in full and its output is asserted against a fixed list —
+   a regex that quietly stops matching is exactly the kind of thing nothing
+   notices for a year.
+   ============================================================ */
+const UNILATERAL_RE = /single-arm|single-leg|one-arm|bulgarian|split squat|lunge|step-up|concentration|suitcase|pistol|side plank|oblique|figure-four|90\/90|kickback|renegade|heel tap|scissor|bird dog|dead bug|world's greatest|hip flexor|couch|pigeon|thoracic rotation/i;
+
+function exBadges(item) {
+  const ex = EX[item && item.exId ? item.exId : item] || {};
+  if (!ex.id) return [];
+  const out = [];
+  if (item && item.priority) out.push('Priority');
+  if (ex.pattern === 'arms-bi' || ex.pattern === 'arms-tri') out.push('Arms');
+  if (ex.pattern === 'core' || ex.pattern === 'carry') out.push('Core');
+  if (ex.pattern === 'mobility') out.push('Mobility');
+  if (ex.pattern === 'cardio') out.push('Endurance');
+  if (UNILATERAL_RE.test(ex.name)) out.push('Unilateral');
+  /* Only on the heaviest work, where it means "this is the lift the session is
+     built around" rather than "this is quite hard". */
+  if (ex.tier === 1 && out.indexOf('Priority') < 0) out.push('Heavy');
+  return out;
+}
+
+const BADGE_TONE = {
+  Priority: 'ember', Arms: 'sky', Unilateral: 'plain',
+  Core: 'plain', Mobility: 'teal', Endurance: 'teal', Heavy: 'ember'
+};
+
 const PATTERN_LABEL = { 'squat':'Squat','hinge':'Hinge','push-h':'Horizontal push','push-v':'Vertical push','pull-h':'Horizontal pull','pull-v':'Vertical pull','lunge':'Lunge','delts':'Delts','arms-bi':'Biceps','arms-tri':'Triceps','core':'Core','calves':'Calves','carry':'Carry','cardio':'Cardio','mobility':'Mobility' };
 
 /* ---------- environments ---------- */
@@ -4686,6 +4765,7 @@ function ensureRoutines() {
     if (!(r.rounds > 0)) r.rounds = 3;
     if (!(r.restRound > 0)) r.restRound = 60;
     (r.items || []).forEach(it => { if (!it.mode) it.mode = defaultMode(it.exId); });
+    normaliseSupersets(r);
   });
   return S.routines;
 }
@@ -4859,6 +4939,62 @@ function setItemMode(id, idx, mode) {
   save(true); return true;
 }
 
+/* ---------- supersets ----------
+   "4A then 4B immediately · rest 60 sec" — two movements run back to back with
+   the rest after the pair rather than between them.
+
+   Modelled as one boolean per item, `supNext`, meaning "this one runs straight
+   into the one below it". A group is then a maximal run of items each linked to
+   the next, which is trivially derived and survives every edit: reorder an item
+   and its link goes with it, delete one and the run just gets shorter. Group
+   ids would have needed renumbering on every move and would drift out of sync
+   the first time one was missed.
+
+   A circuit is already every movement run back to back, so supersets inside one
+   would be a distinction without a difference — the builder hides them. */
+function normaliseSupersets(r) {
+  if (!r || !r.items) return;
+  /* The last item cannot run into a next one that does not exist. Left set, it
+     would silently suppress the rest after the final movement. */
+  r.items.forEach((it, i) => { if (i === r.items.length - 1) delete it.supNext; });
+}
+
+/* Every superset group in a routine, as runs of indices. Items not paired with
+   anything are not groups — a "group" of one is just an exercise. */
+function supersetGroups(items) {
+  const out = [];
+  let run = null;
+  (items || []).forEach((it, i) => {
+    if (it.supNext) { if (!run) run = [i]; run.push(i + 1); }
+    else if (run) { out.push(run); run = null; }
+  });
+  if (run) out.push(run);
+  return out;
+}
+
+/* Which group an index belongs to, and where in it. Null when it stands alone. */
+function supersetAt(items, i) {
+  const g = supersetGroups(items).find(run => run.includes(i));
+  if (!g) return null;
+  return { run: g, pos: g.indexOf(i), letter: String.fromCharCode(65 + g.indexOf(i)) };
+}
+
+/* The A / B / C label for the group itself, counted across the routine. */
+function supersetName(items, i) {
+  const groups = supersetGroups(items);
+  const n = groups.findIndex(run => run.includes(i));
+  return n < 0 ? null : String.fromCharCode(65 + n);
+}
+
+function toggleSupersetLink(id, i) {
+  const r = routineById(id);
+  if (!r || !r.items[i] || !r.items[i + 1]) return false;
+  if (r.items[i].supNext) delete r.items[i].supNext;
+  else r.items[i].supNext = true;
+  normaliseSupersets(r);
+  save(true); return true;
+}
+
 function setRoutineCircuit(id, on) {
   const r = routineById(id);
   if (!r) return false;
@@ -4884,7 +5020,7 @@ function adjustRoutineRest(id, delta) {
 function removeFromRoutine(id, idx) {
   const r = routineById(id);
   if (!r || !r.items[idx]) return false;
-  r.items.splice(idx, 1); save(true); return true;
+  r.items.splice(idx, 1); normaliseSupersets(r); save(true); return true;
 }
 
 function moveInRoutine(id, idx, dir) {
@@ -4894,7 +5030,7 @@ function moveInRoutine(id, idx, dir) {
   if (j < 0 || j >= r.items.length) return false;
   const [it] = r.items.splice(idx, 1);
   r.items.splice(j, 0, it);
-  save(true); return true;
+  normaliseSupersets(r); save(true); return true;
 }
 
 function adjustRoutineItem(id, idx, field, delta) {
@@ -4990,6 +5126,11 @@ function buildRoutineSession(id, asPlanned) {
       exId: ex.id, name: ex.name, load,
       targetW: wTarget,
       targetR: it.reps,
+      /* Carried onto the session so the rest timer and the Train screen read
+         the session rather than reaching back into a routine you might be
+         editing while you train. Never on a circuit — the whole thing already
+         runs straight through. */
+      supNext: (!r.circuit && it.supNext) ? true : undefined,
       sets: Array.from({ length: n }, () => ({
         w: wTarget != null ? wTarget : '', r: '', rpe: '', done: false
       })),
@@ -7723,6 +7864,7 @@ function renderTrain() {
     let block = null;
     sessionOrder(A).forEach(ei => {
       const item = A.exercises[ei];
+      const sup = supFor(ei);
       const b = exBlock(item);
       if (b !== block) {
         block = b;
@@ -7733,6 +7875,12 @@ function renderTrain() {
           html += `<div class="sec-head blk"><span class="sec-t">${h(label)}</span>${
             hint ? `<span class="tiny">${h(hint)}</span>` : ''}</div>`;
         }
+      }
+      /* The pair's own heading, inside whatever block it sits in. It states
+         the rule, because "superset" on its own is a word not an instruction. */
+      if (sup && sup.pos === 0) {
+        html += `<div class="sup-head"><span class="sup-tag">Superset ${h(sup.name)}</span>
+          <span class="sup-note">straight through &mdash; rest after ${h(String.fromCharCode(64 + sup.size))}</span></div>`;
       }
       html += exCardHTML(item, ei);
     });
@@ -7965,10 +8113,35 @@ const BLOCK_RANK = { warmup: 0, recovery: 0, main: 1, accessory: 2, core: 3, fin
    generator decided about sequencing is lost. */
 function sessionOrder(A) {
   const list = (A && A.exercises) || [];
-  return list.map((_, i) => i).sort((a, b) => {
-    const ra = BLOCK_RANK[exBlock(list[a])], rb = BLOCK_RANK[exBlock(list[b])];
-    return ra === rb ? a - b : ra - rb;
+  /* Superset groups move as one. A pair whose two movements sit in different
+     blocks — a tier-2 press supersetted with a tier-3 raise — would otherwise
+     be pulled apart by the sort, which is the one thing a superset cannot
+     survive. The group's first movement decides where the group goes. */
+  const groups = [];
+  let i = 0;
+  while (i < list.length) {
+    const run = [i];
+    let last = i;
+    while (list[last] && list[last].supNext && last + 1 < list.length) { run.push(++last); }
+    groups.push(run);
+    i = last + 1;
+  }
+  groups.sort((a, b) => {
+    const ra = BLOCK_RANK[exBlock(list[a[0]])], rb = BLOCK_RANK[exBlock(list[b[0]])];
+    return ra === rb ? a[0] - b[0] : ra - rb;
   });
+  return groups.reduce((acc, g) => acc.concat(g), []);
+}
+
+/* The superset a card belongs to, if any. Computed here rather than passed in,
+   so exCardHTML() and replaceExCard() can never disagree about it. */
+function supFor(ei) {
+  const A = S.active;
+  if (!A) return null;
+  const g = supersetAt(A.exercises, ei);
+  if (!g) return null;
+  return { letter: g.letter, pos: g.pos, size: g.run.length,
+           name: supersetName(A.exercises, ei) };
 }
 
 /* The session drawn as ground to cover: one segment per movement, filling as
@@ -8002,11 +8175,24 @@ function trainWhere(A) {
   return A.exercises[order[at]].name + ' · ' + (at + 1) + ' of ' + order.length;
 }
 
+/* The badges for one movement, or nothing at all. Deliberately capped: a row
+   of six labels under every exercise is decoration, and the point of a badge is
+   that it is worth reading. */
+function badgeRowHTML(item, max) {
+  const list = exBadges(item).slice(0, max || 3);
+  if (!list.length) return '';
+  return `<div class="badges">${list.map(b =>
+    `<span class="badge ${BADGE_TONE[b] || 'plain'}">${h(b)}</span>`).join('')}</div>`;
+}
+
 function exCardHTML(item, ei) {
   const ex = EX[item.exId] || { name:item.name, primary:'', sec:[], load:'wt', rl:8, rh:12 };
   const complete = isComplete(item);
   const collapsed = item.collapsed;
-  const num = String(ei + 1).padStart(2, '0');
+  const sup = supFor(ei);
+  /* Inside a superset the position in the session stops being the useful
+     number — which of the pair you are on is. */
+  const num = sup ? sup.letter : String(ei + 1).padStart(2, '0');
 
   if (collapsed) {
     return `<div class="ex-card done" data-ei="${ei}">
@@ -8032,8 +8218,9 @@ function exCardHTML(item, ei) {
         <div class="ex-num ${complete?'ok':''}">${complete ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : num}</div>
       </button>
       <button class="grow ex-title" data-act="toggle-collapse" data-i="${ei}">
-        <div class="ex-name">${h(item.name)}${item.priority?'<span class="ex-flag">focus</span>':''}${item.cardio?'<span class="ex-flag">finisher</span>':''}</div>
+        <div class="ex-name">${h(item.name)}</div>
         <div class="ex-meta">${h(ex.primary)}${ex.sec && ex.sec.length ? ' · ' + h(ex.sec.join(', ')) : ''}</div>
+        ${badgeRowHTML(item)}
       </button>
       ${/* One control, not three. A form guide, a swap and a menu on every card
             made the header a toolbar with an exercise name in it — and the
@@ -9995,13 +10182,14 @@ function sheetRoutineEdit(id) {
     if (!ex) return '';
     const timed = itemIsTimed(it);
     const mode = it.mode || defaultMode(it.exId);
-    return `<div class="rt-item">
+    const g = r.circuit ? null : supersetAt(r.items, i);
+    return `<div class="rt-item${g ? ' sup' : ''}">
       <div class="row between">
         <div class="grow">
-          <div class="h3">${h(ex.name)}</div>
+          <div class="h3">${h(ex.name)}${g ? `<span class="rt-sup">${h(supersetName(r.items, i))}${g.letter}</span>` : ''}</div>
           <div class="tiny mt-s">${h(ex.primary)}${usesPlates(it.exId) ? ' · barbell' : ''}</div>
         </div>
-        <span class="rt-pos mono">${i + 1}</span>
+        <span class="rt-pos mono">${g ? h(g.letter) : i + 1}</span>
       </div>
 
       ${canRetime(it.exId) ? `<div class="seg sm mt-s">
@@ -10032,7 +10220,16 @@ function sheetRoutineEdit(id) {
         <button data-act="rt-move" data-v="${h(id)}" data-i="${i}" data-d="1" aria-label="Move ${h(ex.name)} down"${i === r.items.length - 1 ? ' disabled style="opacity:.35"' : ''}>↓</button>
         <button class="rt-del" data-act="rt-remove" data-v="${h(id)}" data-i="${i}" aria-label="Remove ${h(ex.name)}"><span class="rt-ctl-l">Remove</span></button>
       </div>
-    </div>`;
+    </div>
+    ${/* The control sits between the two movements it joins, because that is
+          what it does. Not offered on the last item, and not at all in a
+          circuit — the whole thing already runs straight through. */''}
+    ${!r.circuit && i < r.items.length - 1 ? `<button class="rt-link${it.supNext ? ' on' : ''}"
+        data-act="rt-superset" data-v="${h(id)}" data-i="${i}"
+        aria-pressed="${it.supNext ? 'true' : 'false'}">
+        <span class="rt-link-i">${it.supNext ? '⇄' : '+'}</span>
+        <span>${it.supNext ? 'Superset &mdash; no rest between these' : 'Superset with the next one'}</span>
+      </button>` : ''}`;
   }).join('');
 
   openSheet(`
@@ -11790,7 +11987,11 @@ document.addEventListener('click', ev => {
         if ((st.w === '' || st.w == null) && item.targetW != null && item.targetW !== '') st.w = item.targetW;
         buzz();
         const ex = EX[item.exId];
-        if (S.settings.autoRest && ex && ex.load !== 'min') {
+        /* The whole of a superset: no rest between A and B, rest after the
+           pair. Skipping the timer on anything that runs into a next movement
+           is the entire behaviour — the one after it has no supNext and rests
+           normally. */
+        if (S.settings.autoRest && ex && ex.load !== 'min' && !item.supNext) {
           const secs = (ex.tier <= 2) ? S.settings.restMain : S.settings.restAcc;
           startRest(secs, item.name);
         }
@@ -12270,6 +12471,7 @@ document.addEventListener('click', ev => {
     case 'rt-adj':    { adjustRoutineItem(v, i, t.dataset.f, +t.dataset.d); sheetRoutineEdit(v); break; }
     case 'rt-emoji':  { setRoutineEmoji(v, t.dataset.e); sheetRoutineEdit(v); break; }
     case 'rt-mode':   { setItemMode(v, i, t.dataset.m); sheetRoutineEdit(v); break; }
+    case 'rt-superset': { toggleSupersetLink(v, i); sheetRoutineEdit(v); render(); buzz(); break; }
     case 'rt-circuit': {
       const r = routineById(v);
       if (!r) break;

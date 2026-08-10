@@ -78,6 +78,7 @@ function ensureRoutines() {
     if (!(r.rounds > 0)) r.rounds = 3;
     if (!(r.restRound > 0)) r.restRound = 60;
     (r.items || []).forEach(it => { if (!it.mode) it.mode = defaultMode(it.exId); });
+    normaliseSupersets(r);
   });
   return S.routines;
 }
@@ -251,6 +252,62 @@ function setItemMode(id, idx, mode) {
   save(true); return true;
 }
 
+/* ---------- supersets ----------
+   "4A then 4B immediately · rest 60 sec" — two movements run back to back with
+   the rest after the pair rather than between them.
+
+   Modelled as one boolean per item, `supNext`, meaning "this one runs straight
+   into the one below it". A group is then a maximal run of items each linked to
+   the next, which is trivially derived and survives every edit: reorder an item
+   and its link goes with it, delete one and the run just gets shorter. Group
+   ids would have needed renumbering on every move and would drift out of sync
+   the first time one was missed.
+
+   A circuit is already every movement run back to back, so supersets inside one
+   would be a distinction without a difference — the builder hides them. */
+function normaliseSupersets(r) {
+  if (!r || !r.items) return;
+  /* The last item cannot run into a next one that does not exist. Left set, it
+     would silently suppress the rest after the final movement. */
+  r.items.forEach((it, i) => { if (i === r.items.length - 1) delete it.supNext; });
+}
+
+/* Every superset group in a routine, as runs of indices. Items not paired with
+   anything are not groups — a "group" of one is just an exercise. */
+function supersetGroups(items) {
+  const out = [];
+  let run = null;
+  (items || []).forEach((it, i) => {
+    if (it.supNext) { if (!run) run = [i]; run.push(i + 1); }
+    else if (run) { out.push(run); run = null; }
+  });
+  if (run) out.push(run);
+  return out;
+}
+
+/* Which group an index belongs to, and where in it. Null when it stands alone. */
+function supersetAt(items, i) {
+  const g = supersetGroups(items).find(run => run.includes(i));
+  if (!g) return null;
+  return { run: g, pos: g.indexOf(i), letter: String.fromCharCode(65 + g.indexOf(i)) };
+}
+
+/* The A / B / C label for the group itself, counted across the routine. */
+function supersetName(items, i) {
+  const groups = supersetGroups(items);
+  const n = groups.findIndex(run => run.includes(i));
+  return n < 0 ? null : String.fromCharCode(65 + n);
+}
+
+function toggleSupersetLink(id, i) {
+  const r = routineById(id);
+  if (!r || !r.items[i] || !r.items[i + 1]) return false;
+  if (r.items[i].supNext) delete r.items[i].supNext;
+  else r.items[i].supNext = true;
+  normaliseSupersets(r);
+  save(true); return true;
+}
+
 function setRoutineCircuit(id, on) {
   const r = routineById(id);
   if (!r) return false;
@@ -276,7 +333,7 @@ function adjustRoutineRest(id, delta) {
 function removeFromRoutine(id, idx) {
   const r = routineById(id);
   if (!r || !r.items[idx]) return false;
-  r.items.splice(idx, 1); save(true); return true;
+  r.items.splice(idx, 1); normaliseSupersets(r); save(true); return true;
 }
 
 function moveInRoutine(id, idx, dir) {
@@ -286,7 +343,7 @@ function moveInRoutine(id, idx, dir) {
   if (j < 0 || j >= r.items.length) return false;
   const [it] = r.items.splice(idx, 1);
   r.items.splice(j, 0, it);
-  save(true); return true;
+  normaliseSupersets(r); save(true); return true;
 }
 
 function adjustRoutineItem(id, idx, field, delta) {
@@ -382,6 +439,11 @@ function buildRoutineSession(id, asPlanned) {
       exId: ex.id, name: ex.name, load,
       targetW: wTarget,
       targetR: it.reps,
+      /* Carried onto the session so the rest timer and the Train screen read
+         the session rather than reaching back into a routine you might be
+         editing while you train. Never on a circuit — the whole thing already
+         runs straight through. */
+      supNext: (!r.circuit && it.supNext) ? true : undefined,
       sets: Array.from({ length: n }, () => ({
         w: wTarget != null ? wTarget : '', r: '', rpe: '', done: false
       })),

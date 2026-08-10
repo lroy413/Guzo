@@ -756,6 +756,7 @@ function renderTrain() {
     let block = null;
     sessionOrder(A).forEach(ei => {
       const item = A.exercises[ei];
+      const sup = supFor(ei);
       const b = exBlock(item);
       if (b !== block) {
         block = b;
@@ -766,6 +767,12 @@ function renderTrain() {
           html += `<div class="sec-head blk"><span class="sec-t">${h(label)}</span>${
             hint ? `<span class="tiny">${h(hint)}</span>` : ''}</div>`;
         }
+      }
+      /* The pair's own heading, inside whatever block it sits in. It states
+         the rule, because "superset" on its own is a word not an instruction. */
+      if (sup && sup.pos === 0) {
+        html += `<div class="sup-head"><span class="sup-tag">Superset ${h(sup.name)}</span>
+          <span class="sup-note">straight through &mdash; rest after ${h(String.fromCharCode(64 + sup.size))}</span></div>`;
       }
       html += exCardHTML(item, ei);
     });
@@ -998,10 +1005,35 @@ const BLOCK_RANK = { warmup: 0, recovery: 0, main: 1, accessory: 2, core: 3, fin
    generator decided about sequencing is lost. */
 function sessionOrder(A) {
   const list = (A && A.exercises) || [];
-  return list.map((_, i) => i).sort((a, b) => {
-    const ra = BLOCK_RANK[exBlock(list[a])], rb = BLOCK_RANK[exBlock(list[b])];
-    return ra === rb ? a - b : ra - rb;
+  /* Superset groups move as one. A pair whose two movements sit in different
+     blocks — a tier-2 press supersetted with a tier-3 raise — would otherwise
+     be pulled apart by the sort, which is the one thing a superset cannot
+     survive. The group's first movement decides where the group goes. */
+  const groups = [];
+  let i = 0;
+  while (i < list.length) {
+    const run = [i];
+    let last = i;
+    while (list[last] && list[last].supNext && last + 1 < list.length) { run.push(++last); }
+    groups.push(run);
+    i = last + 1;
+  }
+  groups.sort((a, b) => {
+    const ra = BLOCK_RANK[exBlock(list[a[0]])], rb = BLOCK_RANK[exBlock(list[b[0]])];
+    return ra === rb ? a[0] - b[0] : ra - rb;
   });
+  return groups.reduce((acc, g) => acc.concat(g), []);
+}
+
+/* The superset a card belongs to, if any. Computed here rather than passed in,
+   so exCardHTML() and replaceExCard() can never disagree about it. */
+function supFor(ei) {
+  const A = S.active;
+  if (!A) return null;
+  const g = supersetAt(A.exercises, ei);
+  if (!g) return null;
+  return { letter: g.letter, pos: g.pos, size: g.run.length,
+           name: supersetName(A.exercises, ei) };
 }
 
 /* The session drawn as ground to cover: one segment per movement, filling as
@@ -1035,11 +1067,24 @@ function trainWhere(A) {
   return A.exercises[order[at]].name + ' · ' + (at + 1) + ' of ' + order.length;
 }
 
+/* The badges for one movement, or nothing at all. Deliberately capped: a row
+   of six labels under every exercise is decoration, and the point of a badge is
+   that it is worth reading. */
+function badgeRowHTML(item, max) {
+  const list = exBadges(item).slice(0, max || 3);
+  if (!list.length) return '';
+  return `<div class="badges">${list.map(b =>
+    `<span class="badge ${BADGE_TONE[b] || 'plain'}">${h(b)}</span>`).join('')}</div>`;
+}
+
 function exCardHTML(item, ei) {
   const ex = EX[item.exId] || { name:item.name, primary:'', sec:[], load:'wt', rl:8, rh:12 };
   const complete = isComplete(item);
   const collapsed = item.collapsed;
-  const num = String(ei + 1).padStart(2, '0');
+  const sup = supFor(ei);
+  /* Inside a superset the position in the session stops being the useful
+     number — which of the pair you are on is. */
+  const num = sup ? sup.letter : String(ei + 1).padStart(2, '0');
 
   if (collapsed) {
     return `<div class="ex-card done" data-ei="${ei}">
@@ -1065,8 +1110,9 @@ function exCardHTML(item, ei) {
         <div class="ex-num ${complete?'ok':''}">${complete ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : num}</div>
       </button>
       <button class="grow ex-title" data-act="toggle-collapse" data-i="${ei}">
-        <div class="ex-name">${h(item.name)}${item.priority?'<span class="ex-flag">focus</span>':''}${item.cardio?'<span class="ex-flag">finisher</span>':''}</div>
+        <div class="ex-name">${h(item.name)}</div>
         <div class="ex-meta">${h(ex.primary)}${ex.sec && ex.sec.length ? ' · ' + h(ex.sec.join(', ')) : ''}</div>
+        ${badgeRowHTML(item)}
       </button>
       ${/* One control, not three. A form guide, a swap and a menu on every card
             made the header a toolbar with an exercise name in it — and the

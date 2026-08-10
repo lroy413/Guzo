@@ -77,13 +77,14 @@ function sheetRoutineEdit(id) {
     if (!ex) return '';
     const timed = itemIsTimed(it);
     const mode = it.mode || defaultMode(it.exId);
-    return `<div class="rt-item">
+    const g = r.circuit ? null : supersetAt(r.items, i);
+    return `<div class="rt-item${g ? ' sup' : ''}">
       <div class="row between">
         <div class="grow">
-          <div class="h3">${h(ex.name)}</div>
+          <div class="h3">${h(ex.name)}${g ? `<span class="rt-sup">${h(supersetName(r.items, i))}${g.letter}</span>` : ''}</div>
           <div class="tiny mt-s">${h(ex.primary)}${usesPlates(it.exId) ? ' · barbell' : ''}</div>
         </div>
-        <span class="rt-pos mono">${i + 1}</span>
+        <span class="rt-pos mono">${g ? h(g.letter) : i + 1}</span>
       </div>
 
       ${canRetime(it.exId) ? `<div class="seg sm mt-s">
@@ -114,7 +115,16 @@ function sheetRoutineEdit(id) {
         <button data-act="rt-move" data-v="${h(id)}" data-i="${i}" data-d="1" aria-label="Move ${h(ex.name)} down"${i === r.items.length - 1 ? ' disabled style="opacity:.35"' : ''}>↓</button>
         <button class="rt-del" data-act="rt-remove" data-v="${h(id)}" data-i="${i}" aria-label="Remove ${h(ex.name)}"><span class="rt-ctl-l">Remove</span></button>
       </div>
-    </div>`;
+    </div>
+    ${/* The control sits between the two movements it joins, because that is
+          what it does. Not offered on the last item, and not at all in a
+          circuit — the whole thing already runs straight through. */''}
+    ${!r.circuit && i < r.items.length - 1 ? `<button class="rt-link${it.supNext ? ' on' : ''}"
+        data-act="rt-superset" data-v="${h(id)}" data-i="${i}"
+        aria-pressed="${it.supNext ? 'true' : 'false'}">
+        <span class="rt-link-i">${it.supNext ? '⇄' : '+'}</span>
+        <span>${it.supNext ? 'Superset &mdash; no rest between these' : 'Superset with the next one'}</span>
+      </button>` : ''}`;
   }).join('');
 
   openSheet(`

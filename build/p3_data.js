@@ -369,6 +369,46 @@ const EXLIST = EXDATA.split('\n').map(line => {
 });
 
 const MUSCLES = ['Chest','Back','Quads','Hamstrings','Glutes','Shoulders','Biceps','Triceps','Core','Calves'];
+/* ============================================================
+   BADGES
+   ------------------------------------------------------------
+   A written programme tags its movements — Priority, Arms, Unilateral, Core,
+   Mobility, Endurance — so you can read a session and see its shape without
+   reading every line of it.
+
+   Derived, not stored. A twelfth column on 281 rows would be 281 judgements to
+   get right by hand and 281 chances to get one wrong; everything here is
+   already known from the pattern, the tier, the name, or a flag the session
+   itself carries.
+
+   `UNILATERAL_RE` is the one rule that reads a name rather than a field, so it
+   is written out in full and its output is asserted against a fixed list —
+   a regex that quietly stops matching is exactly the kind of thing nothing
+   notices for a year.
+   ============================================================ */
+const UNILATERAL_RE = /single-arm|single-leg|one-arm|bulgarian|split squat|lunge|step-up|concentration|suitcase|pistol|side plank|oblique|figure-four|90\/90|kickback|renegade|heel tap|scissor|bird dog|dead bug|world's greatest|hip flexor|couch|pigeon|thoracic rotation/i;
+
+function exBadges(item) {
+  const ex = EX[item && item.exId ? item.exId : item] || {};
+  if (!ex.id) return [];
+  const out = [];
+  if (item && item.priority) out.push('Priority');
+  if (ex.pattern === 'arms-bi' || ex.pattern === 'arms-tri') out.push('Arms');
+  if (ex.pattern === 'core' || ex.pattern === 'carry') out.push('Core');
+  if (ex.pattern === 'mobility') out.push('Mobility');
+  if (ex.pattern === 'cardio') out.push('Endurance');
+  if (UNILATERAL_RE.test(ex.name)) out.push('Unilateral');
+  /* Only on the heaviest work, where it means "this is the lift the session is
+     built around" rather than "this is quite hard". */
+  if (ex.tier === 1 && out.indexOf('Priority') < 0) out.push('Heavy');
+  return out;
+}
+
+const BADGE_TONE = {
+  Priority: 'ember', Arms: 'sky', Unilateral: 'plain',
+  Core: 'plain', Mobility: 'teal', Endurance: 'teal', Heavy: 'ember'
+};
+
 const PATTERN_LABEL = { 'squat':'Squat','hinge':'Hinge','push-h':'Horizontal push','push-v':'Vertical push','pull-h':'Horizontal pull','pull-v':'Vertical pull','lunge':'Lunge','delts':'Delts','arms-bi':'Biceps','arms-tri':'Triceps','core':'Core','calves':'Calves','carry':'Carry','cardio':'Cardio','mobility':'Mobility' };
 
 /* ---------- environments ---------- */
