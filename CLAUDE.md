@@ -111,7 +111,7 @@ What exists instead is one JSON blob in `localStorage`.
 |---|---|---|
 | `v` | string | schema version stamp |
 | `onboarded` | bool | gates the onboarding screen |
-| `profile` | object | `name, units('kg'\|'lb'), goals[], level, envs[], programId, bodyweight[{d,w}], injuries[], priorities[], sleepNorm, sessionMins, cardio{}, gear{}, heightCm, birthYear, sex, activity` |
+| `profile` | object | `name, units('kg'\|'lb'), goals[], level, envs[], programId, bodyweight[{d,w}], injuries[], priorities[], sleepNorm, sessionMins, dayStart, dayStartSeen, cardio{}, gear{}, heightCm, birthYear, sex, activity` |
 | `settings` | object | `nutrition, proteinOnly, restMain, restAcc, autoRest, warmup, lineIdx` |
 | `week` | object | `{ start:'YYYY-MM-DD', days:{}, plan:{} }` — see below |
 | `readiness` | map | date key → `{sleepH, sleepQ, energy, sore, stress, score}` |
@@ -161,6 +161,8 @@ The blob is already the natural sync unit. The honest shape would be one `profil
 **Dates.** Every store in the app is keyed `'YYYY-MM-DD'`. `dk(date)` makes a key, `fromKey(k)` makes a Date, `addDays(d, n)` returns a **Date**, and `key(k)` normalises either into a key. **Any function that accepts a date must pass it through `key()` first.** This has already caused one silent class of bug (see `docs/decisions.md`).
 
 **There is one clock, and it is `today()`.** `weekStart()` defaults through it rather than reading `new Date()` a second time, so pinning `today()` in a fixture pins the whole week. Do not reintroduce a second source of "now" — a fixture that pins one and not the other is correct only until the real date crosses a Monday.
+
+That one entry point is also what makes `profile.dayStart` a three-line feature. A day does not have to end at midnight: set it to 4 and `today()` subtracts four hours before taking the date, so a session logged at 2am belongs to the day you have been awake for. Because everything reads `today()`, the week, the plan, readiness, the daily metrics and the food log all move together and none of them know the setting exists. Anything that genuinely wants the wall clock — the greeting, `lateFinishHint()`, a `toISOString()` audit stamp — reads hours or `Date.now()` directly and is unaffected. **New date-derived code goes through `today()`, never `new Date()`**; one call site missed this (`muscleVolume`) and was a silent second clock for months.
 
 **Naming.**
 - `sheetX()` opens a modal sheet. `renderX()` writes into a screen container.
@@ -235,9 +237,9 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node knees.mjs` | anatomical check on the SVG form diagrams |
 | `node dupes.mjs` | duplicate top-level declarations (also runs in `build.sh`) |
 | `node sw.mjs` | the service worker registers, caches, survives the network being cut, and still lets an update through |
-| `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of; a sheet that redraws itself keeps your scroll position; the week strip moves by arrow and by swipe, and a day opens on what it is rather than on an editor |
+| `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of; a sheet that redraws itself keeps your scroll position; the week strip moves by arrow and by swipe, a day opens on what it is rather than on an editor, and two sessions in one day are both counted |
 | `node fuel.mjs` | meal suggestions are deterministic, hit the target, and never break a stated dietary restriction |
-| `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, a Fuel bar means what it looks like, a recovery day is mobility spread across the body with nothing to beat, a routine warm-up matches what the routine trains, and a session logged after the fact lands on the day it happened |
+| `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, a Fuel bar means what it looks like, a recovery day is mobility spread across the body with nothing to beat, a routine warm-up matches what the routine trains, a session logged after the fact lands on the day it happened, and a day can end at 4am instead of midnight |
 | `node native.mjs` | the Capacitor bridge is inert on the web, mirrors saves on device, and never restores over live data |
 
 `png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.
@@ -247,6 +249,8 @@ The full sweep takes roughly 15 minutes. Run `test.mjs` and `dupes.mjs` on every
 Every instrument here has to be able to fail, and both new ones were checked against the bug they were written for. Reinstate the Blob registration and `sw.mjs` goes from 17 passed to 12 failed rather than hanging or crashing. Put the legacy Fuel tile back and `blanks.mjs` goes red on Today with `"0 / undefined kcal"`. Each of `engine.mjs`'s four subjects was reverted individually and the matching checks confirmed red — the weekend one prints `[0,1,2,3,4]`, the bar one prints `["100%","100%","50%"]`. Put `sh.scrollTop = 0` back in `openSheet` and `blanks.mjs` goes 83/3 with the real distances printed (`1211 → 0` on the builder, `10106 → 0` in the picker); restore that and put `closeSheet()` back in `pick-finish` and it goes 85/1. The recovery and warm-up checks were reverted one subject at a time too — dropping the `type === 'recovery'` branch prints `squat, push-h, pull-h, pull-h, cardio`, a flat least-recent sort prints `6 glutes, 3 regions`, and removing the mobility guard in `applyProgression` prints `mob-cat-cow → 9 (from 8)`.
 
 The week-strip and day-sheet subjects were reverted the same way — the old `day-tap` routing prints `open-week, wk-avail, wk-avail, wk-avail, wk-avail, wk-avail, open-week`, which is exactly the complaint that prompted the change.
+
+**Two probes here were date-fragile and went red the first time the suite ran on a Monday.** `engine.mjs`'s Fuel-bar check seeded `weekStart()+0,1,2` and read the first three bars — but the chart is a *trailing* seven days ending today, so on a Monday two of the seeded days are in the future and the three bars read are last week's empty ones. `blanks.mjs`'s past-day probe used `today−2`, which falls into last week early in one. Both now count back from `today()` and look things up by date key rather than by position. If a probe needs a specific relative day, take it from what the screen is actually showing.
 
 Three probes in `blanks.mjs` had to be rewritten to *fail* rather than throw: a missing element meant `.click()` on `null`, which killed the instrument before it printed anything, so a reverted subject looked like a hang rather than a red. **A probe that throws has not run.** Return a fully shaped object on the miss.
 

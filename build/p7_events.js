@@ -126,6 +126,15 @@ function sheetSessionDone(A, v, fresh) {
     ${!fresh.length && nxt && nxt.left > 0 && nxt.left <= 5 ? `
       <div class="banner soft mb">${nxt.left} more ${nxt.unit} to <strong>${nxt.title}</strong>.</div>` : ''}
     ${A.exercises.filter(i => i.deloaded).length ? `<div class="banner soft mb">Some weights were pulled back 10% after two sessions short of target. That's the plan working, not you failing.</div>` : ''}
+    ${/* Offered here because this is the only moment it is obvious. Someone
+          finishing at 2am does not go looking through Settings for a concept
+          they have no name for — they just notice the app has put their
+          session on the wrong day and assume that is how it works. Shown once:
+          answering it either way sets dayStartSeen, so it never nags. */
+      lateFinishHint() ? `<div class="banner soft mb">
+        <strong>Logged on ${h(prettyDate(A.date))}.</strong> Training this late often? Your day can roll over later than midnight, so a session after a long shift lands on the day you have been awake for.
+        <button class="btn xs ghost mt-s" data-act="day-start">Set when my day ends</button>
+      </div>` : ''}
     <div class="creed">
       <div class="creed-rule"></div>
       <span class="creed-mark">&ldquo;</span>
@@ -419,6 +428,18 @@ document.addEventListener('click', ev => {
     /* ---- week shaping ---- */
     case 'open-week': sheetWeek(); break;
     case 'wk-offset': weekOffset = +v; sheetWeek(); break;
+    case 'day-start': sheetDayStart(); break;
+    case 'set-daystart': {
+      S.profile.dayStart = +v || 0;
+      /* Seen, whichever way it was answered — including "midnight", which is a
+         decision and not an unanswered question. This is what stops the
+         after-a-late-session hint appearing for ever. */
+      S.profile.dayStartSeen = true;
+      save(true); buzz();
+      sheetDayStart(); render();
+      toast(dayStartHour() ? 'Your day now ends at ' + dayStartLabel().toLowerCase() : 'Back to the calendar day', true);
+      break;
+    }
     case 'day-edit': sheetDayEdit(t.dataset.k, t.dataset.b); break;
     case 'day-open': sheetDay(t.dataset.k); break;
     case 'wk-avail': {

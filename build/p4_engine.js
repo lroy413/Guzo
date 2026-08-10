@@ -9,7 +9,7 @@ function blank() {
     onboarded: false,
     profile: { name:'', units:'kg', goals:['strength','muscle'], level:'some',
                envs:['full'], programId:'anchor3', bodyweight:[],
-               injuries:[], priorities:[], sleepNorm:7.5, sessionMins:60,
+               injuries:[], priorities:[], sleepNorm:7.5, sessionMins:60, dayStart:0,
                cardio:{ amount:'light', modes:['car-walk'] },
                gear:{ barbell:true, rack:true, bench:true, dumbbells:true, kettlebells:true, cables:true,
                       machines:true, pullupBar:true, bands:true, cardioKit:true } },
@@ -107,7 +107,54 @@ function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate()+n); return
    Passing one where the other is expected fails silently — the lookup just
    misses — so anything that takes a date key normalises through here. */
 function key(k) { return typeof k === 'string' ? k : dk(k); }
-function today() { return dk(); }
+
+/* Where your day actually ends.
+   ------------------------------
+   Midnight is a convention, not a fact about people. Come off a shoot at 2am
+   and train before bed and that session belongs to the day you have been awake
+   for — the calendar has rolled over, you have not. Worse for anyone training
+   twice: the morning session lands on Monday and the one after the same shift
+   lands on Tuesday, so one real day reads as two half-empty ones and the
+   second session never joins the first.
+
+   `dayStart` is the hour your day rolls over. 0 is the ordinary calendar day
+   and is the default, because shifting everyone's dates on a guess would be a
+   far worse bug than the one this fixes.
+
+   Deliberately applied inside today() rather than at the call sites. today() is
+   the single clock the whole app reads — the week, the plan, readiness, what
+   you ate, what you logged — so moving the boundary here moves all of them
+   together, and nothing downstream has to know this setting exists. Anywhere
+   that needs the wall clock instead (the greeting, a timestamp) is reading
+   hours or Date.now() and is untouched. */
+function dayStartHour() {
+  const n = (typeof S !== 'undefined' && S && S.profile) ? +S.profile.dayStart : 0;
+  return n > 0 && n <= 6 ? Math.floor(n) : 0;
+}
+
+function today() {
+  const cut = dayStartHour();
+  if (!cut) return dk();
+  const d = new Date();
+  d.setHours(d.getHours() - cut);
+  return dk(d);
+}
+
+/* The wall clock has passed midnight but your day has not. The app must say so
+   where it shows a date, or it just looks like it has the wrong one. */
+function inLateWindow() { return dayStartHour() > 0 && dk() !== today(); }
+
+/* Whether to offer the setting after a session. True only while the boundary
+   is still midnight, the question has never been answered, and it is the small
+   hours — the one moment the problem is visible rather than abstract. */
+function lateFinishHint() {
+  if (dayStartHour() > 0) return false;
+  if (S && S.profile && S.profile.dayStartSeen) return false;
+  /* Not `h` — that is the escaping helper, and shadowing it in a file full of
+     template strings is a trap waiting for the next person. */
+  const hr = new Date().getHours();
+  return hr >= 0 && hr < 5;
+}
 /* Defaults through today() rather than reading the clock a second time. The
    two used to be independent sources of "now": pinning today() in a fixture
    left weekStart() still on the real clock, so a test pinned to a Tuesday
@@ -892,7 +939,8 @@ function weekStreak() {
 }
 
 function muscleVolume(days) {
-  const cutoff = dk(addDays(new Date(), -(days || 7)));
+  /* Through today(), not a second read of the clock — see the note there. */
+  const cutoff = dk(addDays(fromKey(today()), -(days || 7)));
   const tally = {};
   MUSCLES.forEach(m => tally[m] = 0);
   S.sessions.filter(s => s.ended && s.date >= cutoff).forEach(s => {

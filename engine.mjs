@@ -176,23 +176,34 @@ try {
     S = blank(); S.onboarded = true;
     S.settings.nutrition = true;
     S.nutrition.targets = { kcal: 2000, p: 150, c: 200, f: 60 };
-    const ws = weekStart();
-    const day = n => dk(addDays(ws, n));
-    // one day exactly on target, one far over, one half
+    /* Counted back from today, and read by date rather than by position.
+       This used to seed weekStart()+0,1,2 and read the first three bars, which
+       is only the same thing on some days of the week: the chart is a trailing
+       seven days ending today, so on a Monday two of the three seeded days are
+       in the future and the three bars read are last week's empty ones. It
+       passed for months and went red the first time the suite ran on a Monday
+       — correct by coincidence, which is the worst kind of correct. */
+    const day = n => dk(addDays(fromKey(today()), n));
     const put = (k, kcal) => { S.nutrition.days[k] = { items: [{ foodId:'x', n:'probe', kcal, p:0, c:0, f:0 }] }; };
-    put(day(0), 2000);   // 100%
-    put(day(1), 2800);   // 140%
-    put(day(2), 1000);   // 50%
+    put(day(0), 2000);   // 100%, today
+    put(day(-1), 2800);  // 140%, yesterday
+    put(day(-2), 1000);  // 50%, the day before
     save(true);
     go('fuel');
-    const fills = [...document.querySelectorAll('#s-fuel .fuel-bar-fill')].map(el => el.style.height);
+    const at = k => {
+      const b = document.querySelector(`#s-fuel .fuel-bar[data-v="${k}"] .fuel-bar-fill`);
+      return b ? b.style.height : 'no bar';
+    };
     const markers = document.querySelectorAll('#s-fuel .fuel-bar-target').length;
     const rose = [...document.querySelectorAll('#s-fuel *')].some(el => {
       const c = getComputedStyle(el);
       return /rgb\(2[0-9]{2},\s*[0-9]{1,2},/.test(c.backgroundColor) && el.className.includes('fuel-bar');
     });
-    return { fills: fills.slice(0, 3), markers, rose };
+    return { fills: [at(day(0)), at(day(-1)), at(day(-2))], markers, rose,
+             bars: document.querySelectorAll('#s-fuel .fuel-bar').length };
   });
+  check('the chart draws a bar for every day of the window', bars.bars === 7, String(bars.bars));
+  check('...and every seeded day has one', bars.fills.every(f => f !== 'no bar'), JSON.stringify(bars.fills));
   check('an over-target day is drawn taller than an on-target day',
     bars.fills[1] !== bars.fills[0], JSON.stringify(bars.fills));
   check('an under-target day is shorter than an on-target day',
@@ -525,6 +536,126 @@ try {
   });
   check('logging an older day never moves "last done" backwards',
     noRewind.after === noRewind.today, `${noRewind.afterToday} → ${noRewind.after}`);
+
+  // ================= 7. where the day ends ===============================
+  console.log('\nthe day boundary\n');
+
+  /* Freezes the wall clock for one call. Nothing in the app may read the clock
+     any other way, so this is enough to move the whole app to 2am — which is
+     exactly the property being tested as much as the arithmetic is. */
+  const CLOCK = `
+    const at = (iso, fn) => {
+      const Real = Date;
+      const fixed = new Real(iso).getTime();
+      class Fake extends Real {
+        constructor(...a) { if (!a.length) super(fixed); else super(...a); }
+        static now() { return fixed; }
+      }
+      globalThis.Date = Fake;
+      try { return fn(); } finally { globalThis.Date = Real; }
+    };`;
+
+  const boundary = await page.evaluate(`(() => {
+    ${CLOCK}
+    S = blank(); S.onboarded = true; save(true);
+
+    const read = () => ({ today: today(), wall: dk(), late: inLateWindow() });
+
+    S.profile.dayStart = 0;
+    const midnightDefault = at('2026-08-11T02:30:00', read);
+
+    S.profile.dayStart = 4;
+    const lateNight  = at('2026-08-11T02:30:00', read);   // after a 2am finish
+    const justBefore = at('2026-08-11T03:59:00', read);
+    const justAfter  = at('2026-08-11T04:00:00', read);
+    const evening    = at('2026-08-11T21:00:00', read);
+    const morning    = at('2026-08-11T07:30:00', read);
+
+    S.profile.dayStart = 4;
+    const weekMoves = at('2026-08-11T02:30:00', () => ({ ws: dk(weekStart()), today: today() }));
+
+    S.profile.dayStart = 9;   // out of range
+    const tooLate = at('2026-08-11T02:30:00', read);
+    S.profile.dayStart = -3;
+    const negative = at('2026-08-11T02:30:00', read);
+    S.profile.dayStart = 0;
+    return { midnightDefault, lateNight, justBefore, justAfter, evening, morning, weekMoves, tooLate, negative };
+  })()`);
+
+  check('by default a 2am session is the next day', boundary.midnightDefault.today === '2026-08-11',
+    boundary.midnightDefault.today);
+  check('...and nothing claims otherwise', boundary.midnightDefault.late === false);
+  check('with the day ending at 4am, 2:30am is still the day before',
+    boundary.lateNight.today === '2026-08-10', boundary.lateNight.today);
+  check('...and the app says so rather than looking wrong',
+    boundary.lateNight.late === true && boundary.lateNight.wall === '2026-08-11');
+  check('the boundary holds right up to it', boundary.justBefore.today === '2026-08-10',
+    boundary.justBefore.today);
+  check('...and rolls over exactly on it', boundary.justAfter.today === '2026-08-11',
+    boundary.justAfter.today);
+  check('a normal morning is unaffected', boundary.morning.today === '2026-08-11' && boundary.morning.late === false);
+  check('...and so is the evening', boundary.evening.today === '2026-08-11' && boundary.evening.late === false);
+  /* The point of putting this inside today(): one change, and the week, the
+     plan and everything keyed by date move with it. */
+  check('the week moves with it', boundary.weekMoves.ws === '2026-08-10', boundary.weekMoves.ws);
+  check('an hour past the allowed range is ignored, not obeyed',
+    boundary.tooLate.today === '2026-08-11', boundary.tooLate.today);
+  check('...and so is a negative one', boundary.negative.today === '2026-08-11', boundary.negative.today);
+
+  /* The actual complaint: a main session before work and a routine after a
+     shift that ends at 2am are one day to the person doing them. */
+  const twoADay = await page.evaluate(`(() => {
+    ${CLOCK}
+    const run = (dayStart) => {
+      S = blank(); S.onboarded = true; S.profile.dayStart = dayStart; save(true);
+      buildWeekPlan(true);
+      const log = (extra) => {
+        const ex = EX['bb-back-squat'];
+        S.active = { id: 'x' + Math.floor(performance.now()), date: today(), type: 'full', env: 'full',
+          rung: 'full', extra, started: Date.now() - 3600000, ended: null, dur: 0,
+          exercises: [{ exId: ex.id, name: ex.name, load: ex.load, targetW: 60, targetR: 8,
+                        sets: [{ w: 60, r: 8, rpe: 8, done: true }], note: '' }] };
+        finishSession();
+      };
+      at('2026-08-10T07:00:00', () => log(false));   // main session, before work
+      at('2026-08-11T02:30:00', () => log(true));    // routine, after the shift
+      const dates = S.sessions.map(s => s.date);
+      return { dates, distinct: new Set(dates).size,
+               onTenth: sessionsOn('2026-08-10').length,
+               summary: daySessions('2026-08-10') };
+    };
+    return { off: run(0), on: run(4) };
+  })()`);
+  check('at midnight the two land on different days', twoADay.off.distinct === 2,
+    JSON.stringify(twoADay.off.dates));
+  check('with the boundary set they are one day', twoADay.on.distinct === 1,
+    JSON.stringify(twoADay.on.dates));
+  check('...both of them, on the day you were awake for', twoADay.on.onTenth === 2,
+    String(twoADay.on.onTenth));
+  /* And the day has to describe itself by the session that discharged it, not
+     by whichever happened to be first or last in the array. */
+  check('the day is named by the session that counted',
+    twoADay.on.summary.main && twoADay.on.summary.main.extra !== true);
+  check('...with the other one counted, not dropped', twoADay.on.summary.extras === 1,
+    String(twoADay.on.summary.extras));
+
+  /* The hint that makes this findable at all. It has to appear when the
+     problem is visible and never once it has been answered. */
+  const hint = await page.evaluate(`(() => {
+    ${CLOCK}
+    S = blank(); S.onboarded = true; S.profile.dayStart = 0; save(true);
+    const late = at('2026-08-11T02:30:00', () => lateFinishHint());
+    const day  = at('2026-08-11T14:00:00', () => lateFinishHint());
+    S.profile.dayStartSeen = true;
+    const answered = at('2026-08-11T02:30:00', () => lateFinishHint());
+    S.profile.dayStartSeen = false; S.profile.dayStart = 4;
+    const alreadySet = at('2026-08-11T02:30:00', () => lateFinishHint());
+    return { late, day, answered, alreadySet };
+  })()`);
+  check('the hint appears after a session in the small hours', hint.late === true);
+  check('...and never in the middle of the day', hint.day === false);
+  check('...nor once the question has been answered', hint.answered === false);
+  check('...nor when the boundary is already set', hint.alreadySet === false);
 
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 

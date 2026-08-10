@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **565,198 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (153) + `engine` (66) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **572,670 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (173) + `engine` (88) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -17,6 +17,8 @@ Last sweep: `dupes` + `blanks` (153) + `engine` (66) + `fuel` (37) + `sw` (17) +
 | Week ordering | Complete and new. Pin / swap / reflow, move a session between days, place one on an empty day. |
 | "Already trained this week" | Complete. Marks days spent without inventing session records. |
 | Custom routines | Complete. Build, reorder, run as an extra, or assign to a planned day, with an optional warm-up per routine. The builder and the picker hold their scroll position through every tap. |
+| When a day ends | Complete. `profile.dayStart` moves the boundary off midnight, up to 6am. Applied inside `today()`, so the whole app moves with it. Default 0. |
+| Two sessions a day | Complete. Both are kept and both are shown; the session that discharged the day names it. |
 | The week strip | Complete. Arrows and swipe move it between weeks — back as far as your first session, forward to next week. A day opens on a summary; the editors are one tap in. |
 | Logging a past day | Complete. A day that has gone offers "Add something you did"; the session lands on that date, with its length worked out from the work rather than the clock. |
 | Recovery days | Complete. Any day can be set to Recovery: mobility and stretching spread across the body, nothing loaded, nothing to beat. Choosable, never scheduled. |
@@ -149,6 +151,26 @@ The evidence card that sat at the bottom of More is gone. It was a shorter copy 
 ### The nav is a floating pill
 
 The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
+
+### Midnight was treated as a fact about people
+
+Reported as a problem the user could not name: *"I do my routines after work, but I get off at 2am. Which in the app counts as the next day but for me it's still the same day cause I haven't went to bed."* And the harder half of it: *"I work out twice a day sometimes, so my main workout would be in the am before work and my late night routine would be in the am after work. Technically next day but not quite."*
+
+That second sentence is the one that made this worth doing properly. Two sessions in a day is already supported — the app keeps every session and an extra never discharges the planned one — but the calendar was splitting a single real day in half. The morning session landed on Monday, the 2am one on Tuesday, and neither day looked like what actually happened: one showed a session with the routine missing, the next showed a routine with no session and a plan going unmet.
+
+`profile.dayStart` is the hour your day rolls over, 0 to 6, defaulting to 0. It is applied **inside `today()`** rather than at any call site, which is the whole reason it is a small change: `today()` is the single clock the app reads, so the week, the plan, readiness, the daily metrics and the food log all move together and none of them have to know the setting exists. Anything that genuinely wants the wall clock — the greeting, the discovery hint, a `toISOString()` audit stamp — reads hours or `Date.now()` and is untouched.
+
+Nothing already saved is rewritten. The setting changes where the line falls from now on, and the sheet says so.
+
+**It had to be visible.** A screen showing a date a day behind is indistinguishable from a bug, so between midnight and the boundary Today carries a line — "Still Mon until 4am" — which is also the way into the setting.
+
+**And it had to be findable.** Someone finishing at 2am does not go looking through Settings for a concept they have no name for; they notice the app put their session on the wrong day and assume that is how it works. So the offer appears in the session-done sheet when the boundary is still midnight and the clock reads between 0 and 5. Answering it either way — including choosing midnight — sets `dayStartSeen` and it never appears again.
+
+**One real bug found on the way.** `muscleVolume()` computed its cutoff from `new Date()` rather than `today()` — a second source of "now", which is exactly what the one-clock rule in CLAUDE.md exists to prevent. It had been there long enough to predate this work and would have silently ignored the boundary.
+
+**And a display bug the second half of the complaint exposed.** With two sessions on a day, the week strip labelled it from whichever came *last* in the array and the Plan list from whichever came *first* — so one day could describe itself two different ways on two screens, depending only on the order things were logged. `daySessions()` now names the day by the session that discharged it and counts the rest: "Upper +1" on the strip, "Logged · Upper + 1 more" on Plan.
+
+**Two probes in the suite were date-fragile and this is how it came out.** `engine.mjs`'s Fuel-bar check seeded `weekStart()+0,1,2` and read the first three bars, but that chart is a trailing seven days ending today — so on a Monday two seeded days are in the future and the three bars read are last week's empty ones. `blanks.mjs`'s past-day probe used `today−2`, which falls into last week early in one. Both had passed for months and went red the first time the suite ran across a Sunday-to-Monday boundary. They now count back from `today()` and look up by date key rather than position. Recorded in CLAUDE.md, because "correct on the day it was written" is the failure mode this project has hit before.
 
 ### The week strip only ever showed this week, and every day opened on an editor
 

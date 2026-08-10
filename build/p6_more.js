@@ -261,6 +261,41 @@ function sheetDayEdit(k, back) {
   `, { key: 'dayedit:' + k });
 }
 
+/* ---------- when your day ends ---------- */
+function dayStartLabel() {
+  const n = dayStartHour();
+  return n ? n + 'am' : 'Midnight';
+}
+
+function sheetDayStart() {
+  const cur = dayStartHour();
+  const opt = (n, t, d) => `<div class="opt ${cur === n ? 'on' : ''}" data-act="set-daystart" data-v="${n}">
+      <div class="opt-ico">${n ? '🌙' : '🕛'}</div>
+      <div class="grow"><div class="opt-t">${t}</div><div class="opt-d">${d}</div></div>
+      <div class="opt-mark">${tick}</div>
+    </div>`;
+
+  openSheet(`
+    <h2 class="h1 mb">When does your day end?</h2>
+    <p class="small mb">Midnight is a convention, not a fact about people. If you come off a shift at 2am and train before bed, that session belongs to the day you have been awake for &mdash; the calendar rolled over, you didn&rsquo;t.</p>
+    <p class="small mb">This matters most if you train twice. A morning session and a 2am one are the same day to you; on the calendar they are two, so one real day reads as two half-empty ones.</p>
+
+    <div class="opts mb">
+      ${opt(0, 'Midnight', 'The ordinary calendar day. Right for almost everyone.')}
+      ${opt(2, '2am', 'A day ends at 2. Anything before that counts as the night before.')}
+      ${opt(3, '3am', 'A day ends at 3.')}
+      ${opt(4, '4am', 'A day ends at 4. Room for a session after a shift that finishes at 2.')}
+      ${opt(5, '5am', 'A day ends at 5. The latest that still leaves an early morning alone.')}
+      ${opt(6, '6am', 'A day ends at 6. Only if your nights really run that long.')}
+    </div>
+
+    <div class="banner soft mb">Everything moves together &mdash; the week, what is planned, what you logged, your readiness and what you ate. Nothing already saved is rewritten; this changes where the line falls from now on.</div>
+    <p class="tiny mb">Pick the hour you are reliably asleep by. Setting it later than you actually sleep would push a genuine early-morning session onto the day before.</p>
+
+    <button class="btn primary block lg" data-act="close">Done</button>
+  `, { key: 'day-start' });
+}
+
 function sheetLadder(type) {
   const c = dayConstraint(today());
   const rd = S.readiness[today()];
@@ -530,6 +565,9 @@ function sheetSettings() {
       ${row('rest-settings', '⏱', 'Rest timers', `${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest ? 'on' : 'off'}`)}
       ${row('plate-settings', '🏋️', 'Bar and plates', `${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand`)}
       ${toggle('set-toggle-warmup', '🤸', 'Mobility warm-up', 'One short mobility movement at the start of full sessions', S.settings.warmup)}
+      ${row('day-start', '🌙', 'When your day ends',
+        dayStartHour() ? `${dayStartLabel()} · a session before then counts as the day before`
+                       : 'Midnight · the ordinary calendar day')}
     </div>
 
     <div class="eyebrow mb-s">Modules</div>

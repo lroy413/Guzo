@@ -180,6 +180,10 @@ function renderToday() {
     <div>
       <div class="home-greet">${greet}${name ? ', ' + h(name) : ''}</div>
       <div class="home-date"><button class="home-day" data-act="open-journey">Day ${jst.day}</button> · ${prettyDate(today())}</div>
+      ${/* Past midnight on the wall clock, still yesterday here. Said out loud,
+            because a date that looks a day behind is indistinguishable from a
+            bug unless the app explains itself. */
+        inLateWindow() ? `<button class="home-late" data-act="day-start">Still ${DAYNAMES[fromKey(today()).getDay()]} until ${dayStartHour()}am</button>` : ''}
     </div>
     ${wk.planned ? `<button class="week-chip" data-act="open-week">
       <span class="week-chip-n"><b>${wk.done}</b>/${wk.planned}</span>
@@ -429,8 +433,6 @@ function weekStripHTML(extra) {
   const range = stripRange();
   const ws = addDays(weekStart(), off * 7);
   const plan = off === 0 ? buildWeekPlan() : {};
-  const doneDates = {};
-  S.sessions.filter(s => s.ended).forEach(s => { doneDates[s.date] = s; });
 
   const arrow = (d, svg, label) => {
     const to = off + d;
@@ -457,7 +459,8 @@ function weekStripHTML(extra) {
     const k = dk(d);
     const c = dayConstraint(k);
     const p = plan[k];
-    const done = doneDates[k];
+    const day = daySessions(k);
+    const done = day.main;
     const isToday = k === today();
     const past = daysBetween(k, today()) > 0;
     let cls = 'day';
@@ -467,7 +470,8 @@ function weekStripHTML(extra) {
     else if (p && past) cls += ' miss';
     const shortType = t => t === 'micro' ? '3 min' : typeLabel(t).split(' ')[0];
     let sub = '';
-    if (done) sub = done.routineName ? done.routineName.split(' ')[0] : shortType(done.type);
+    if (done) sub = (done.routineName ? done.routineName.split(' ')[0] : shortType(done.type)) +
+                    (day.extras ? ' +' + day.extras : '');
     else if (p && p.elsewhere) sub = planShortLabel(p);
     else if (c.avail === 'none') sub = 'Off';
     else if (p && past) sub = '—';
@@ -561,10 +565,12 @@ function renderPlan() {
     const k = dk(d);
     const c = dayConstraint(k);
     const p = splan[k];
-    const done = S.sessions.find(s => s.ended && s.date === k);
+    const day = daySessions(k);
+    const done = day.main;
     const past = daysBetween(k, today()) > 0;
     let sub;
-    if (done) sub = 'Logged · ' + (done.routineName || typeLabel(done.type));
+    if (done) sub = 'Logged · ' + (done.routineName || typeLabel(done.type)) +
+                    (day.extras ? ' + ' + day.extras + ' more' : '');
     else if (p && p.elsewhere) sub = 'Trained elsewhere';
     else if (p) sub = typeLabel(p.type) + ' · ' + (ENVS[c.env] ? ENVS[c.env].label : '');
     else if (c.avail === 'none') sub = 'Off the route';

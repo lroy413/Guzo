@@ -654,9 +654,25 @@ try {
      you expect to have on a day that has already happened — and the only way
      out was a button marked Done that went to the week screen. */
   const pastDay = await page.evaluate(() => {
-    S = blank(); S.onboarded = true; save(true);
+    S = blank(); S.onboarded = true;
+    /* Three weeks of history, so the back arrow is live whichever day of the
+       week this runs on. Deliberately not on the day being probed — that one
+       has to be empty for "Add something you did" to be the primary action. */
+    S.sessions = [{ id: 'old', date: dk(addDays(fromKey(today()), -21)), type: 'full',
+                    env: 'full', rung: 'full', dur: 40, kcal: 300, exercises: [], ended: Date.now() }];
+    save(true);
     go('today');
-    const k = dk(addDays(fromKey(today()), -2));
+    /* Taken from the strip, not computed as today−2, which falls into last
+       week whenever the suite runs early in one — and then the probe is
+       asserting against a day the strip is not showing rather than against a
+       bug. Falls back to stepping the strip back a week when today is Monday
+       and this week genuinely has no past day in it. */
+    let cells = [...document.querySelectorAll('#today-body .week .day')].map(d => d.dataset.k);
+    if (!cells.some(x => daysBetween(x, today()) > 0)) {
+      document.querySelector('#today-body [data-act="strip-week"][data-d="-1"]').click();
+      cells = [...document.querySelectorAll('#today-body .week .day')].map(d => d.dataset.k);
+    }
+    const k = cells.filter(x => daysBetween(x, today()) > 0).pop();
     const cell = document.querySelector(`#today-body .week .day[data-k="${k}"]`);
     /* Fully shaped even on the miss, so a day the strip is not showing reads
        as failed checks rather than a TypeError on the Node side. */
@@ -766,6 +782,121 @@ try {
   check('...which survives the editor redrawing itself', editBack.keptBack >= 2, String(editBack.keptBack));
   check('...and it does go back to the day', editBack.returned === true);
   check('no placeholder text on the way back', !BAD.test(editBack.text || ''));
+
+  /* ---- when your day ends ----
+     A setting nobody can find is not a setting. The engine side is proven in
+     engine.mjs; what matters here is that it is reachable, that it says what
+     it currently is, and that the screens stop looking like they have the
+     wrong date once it is on. */
+  const dayStart = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    go('more');
+    document.querySelector('[data-act="open-settings"]').click();
+    const row = document.querySelector('#sheet-body [data-act="day-start"]');
+    if (!row) return { reachable: false, text: '', opts: 0, applied: null, sub: '' };
+    const sub = row.innerText || '';
+    row.click();
+    const b = document.getElementById('sheet-body');
+    const opts = b.querySelectorAll('[data-act="set-daystart"]').length;
+    const text = b.innerText || '';
+    b.querySelector('[data-act="set-daystart"][data-v="4"]').click();
+    const b2 = document.getElementById('sheet-body');
+    return {
+      reachable: true, sub, opts, text,
+      applied: S.profile.dayStart,
+      seen: S.profile.dayStartSeen === true,
+      marked: !!b2.querySelector('[data-act="set-daystart"][data-v="4"].on')
+    };
+  });
+  check('Settings offers when your day ends', dayStart.reachable === true);
+  check('...and the row says what it is now', /midnight/i.test(dayStart.sub), dayStart.sub.replace(/\n/g, ' '));
+  check('...the sheet offers a range of hours', dayStart.opts >= 5, String(dayStart.opts));
+  check('...it explains why this exists', /shift|awake|calendar/i.test(dayStart.text));
+  check('...picking one applies it', dayStart.applied === 4, String(dayStart.applied));
+  check('...and the sheet redraws to show the choice', dayStart.marked === true);
+  /* Answering it at all — including "midnight" — has to count as answered, or
+     the hint after a late session would never stop. */
+  check('...answering it marks the question asked', dayStart.seen === true);
+  check('no placeholder text in it', !BAD.test(dayStart.text || ''));
+
+  /* Once it is on, Today has to explain its own date — a screen reading a day
+     behind is indistinguishable from a bug. The window is 00:00–04:00, which
+     is almost never when the suite runs, so the clock is frozen and Today
+     re-rendered inside it rather than hoping. */
+  const lateNote = await page.evaluate(`(() => {
+    const at = (iso, fn) => {
+      const Real = Date;
+      const fixed = new Real(iso).getTime();
+      class Fake extends Real {
+        constructor(...a) { if (!a.length) super(fixed); else super(...a); }
+        static now() { return fixed; }
+      }
+      globalThis.Date = Fake;
+      try { return fn(); } finally { globalThis.Date = Real; }
+    };
+    closeSheet();
+    S = blank(); S.onboarded = true; S.profile.dayStart = 4; save(true);
+    const look = () => {
+      go('today');
+      const body = document.getElementById('today-body');
+      const el = body.querySelector('[data-act="day-start"]');
+      return { note: el ? el.textContent.trim() : null, text: body.innerText || '',
+               date: (body.querySelector('.home-date') || {}).textContent || '' };
+    };
+    const small = at('2026-08-11T02:30:00', look);      // after midnight, before 4
+    const day   = at('2026-08-11T14:00:00', look);      // an ordinary afternoon
+    S.profile.dayStart = 0;
+    const off   = at('2026-08-11T02:30:00', look);      // boundary not set at all
+    return { small, day, off };
+  })()`);
+  check('after midnight Today explains its own date', !!lateNote.small.note, String(lateNote.small.note));
+  /* The app's own day names are the short ones — "Mon 10 Aug" everywhere —
+     so the note matching /Monday/ would have been asserting a convention this
+     codebase does not use. */
+  check('...naming the day it is still on', /\bMon\b/.test(lateNote.small.note || ''), lateNote.small.note);
+  check('...and showing that date, not the wall clock one', /10 Aug/.test(lateNote.small.date),
+    lateNote.small.date.trim());
+  check('...the note is a way into the setting', /4am/.test(lateNote.small.note || ''), lateNote.small.note);
+  check('an ordinary afternoon carries no such note', lateNote.day.note === null, String(lateNote.day.note));
+  check('...and neither does midnight-boundary at 2am', lateNote.off.note === null, String(lateNote.off.note));
+  check('no placeholder text in the small hours', !BAD.test(lateNote.small.text || ''));
+
+  /* ---- two sessions in one day ----
+     A main session before work and a routine after a late shift. The strip
+     took whichever came last in the array and the Plan list took whichever
+     came first, so one day described itself two different ways. */
+  const twice = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.profile.dayStart = 0; save(true);
+    buildWeekPlan(true);
+    const k = today();
+    S.week.plan[k] = { type: 'upper', done: true, pinned: true };
+    S.sessions = [
+      { id: 'a', date: k, type: 'upper', env: 'full', rung: 'full', dur: 50, kcal: 400,
+        exercises: [], ended: Date.now() },
+      { id: 'b', date: k, type: 'custom', routineId: 'rt1', routineName: 'Abs before bed',
+        extra: true, env: 'bw', rung: 'full', dur: 12, kcal: 60, exercises: [], ended: Date.now() }
+    ];
+    save(true);
+    go('today');
+    const cell = document.querySelector(`#today-body .week .day[data-k="${k}"]`);
+    const stripSub = cell ? (cell.querySelector('.dt') || {}).textContent : null;
+    go('plan');
+    const rowEl = document.querySelector(`#plan-body .lrow[data-act="day-tap"][data-k="${k}"]`);
+    const planSub = rowEl ? (rowEl.querySelector('.tiny') || {}).textContent : null;
+    go('today');
+    if (cell) document.querySelector(`#today-body .week .day[data-k="${k}"]`).click();
+    const sheet = document.getElementById('sheet-body').innerText || '';
+    return { stripSub, planSub, sheet };
+  });
+  /* The session that discharged the day names it, both places. */
+  check('the strip names the day by the session that counted',
+    /Upper/.test(String(twice.stripSub)), String(twice.stripSub));
+  check('...and says there was another', /\+\s*1/.test(String(twice.stripSub)), String(twice.stripSub));
+  check('the Plan list agrees with the strip',
+    /Upper/.test(String(twice.planSub)) && /1 more/.test(String(twice.planSub)), String(twice.planSub));
+  check('the day sheet lists both sessions',
+    /Upper/.test(twice.sheet) && /Abs before bed/i.test(twice.sheet), twice.sheet.slice(0, 80));
+  check('no placeholder text with two sessions on a day', !BAD.test(twice.sheet || ''));
 
   /* ---- App Store readiness ---- */
 

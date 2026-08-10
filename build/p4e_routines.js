@@ -313,6 +313,19 @@ function plannedDoneOn(date) {
   return sessionsOn(date).some(s => !s.extra);
 }
 
+/* What a day should be labelled as, when there was more than one session.
+   Two a day is a real pattern — a main session before work and a routine after
+   a late shift — and the strip took whichever came last in the array while the
+   Plan list took whichever came first, so one day could describe itself two
+   different ways on two screens depending on the order things were logged.
+   The session that discharged the day is the one that names it; the rest are
+   counted, not hidden. */
+function daySessions(date) {
+  const list = sessionsOn(key(date));
+  const main = list.find(s => !s.extra) || list[0] || null;
+  return { list, main, extras: Math.max(0, list.length - (main ? 1 : 0)) };
+}
+
 function sessionTitle(sess) {
   if (!sess) return '';
   if (sess.routineName) return sess.routineName;
