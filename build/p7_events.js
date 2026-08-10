@@ -29,6 +29,16 @@ function startRest(seconds, label, opts) {
      stopping it. The label has to say which. */
   $('#rest-skip').textContent = opts.work ? 'Stop' : 'Skip';
   $('#rest-add').classList.toggle('hide', !!opts.work);
+  /* Built here because this runs inside the tap that started the rest, and an
+     audio context created outside a gesture starts suspended and stays that
+     way — the chime would then be silent for the whole session. */
+  ensureAudio();
+  /* On device, an alert the OS will deliver whether or not this page is still
+     running. No-op on the web, where nothing can schedule one. Replaced rather
+     than queued: skipping a rest and starting another inside a minute is
+     completely ordinary. */
+  cancelRestAlert();
+  if (!opts.work) scheduleRestAlert(restTotal, nextUpText(S.active));
   clearInterval(restTick);
   restTick = setInterval(tickRest, 200);
   tickRest();
@@ -43,6 +53,9 @@ function tickRest() {
     const cb = restDone;
     stopRest();
     buzz([90, 60, 90]);
+    /* iOS Safari implements no vibration at all, so on the phone this app was
+       built for the buzz above is silence. The sound is the alert. */
+    chime();
     if (cb) cb(); else toast('Rest done', true);
   }
 }
@@ -51,6 +64,9 @@ function stopRest() {
   clearInterval(restTick);
   restTick = null;
   restDone = null;
+  /* Skipping a rest has to withdraw its alert too, or the phone buzzes about a
+     rest you ended two minutes ago, halfway through the next set. */
+  cancelRestAlert();
   const bar = $('#rest-bar');
   bar.classList.remove('on');
   bar.classList.remove('work');
@@ -816,6 +832,16 @@ document.addEventListener('click', ev => {
     case 'toggle-autorest': {
       S.settings.autoRest = !S.settings.autoRest;
       save(); sheetRest(); break;
+    }
+    /* Explicit false, never a truthy flag — a save from before this existed
+       has no key, and reading it as merely falsy would silently mute everyone. */
+    case 'toggle-restsound': {
+      S.settings.restSound = !restSoundOn();
+      save(true); sheetRest();
+      /* Played on the way on, because a sound you cannot hear until the next
+         time you rest is a setting you have to test by training. */
+      if (restSoundOn()) chime();
+      break;
     }
 
     /* ---- nutrition ---- */

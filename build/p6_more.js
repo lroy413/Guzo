@@ -488,6 +488,9 @@ function sheetRest() {
     <div class="field mb"><div class="label">Accessories (seconds)</div>
       <div class="stepper"><button data-act="rest-adj" data-f="restAcc" data-v="-15">−</button><input type="text" value="${S.settings.restAcc}" readonly><button data-act="rest-adj" data-f="restAcc" data-v="15">+</button></div></div>
     <div class="lrow" data-act="toggle-autorest"><div class="grow"><div class="h3">Auto-start after a set</div><div class="tiny mt-s">Starts the clock the moment you tick a set</div></div><div class="switch ${S.settings.autoRest?'on':''}"></div></div>
+    <div class="lrow" data-act="toggle-restsound"><div class="grow"><div class="h3">Sound when it ends</div><div class="tiny mt-s">${restSoundOn()
+      ? 'Two short notes. The only alert a browser can make &mdash; iPhones do not vibrate from a web page.'
+      : 'Off &mdash; the bar still runs, you just have to look at it'}</div></div><div class="switch ${restSoundOn()?'on':''}"></div></div>
     <button class="btn primary block mt" data-act="close">Done</button>`);
 }
 

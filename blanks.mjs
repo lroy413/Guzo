@@ -2078,6 +2078,57 @@ try {
     doneWithout.open === true && doneWithout.prs === 0, `${doneWithout.prs} blocks`);
   check('no placeholder text on the finish sheet', !BAD.test(doneWith.text));
 
+  /* ---- the web's only alert ----
+     iOS Safari implements no vibration at all, so buzz() is silence on the
+     phone this app was built for, and there is no way to schedule an OS
+     notification without a server to push it. Sound is what is left. */
+  const sound = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const on = restSoundOn();
+    const played = chime();
+    S.settings.restSound = false;
+    const off = restSoundOn();
+    const silent = chime();
+    delete S.settings.restSound;
+    const legacy = restSoundOn();
+    /* Nothing is fetched to make it. An audio file would be the first external
+       request in the entire app. */
+    const external = /<audio|\.mp3|\.wav|\.ogg/i.test(document.documentElement.innerHTML);
+    return { on, played, off, silent, legacy, external, ctx: !!ensureAudio() };
+  });
+  check('a browser that can make sound, makes sound', sound.ctx === true && sound.played === true,
+    `ctx ${sound.ctx}, played ${sound.played}`);
+  check('the sound is on by default', sound.on === true);
+  check('...and turning it off actually silences it',
+    sound.off === false && sound.silent === false, `setting ${sound.off}, played ${sound.silent}`);
+  /* Same reasoning as the RPE column: a save written before the setting
+     existed has no key, and reading it as merely falsy would mute everyone. */
+  check('a save from before the setting existed keeps the sound', sound.legacy === true);
+  check('the tone is synthesised, not fetched', sound.external === false);
+
+  /* And the rest actually reaches it. Calling chime() and checking it returns
+     true proves the function works and says nothing about whether a rest
+     running out calls it — deleting the call from tickRest left the checks
+     above green. The spy goes on the platform's own createOscillator, not on
+     anything this app wrote, so the subject is untouched. */
+  const heard = await page.evaluate(async () => {
+    S = blank(); S.onboarded = true; save(true);
+    const AC = window.AudioContext || window.webkitAudioContext;
+    const real = AC.prototype.createOscillator;
+    let made = 0;
+    AC.prototype.createOscillator = function () { made++; return real.apply(this, arguments); };
+    startRest(1, 'Bench Press');
+    await new Promise(r => setTimeout(r, 1600));
+    const after = made;
+    const running = document.getElementById('rest-bar').classList.contains('on');
+    AC.prototype.createOscillator = real;
+    stopRest();
+    return { made: after, running };
+  });
+  /* Two notes a fourth apart, so two oscillators. */
+  check('a rest running out is audible', heard.made === 2, String(heard.made));
+  check('...and the bar puts itself away when it does', heard.running === false);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

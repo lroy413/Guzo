@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **662,040 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (322) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **668,898 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (329) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (23) all green. Nothing known is broken.
 
 ---
 
@@ -443,6 +443,40 @@ away, killing the instrument before it printed.
 
 ---
 
+### A rest you can hear, and one the phone will wake you for
+
+`tickRest()` was a 200ms `setInterval` whose payoff was `buzz()`. Two problems:
+**iOS Safari implements no `navigator.vibrate` at all**, so on the phone this
+app was built for the alert was silence; and putting the phone in a pocket
+suspends the timer entirely.
+
+On device that is now a real scheduled notification — `@capacitor/local-
+notifications` was a pinned dependency and unwired. One fixed id, so a second
+rest replaces the first rather than queueing behind it; withdrawn when you skip;
+and permission asked on the first rest rather than at boot, because a permission
+request against something you just did is answerable and one during onboarding
+for a feature you have not met is not.
+
+On the web it is a sound, because nothing else is possible without a server to
+push a notification. Two oscillators rather than an audio file: an asset would
+be the first external request in the app, and the context is built inside the
+tap that starts the rest, since one created outside a gesture starts suspended
+and stays that way.
+
+Off by a switch in Rest timers, which plays the tone as you turn it on — a
+sound you cannot hear until the next time you rest is a setting you have to
+test by training.
+
+**Two more of the checks were guarding nothing.** The chime checks called
+`chime()` and asserted it returned true, which says nothing about whether a
+rest running out calls it; deleting the call from `tickRest` left them green.
+That one now runs a one-second rest and counts oscillators through a spy on the
+platform's own `createOscillator`, so the subject is untouched. And the
+withdraw-on-skip check counted cancellations without resetting first — `startRest`
+cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
 ### The Fuel module row read as a paywall
 
 The More row rendered `Fuel PRO` with an empty chevron slot when off. No affordance said "switch", and the badge said "locked" — so the reasonable move was to go and activate Pro, which does nothing at all, and Fuel stayed out of the navbar. This cost a real debugging session that started as "is the latest file deployed?".
@@ -468,8 +502,8 @@ Sleep is the signal that changes what the app does; it drives readiness, which s
 ### 2. Warm-up ramp calculator
 Given a working weight, produce the ramp sets. It is deterministic, it is the most-requested thing missing from a session screen, it needs no new data, and the plate calculator already knows how to express a load in plates.
 
-### 3. Rest that survives the screen going dark
-`tickRest()` is a 200ms `setInterval` and its payoff is `buzz()`. Put the phone in a pocket and the timer is suspended: no notification, no sound, nothing. `@capacitor/local-notifications` is already a pinned dependency and unwired. Every comparable app gets this right, and it is the largest remaining functional gap on the Train screen.
+### 3. Set types — warm-up, drop, failure, AMRAP
+Every set is a working set. A warm-up logged normally inflates volume, inflates the energy estimate, and feeds `applyProgression` — so warming up makes the app think you got stronger. Strong has had W/D/F markers for a decade. This is now the largest correctness gap on the Train screen.
 
 ---
 

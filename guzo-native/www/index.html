@@ -6604,6 +6604,65 @@ async function restoreFromNativeIfEmpty() {
   }
 }
 
+/* ------------------------------------------------------------
+   A rest that survives the screen going dark.
+   ------------------------------------------------------------
+   The countdown is a setInterval and its payoff is a vibrate. Put the phone in
+   a pocket and the OS suspends the timer: nothing fires, and you find out the
+   rest ended when you next look. The bar itself recovers — the end time is
+   absolute, so the first tick after waking sees it has passed — but "recovers
+   when you look" is not a timer, it is a stopwatch you have to check.
+
+   A scheduled OS notification is the only thing that actually wakes you, and
+   on the web there is no way to schedule one without a server to push it. So
+   this is the shell's job, and the web build gets a sound instead. Inert here
+   in exactly the same way as everything else in this file. */
+function nativeNotifications() {
+  const C = typeof window !== 'undefined' ? window.Capacitor : null;
+  if (!C || !C.isNativePlatform || !C.isNativePlatform()) return null;
+  const N = C.Plugins && C.Plugins.LocalNotifications;
+  return N && typeof N.schedule === 'function' ? N : null;
+}
+
+/* One fixed id, so scheduling a new rest replaces the old one rather than
+   queueing a second alert behind it. Skipping a rest and starting another
+   inside a minute is completely ordinary. */
+const REST_NOTIF_ID = 8801;
+let restPermAsked = false;
+
+function scheduleRestAlert(seconds, body) {
+  const N = nativeNotifications();
+  if (!N || !(seconds > 0)) return false;
+  const fire = () => {
+    try {
+      N.schedule({ notifications: [{
+        id: REST_NOTIF_ID,
+        title: 'Rest done',
+        body: body || 'Back to it.',
+        /* allowWhileIdle, or the alert is held until the phone next wakes —
+           which is the one situation this exists for. */
+        schedule: { at: new Date(Date.now() + seconds * 1000), allowWhileIdle: true }
+      }] }).catch(() => {});
+    } catch (e) { /* a missing alert must never interrupt a session */ }
+  };
+  /* Asked on the first rest rather than at boot: permission requested against
+     a thing you just did is answerable, and one requested during onboarding
+     for a feature you have not met yet is not. */
+  if (!restPermAsked && typeof N.requestPermissions === 'function') {
+    restPermAsked = true;
+    try { N.requestPermissions().then(fire).catch(() => {}); return true; } catch (e) {}
+  }
+  fire();
+  return true;
+}
+
+function cancelRestAlert() {
+  const N = nativeNotifications();
+  if (!N) return false;
+  try { N.cancel({ notifications: [{ id: REST_NOTIF_ID }] }).catch(() => {}); } catch (e) {}
+  return true;
+}
+
 /* Haptics, when the shell provides them. The web build already calls buzz()
    via navigator.vibrate, which iOS Safari does not implement at all — so on
    device this is the difference between feedback and silence. */
@@ -7274,6 +7333,53 @@ function toast(msg, good) {
   toastTimer = setTimeout(() => { t.className = 'toast'; }, 2300);
 }
 function buzz(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms || 12); } catch(e){} } }
+
+/* The web half of "the rest ended and you were not looking".
+   ------------------------------------------------------------
+   iOS Safari does not implement navigator.vibrate at all, so on the phone this
+   app was built for, buzz() is silence. A sound is the only alert the web can
+   actually make — there is no way to schedule an OS notification without a
+   server to push it, and this app has no server and is never getting one.
+
+   Synthesised rather than shipped as a file: an audio asset would be the first
+   external request in the entire app, and a data: URI large enough to be a
+   pleasant tone is bigger than the oscillator that makes it.
+
+   The context is created from the tap that starts the rest, because a context
+   built outside a gesture starts suspended and stays that way. */
+let audioCtx = null;
+function ensureAudio() {
+  const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
+  if (!AC) return null;
+  if (!audioCtx) { try { audioCtx = new AC(); } catch (e) { return null; } }
+  if (audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
+  return audioCtx;
+}
+
+function restSoundOn() { return !(S && S.settings && S.settings.restSound === false); }
+
+function chime() {
+  if (!restSoundOn()) return false;
+  const ctx = ensureAudio();
+  if (!ctx) return false;
+  try {
+    const t0 = ctx.currentTime;
+    /* Two notes a fourth apart, short. A single beep reads as an error tone in
+       every other context on the phone. */
+    [[784, 0], [1046.5, 0.15]].forEach(([f, dt]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f;
+      /* Ramped, never switched: an instantaneous gain change is a click. */
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.2, t0 + dt + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.3);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t0 + dt); o.stop(t0 + dt + 0.34);
+    });
+    return true;
+  } catch (e) { return false; }
+}
 
 /* A sheet is never a dead end: it can be dismissed by the ✕, the scrim,
    the hardware/browser back button, Escape, or dragging it down. */
@@ -8403,14 +8509,13 @@ function sessionPRsHTML(A) {
    Derived from what is ticked rather than stored, the same as the rail and the
    circuit runner: the first unfinished set in display order is the next one.
    Returns escaped HTML because the movement name goes in bold. */
-function nextUpHTML(A) {
-  if (!A) return '';
+function nextUp(A) {
+  if (!A) return null;
   if (A.circuit) {
     const pos = circuitPos(A);
-    if (pos.finished) return '';
-    const it = A.exercises[pos.ei];
-    if (!it) return '';
-    return `Next &middot; <b>${h(it.name)}</b>, round ${pos.round + 1} of ${Math.max(1, A.rounds || 1)}`;
+    const it = pos.finished ? null : A.exercises[pos.ei];
+    if (!it) return null;
+    return { name: it.name, detail: `round ${pos.round + 1} of ${Math.max(1, A.rounds || 1)}` };
   }
   const order = sessionOrder(A);
   for (const i of order) {
@@ -8418,9 +8523,21 @@ function nextUpHTML(A) {
     if (!it || !it.sets) continue;
     const si = it.sets.findIndex(s => !s.done);
     if (si < 0) continue;
-    return `Next &middot; <b>${h(it.name)}</b>, set ${si + 1} of ${it.sets.length}`;
+    return { name: it.name, detail: `set ${si + 1} of ${it.sets.length}` };
   }
-  return 'Nothing left — finish when you are ready';
+  return null;
+}
+
+/* The screen and the notification body come from the one call, so they can
+   never describe different sets. */
+function nextUpHTML(A) {
+  const n = nextUp(A);
+  if (!n) return A ? 'Nothing left &mdash; finish when you are ready' : '';
+  return `Next &middot; <b>${h(n.name)}</b>, ${h(n.detail)}`;
+}
+function nextUpText(A) {
+  const n = nextUp(A);
+  return n ? n.name + ' · ' + n.detail : '';
 }
 
 /* The badges for one movement, or nothing at all. Deliberately capped: a row
@@ -9554,6 +9671,9 @@ function sheetRest() {
     <div class="field mb"><div class="label">Accessories (seconds)</div>
       <div class="stepper"><button data-act="rest-adj" data-f="restAcc" data-v="-15">−</button><input type="text" value="${S.settings.restAcc}" readonly><button data-act="rest-adj" data-f="restAcc" data-v="15">+</button></div></div>
     <div class="lrow" data-act="toggle-autorest"><div class="grow"><div class="h3">Auto-start after a set</div><div class="tiny mt-s">Starts the clock the moment you tick a set</div></div><div class="switch ${S.settings.autoRest?'on':''}"></div></div>
+    <div class="lrow" data-act="toggle-restsound"><div class="grow"><div class="h3">Sound when it ends</div><div class="tiny mt-s">${restSoundOn()
+      ? 'Two short notes. The only alert a browser can make &mdash; iPhones do not vibrate from a web page.'
+      : 'Off &mdash; the bar still runs, you just have to look at it'}</div></div><div class="switch ${restSoundOn()?'on':''}"></div></div>
     <button class="btn primary block mt" data-act="close">Done</button>`);
 }
 
@@ -11727,6 +11847,16 @@ function startRest(seconds, label, opts) {
      stopping it. The label has to say which. */
   $('#rest-skip').textContent = opts.work ? 'Stop' : 'Skip';
   $('#rest-add').classList.toggle('hide', !!opts.work);
+  /* Built here because this runs inside the tap that started the rest, and an
+     audio context created outside a gesture starts suspended and stays that
+     way — the chime would then be silent for the whole session. */
+  ensureAudio();
+  /* On device, an alert the OS will deliver whether or not this page is still
+     running. No-op on the web, where nothing can schedule one. Replaced rather
+     than queued: skipping a rest and starting another inside a minute is
+     completely ordinary. */
+  cancelRestAlert();
+  if (!opts.work) scheduleRestAlert(restTotal, nextUpText(S.active));
   clearInterval(restTick);
   restTick = setInterval(tickRest, 200);
   tickRest();
@@ -11741,6 +11871,9 @@ function tickRest() {
     const cb = restDone;
     stopRest();
     buzz([90, 60, 90]);
+    /* iOS Safari implements no vibration at all, so on the phone this app was
+       built for the buzz above is silence. The sound is the alert. */
+    chime();
     if (cb) cb(); else toast('Rest done', true);
   }
 }
@@ -11749,6 +11882,9 @@ function stopRest() {
   clearInterval(restTick);
   restTick = null;
   restDone = null;
+  /* Skipping a rest has to withdraw its alert too, or the phone buzzes about a
+     rest you ended two minutes ago, halfway through the next set. */
+  cancelRestAlert();
   const bar = $('#rest-bar');
   bar.classList.remove('on');
   bar.classList.remove('work');
@@ -12514,6 +12650,16 @@ document.addEventListener('click', ev => {
     case 'toggle-autorest': {
       S.settings.autoRest = !S.settings.autoRest;
       save(); sheetRest(); break;
+    }
+    /* Explicit false, never a truthy flag — a save from before this existed
+       has no key, and reading it as merely falsy would silently mute everyone. */
+    case 'toggle-restsound': {
+      S.settings.restSound = !restSoundOn();
+      save(true); sheetRest();
+      /* Played on the way on, because a sound you cannot hear until the next
+         time you rest is a setting you have to test by training. */
+      if (restSoundOn()) chime();
+      break;
     }
 
     /* ---- nutrition ---- */

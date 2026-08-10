@@ -67,9 +67,15 @@ const FAKE_CAPACITOR = `
         get: ({ key }) => Promise.resolve({ value: window.__prefStore[key] ?? null }),
         remove: ({ key }) => { delete window.__prefStore[key]; return Promise.resolve(); }
       },
-      Haptics: { impact: () => Promise.resolve() }
+      Haptics: { impact: () => Promise.resolve() },
+      LocalNotifications: {
+        schedule: (o) => { window.__notifs.push(o); return Promise.resolve(); },
+        cancel: (o) => { window.__cancels.push(o); return Promise.resolve(); },
+        requestPermissions: () => { window.__permAsks++; return Promise.resolve({ display: 'granted' }); }
+      }
     }
   };
+  window.__notifs = []; window.__cancels = []; window.__permAsks = 0;
 `;
 
 try {
@@ -91,6 +97,22 @@ try {
 
   const restoreOnWeb = await page.evaluate(() => restoreFromNativeIfEmpty());
   check('restore declines on the web', restoreOnWeb === false);
+
+  /* A scheduled OS alert is the only thing that wakes a phone in a pocket, and
+     the web cannot schedule one without a server to push it. So the web build
+     must not pretend — it reports that it did nothing, and the caller falls
+     back to sound. */
+  const alertsOnWeb = await page.evaluate(() => {
+    let threw = null;
+    let sched = null, cancel = null;
+    try { sched = scheduleRestAlert(90, 'Bench Press · set 2 of 3'); cancel = cancelRestAlert(); }
+    catch (e) { threw = e.message; }
+    return { sched, cancel, threw };
+  });
+  check('scheduling a rest alert is a no-op on the web',
+    alertsOnWeb.sched === false && alertsOnWeb.cancel === false,
+    JSON.stringify(alertsOnWeb));
+  check('...and cancelling one never throws', alertsOnWeb.threw === null, String(alertsOnWeb.threw));
 
   // ================= with a native shell =================================
   console.log('\nwith a native shell');
@@ -162,6 +184,56 @@ try {
     return await restoreFromNativeIfEmpty();
   });
   check('an empty mirror is not restored over an empty state', blankMirror === false);
+
+  /* On device the alert is real: scheduled when a rest starts, withdrawn when
+     it is skipped. Without the withdrawal the phone buzzes about a rest that
+     ended two minutes ago, in the middle of the next set. */
+  const alertsNative = await page2.evaluate(async () => {
+    window.__notifs = []; window.__cancels = []; window.__permAsks = 0;
+    S = blank(); S.onboarded = true;
+    const e = EX['bb-bench'];
+    S.active = { date: today(), type:'push', rung:'full', env:'full', started: Date.now(),
+      rounds:1, exercises: [{ exId:'bb-bench', name:e.name, load:'wt', targetW:60, targetR:5,
+        sets: [{ w:'', r:'', rpe:'', done:false }, { w:'', r:'', rpe:'', done:false }], note:'' }] };
+    save(true);
+    startRest(90, 'Bench Press');
+    /* Permission is requested on the first rest, and the schedule rides on
+       that promise — so it lands a tick later, not synchronously. */
+    await new Promise(r => setTimeout(r, 50));
+    const afterStart = { notifs: window.__notifs.length, asks: window.__permAsks,
+                         body: (window.__notifs[0] || {}).notifications
+                               ? window.__notifs[0].notifications[0].body : '' };
+    /* Cleared first. startRest cancels before it schedules, so counting from
+       zero here is the difference between proving stopRest withdraws the alert
+       and proving startRest already had. */
+    window.__cancels = [];
+    stopRest();
+    await new Promise(r => setTimeout(r, 20));
+    const afterStop = { cancels: window.__cancels.length };
+
+    /* A second rest must replace the first rather than queue behind it. */
+    window.__notifs = [];
+    startRest(60, 'Bench Press');
+    await new Promise(r => setTimeout(r, 20));
+    const second = { notifs: window.__notifs.length,
+                     id: window.__notifs[0] ? window.__notifs[0].notifications[0].id : null,
+                     asks: window.__permAsks };
+    stopRest();
+    return { afterStart, afterStop, second };
+  });
+  check('a rest schedules an alert on device', alertsNative.afterStart.notifs === 1,
+    JSON.stringify(alertsNative.afterStart));
+  check('...naming the set on the other side of it',
+    /Bench Press/.test(alertsNative.afterStart.body) && /set 1 of 2/.test(alertsNative.afterStart.body),
+    alertsNative.afterStart.body);
+  check('...and asks permission once, on the first rest rather than at boot',
+    alertsNative.afterStart.asks === 1 && alertsNative.second.asks === 1,
+    `${alertsNative.afterStart.asks} then ${alertsNative.second.asks}`);
+  check('skipping a rest withdraws its alert', alertsNative.afterStop.cancels === 1,
+    String(alertsNative.afterStop.cancels));
+  check('a second rest reuses the one id rather than queueing behind the first',
+    alertsNative.second.notifs === 1 && alertsNative.second.id === 8801,
+    JSON.stringify(alertsNative.second));
 
   check('no errors in the native context', console2.filter(l => /error|pageerror/i.test(l)).length === 0,
     console2.filter(l => /error|pageerror/i.test(l)).slice(0, 2).join(' | '));

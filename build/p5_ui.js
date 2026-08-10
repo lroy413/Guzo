@@ -15,6 +15,53 @@ function toast(msg, good) {
 }
 function buzz(ms) { if (navigator.vibrate) { try { navigator.vibrate(ms || 12); } catch(e){} } }
 
+/* The web half of "the rest ended and you were not looking".
+   ------------------------------------------------------------
+   iOS Safari does not implement navigator.vibrate at all, so on the phone this
+   app was built for, buzz() is silence. A sound is the only alert the web can
+   actually make — there is no way to schedule an OS notification without a
+   server to push it, and this app has no server and is never getting one.
+
+   Synthesised rather than shipped as a file: an audio asset would be the first
+   external request in the entire app, and a data: URI large enough to be a
+   pleasant tone is bigger than the oscillator that makes it.
+
+   The context is created from the tap that starts the rest, because a context
+   built outside a gesture starts suspended and stays that way. */
+let audioCtx = null;
+function ensureAudio() {
+  const AC = typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext);
+  if (!AC) return null;
+  if (!audioCtx) { try { audioCtx = new AC(); } catch (e) { return null; } }
+  if (audioCtx.state === 'suspended') { try { audioCtx.resume(); } catch (e) {} }
+  return audioCtx;
+}
+
+function restSoundOn() { return !(S && S.settings && S.settings.restSound === false); }
+
+function chime() {
+  if (!restSoundOn()) return false;
+  const ctx = ensureAudio();
+  if (!ctx) return false;
+  try {
+    const t0 = ctx.currentTime;
+    /* Two notes a fourth apart, short. A single beep reads as an error tone in
+       every other context on the phone. */
+    [[784, 0], [1046.5, 0.15]].forEach(([f, dt]) => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = f;
+      /* Ramped, never switched: an instantaneous gain change is a click. */
+      g.gain.setValueAtTime(0.0001, t0 + dt);
+      g.gain.exponentialRampToValueAtTime(0.2, t0 + dt + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dt + 0.3);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t0 + dt); o.stop(t0 + dt + 0.34);
+    });
+    return true;
+  } catch (e) { return false; }
+}
+
 /* A sheet is never a dead end: it can be dismissed by the ✕, the scrim,
    the hardware/browser back button, Escape, or dragging it down. */
 let sheetOpen = false;
@@ -1143,14 +1190,13 @@ function sessionPRsHTML(A) {
    Derived from what is ticked rather than stored, the same as the rail and the
    circuit runner: the first unfinished set in display order is the next one.
    Returns escaped HTML because the movement name goes in bold. */
-function nextUpHTML(A) {
-  if (!A) return '';
+function nextUp(A) {
+  if (!A) return null;
   if (A.circuit) {
     const pos = circuitPos(A);
-    if (pos.finished) return '';
-    const it = A.exercises[pos.ei];
-    if (!it) return '';
-    return `Next &middot; <b>${h(it.name)}</b>, round ${pos.round + 1} of ${Math.max(1, A.rounds || 1)}`;
+    const it = pos.finished ? null : A.exercises[pos.ei];
+    if (!it) return null;
+    return { name: it.name, detail: `round ${pos.round + 1} of ${Math.max(1, A.rounds || 1)}` };
   }
   const order = sessionOrder(A);
   for (const i of order) {
@@ -1158,9 +1204,21 @@ function nextUpHTML(A) {
     if (!it || !it.sets) continue;
     const si = it.sets.findIndex(s => !s.done);
     if (si < 0) continue;
-    return `Next &middot; <b>${h(it.name)}</b>, set ${si + 1} of ${it.sets.length}`;
+    return { name: it.name, detail: `set ${si + 1} of ${it.sets.length}` };
   }
-  return 'Nothing left — finish when you are ready';
+  return null;
+}
+
+/* The screen and the notification body come from the one call, so they can
+   never describe different sets. */
+function nextUpHTML(A) {
+  const n = nextUp(A);
+  if (!n) return A ? 'Nothing left &mdash; finish when you are ready' : '';
+  return `Next &middot; <b>${h(n.name)}</b>, ${h(n.detail)}`;
+}
+function nextUpText(A) {
+  const n = nextUp(A);
+  return n ? n.name + ' · ' + n.detail : '';
 }
 
 /* The badges for one movement, or nothing at all. Deliberately capped: a row

@@ -85,6 +85,65 @@ async function restoreFromNativeIfEmpty() {
   }
 }
 
+/* ------------------------------------------------------------
+   A rest that survives the screen going dark.
+   ------------------------------------------------------------
+   The countdown is a setInterval and its payoff is a vibrate. Put the phone in
+   a pocket and the OS suspends the timer: nothing fires, and you find out the
+   rest ended when you next look. The bar itself recovers — the end time is
+   absolute, so the first tick after waking sees it has passed — but "recovers
+   when you look" is not a timer, it is a stopwatch you have to check.
+
+   A scheduled OS notification is the only thing that actually wakes you, and
+   on the web there is no way to schedule one without a server to push it. So
+   this is the shell's job, and the web build gets a sound instead. Inert here
+   in exactly the same way as everything else in this file. */
+function nativeNotifications() {
+  const C = typeof window !== 'undefined' ? window.Capacitor : null;
+  if (!C || !C.isNativePlatform || !C.isNativePlatform()) return null;
+  const N = C.Plugins && C.Plugins.LocalNotifications;
+  return N && typeof N.schedule === 'function' ? N : null;
+}
+
+/* One fixed id, so scheduling a new rest replaces the old one rather than
+   queueing a second alert behind it. Skipping a rest and starting another
+   inside a minute is completely ordinary. */
+const REST_NOTIF_ID = 8801;
+let restPermAsked = false;
+
+function scheduleRestAlert(seconds, body) {
+  const N = nativeNotifications();
+  if (!N || !(seconds > 0)) return false;
+  const fire = () => {
+    try {
+      N.schedule({ notifications: [{
+        id: REST_NOTIF_ID,
+        title: 'Rest done',
+        body: body || 'Back to it.',
+        /* allowWhileIdle, or the alert is held until the phone next wakes —
+           which is the one situation this exists for. */
+        schedule: { at: new Date(Date.now() + seconds * 1000), allowWhileIdle: true }
+      }] }).catch(() => {});
+    } catch (e) { /* a missing alert must never interrupt a session */ }
+  };
+  /* Asked on the first rest rather than at boot: permission requested against
+     a thing you just did is answerable, and one requested during onboarding
+     for a feature you have not met yet is not. */
+  if (!restPermAsked && typeof N.requestPermissions === 'function') {
+    restPermAsked = true;
+    try { N.requestPermissions().then(fire).catch(() => {}); return true; } catch (e) {}
+  }
+  fire();
+  return true;
+}
+
+function cancelRestAlert() {
+  const N = nativeNotifications();
+  if (!N) return false;
+  try { N.cancel({ notifications: [{ id: REST_NOTIF_ID }] }).catch(() => {}); } catch (e) {}
+  return true;
+}
+
 /* Haptics, when the shell provides them. The web build already calls buzz()
    via navigator.vibrate, which iOS Safari does not implement at all — so on
    device this is the difference between feedback and silence. */
