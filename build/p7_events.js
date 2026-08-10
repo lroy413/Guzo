@@ -944,6 +944,41 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'fuel-edit': sheetEntryEdit(v); break;
+    case 'entry-meal': {
+      if (setEntryMeal(fuelDay(), v, t.dataset.m)) { renderFuel(); sheetEntryEdit(v); buzz(); }
+      break;
+    }
+    case 'entry-macros': {
+      const val = id => (($('#' + id) || {}).value);
+      if (setEntryMacros(fuelDay(), v, { kcal: val('ee-kcal'), p: val('ee-p'),
+                                         c: val('ee-c'), f: val('ee-f') })) {
+        renderFuel(); closeSheet(); toast('Updated', true);
+      }
+      break;
+    }
+    case 'fix-food': sheetFixFood(v); break;
+    case 'ff-save': {
+      const val = id => (($('#' + id) || {}).value);
+      if (!fixFood(v, { per: val('ff-per'), kcal: val('ff-kcal'), p: val('ff-p'),
+                        c: val('ff-c'), f: val('ff-f') })) break;
+      renderFuel(); closeSheet();
+      const f = foodById(v);
+      toast(f && f.fixed ? f.n + ' saved as yours' : 'Back to the catalogue', true);
+      break;
+    }
+    case 'ff-reset': {
+      clearFix(v); renderFuel(); closeSheet(); toast('Back to the catalogue', true); break;
+    }
+    case 'fuel-quick-add': sheetQuickAdd(); break;
+    case 'qa-save': {
+      const val = id => (($('#' + id) || {}).value);
+      if (!quickAdd({ n: val('qa-n'), kcal: val('qa-kcal'), p: val('qa-p'),
+                      c: val('qa-c'), f: val('qa-f') }, fuelDay())) {
+        toast('Put in at least one number'); break;
+      }
+      renderFuel(); closeSheet(); toast('Added', true); buzz();
+      break;
+    }
     case 'entry-adj': {
       const e = nutDay(fuelDay()).items.find(x => x.id === v);
       if (!e) break;

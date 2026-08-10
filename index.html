@@ -889,6 +889,95 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 }
 @keyframes prStar{from{opacity:0;transform:scale(.3) rotate(-40deg)}to{opacity:1;transform:none}}
 
+/* ---------- Fuel: the ring, the meals, and a screen that breathes ---------- */
+/* Two very low-alpha blooms drifting behind everything. Deliberately under
+   0.06 alpha and behind every surface: this app measures text contrast by
+   sampling painted pixels, and a bright thing moving under a paragraph would
+   change the answer depending on when you looked. Motion you feel rather than
+   watch. */
+.fuel-aura{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.fuel-aura i{position:absolute;display:block;width:min(78vw,340px);height:min(78vw,340px);
+  border-radius:50%;filter:blur(58px);opacity:0}
+.fuel-aura i:nth-child(1){background:radial-gradient(circle,rgba(233,180,76,.055),transparent 68%);
+  top:2%;left:-16%}
+.fuel-aura i:nth-child(2){background:radial-gradient(circle,rgba(79,209,165,.05),transparent 68%);
+  top:34%;right:-22%}
+@media (prefers-reduced-motion: no-preference){
+  .fuel-aura i{opacity:1}
+  .fuel-aura i:nth-child(1){animation:auraA 34s var(--ease-in-out) infinite alternate}
+  .fuel-aura i:nth-child(2){animation:auraB 41s var(--ease-in-out) infinite alternate}
+}
+@keyframes auraA{from{transform:translate3d(0,0,0)}to{transform:translate3d(16%,10%,0) scale(1.12)}}
+@keyframes auraB{from{transform:translate3d(0,0,0)}to{transform:translate3d(-14%,-9%,0) scale(1.08)}}
+#s-fuel{position:relative}
+#fuel-body{position:relative;z-index:1}
+
+/* The ring. Three concentric arcs — the day, protein, carbs — rather than
+   three stacked bars, because a ring reads from across a kitchen and a bar
+   chart does not. */
+.fuel-ring-wrap{position:relative;width:180px;height:180px;margin:2px auto 4px}
+.fuel-ring{width:180px;height:180px;display:block;overflow:visible}
+.fr-track{fill:none;stroke:var(--surface-3);stroke-width:11}
+.fr-arc{fill:none;stroke-width:11;stroke-linecap:round}
+.fr-arc.main{stroke:var(--ember)}
+.fr-arc.prot{stroke:var(--teal)}
+.fr-arc.carb{stroke:#7aa2d8}
+@media (prefers-reduced-motion: no-preference){
+  /* Fills from empty on arrival. The delay lets the screen settle first, so it
+     reads as the ring filling rather than as the page still loading. */
+  .screen.entering .fr-arc{animation:ringIn .9s var(--ease-out) backwards}
+  .screen.entering .fr-arc.main{animation-delay:.06s}
+  .screen.entering .fr-arc.prot{animation-delay:.14s}
+  .screen.entering .fr-arc.carb{animation-delay:.22s}
+  .fr-arc{transition:stroke-dashoffset .6s var(--ease-out)}
+}
+@keyframes ringIn{from{stroke-dashoffset:var(--c,500)}}
+.fuel-ring-mid{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;pointer-events:none}
+.fuel-ring-v{font-size:38px;font-weight:700;letter-spacing:-.045em;line-height:1;
+  color:var(--text);font-variant-numeric:tabular-nums}
+.fuel-ring-k{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);margin-top:5px}
+.fuel-ring-of{font-size:11.5px;color:var(--faint);margin-top:3px}
+
+.fuel-burn-chip{display:block;width:fit-content;margin:2px auto 0;font-size:11.5px;
+  color:var(--ember-2);background:var(--ember-dim);border:1px solid var(--ember-line);
+  border-radius:999px;padding:4px 11px}
+.fuel-burn-chip .mono{font-weight:700}
+
+.fuel-legend{display:flex;flex-direction:column;gap:2px;margin-top:14px;
+  padding-top:12px;border-top:1px solid var(--line-soft)}
+.fuel-leg{display:flex;align-items:center;gap:9px;min-height:30px;font-size:13.5px;
+  font-weight:600;letter-spacing:-.01em}
+.fuel-leg .mono{font-size:13px;color:var(--text)}
+.fuel-of-s{color:var(--faint);font-weight:500}
+.fuel-dot{width:9px;height:9px;border-radius:50%;flex:none}
+.fuel-dot.prot{background:var(--teal)}
+.fuel-dot.carb{background:#7aa2d8}
+.fuel-dot.fat{background:var(--surface-3);box-shadow:inset 0 0 0 1.5px var(--line)}
+
+/* A day has a shape: breakfast, lunch, dinner, what you picked at. */
+.fuel-meal{background:var(--surface);border:1px solid var(--line-soft);
+  border-radius:var(--r-l);margin-bottom:10px;overflow:hidden}
+.fuel-meal-h{display:flex;align-items:center;gap:9px;padding:9px 14px;
+  background:var(--surface-2);border-bottom:1px solid var(--line-soft)}
+.fuel-meal-i{color:var(--ember);font-size:13px;flex:none}
+.fuel-meal-n{font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--muted)}
+.fuel-meal-s{font-size:12px;color:var(--text);font-weight:650}
+.fuel-item{display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+  padding:10px 12px 10px 14px;min-height:52px;background:none;border:0;
+  border-top:1px solid var(--line-soft);color:var(--text)}
+.fuel-item:first-of-type{border-top:0}
+.fuel-item:active{background:var(--surface-2)}
+.fuel-item-n{display:block;font-size:14px;font-weight:650;letter-spacing:-.01em}
+.fuel-item-b{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.fuel-own{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ember-2);background:var(--ember-dim);border-radius:999px;
+  padding:1px 6px;margin-left:6px;vertical-align:1px}
+
+.fuel-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
+
 /* ---------- import ---------- */
 .imp-drop{display:flex;flex-direction:column;align-items:center;gap:4px;
   padding:26px 18px;border-radius:var(--r-l);cursor:pointer;
@@ -1576,6 +1665,11 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   <!-- ============ FUEL ============ -->
   <section class="screen" id="s-fuel">
     <div class="hdr"><h1 class="h1">Fuel</h1></div>
+    <!-- Behind everything, pointer-transparent, and only under
+         prefers-reduced-motion: no-preference. Two very low-alpha blooms
+         drifting slowly — enough that the screen feels alive without ever
+         moving under a piece of text hard enough to change its contrast. -->
+    <div class="fuel-aura" aria-hidden="true"><i></i><i></i></div>
     <div id="fuel-body"></div>
   </section>
 
@@ -5899,8 +5993,57 @@ function deleteCustomFood(id) {
   list.splice(i, 1); save(true); return true;
 }
 
+/* ------------------------------------------------------------
+   Corrections to the built-in foods.
+   ------------------------------------------------------------
+   The catalogue holds one whey protein at 120 kcal and 24g per scoop, which is
+   a reasonable average and is wrong for your tub. Before this there was no way
+   to say so: the portion stepper changes how many scoops you had, not what a
+   scoop contains, so the only way out was to abandon the preset and retype the
+   whole food. For a paid feature that is not acceptable — a number you cannot
+   correct makes every total built on it wrong.
+
+   Stored as a correction against the preset rather than as a replacement food,
+   so the original is still there to fall back to and search still finds the
+   thing by its usual name.
+
+   Entries already logged are untouched. They stored their resolved macros at
+   the time, which is what you actually ate — retroactively rewriting last
+   week's dinner because you corrected a food today would be inventing history. */
+function foodFixes() {
+  if (!S.nutrition.fix || typeof S.nutrition.fix !== 'object') S.nutrition.fix = {};
+  return S.nutrition.fix;
+}
+
+function fixFood(id, patch) {
+  const base = FOODS.find(f => f.id === id);
+  if (!base || !patch) return false;
+  const num = (v, fb) => { const n = parseFloat(v); return isNaN(n) || n < 0 ? fb : n; };
+  const fix = {
+    per:  Math.max(0.01, num(patch.per,  base.per)),
+    kcal: Math.round(num(patch.kcal, base.kcal)),
+    p:    num(patch.p, base.p), c: num(patch.c, base.c), f: num(patch.f, base.f)
+  };
+  /* A correction identical to the original is not a correction. */
+  const same = ['per','kcal','p','c','f'].every(kk => Math.abs(fix[kk] - base[kk]) < 0.005);
+  if (same) delete foodFixes()[id]; else foodFixes()[id] = fix;
+  save(true);
+  return true;
+}
+
+function clearFix(id) {
+  const fx = foodFixes();
+  if (!fx[id]) return false;
+  delete fx[id]; save(true); return true;
+}
+
 function foodById(id) {
-  return FOODS.find(f => f.id === id) || customFoods().find(f => f.id === id) || null;
+  const custom = customFoods().find(f => f.id === id);
+  if (custom) return custom;
+  const base = FOODS.find(f => f.id === id);
+  if (!base) return null;
+  const fix = foodFixes()[id];
+  return fix ? Object.assign({}, base, fix, { fixed: true }) : base;
 }
 
 function allFoods() { return customFoods().concat(FOODS); }
@@ -5940,6 +6083,35 @@ function portionLabel(food, qty) {
   return qty + u + (food.u === 'scoop' && qty !== 1 ? 's' : '');
 }
 
+/* ---------- which meal ----------
+   Breakfast, lunch, dinner, snack — the grouping every other logger has and
+   this one did not, which left a day as one flat list of fourteen things with
+   no shape to it. Guessed from the clock at the moment you log, and always
+   changeable, because the guess is only ever a starting point.
+
+   Read through today()'s day boundary rather than the wall clock: someone
+   whose day ends at 4am eating at 2am is having dinner, not breakfast. */
+const MEALS = [
+  { id:'b', n:'Breakfast', ico:'☀' },
+  { id:'l', n:'Lunch',     ico:'◐' },
+  { id:'d', n:'Dinner',    ico:'☾' },
+  { id:'s', n:'Snacks',    ico:'✦' }
+];
+function mealById(id) { return MEALS.find(m => m.id === id) || MEALS[3]; }
+function mealNow() {
+  let hr = new Date().getHours() - dayStartHour();
+  if (hr < 0) hr += 24;
+  if (hr < 11) return 'b';
+  if (hr < 16) return 'l';
+  if (hr < 22) return 'd';
+  return 's';
+}
+function setEntryMeal(dateKey, entryId, m) {
+  const e = nutDay(dateKey).items.find(x => x.id === entryId);
+  if (!e || !mealById(m)) return false;
+  e.m = m; save(true); return true;
+}
+
 /* ---------- logging ---------- */
 function logFood(foodId, qty, dateKey) {
   const food = foodById(foodId);
@@ -5952,17 +6124,54 @@ function logFood(foodId, qty, dateKey) {
     id: 'e' + Date.now().toString(36) + d.items.length,
     foodId: food.id, n: food.n, qty: q, u: food.u,
     kcal: m.kcal, p: m.p, c: m.c, f: m.f,
+    m: mealNow(),
     at: new Date().toISOString()
   });
   save(true);
   return true;
 }
 
+/* One entry's macros, set directly. For the meal that was bigger than the
+   catalogue thinks, without claiming every future one will be. An entry edited
+   this way stops tracking its food — otherwise the next quantity nudge would
+   silently throw the correction away. */
+function setEntryMacros(dateKey, entryId, m) {
+  const d = nutDay(dateKey);
+  const e = d.items.find(x => x.id === entryId);
+  if (!e || !m) return false;
+  const num = (v, fb) => { const n = parseFloat(v); return isNaN(n) || n < 0 ? fb : n; };
+  e.kcal = Math.round(num(m.kcal, e.kcal));
+  e.p = Math.round(num(m.p, e.p) * 10) / 10;
+  e.c = Math.round(num(m.c, e.c) * 10) / 10;
+  e.f = Math.round(num(m.f, e.f) * 10) / 10;
+  e.edited = true;
+  save(true); return true;
+}
+
+/* Bare macros with no food behind them — the restaurant meal you will never
+   log twice. Every logger worth using has this and it was the reason people
+   gave up on this one halfway through a day out. */
+function quickAdd(vals, dateKey) {
+  const num = v => { const n = parseFloat(v); return isNaN(n) || n < 0 ? 0 : n; };
+  const kcal = Math.round(num(vals.kcal)), p = num(vals.p), c = num(vals.c), f = num(vals.f);
+  if (!kcal && !p && !c && !f) return false;
+  const d = nutDay(dateKey || today());
+  d.items.push({
+    id: 'e' + Date.now().toString(36) + d.items.length,
+    foodId: null, n: (vals.n || '').trim() || 'Quick add', qty: 1, u: 'ea',
+    kcal: kcal, p: Math.round(p * 10) / 10, c: Math.round(c * 10) / 10, f: Math.round(f * 10) / 10,
+    m: vals.m || mealNow(), edited: true, at: new Date().toISOString()
+  });
+  save(true); return true;
+}
+
 function updateEntry(dateKey, entryId, qty) {
   const d = nutDay(dateKey);
   const e = d.items.find(x => x.id === entryId);
   if (!e) return false;
-  const food = e.foodId ? foodById(e.foodId) : null;
+  /* An entry whose numbers you corrected by hand is scaled, never re-resolved
+     from the catalogue — going back to the food would discard the correction. */
+  const food = (e.foodId && !e.edited) ? foodById(e.foodId) : null;
   const q = Math.max(0, parseFloat(qty) || 0);
   if (!q) return false;
   if (food) {
@@ -11964,22 +12173,51 @@ function renderFuel() {
   html += `<div class="sec-head"><span class="sec-t">${isToday ? 'Today' : prettyDate(k)}</span>
     ${!isToday ? `<button class="sec-a" data-act="fuel-day" data-v="${today()}">Back to today</button>` : ''}</div>`;
 
+  /* ── the day, as a ring ──────────────────────────────────── */
+  /* Three concentric arcs rather than three stacked bars. A ring is the one
+     shape that reads at a glance from across a kitchen, it fills rather than
+     grows so the eye follows it round, and it is the difference between a
+     spreadsheet and something you want to open. Drawn with stroke-dashoffset
+     so the fill animates from empty on arrival. */
+  const ringArc = (pct, r, cls) => {
+    const c = 2 * Math.PI * r;
+    const off = c * (1 - Math.max(0, Math.min(1, pct / 100)));
+    /* --c is this arc's own circumference, so the fill animation starts from
+       genuinely empty rather than from a number large enough to look empty. */
+    return `<circle class="fr-arc ${cls}" cx="90" cy="90" r="${r}"
+      style="--c:${c.toFixed(1)}"
+      stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
+      transform="rotate(-90 90 90)"/>`;
+  };
+  const ringTrack = r => `<circle class="fr-track" cx="90" cy="90" r="${r}"/>`;
+  const mainPct = pctOf(pOnly ? t.p : t.kcal, pOnly ? pTarget : kcalTarget);
+  const cTarget = tg.c || (e && e.c) || 0;
+  const fTarget = tg.f || (e && e.f) || 0;
+
   html += `<div class="fuel-day-card">
-    <div class="row between">
-      <div>
-        <div class="fuel-day-v mono">${pOnly ? Math.round(t.p) + 'g' : t.kcal}</div>
-        <div class="fuel-day-k">${pOnly ? 'protein' : 'kcal'}${(pOnly ? pTarget : kcalTarget) ? ' of ' + (pOnly ? pTarget + 'g' : kcalTarget) : ''}</div>
+    <div class="fuel-ring-wrap">
+      <svg class="fuel-ring" viewBox="0 0 180 180" aria-hidden="true">
+        ${ringTrack(78)}${ringArc(mainPct, 78, 'main')}
+        ${!pOnly ? ringTrack(64) + ringArc(pctOf(t.p, pTarget), 64, 'prot') : ''}
+        ${!pOnly ? ringTrack(50) + ringArc(pctOf(t.c, cTarget), 50, 'carb') : ''}
+      </svg>
+      <div class="fuel-ring-mid">
+        <div class="fuel-ring-v mono">${pOnly ? Math.round(t.p) + 'g' : t.kcal}</div>
+        <div class="fuel-ring-k">${pOnly ? 'protein' : 'kcal'}</div>
+        ${(pOnly ? pTarget : kcalTarget) ? `<div class="fuel-ring-of">of ${pOnly ? pTarget + 'g' : kcalTarget}</div>` : ''}
       </div>
-      ${burned && !pOnly ? `<div class="fuel-burn"><span class="mono em">+${burned}</span><span class="fuel-day-k">burned training</span></div>` : ''}
     </div>
-    <div class="bar mt"><i style="width:${pctOf(pOnly ? t.p : t.kcal, pOnly ? pTarget : kcalTarget)}%"></i></div>
-    ${!pOnly ? `<div class="fuel-macros mt">
-      ${[['Protein', t.p, pTarget, 'teal'], ['Carbs', t.c, tg.c || (e && e.c) || 0, ''], ['Fat', t.f, tg.f || (e && e.f) || 0, '']]
-        .map(([label, v, target, tone]) => `<div class="fuel-macro">
-          <div class="row between"><span class="small">${label}</span><span class="tiny mono">${Math.round(v)}g${target ? ' / ' + target + 'g' : ''}</span></div>
-          <div class="bar thin ${tone} mt-s"><i style="width:${pctOf(v, target)}%"></i></div>
+
+    ${burned && !pOnly ? `<div class="fuel-burn-chip"><span class="mono">+${burned}</span> burned training</div>` : ''}
+
+    ${!pOnly ? `<div class="fuel-legend">
+      ${[['Protein', t.p, pTarget, 'prot'], ['Carbs', t.c, cTarget, 'carb'], ['Fat', t.f, fTarget, 'fat']]
+        .map(([label, v, target, tone]) => `<div class="fuel-leg">
+          <span class="fuel-dot ${tone}"></span>
+          <span class="grow">${label}</span>
+          <span class="mono">${Math.round(v)}${target ? '<span class="fuel-of-s">/' + target + '</span>' : ''}g</span>
         </div>`).join('')}
-    </div>` : `<p class="tiny mt">Calories are switched off. Protein is the number with the strongest evidence behind it for building muscle &mdash; everything else is being logged, just not shown.</p>`}
+    </div>` : `<p class="tiny mt center">Calories are switched off. Protein is the number with the strongest evidence behind it for building muscle &mdash; everything else is being logged, just not shown.</p>`}
   </div>`;
 
   /* ── add ─────────────────────────────────────────────────── */
@@ -11987,6 +12225,7 @@ function renderFuel() {
     <button class="btn primary block lg" data-act="fuel-search">Add food</button>
     <div class="btn-row mt-s">
       <button class="btn ghost grow" data-act="fuel-quick-sheet">Recent</button>
+      <button class="btn ghost grow" data-act="fuel-quick-add">Quick add</button>
       <button class="btn ghost grow" data-act="fuel-copy">Copy a day</button>
     </div>
   </div>`;
@@ -11994,19 +12233,36 @@ function renderFuel() {
   /* ── suggested meals ─────────────────────────────────────── */
   html += suggestionsHTML(k);
 
-  /* ── what's logged ───────────────────────────────────────── */
+  /* ── what's logged, in meals ─────────────────────────────── */
   const items = nutDay(k).items;
   if (items.length) {
-    html += `<div class="sec-head"><span class="sec-t">Logged</span><span class="tiny">${items.length} item${items.length===1?'':'s'}</span></div>
-      <div class="list mb">
-        ${items.map(it => `<button class="lrow" data-act="fuel-edit" data-v="${h(it.id)}" style="width:100%;text-align:left">
-          <div class="grow">
-            <div class="h3" style="font-size:14.5px">${h(it.n)}</div>
-            <div class="tiny mt-s">${it.qty ? h(String(it.qty)) + (unitLabel(it.u) || '×') + ' · ' : ''}${pOnly ? Math.round(it.p) + 'g protein' : it.kcal + ' kcal · ' + Math.round(it.p) + 'p ' + Math.round(it.c) + 'c ' + Math.round(it.f) + 'f'}</div>
-          </div>
-          <span class="chev">›</span>
+    /* Grouped, in the order you eat them. A flat list of fourteen things has
+       no shape, and every other logger in the category groups — it is also
+       what makes "you are light on protein at breakfast" possible later. */
+    html += `<div class="sec-head"><span class="sec-t">Logged</span>
+      <span class="tiny">${items.length} item${items.length === 1 ? '' : 's'}</span></div>`;
+    MEALS.forEach(meal => {
+      const mine = items.filter(it => (it.m || 's') === meal.id);
+      if (!mine.length) return;
+      const kc = mine.reduce((a, x) => a + (+x.kcal || 0), 0);
+      const pr = Math.round(mine.reduce((a, x) => a + (+x.p || 0), 0));
+      html += `<div class="fuel-meal">
+        <div class="fuel-meal-h">
+          <span class="fuel-meal-i" aria-hidden="true">${meal.ico}</span>
+          <span class="grow fuel-meal-n">${meal.n}</span>
+          <span class="fuel-meal-s mono">${pOnly ? pr + 'g' : kc + ' kcal'}</span>
+        </div>
+        ${mine.map(it => `<button class="fuel-item" data-act="fuel-edit" data-v="${h(it.id)}">
+          <span class="grow">
+            <span class="fuel-item-n">${h(it.n)}${it.edited ? '<span class="fuel-own">yours</span>' : ''}</span>
+            <span class="fuel-item-b">${it.qty && it.foodId ? h(String(it.qty)) + (unitLabel(it.u) || '×') + ' · ' : ''}${
+              pOnly ? Math.round(it.p) + 'g protein'
+                    : it.kcal + ' kcal · ' + Math.round(it.p) + 'p ' + Math.round(it.c) + 'c ' + Math.round(it.f) + 'f'}</span>
+          </span>
+          <span class="chev">&rsaquo;</span>
         </button>`).join('')}
       </div>`;
+    });
   } else {
     html += `<div class="note mb"><p class="note-t">Nothing logged ${isToday ? 'yet today' : 'that day'}.</p><p class="note-b">A week with four honest days on it is worth more than a week with seven guessed ones.</p></div>`;
   }
@@ -12319,23 +12575,132 @@ function sheetEntryEdit(entryId) {
 
   openSheet(`
     <div class="row between mb"><h2 class="h1">${h(e.n)}</h2></div>
+
     <div class="fuel-day-card mb">
-      <div class="row between">
-        <div><div class="fuel-day-v mono">${e.kcal}</div><div class="fuel-day-k">kcal</div></div>
-        <div style="text-align:right"><div class="fuel-day-v mono">${Math.round(e.p)}g</div><div class="fuel-day-k">protein</div></div>
+      <div class="fuel-4">
+        ${[['kcal', e.kcal], ['protein', Math.round(e.p) + 'g'],
+           ['carbs', Math.round(e.c) + 'g'], ['fat', Math.round(e.f) + 'g']]
+          .map(([kk, v]) => `<div><div class="fuel-day-v mono">${v}</div>
+            <div class="fuel-day-k">${kk}</div></div>`).join('')}
       </div>
     </div>
-    <div class="row gap-s mb" style="align-items:center">
-      <button class="btn icon lg" data-act="entry-adj" data-v="${h(entryId)}" data-d="${-step}" aria-label="Less">−</button>
+
+    ${f ? `<div class="row gap-s mb" style="align-items:center">
+      <button class="btn icon lg" data-act="entry-adj" data-v="${h(entryId)}" data-d="${-step}" aria-label="Less">&minus;</button>
       <div class="grow" style="text-align:center">
         <div class="mono" style="font-size:26px;font-weight:700;letter-spacing:-.03em">${e.qty || 1}</div>
         <div class="tiny">${h(unitLabel(e.u) || 'servings')}</div>
       </div>
       <button class="btn icon lg" data-act="entry-adj" data-v="${h(entryId)}" data-d="${step}" aria-label="More">+</button>
+    </div>` : ''}
+
+    <div class="label mb-s">Which meal</div>
+    <div class="chip-grid c4 mb">
+      ${MEALS.map(m => `<div class="chip ${(e.m || 's') === m.id ? 'on' : ''}"
+        data-act="entry-meal" data-v="${h(entryId)}" data-m="${m.id}">${h(m.n)}</div>`).join('')}
     </div>
-    <button class="btn block" data-act="close">Done</button>
-    <button class="btn quiet block mt-s" data-act="entry-del" data-v="${h(entryId)}">Remove from the day</button>
-  `);
+
+    ${/* The numbers themselves, editable. Before this the only control on this
+          sheet was how many servings — so a food whose macros were wrong was
+          wrong forever, and every total built on it was wrong with it. */''}
+    <div class="divide"></div>
+    <div class="label mb-s">The numbers, for this one</div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">kcal</div>
+        <input class="input" id="ee-kcal" type="number" inputmode="numeric" value="${e.kcal}"></div>
+      <div class="field grow"><div class="label">Protein</div>
+        <input class="input" id="ee-p" type="number" inputmode="decimal" value="${e.p}"></div>
+    </div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">Carbs</div>
+        <input class="input" id="ee-c" type="number" inputmode="decimal" value="${e.c}"></div>
+      <div class="field grow"><div class="label">Fat</div>
+        <input class="input" id="ee-f" type="number" inputmode="decimal" value="${e.f}"></div>
+    </div>
+    <button class="btn block" data-act="entry-macros" data-v="${h(entryId)}">Save these numbers</button>
+    <p class="tiny mt-s">Changes this entry only. ${f
+      ? 'To correct the food itself so every future one is right, use the button below.'
+      : 'This entry is not linked to a food.'}</p>
+
+    ${f && !f.custom ? `<button class="btn ghost block mt" data-act="fix-food" data-v="${h(f.id)}">
+      Fix ${h(f.n)} for good${f.fixed ? ' &middot; corrected' : ''}</button>` : ''}
+
+    <div class="divide"></div>
+    <button class="btn quiet block" data-act="entry-del" data-v="${h(entryId)}" style="color:var(--rose)">Remove from the day</button>
+  `, { key: 'entry:' + entryId });
+}
+
+/* ------------------------------------------------------------
+   Correcting a built-in food, once, for good.
+   ------------------------------------------------------------
+   The catalogue's whey is a reasonable average and is not your tub. This says
+   what a serving of yours actually is — including what counts as a serving,
+   because "1 scoop" and "1 serving" are rarely the same thing. */
+function sheetFixFood(foodId) {
+  const base = FOODS.find(x => x.id === foodId);
+  if (!base) { closeSheet(); return; }
+  const cur = foodById(foodId);
+  const uL = unitLabel(base.u) || '';
+  const perLabel = base.u === 'ea' ? 'items per serving'
+                 : base.u === 'scoop' ? 'scoops per serving'
+                 : base.u === 'slice' ? 'slices per serving'
+                 : `${uL} per serving`;
+
+  openSheet(`
+    <div class="row between mb"><h2 class="h1">${h(base.n)}</h2></div>
+    <p class="small mb">Read the numbers off your packet. From now on this food logs with yours
+      instead of the catalogue's, everywhere in the app.</p>
+
+    <div class="field mb">
+      <div class="label">${h(perLabel)}</div>
+      <input class="input" id="ff-per" type="number" inputmode="decimal" value="${cur.per}">
+    </div>
+    <p class="tiny mb">Everything below describes that much of it.</p>
+
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">kcal</div>
+        <input class="input" id="ff-kcal" type="number" inputmode="numeric" value="${cur.kcal}"></div>
+      <div class="field grow"><div class="label">Protein</div>
+        <input class="input" id="ff-p" type="number" inputmode="decimal" value="${cur.p}"></div>
+    </div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">Carbs</div>
+        <input class="input" id="ff-c" type="number" inputmode="decimal" value="${cur.c}"></div>
+      <div class="field grow"><div class="label">Fat</div>
+        <input class="input" id="ff-f" type="number" inputmode="decimal" value="${cur.f}"></div>
+    </div>
+
+    <button class="btn primary block lg" data-act="ff-save" data-v="${h(foodId)}">Save it</button>
+    ${cur.fixed ? `<button class="btn quiet block mt-s" data-act="ff-reset" data-v="${h(foodId)}">
+      Back to the catalogue's ${h(base.kcal)} kcal</button>` : ''}
+    <p class="tiny center mt-s">Meals you have already logged keep the numbers they were logged with
+      &mdash; that is what you ate.</p>
+  `, { key: 'fixfood:' + foodId });
+}
+
+/* Bare macros, no food behind them. */
+function sheetQuickAdd() {
+  openSheet(`
+    <div class="row between mb"><h2 class="h1">Quick add</h2></div>
+    <p class="small mb">For the meal you will never log again &mdash; a restaurant, someone else's
+      cooking, the thing on the craft table. Put in what you know and leave the rest.</p>
+    <div class="field mb"><div class="label">Call it</div>
+      <input class="input" id="qa-n" placeholder="Lunch on set" autocomplete="off"></div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">kcal</div>
+        <input class="input" id="qa-kcal" type="number" inputmode="numeric"></div>
+      <div class="field grow"><div class="label">Protein</div>
+        <input class="input" id="qa-p" type="number" inputmode="decimal"></div>
+    </div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">Carbs</div>
+        <input class="input" id="qa-c" type="number" inputmode="decimal"></div>
+      <div class="field grow"><div class="label">Fat</div>
+        <input class="input" id="qa-f" type="number" inputmode="decimal"></div>
+    </div>
+    <button class="btn primary block lg" data-act="qa-save">Add it to the day</button>
+    <p class="tiny center mt-s">A rough number you actually log beats an exact one you do not.</p>
+  `, { key: 'quickadd' });
 }
 
 /* ---------- your own foods ---------- */
@@ -14069,6 +14434,41 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'fuel-edit': sheetEntryEdit(v); break;
+    case 'entry-meal': {
+      if (setEntryMeal(fuelDay(), v, t.dataset.m)) { renderFuel(); sheetEntryEdit(v); buzz(); }
+      break;
+    }
+    case 'entry-macros': {
+      const val = id => (($('#' + id) || {}).value);
+      if (setEntryMacros(fuelDay(), v, { kcal: val('ee-kcal'), p: val('ee-p'),
+                                         c: val('ee-c'), f: val('ee-f') })) {
+        renderFuel(); closeSheet(); toast('Updated', true);
+      }
+      break;
+    }
+    case 'fix-food': sheetFixFood(v); break;
+    case 'ff-save': {
+      const val = id => (($('#' + id) || {}).value);
+      if (!fixFood(v, { per: val('ff-per'), kcal: val('ff-kcal'), p: val('ff-p'),
+                        c: val('ff-c'), f: val('ff-f') })) break;
+      renderFuel(); closeSheet();
+      const f = foodById(v);
+      toast(f && f.fixed ? f.n + ' saved as yours' : 'Back to the catalogue', true);
+      break;
+    }
+    case 'ff-reset': {
+      clearFix(v); renderFuel(); closeSheet(); toast('Back to the catalogue', true); break;
+    }
+    case 'fuel-quick-add': sheetQuickAdd(); break;
+    case 'qa-save': {
+      const val = id => (($('#' + id) || {}).value);
+      if (!quickAdd({ n: val('qa-n'), kcal: val('qa-kcal'), p: val('qa-p'),
+                      c: val('qa-c'), f: val('qa-f') }, fuelDay())) {
+        toast('Put in at least one number'); break;
+      }
+      renderFuel(); closeSheet(); toast('Added', true); buzz();
+      break;
+    }
     case 'entry-adj': {
       const e = nutDay(fuelDay()).items.find(x => x.id === v);
       if (!e) break;

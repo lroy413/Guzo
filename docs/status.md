@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **733,670 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (37) + `sw` (17) + `native` (23) + `import` (62) all green. Nothing known is broken.
+Verified against the build at **753,724 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (60) + `sw` (17) + `native` (23) + `import` (62) all green. Nothing known is broken.
 
 ---
 
@@ -32,7 +32,7 @@ Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (37) + `sw` (17) 
 | Form guides | 45 SVG diagrams, two frames each, anatomically checked. Reachable mid-session. |
 | Plate calculator | Complete. Owned-plate aware, persists bar weight, follows the weight you type. |
 | Last-time recall | Complete. |
-| Fuel (nutrition) | Complete. 113 foods, custom foods, portions, edit/delete, copy-a-day, recents. |
+| Fuel (nutrition) | Complete. 113 foods, custom foods, portions, edit/delete, copy-a-day, recents, a correction per food, per-entry macros, quick add, meals, and a ring. |
 | Diet preferences | Complete. Meals and snacks a day, four dietary patterns, seven exclusions. Asked during onboarding when Fuel is on, editable forever after from Fuel. |
 | Suggested meals | Complete. Built from the same 113-food library, portioned against your targets, deterministic per day, and filtered by your restrictions. One tap logs a whole meal. |
 | Adaptive TDEE | Complete. Refuses implausible answers and names under-logging as the cause. |
@@ -475,6 +475,50 @@ That one now runs a one-second rest and counts oscillators through a spy on the
 platform's own `createOscillator`, so the subject is untouched. And the
 withdraw-on-skip check counted cancellations without resetting first — `startRest`
 cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
+### Fuel could not be corrected, which made every total it produced suspect
+
+The catalogue ships one whey protein at 120 kcal and 24g a scoop. That is a
+reasonable average and it is not your tub — and there was no way anywhere in
+the app to say so. The portion stepper changes how many scoops you had, never
+what a scoop contains, so the only way out was to abandon the preset and retype
+the food from scratch. For something being sold as Pro that is disqualifying: a
+number you cannot correct makes every total built on it wrong.
+
+Three ways in now, at three different scopes:
+
+- **Fix the food, for good.** A correction stored against the preset rather
+  than a replacement for it, so the original is still there and search still
+  finds the thing by its usual name. Includes what counts as one serving,
+  because "1 scoop" and "1 serving" are rarely the same. Entries already logged
+  keep the numbers they were logged with — that is what you actually ate, and
+  rewriting last week's dinner because you corrected a food today would be
+  inventing history.
+- **Fix this entry.** The meal that was bigger than the catalogue thinks,
+  without claiming every future one will be. An entry corrected this way stops
+  being re-resolved from its food, or the next quantity nudge would throw the
+  correction away.
+- **Quick add.** Bare macros, no food behind them, for the restaurant meal you
+  will never log twice. Every competitor has had this for a decade.
+
+**And a day now has a shape.** Breakfast, lunch, dinner, snacks — guessed from
+the clock through `today()`'s day boundary, so someone whose day ends at 4am
+eating at 2am is having dinner rather than breakfast, and always changeable
+because the guess is only a starting point.
+
+**The screen was three stacked bars and is now a ring** — three concentric arcs
+that fill from empty on arrival, because a ring reads from across a kitchen and
+a bar chart does not. Behind it, two very low-alpha blooms drift on a 34- and
+41-second cycle. Deliberately under 0.06 alpha and behind every surface: this
+app measures text contrast by sampling painted pixels, and a bright thing moving
+under a paragraph would change the answer depending on when you looked.
+
+23 checks, 9 subjects proven red. Three of them were weak first: one held a
+reference to the entry it was about to mutate and compared it to itself, one
+called `setEntryMacros` instead of clicking the button that calls it, and one
+searched for markup that had never existed.
 
 ---
 

@@ -182,8 +182,57 @@ function deleteCustomFood(id) {
   list.splice(i, 1); save(true); return true;
 }
 
+/* ------------------------------------------------------------
+   Corrections to the built-in foods.
+   ------------------------------------------------------------
+   The catalogue holds one whey protein at 120 kcal and 24g per scoop, which is
+   a reasonable average and is wrong for your tub. Before this there was no way
+   to say so: the portion stepper changes how many scoops you had, not what a
+   scoop contains, so the only way out was to abandon the preset and retype the
+   whole food. For a paid feature that is not acceptable — a number you cannot
+   correct makes every total built on it wrong.
+
+   Stored as a correction against the preset rather than as a replacement food,
+   so the original is still there to fall back to and search still finds the
+   thing by its usual name.
+
+   Entries already logged are untouched. They stored their resolved macros at
+   the time, which is what you actually ate — retroactively rewriting last
+   week's dinner because you corrected a food today would be inventing history. */
+function foodFixes() {
+  if (!S.nutrition.fix || typeof S.nutrition.fix !== 'object') S.nutrition.fix = {};
+  return S.nutrition.fix;
+}
+
+function fixFood(id, patch) {
+  const base = FOODS.find(f => f.id === id);
+  if (!base || !patch) return false;
+  const num = (v, fb) => { const n = parseFloat(v); return isNaN(n) || n < 0 ? fb : n; };
+  const fix = {
+    per:  Math.max(0.01, num(patch.per,  base.per)),
+    kcal: Math.round(num(patch.kcal, base.kcal)),
+    p:    num(patch.p, base.p), c: num(patch.c, base.c), f: num(patch.f, base.f)
+  };
+  /* A correction identical to the original is not a correction. */
+  const same = ['per','kcal','p','c','f'].every(kk => Math.abs(fix[kk] - base[kk]) < 0.005);
+  if (same) delete foodFixes()[id]; else foodFixes()[id] = fix;
+  save(true);
+  return true;
+}
+
+function clearFix(id) {
+  const fx = foodFixes();
+  if (!fx[id]) return false;
+  delete fx[id]; save(true); return true;
+}
+
 function foodById(id) {
-  return FOODS.find(f => f.id === id) || customFoods().find(f => f.id === id) || null;
+  const custom = customFoods().find(f => f.id === id);
+  if (custom) return custom;
+  const base = FOODS.find(f => f.id === id);
+  if (!base) return null;
+  const fix = foodFixes()[id];
+  return fix ? Object.assign({}, base, fix, { fixed: true }) : base;
 }
 
 function allFoods() { return customFoods().concat(FOODS); }
@@ -223,6 +272,35 @@ function portionLabel(food, qty) {
   return qty + u + (food.u === 'scoop' && qty !== 1 ? 's' : '');
 }
 
+/* ---------- which meal ----------
+   Breakfast, lunch, dinner, snack — the grouping every other logger has and
+   this one did not, which left a day as one flat list of fourteen things with
+   no shape to it. Guessed from the clock at the moment you log, and always
+   changeable, because the guess is only ever a starting point.
+
+   Read through today()'s day boundary rather than the wall clock: someone
+   whose day ends at 4am eating at 2am is having dinner, not breakfast. */
+const MEALS = [
+  { id:'b', n:'Breakfast', ico:'☀' },
+  { id:'l', n:'Lunch',     ico:'◐' },
+  { id:'d', n:'Dinner',    ico:'☾' },
+  { id:'s', n:'Snacks',    ico:'✦' }
+];
+function mealById(id) { return MEALS.find(m => m.id === id) || MEALS[3]; }
+function mealNow() {
+  let hr = new Date().getHours() - dayStartHour();
+  if (hr < 0) hr += 24;
+  if (hr < 11) return 'b';
+  if (hr < 16) return 'l';
+  if (hr < 22) return 'd';
+  return 's';
+}
+function setEntryMeal(dateKey, entryId, m) {
+  const e = nutDay(dateKey).items.find(x => x.id === entryId);
+  if (!e || !mealById(m)) return false;
+  e.m = m; save(true); return true;
+}
+
 /* ---------- logging ---------- */
 function logFood(foodId, qty, dateKey) {
   const food = foodById(foodId);
@@ -235,17 +313,54 @@ function logFood(foodId, qty, dateKey) {
     id: 'e' + Date.now().toString(36) + d.items.length,
     foodId: food.id, n: food.n, qty: q, u: food.u,
     kcal: m.kcal, p: m.p, c: m.c, f: m.f,
+    m: mealNow(),
     at: new Date().toISOString()
   });
   save(true);
   return true;
 }
 
+/* One entry's macros, set directly. For the meal that was bigger than the
+   catalogue thinks, without claiming every future one will be. An entry edited
+   this way stops tracking its food — otherwise the next quantity nudge would
+   silently throw the correction away. */
+function setEntryMacros(dateKey, entryId, m) {
+  const d = nutDay(dateKey);
+  const e = d.items.find(x => x.id === entryId);
+  if (!e || !m) return false;
+  const num = (v, fb) => { const n = parseFloat(v); return isNaN(n) || n < 0 ? fb : n; };
+  e.kcal = Math.round(num(m.kcal, e.kcal));
+  e.p = Math.round(num(m.p, e.p) * 10) / 10;
+  e.c = Math.round(num(m.c, e.c) * 10) / 10;
+  e.f = Math.round(num(m.f, e.f) * 10) / 10;
+  e.edited = true;
+  save(true); return true;
+}
+
+/* Bare macros with no food behind them — the restaurant meal you will never
+   log twice. Every logger worth using has this and it was the reason people
+   gave up on this one halfway through a day out. */
+function quickAdd(vals, dateKey) {
+  const num = v => { const n = parseFloat(v); return isNaN(n) || n < 0 ? 0 : n; };
+  const kcal = Math.round(num(vals.kcal)), p = num(vals.p), c = num(vals.c), f = num(vals.f);
+  if (!kcal && !p && !c && !f) return false;
+  const d = nutDay(dateKey || today());
+  d.items.push({
+    id: 'e' + Date.now().toString(36) + d.items.length,
+    foodId: null, n: (vals.n || '').trim() || 'Quick add', qty: 1, u: 'ea',
+    kcal: kcal, p: Math.round(p * 10) / 10, c: Math.round(c * 10) / 10, f: Math.round(f * 10) / 10,
+    m: vals.m || mealNow(), edited: true, at: new Date().toISOString()
+  });
+  save(true); return true;
+}
+
 function updateEntry(dateKey, entryId, qty) {
   const d = nutDay(dateKey);
   const e = d.items.find(x => x.id === entryId);
   if (!e) return false;
-  const food = e.foodId ? foodById(e.foodId) : null;
+  /* An entry whose numbers you corrected by hand is scaled, never re-resolved
+     from the catalogue — going back to the food would discard the correction. */
+  const food = (e.foodId && !e.edited) ? foodById(e.foodId) : null;
   const q = Math.max(0, parseFloat(qty) || 0);
   if (!q) return false;
   if (food) {

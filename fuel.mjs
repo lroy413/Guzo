@@ -274,6 +274,160 @@ try {
   check('it says it is not an allergen database', prefsSheet.warns);
   check('no placeholder text in it', prefsSheet.blank === false);
 
+  // ============ correcting a food, and the shape of a day ============
+  console.log('\ncorrecting what the catalogue got wrong\n');
+
+  const fix = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true; save(true);
+    const whey = FOODS.find(f => /whey/i.test(f.n));
+    const base = { per: whey.per, kcal: whey.kcal, p: whey.p };
+
+    /* A scoop of the catalogue's whey, logged as it comes. */
+    logFood(whey.id, 1);
+    /* A copy. Holding the reference and comparing it to itself later is a
+       check that cannot fail — mutating the entry moves both sides of it. */
+    const asShipped = Object.assign({}, nutDay(today()).items[0]);
+
+    /* Your tub: one serving is two scoops, 250 kcal, 50g protein. Before this
+       the only control was how many scoops — the numbers inside one were not
+       reachable from anywhere in the app. */
+    fixFood(whey.id, { per: 1, kcal: 250, p: 50, c: 6, f: 4 });
+    const corrected = foodById(whey.id);
+
+    /* What is logged from now on uses yours. */
+    logFood(whey.id, 1);
+    const after = nutDay(today()).items[1];
+
+    /* And what you already ate is left exactly as it was — rewriting last
+       week's dinner because you corrected a food today would invent history. */
+    const untouched = nutDay(today()).items[0].kcal === asShipped.kcal;
+
+    const reset = (clearFix(whey.id), foodById(whey.id));
+    return { base, corrected: { per: corrected.per, kcal: corrected.kcal, p: corrected.p,
+             fixed: !!corrected.fixed },
+             logged: { kcal: after.kcal, p: after.p }, untouched,
+             reset: { kcal: reset.kcal, fixed: !!reset.fixed } };
+  });
+  check('the catalogue ships one whey for everybody', fix.base.kcal === 120, String(fix.base.kcal));
+  /* The reported bug: a preset's numbers could not be changed at all. */
+  check('...and you can correct it to match your tub',
+    fix.corrected.kcal === 250 && fix.corrected.p === 50 && fix.corrected.fixed,
+    JSON.stringify(fix.corrected));
+  check('...including what counts as one serving', fix.corrected.per === 1,
+    String(fix.corrected.per));
+  check('what you log afterwards uses your numbers',
+    fix.logged.kcal === 250 && fix.logged.p === 50, JSON.stringify(fix.logged));
+  check('...and what you already ate is left alone', fix.untouched === true);
+  check('the correction can be taken back',
+    fix.reset.kcal === 120 && fix.reset.fixed === false, JSON.stringify(fix.reset));
+
+  const entry = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true; save(true);
+    const chicken = FOODS.find(f => /chicken breast/i.test(f.n));
+    logFood(chicken.id, 100);
+    const id = nutDay(today()).items[0].id;
+    const before = { ...nutDay(today()).items[0] };
+    /* Typed into the real sheet and saved with the real button. Calling
+       setEntryMacros here would prove the function works and say nothing about
+       whether anything on screen can reach it. */
+    go('fuel'); renderFuel(); sheetEntryEdit(id);
+    const set = (elId, v) => { const el = document.getElementById(elId); if (el) el.value = v; };
+    set('ee-kcal', '400'); set('ee-p', '45'); set('ee-c', '10'); set('ee-f', '12');
+    const btn = document.querySelector('#sheet-body [data-act="entry-macros"]');
+    if (!btn) return { before: before.kcal, after: { kcal: -1, p: -1, edited: false },
+                       scaled: -1, totals: -1, reached: false };
+    btn.click();
+    const after = { ...nutDay(today()).items[0] };
+    /* A corrected entry must not be re-resolved from its food by the next
+       quantity nudge, or the correction is silently thrown away. */
+    /* 100g → 200g. The entry is measured in grams, so "2" here would mean two
+       grams and scale it down by fifty. */
+    updateEntry(today(), id, 200);
+    const scaled = { ...nutDay(today()).items[0] };
+    const totals = nutTotals(today());
+    return { before: before.kcal, after: { kcal: after.kcal, p: after.p, edited: !!after.edited },
+             scaled: scaled.kcal, totals: totals.kcal, reached: true };
+  });
+  check('the sheet offers a way to change the numbers', entry.reached === true);
+  check('one entry can be corrected on its own',
+    entry.after.kcal === 400 && entry.after.p === 45 && entry.after.edited,
+    JSON.stringify(entry.after));
+  check('...and stays corrected when you change how much of it there was',
+    entry.scaled === 800, `${entry.after.kcal} → ${entry.scaled}`);
+  check('...and the day counts what you corrected it to',
+    entry.totals === 800, String(entry.totals));
+
+  const quick = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true; save(true);
+    const bad = quickAdd({ n: 'nothing', kcal: '', p: '', c: '', f: '' });
+    quickAdd({ n: 'Lunch on set', kcal: 700, p: 40 });
+    const it = nutDay(today()).items[0] || {};
+    return { bad, n: it.n, kcal: it.kcal, p: it.p, food: it.foodId, count: nutDay(today()).items.length };
+  });
+  check('a meal with no food behind it can still be logged',
+    quick.count === 1 && quick.kcal === 700 && quick.p === 40, JSON.stringify(quick));
+  check('...under the name you gave it', quick.n === 'Lunch on set', quick.n);
+  check('...and an empty quick add adds nothing', quick.bad === false);
+
+  const meals = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.dayStart = 0; save(true);
+    const egg = FOODS.find(f => /^egg, whole/i.test(f.n));
+    logFood(egg.id, 2);
+    const id = nutDay(today()).items[0].id;
+    const guessed = nutDay(today()).items[0].m;
+    setEntryMeal(today(), id, 'd');
+    const moved = nutDay(today()).items[0].m;
+    go('fuel'); renderFuel();
+    const body = document.getElementById('fuel-body');
+    return { guessed, moved,
+      groups: [...body.querySelectorAll('.fuel-meal-n')].map(x => x.textContent),
+      slots: MEALS.map(m => m.id).join(','),
+      bad: /undefined|NaN|\[object/.test(body.innerText) };
+  });
+  /* Guessed from the clock, and always changeable — the guess is a starting
+     point, not a claim about when you ate. */
+  check('a logged food lands in a meal', ['b','l','d','s'].indexOf(meals.guessed) >= 0, meals.guessed);
+  check('...and can be moved to another', meals.moved === 'd', meals.moved);
+  check('the day is grouped by meal, not one flat list',
+    meals.groups.length === 1 && /Dinner/i.test(meals.groups[0]), meals.groups.join(','));
+  check('there are four meals', meals.slots === 'b,l,d,s', meals.slots);
+  check('no placeholder text on Fuel', meals.bad === false);
+
+  const ring = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.heightCm = 183; S.profile.birthYear = 1989; S.profile.sex = 'm';
+    S.profile.activity = 'mod'; S.profile.bodyweight = [{ d: today(), w: 98 }];
+    const c = FOODS.find(f => /chicken breast/i.test(f.n));
+    logFood(c.id, 200); save(true);
+    syncNav(); go('fuel'); renderFuel();
+    const arcs = [...document.querySelectorAll('.fr-arc')];
+    /* Each arc's dash offset has to be its own circumference minus its own
+       progress. One shared number would draw three arcs at the same angle. */
+    const geom = arcs.map(a => {
+      const r = +a.getAttribute('r');
+      const c2 = 2 * Math.PI * r;
+      const off = +a.getAttribute('stroke-dashoffset');
+      const dash = +a.getAttribute('stroke-dasharray');
+      return { r, okDash: Math.abs(dash - c2) < 0.2, pct: Math.round((1 - off / c2) * 100),
+               cvar: a.style.getPropertyValue('--c') };
+    });
+    return { n: arcs.length, geom,
+      mid: (document.querySelector('.fuel-ring-v') || {}).textContent };
+  });
+  check('the day is drawn as three arcs', ring.n === 3, String(ring.n));
+  check('...each dashed to its own circumference', ring.geom.every(g => g.okDash),
+    JSON.stringify(ring.geom.map(g => g.okDash)));
+  /* The animation fills from empty, and "empty" is this arc's circumference. A
+     shared constant happens to look right only while every radius is smaller
+     than it. */
+  check('...and carries its own circumference for the fill animation',
+    ring.geom.every(g => Math.abs(parseFloat(g.cvar) - 2 * Math.PI * g.r) < 0.2),
+    JSON.stringify(ring.geom.map(g => g.cvar)));
+  check('...with the outer arc showing the day', ring.geom[0].pct > 0 && ring.geom[0].pct <= 100,
+    String(ring.geom[0].pct));
+  check('the middle of the ring is the number', /\d/.test(ring.mid || ''), ring.mid);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

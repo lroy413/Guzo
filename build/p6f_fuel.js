@@ -87,22 +87,51 @@ function renderFuel() {
   html += `<div class="sec-head"><span class="sec-t">${isToday ? 'Today' : prettyDate(k)}</span>
     ${!isToday ? `<button class="sec-a" data-act="fuel-day" data-v="${today()}">Back to today</button>` : ''}</div>`;
 
+  /* ── the day, as a ring ──────────────────────────────────── */
+  /* Three concentric arcs rather than three stacked bars. A ring is the one
+     shape that reads at a glance from across a kitchen, it fills rather than
+     grows so the eye follows it round, and it is the difference between a
+     spreadsheet and something you want to open. Drawn with stroke-dashoffset
+     so the fill animates from empty on arrival. */
+  const ringArc = (pct, r, cls) => {
+    const c = 2 * Math.PI * r;
+    const off = c * (1 - Math.max(0, Math.min(1, pct / 100)));
+    /* --c is this arc's own circumference, so the fill animation starts from
+       genuinely empty rather than from a number large enough to look empty. */
+    return `<circle class="fr-arc ${cls}" cx="90" cy="90" r="${r}"
+      style="--c:${c.toFixed(1)}"
+      stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"
+      transform="rotate(-90 90 90)"/>`;
+  };
+  const ringTrack = r => `<circle class="fr-track" cx="90" cy="90" r="${r}"/>`;
+  const mainPct = pctOf(pOnly ? t.p : t.kcal, pOnly ? pTarget : kcalTarget);
+  const cTarget = tg.c || (e && e.c) || 0;
+  const fTarget = tg.f || (e && e.f) || 0;
+
   html += `<div class="fuel-day-card">
-    <div class="row between">
-      <div>
-        <div class="fuel-day-v mono">${pOnly ? Math.round(t.p) + 'g' : t.kcal}</div>
-        <div class="fuel-day-k">${pOnly ? 'protein' : 'kcal'}${(pOnly ? pTarget : kcalTarget) ? ' of ' + (pOnly ? pTarget + 'g' : kcalTarget) : ''}</div>
+    <div class="fuel-ring-wrap">
+      <svg class="fuel-ring" viewBox="0 0 180 180" aria-hidden="true">
+        ${ringTrack(78)}${ringArc(mainPct, 78, 'main')}
+        ${!pOnly ? ringTrack(64) + ringArc(pctOf(t.p, pTarget), 64, 'prot') : ''}
+        ${!pOnly ? ringTrack(50) + ringArc(pctOf(t.c, cTarget), 50, 'carb') : ''}
+      </svg>
+      <div class="fuel-ring-mid">
+        <div class="fuel-ring-v mono">${pOnly ? Math.round(t.p) + 'g' : t.kcal}</div>
+        <div class="fuel-ring-k">${pOnly ? 'protein' : 'kcal'}</div>
+        ${(pOnly ? pTarget : kcalTarget) ? `<div class="fuel-ring-of">of ${pOnly ? pTarget + 'g' : kcalTarget}</div>` : ''}
       </div>
-      ${burned && !pOnly ? `<div class="fuel-burn"><span class="mono em">+${burned}</span><span class="fuel-day-k">burned training</span></div>` : ''}
     </div>
-    <div class="bar mt"><i style="width:${pctOf(pOnly ? t.p : t.kcal, pOnly ? pTarget : kcalTarget)}%"></i></div>
-    ${!pOnly ? `<div class="fuel-macros mt">
-      ${[['Protein', t.p, pTarget, 'teal'], ['Carbs', t.c, tg.c || (e && e.c) || 0, ''], ['Fat', t.f, tg.f || (e && e.f) || 0, '']]
-        .map(([label, v, target, tone]) => `<div class="fuel-macro">
-          <div class="row between"><span class="small">${label}</span><span class="tiny mono">${Math.round(v)}g${target ? ' / ' + target + 'g' : ''}</span></div>
-          <div class="bar thin ${tone} mt-s"><i style="width:${pctOf(v, target)}%"></i></div>
+
+    ${burned && !pOnly ? `<div class="fuel-burn-chip"><span class="mono">+${burned}</span> burned training</div>` : ''}
+
+    ${!pOnly ? `<div class="fuel-legend">
+      ${[['Protein', t.p, pTarget, 'prot'], ['Carbs', t.c, cTarget, 'carb'], ['Fat', t.f, fTarget, 'fat']]
+        .map(([label, v, target, tone]) => `<div class="fuel-leg">
+          <span class="fuel-dot ${tone}"></span>
+          <span class="grow">${label}</span>
+          <span class="mono">${Math.round(v)}${target ? '<span class="fuel-of-s">/' + target + '</span>' : ''}g</span>
         </div>`).join('')}
-    </div>` : `<p class="tiny mt">Calories are switched off. Protein is the number with the strongest evidence behind it for building muscle &mdash; everything else is being logged, just not shown.</p>`}
+    </div>` : `<p class="tiny mt center">Calories are switched off. Protein is the number with the strongest evidence behind it for building muscle &mdash; everything else is being logged, just not shown.</p>`}
   </div>`;
 
   /* ── add ─────────────────────────────────────────────────── */
@@ -110,6 +139,7 @@ function renderFuel() {
     <button class="btn primary block lg" data-act="fuel-search">Add food</button>
     <div class="btn-row mt-s">
       <button class="btn ghost grow" data-act="fuel-quick-sheet">Recent</button>
+      <button class="btn ghost grow" data-act="fuel-quick-add">Quick add</button>
       <button class="btn ghost grow" data-act="fuel-copy">Copy a day</button>
     </div>
   </div>`;
@@ -117,19 +147,36 @@ function renderFuel() {
   /* ── suggested meals ─────────────────────────────────────── */
   html += suggestionsHTML(k);
 
-  /* ── what's logged ───────────────────────────────────────── */
+  /* ── what's logged, in meals ─────────────────────────────── */
   const items = nutDay(k).items;
   if (items.length) {
-    html += `<div class="sec-head"><span class="sec-t">Logged</span><span class="tiny">${items.length} item${items.length===1?'':'s'}</span></div>
-      <div class="list mb">
-        ${items.map(it => `<button class="lrow" data-act="fuel-edit" data-v="${h(it.id)}" style="width:100%;text-align:left">
-          <div class="grow">
-            <div class="h3" style="font-size:14.5px">${h(it.n)}</div>
-            <div class="tiny mt-s">${it.qty ? h(String(it.qty)) + (unitLabel(it.u) || '×') + ' · ' : ''}${pOnly ? Math.round(it.p) + 'g protein' : it.kcal + ' kcal · ' + Math.round(it.p) + 'p ' + Math.round(it.c) + 'c ' + Math.round(it.f) + 'f'}</div>
-          </div>
-          <span class="chev">›</span>
+    /* Grouped, in the order you eat them. A flat list of fourteen things has
+       no shape, and every other logger in the category groups — it is also
+       what makes "you are light on protein at breakfast" possible later. */
+    html += `<div class="sec-head"><span class="sec-t">Logged</span>
+      <span class="tiny">${items.length} item${items.length === 1 ? '' : 's'}</span></div>`;
+    MEALS.forEach(meal => {
+      const mine = items.filter(it => (it.m || 's') === meal.id);
+      if (!mine.length) return;
+      const kc = mine.reduce((a, x) => a + (+x.kcal || 0), 0);
+      const pr = Math.round(mine.reduce((a, x) => a + (+x.p || 0), 0));
+      html += `<div class="fuel-meal">
+        <div class="fuel-meal-h">
+          <span class="fuel-meal-i" aria-hidden="true">${meal.ico}</span>
+          <span class="grow fuel-meal-n">${meal.n}</span>
+          <span class="fuel-meal-s mono">${pOnly ? pr + 'g' : kc + ' kcal'}</span>
+        </div>
+        ${mine.map(it => `<button class="fuel-item" data-act="fuel-edit" data-v="${h(it.id)}">
+          <span class="grow">
+            <span class="fuel-item-n">${h(it.n)}${it.edited ? '<span class="fuel-own">yours</span>' : ''}</span>
+            <span class="fuel-item-b">${it.qty && it.foodId ? h(String(it.qty)) + (unitLabel(it.u) || '×') + ' · ' : ''}${
+              pOnly ? Math.round(it.p) + 'g protein'
+                    : it.kcal + ' kcal · ' + Math.round(it.p) + 'p ' + Math.round(it.c) + 'c ' + Math.round(it.f) + 'f'}</span>
+          </span>
+          <span class="chev">&rsaquo;</span>
         </button>`).join('')}
       </div>`;
+    });
   } else {
     html += `<div class="note mb"><p class="note-t">Nothing logged ${isToday ? 'yet today' : 'that day'}.</p><p class="note-b">A week with four honest days on it is worth more than a week with seven guessed ones.</p></div>`;
   }
@@ -442,23 +489,132 @@ function sheetEntryEdit(entryId) {
 
   openSheet(`
     <div class="row between mb"><h2 class="h1">${h(e.n)}</h2></div>
+
     <div class="fuel-day-card mb">
-      <div class="row between">
-        <div><div class="fuel-day-v mono">${e.kcal}</div><div class="fuel-day-k">kcal</div></div>
-        <div style="text-align:right"><div class="fuel-day-v mono">${Math.round(e.p)}g</div><div class="fuel-day-k">protein</div></div>
+      <div class="fuel-4">
+        ${[['kcal', e.kcal], ['protein', Math.round(e.p) + 'g'],
+           ['carbs', Math.round(e.c) + 'g'], ['fat', Math.round(e.f) + 'g']]
+          .map(([kk, v]) => `<div><div class="fuel-day-v mono">${v}</div>
+            <div class="fuel-day-k">${kk}</div></div>`).join('')}
       </div>
     </div>
-    <div class="row gap-s mb" style="align-items:center">
-      <button class="btn icon lg" data-act="entry-adj" data-v="${h(entryId)}" data-d="${-step}" aria-label="Less">−</button>
+
+    ${f ? `<div class="row gap-s mb" style="align-items:center">
+      <button class="btn icon lg" data-act="entry-adj" data-v="${h(entryId)}" data-d="${-step}" aria-label="Less">&minus;</button>
       <div class="grow" style="text-align:center">
         <div class="mono" style="font-size:26px;font-weight:700;letter-spacing:-.03em">${e.qty || 1}</div>
         <div class="tiny">${h(unitLabel(e.u) || 'servings')}</div>
       </div>
       <button class="btn icon lg" data-act="entry-adj" data-v="${h(entryId)}" data-d="${step}" aria-label="More">+</button>
+    </div>` : ''}
+
+    <div class="label mb-s">Which meal</div>
+    <div class="chip-grid c4 mb">
+      ${MEALS.map(m => `<div class="chip ${(e.m || 's') === m.id ? 'on' : ''}"
+        data-act="entry-meal" data-v="${h(entryId)}" data-m="${m.id}">${h(m.n)}</div>`).join('')}
     </div>
-    <button class="btn block" data-act="close">Done</button>
-    <button class="btn quiet block mt-s" data-act="entry-del" data-v="${h(entryId)}">Remove from the day</button>
-  `);
+
+    ${/* The numbers themselves, editable. Before this the only control on this
+          sheet was how many servings — so a food whose macros were wrong was
+          wrong forever, and every total built on it was wrong with it. */''}
+    <div class="divide"></div>
+    <div class="label mb-s">The numbers, for this one</div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">kcal</div>
+        <input class="input" id="ee-kcal" type="number" inputmode="numeric" value="${e.kcal}"></div>
+      <div class="field grow"><div class="label">Protein</div>
+        <input class="input" id="ee-p" type="number" inputmode="decimal" value="${e.p}"></div>
+    </div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">Carbs</div>
+        <input class="input" id="ee-c" type="number" inputmode="decimal" value="${e.c}"></div>
+      <div class="field grow"><div class="label">Fat</div>
+        <input class="input" id="ee-f" type="number" inputmode="decimal" value="${e.f}"></div>
+    </div>
+    <button class="btn block" data-act="entry-macros" data-v="${h(entryId)}">Save these numbers</button>
+    <p class="tiny mt-s">Changes this entry only. ${f
+      ? 'To correct the food itself so every future one is right, use the button below.'
+      : 'This entry is not linked to a food.'}</p>
+
+    ${f && !f.custom ? `<button class="btn ghost block mt" data-act="fix-food" data-v="${h(f.id)}">
+      Fix ${h(f.n)} for good${f.fixed ? ' &middot; corrected' : ''}</button>` : ''}
+
+    <div class="divide"></div>
+    <button class="btn quiet block" data-act="entry-del" data-v="${h(entryId)}" style="color:var(--rose)">Remove from the day</button>
+  `, { key: 'entry:' + entryId });
+}
+
+/* ------------------------------------------------------------
+   Correcting a built-in food, once, for good.
+   ------------------------------------------------------------
+   The catalogue's whey is a reasonable average and is not your tub. This says
+   what a serving of yours actually is — including what counts as a serving,
+   because "1 scoop" and "1 serving" are rarely the same thing. */
+function sheetFixFood(foodId) {
+  const base = FOODS.find(x => x.id === foodId);
+  if (!base) { closeSheet(); return; }
+  const cur = foodById(foodId);
+  const uL = unitLabel(base.u) || '';
+  const perLabel = base.u === 'ea' ? 'items per serving'
+                 : base.u === 'scoop' ? 'scoops per serving'
+                 : base.u === 'slice' ? 'slices per serving'
+                 : `${uL} per serving`;
+
+  openSheet(`
+    <div class="row between mb"><h2 class="h1">${h(base.n)}</h2></div>
+    <p class="small mb">Read the numbers off your packet. From now on this food logs with yours
+      instead of the catalogue's, everywhere in the app.</p>
+
+    <div class="field mb">
+      <div class="label">${h(perLabel)}</div>
+      <input class="input" id="ff-per" type="number" inputmode="decimal" value="${cur.per}">
+    </div>
+    <p class="tiny mb">Everything below describes that much of it.</p>
+
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">kcal</div>
+        <input class="input" id="ff-kcal" type="number" inputmode="numeric" value="${cur.kcal}"></div>
+      <div class="field grow"><div class="label">Protein</div>
+        <input class="input" id="ff-p" type="number" inputmode="decimal" value="${cur.p}"></div>
+    </div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">Carbs</div>
+        <input class="input" id="ff-c" type="number" inputmode="decimal" value="${cur.c}"></div>
+      <div class="field grow"><div class="label">Fat</div>
+        <input class="input" id="ff-f" type="number" inputmode="decimal" value="${cur.f}"></div>
+    </div>
+
+    <button class="btn primary block lg" data-act="ff-save" data-v="${h(foodId)}">Save it</button>
+    ${cur.fixed ? `<button class="btn quiet block mt-s" data-act="ff-reset" data-v="${h(foodId)}">
+      Back to the catalogue's ${h(base.kcal)} kcal</button>` : ''}
+    <p class="tiny center mt-s">Meals you have already logged keep the numbers they were logged with
+      &mdash; that is what you ate.</p>
+  `, { key: 'fixfood:' + foodId });
+}
+
+/* Bare macros, no food behind them. */
+function sheetQuickAdd() {
+  openSheet(`
+    <div class="row between mb"><h2 class="h1">Quick add</h2></div>
+    <p class="small mb">For the meal you will never log again &mdash; a restaurant, someone else's
+      cooking, the thing on the craft table. Put in what you know and leave the rest.</p>
+    <div class="field mb"><div class="label">Call it</div>
+      <input class="input" id="qa-n" placeholder="Lunch on set" autocomplete="off"></div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">kcal</div>
+        <input class="input" id="qa-kcal" type="number" inputmode="numeric"></div>
+      <div class="field grow"><div class="label">Protein</div>
+        <input class="input" id="qa-p" type="number" inputmode="decimal"></div>
+    </div>
+    <div class="row gap-s mb">
+      <div class="field grow"><div class="label">Carbs</div>
+        <input class="input" id="qa-c" type="number" inputmode="decimal"></div>
+      <div class="field grow"><div class="label">Fat</div>
+        <input class="input" id="qa-f" type="number" inputmode="decimal"></div>
+    </div>
+    <button class="btn primary block lg" data-act="qa-save">Add it to the day</button>
+    <p class="tiny center mt-s">A rough number you actually log beats an exact one you do not.</p>
+  `, { key: 'quickadd' });
 }
 
 /* ---------- your own foods ---------- */

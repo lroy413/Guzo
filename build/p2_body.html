@@ -57,6 +57,11 @@
   <!-- ============ FUEL ============ -->
   <section class="screen" id="s-fuel">
     <div class="hdr"><h1 class="h1">Fuel</h1></div>
+    <!-- Behind everything, pointer-transparent, and only under
+         prefers-reduced-motion: no-preference. Two very low-alpha blooms
+         drifting slowly — enough that the screen feels alive without ever
+         moving under a piece of text hard enough to change its contrast. -->
+    <div class="fuel-aura" aria-hidden="true"><i></i><i></i></div>
     <div id="fuel-body"></div>
   </section>
 
