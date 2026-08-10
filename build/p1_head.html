@@ -1015,6 +1015,67 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .journey-sub{font-size:11.5px;color:var(--muted);margin-top:3px;line-height:1.35}
 .journey-line{font-size:11.5px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;color:var(--ember)}
 
+/* ---------- the route (Progress hero) ----------
+   The one place the journey metaphor is drawn rather than implied. Everything
+   in it is real data; the styling is what makes it feel like ground you have
+   walked instead of a chart of it. */
+.route{position:relative;overflow:hidden;border-radius:var(--r-lg);
+  border:1px solid var(--line);background:var(--surface);
+  box-shadow:var(--shadow),var(--inset);margin-bottom:20px}
+/* A single soft light source at the top, so the card has a horizon rather
+   than a flat fill. Behind everything and never over text. */
+.route-sky{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 78% at 50% -18%,rgba(233,180,76,.16),transparent 62%)}
+.route-head{position:relative;display:flex;align-items:flex-start;
+  justify-content:space-between;gap:14px;padding:18px 18px 0}
+.route-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--ember-2)}
+.route-day{font-size:32px;font-weight:700;letter-spacing:-.035em;line-height:1.05;margin-top:5px}
+.route-count{display:flex;align-items:center;gap:7px;flex:none;padding-top:4px}
+.route-count-n{font-family:var(--fm);font-size:22px;font-weight:700;color:var(--ember);
+  letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.route-count-l{font-size:10px;font-weight:650;letter-spacing:.05em;text-transform:uppercase;
+  color:var(--muted);line-height:1.25}
+
+.route-svg{display:block;width:100%;height:auto;margin-top:2px}
+.route-walked{fill:none;stroke:var(--ember);stroke-width:2.2;stroke-linecap:round}
+/* Dashed, and half the weight — ground you have not covered yet should not
+   look the same as ground you have. */
+.route-ahead{fill:none;stroke:#3b444f;stroke-width:2;stroke-linecap:round;stroke-dasharray:2 6}
+.rt-pin circle{fill:var(--surface-3);stroke:var(--line);stroke-width:1.5}
+.rt-pin.on circle{fill:#332714;stroke:var(--ember)}
+.rt-pin.ahead{opacity:.5}
+.route-here{fill:var(--teal);stroke:#0F1216;stroke-width:2}
+
+.route-foot{position:relative;display:flex;align-items:baseline;gap:10px;
+  padding:2px 18px 16px;flex-wrap:wrap}
+.route-next{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;flex:1;min-width:0}
+.route-next-k{font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+.route-next-t{font-size:14.5px;font-weight:650;letter-spacing:-.01em}
+.route-next-d{font-size:12px;color:var(--muted)}
+.route-behind{font-size:11px;color:var(--faint);flex:none}
+
+/* Four figures, stated. The bordered tiles they replace competed with each
+   other and with every card below them. */
+.log{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;
+  border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);
+  padding:14px 0}
+.log-i{text-align:center;min-width:0;padding:0 4px;border-right:1px solid var(--line-soft)}
+.log-i:last-child{border-right:0}
+.log-v{font-family:var(--fm);font-size:19px;font-weight:700;letter-spacing:-.03em;
+  line-height:1.1;font-variant-numeric:tabular-nums}
+.log-k{font-size:10px;color:var(--muted);margin-top:4px;letter-spacing:.06em;
+  text-transform:uppercase;font-weight:650;line-height:1.25}
+
+/* The eight-week climb */
+.elev{display:block;width:100%;height:92px}
+.elev-line{fill:none;stroke:var(--ember);stroke-width:2;stroke-linejoin:round;
+  stroke-linecap:round;vector-effect:non-scaling-stroke}
+.elev-dot{fill:var(--ember);opacity:.55}
+.elev-dot.last{opacity:1}
+/* The week you are standing in: dashed, because it is not finished. */
+.elev-open{stroke-dasharray:3 4;opacity:.6}
+
 .jpath{position:relative;padding-left:4px}
 .jnode{display:flex;align-items:flex-start;gap:13px;padding:12px 0 12px 0;position:relative}
 .jnode:not(:last-child)::before{content:'';position:absolute;left:17px;top:40px;bottom:-4px;width:2px;

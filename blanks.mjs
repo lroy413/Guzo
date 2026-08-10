@@ -1239,6 +1239,106 @@ try {
   check('a gesture that scrolled the screen never re-renders it',
     swipeGuard.afterScrolled === 'This week', swipeGuard.afterScrolled);
 
+  /* ---- the route on Progress ----
+     The screen was eight stacked cards of correct numbers and no feeling. The
+     risk in redrawing it as a journey is that the picture stops matching the
+     data — a trail that always looks like progress is worse than a bar chart
+     that sometimes looks flat. So what is asserted here is that the drawing
+     tracks the state: markers behind you are solid, the one ahead is not, and
+     an empty history draws an empty route rather than a broken one. */
+  const route = await page.evaluate(() => {
+    const read = () => {
+      go('progress');
+      const b = document.getElementById('progress-body');
+      const svg = b.querySelector('.route-svg');
+      return {
+        hero: !!b.querySelector('.route'),
+        day: (b.querySelector('.route-day') || {}).textContent || '',
+        count: (b.querySelector('.route-count-n') || {}).textContent || '',
+        pinsOn: svg ? svg.querySelectorAll('.rt-pin.on').length : -1,
+        pinsAhead: svg ? svg.querySelectorAll('.rt-pin.ahead').length : -1,
+        walked: svg ? svg.querySelectorAll('.route-walked').length : -1,
+        ground: svg ? svg.querySelectorAll('.route-ground').length : -1,
+        here: svg ? svg.querySelectorAll('.route-here').length : -1,
+        next: (b.querySelector('.route-next-t') || {}).textContent || '',
+        /* No leftover from the old screen. */
+        oldTiles: b.querySelectorAll('.tiles .tile').length,
+        text: b.innerText || ''
+      };
+    };
+
+    S = blank(); S.onboarded = true; save(true);
+    const fresh = read();
+
+    /* A real history: enough sessions to have passed several markers. */
+    S = blank(); S.onboarded = true;
+    S.meta.created = new Date(Date.now() - 70 * 864e5).toISOString();
+    const e = EX['bb-back-squat'];
+    S.sessions = [1, 3, 5, 8, 10, 12, 15, 17, 19, 22, 24, 26, 29, 31, 33, 36, 38, 40, 43, 45, 47, 50, 52, 54, 57, 59, 61, 64, 66, 68]
+      .map((d, i) => ({ id: 's' + i, date: dk(addDays(fromKey(today()), -d)), type: 'full',
+        env: 'full', rung: 'full', dur: 45, kcal: 300, ended: Date.now(),
+        exercises: [{ exId: e.id, name: e.name, load: e.load, targetW: 60, targetR: 8,
+          sets: Array.from({ length: 3 }, () => ({ w: 60, r: 8, rpe: 8, done: true })), note: '' }] }));
+    checkMilestones(); save(true);
+    const rich = read();
+    return { fresh, rich };
+  });
+  check('Progress leads with the route', route.rich.hero === true);
+  check('...and the old tile grid is gone', route.rich.oldTiles === 0, String(route.rich.oldTiles));
+  check('...it names the day', /^Day \d+$/.test(route.rich.day), route.rich.day);
+  check('...and how many markers are behind you', +route.rich.count > 0, route.rich.count);
+  /* The drawing has to match the state, not decorate it. */
+  check('markers reached are drawn solid on the trail', route.rich.pinsOn > 0, String(route.rich.pinsOn));
+  check('...the one ahead is drawn as ahead', route.rich.pinsAhead === 1, String(route.rich.pinsAhead));
+  check('...the ground you covered is filled in', route.rich.ground === 1, String(route.rich.ground));
+  check('...and there is a you-are-here on the trail', route.rich.here === 1, String(route.rich.here));
+  check('...with the next marker named', route.rich.next.length > 3, route.rich.next);
+  check('no placeholder text on Progress', !BAD.test(route.rich.text));
+
+  /* Day one has to draw an honest empty route, not a broken card. */
+  check('a fresh profile still gets a route', route.fresh.hero === true);
+  check('...with nothing behind you', route.fresh.pinsOn === 0 && route.fresh.count === '0',
+    `${route.fresh.pinsOn} pins, count ${route.fresh.count}`);
+  check('...no walked line and no ground', route.fresh.walked === 0 && route.fresh.ground === 0,
+    `${route.fresh.walked}/${route.fresh.ground}`);
+  check('...no you-are-here before you have started', route.fresh.here === 0, String(route.fresh.here));
+  check('...but the first marker is drawn ahead', route.fresh.pinsAhead === 1, String(route.fresh.pinsAhead));
+  check('no placeholder text on an empty Progress', !BAD.test(route.fresh.text));
+
+  /* The pins are drawn at coordinates the trail passes through. A curve that
+     approximates its points floats them off the line, which is the difference
+     between a route and a decoration. */
+  const onTrail = await page.evaluate(() => {
+    go('progress');
+    const svg = document.querySelector('#progress-body .route-svg');
+    if (!svg) return { checked: 0, off: ['no svg'] };
+    /* Both segments: the walked line stops at the last marker reached, so a pin
+       for the marker ahead sits on the dashed one. Measuring against only one
+       of them reported a correctly-placed pin as 53 units adrift. */
+    const lines = [...svg.querySelectorAll('.route-walked, .route-ahead')];
+    if (!lines.length) return { checked: 0, off: ['no line'] };
+    const off = [];
+    let checked = 0;
+    svg.querySelectorAll('.rt-pin circle').forEach(c => {
+      const cx = +c.getAttribute('cx'), cy = +c.getAttribute('cy');
+      let best = 1e9;
+      lines.forEach(line => {
+        const len = line.getTotalLength();
+        for (let i = 0; i <= 200; i++) {
+          const p = line.getPointAtLength(len * i / 200);
+          const d = Math.hypot(p.x - cx, p.y - cy);
+          if (d < best) best = d;
+        }
+      });
+      checked++;
+      if (best > 1.5) off.push(`${cx.toFixed(0)},${cy.toFixed(0)} is ${best.toFixed(1)} off`);
+    });
+    return { checked, off: off.slice(0, 4) };
+  });
+  check('the trail actually passes through its markers', onTrail.off.length === 0,
+    onTrail.off.join(', '));
+  check('...and there were markers to check', onTrail.checked >= 2, String(onTrail.checked));
+
   /* ---- App Store readiness ---- */
 
   /* A subscription offer with nothing behind it reads as an incomplete app. */

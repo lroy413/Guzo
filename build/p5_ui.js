@@ -1048,7 +1048,6 @@ function recentSessionsHTML(n) {
 function renderProgress() {
   const st = totalStats();
   const weeks = weeksBack(8);
-  const maxT = Math.max(1, ...weeks.map(w => w.tonnage));
   const maxKcal = Math.max(1, ...weeks.map(w =>
     S.sessions.filter(s => s.ended && s.date >= w.start && s.date <= w.end)
               .reduce((a,s) => a + (s.kcal != null ? s.kcal : sessionKcal(s)), 0)));
@@ -1058,26 +1057,33 @@ function renderProgress() {
   const bw = S.profile.bodyweight || [];
 
   const jst = journeyStats();
-  let html = `<div class="tiles mb">
-    <div class="tile"><div class="v">${jst.day}</div><div class="k">Day</div></div>
-    <div class="tile"><div class="v">${st.count}</div><div class="k">Sessions</div></div>
-    <div class="tile"><div class="v">${weekStreak()}</div><div class="k">Weeks</div></div>
-    <div class="tile"><div class="v" style="color:var(--ember)">${(totalKcal()/1000).toFixed(1)}k</div><div class="k">kcal</div></div>
-  </div>
-  ${journeyPathHTML()}`;
 
-  html += `<div class="card mb">
-    <div class="row between"><div class="eyebrow">Volume · 8 weeks</div><div class="tiny">${unit()} moved</div></div>
-    <div class="chart mt">
-      ${weeks.map(w => `<div class="b ${w.tonnage?'':'dim'}" style="height:${Math.max(3, Math.round(w.tonnage/maxT*100))}%" title="${w.tonnage}"></div>`).join('')}
-    </div>
-    <div class="chart-x">${weeks.map(w => `<span>${w.label}</span>`).join('')}</div>
-    <p class="tiny mt-s">Weeks vary. That's the point — a light week during a shoot block is a successful week, not a failed one.</p>
+  /* The route first, because it is the answer to "how is this going" and
+     everything below is the detail behind it. */
+  let html = journeyRouteHTML();
+
+  /* Four numbers, stated rather than boxed. The tiles were four bordered
+     squares competing with each other; a single quiet row of figures reads as
+     a trail log. */
+  html += `<div class="log mb">
+    ${[[st.count, st.count === 1 ? 'session' : 'sessions'],
+       [weekStreak(), 'weeks<br>unbroken'],
+       [jst.tonnes ? jst.tonnes + 't' : fmtW(st.tonnage) + unit(), 'moved'],
+       [(totalKcal() / 1000).toFixed(1) + 'k', 'kcal']]
+      .map(([v, k]) => `<div class="log-i"><div class="log-v">${v}</div><div class="log-k">${k}</div></div>`).join('')}
   </div>`;
 
+  html += `<div class="sec-head"><span class="sec-t">Markers</span>
+    <span class="tiny">${milestonesReached().length} reached</span></div>`;
+  html += journeyPathHTML();
+
+  html += `<div class="sec-head"><span class="sec-t">The ground behind you</span></div>`;
+  html += elevationHTML(weeks);
+
+  html += `<div class="sec-head"><span class="sec-t">What you have covered</span>
+    <span class="tiny">last 7 days</span></div>`;
   html += `<div class="card mb">
-    <div class="eyebrow">Balance · last 7 days</div>
-    <div class="col gap-s mt">
+    <div class="col gap-s">
       ${MUSCLES.map(m => `
         <div>
           <div class="row between"><span class="small">${m}</span><span class="tiny mono">${mv[m] % 1 === 0 ? mv[m] : mv[m].toFixed(1)} sets</span></div>
@@ -1087,8 +1093,9 @@ function renderProgress() {
   </div>`;
 
   if (prs.length) {
+    html += `<div class="sec-head"><span class="sec-t">High points</span>
+      <span class="tiny">best estimated 1RM</span></div>`;
     html += `<div class="card mb">
-      <div class="eyebrow mb-s">Best estimated 1RM</div>
       <div class="list">
         ${prs.map(p => `<div class="lrow">
           <div class="grow"><div class="h3">${h(p.name)}</div><div class="tiny mt-s">${fmtW(p.w)}${unit()} × ${p.r} · ${relDate(p.date)}</div></div>
@@ -1099,17 +1106,19 @@ function renderProgress() {
     </div>`;
   }
 
+  html += `<div class="sec-head"><span class="sec-t">Carrying weight</span>
+    <button class="sec-a" data-act="log-bw">Log</button></div>`;
   html += `<div class="card mb">
-    <div class="row between"><div class="eyebrow">Bodyweight</div><button class="btn xs ghost" data-act="log-bw">Log</button></div>
     ${bw.length > 1 ? sparkHTML(bw.map(b => b.w)) : ''}
     ${bw.length === 0 ? '<p class="small mt-s">No entries yet. Weight is noisy day to day — the trend over weeks is the only part worth reading.</p>' : ''}
     ${bw.length === 1 ? `<p class="small mt-s">One entry so far. A trend line needs a few weeks before it says anything.</p>` : ''}
     ${bw.length ? `<div class="row between mt-s"><span class="tiny">${bw.length>1?relDate(bw[0].d):'Logged'}</span><span class="tiny mono">${fmtW(bw[bw.length-1].w)}${unit()}</span></div>` : ''}
   </div>`;
 
+  html += `<div class="sec-head"><span class="sec-t">Energy spent</span>
+    <span class="tiny">8 weeks, estimated</span></div>`;
   html += `<div class="card mb">
-    <div class="row between"><div class="eyebrow">Energy · 8 weeks</div><div class="tiny">estimated</div></div>
-    <div class="chart mt">
+    <div class="chart">
       ${weeks.map(w => {
         const kc = S.sessions.filter(s => s.ended && s.date >= w.start && s.date <= w.end)
                              .reduce((a,s) => a + (s.kcal != null ? s.kcal : sessionKcal(s)), 0);
@@ -1124,24 +1133,211 @@ function renderProgress() {
   $('#progress-body').innerHTML = html;
 }
 
-/* The journey rendered as a route with markers reached and still ahead */
+/* ============================================================
+   THE ROUTE
+   ------------------------------------------------------------
+   Progress was eight stacked cards of correct numbers and no feeling. The
+   product metaphor is a journey on foot — ጉዞ — and this is the one screen
+   where that should be visible rather than implied.
+
+   Everything drawn here is real. The trail is your milestones in the order you
+   actually reached them, the climb is the eight weeks of load you actually
+   moved, and nothing is invented to make the picture nicer. A journey you did
+   not take is not worth drawing.
+   ============================================================ */
+
+/* A smooth line through a set of points, as one path definition.
+   Catmull-Rom converted to cubic beziers: the curve passes exactly through
+   every point, which matters because the milestone pins are drawn at those
+   coordinates and a curve that merely approximates them would float the pins
+   off the trail. */
+function smoothPath(pts, tension) {
+  if (!pts.length) return '';
+  if (pts.length < 3) return 'M' + pts.map(p => p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join(' L');
+  const t = tension == null ? 0.5 : tension;
+  let d = `M${pts[0][0].toFixed(1)} ${pts[0][1].toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] || pts[i], p1 = pts[i], p2 = pts[i + 1], p3 = pts[i + 2] || p2;
+    const c1x = p1[0] + (p2[0] - p0[0]) / 6 * t, c1y = p1[1] + (p2[1] - p0[1]) / 6 * t;
+    const c2x = p2[0] - (p3[0] - p1[0]) / 6 * t, c2y = p2[1] - (p3[1] - p1[1]) / 6 * t;
+    d += ` C${c1x.toFixed(1)} ${c1y.toFixed(1)}, ${c2x.toFixed(1)} ${c2y.toFixed(1)}, ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`;
+  }
+  return d;
+}
+
+const ROUTE_W = 320, ROUTE_H = 132;
+
+/* The hero. A climbing trail with your markers pinned along it, the ground
+   behind you solid and the ground ahead dashed. */
+function journeyRouteHTML() {
+  const st = journeyStats();
+  const reached = milestonesReached();
+  const next = nextMilestone();
+
+  /* At most five behind you, so the pins stay legible on a 360px screen. What
+     is cut is stated rather than silently dropped. */
+  const shown = reached.slice(-5);
+  const hidden = reached.length - shown.length;
+  let nodes = shown.map(m => ({ m, done: true })).concat(next ? [{ m: next, done: false }] : []);
+
+  /* Two points minimum so there is always a trail to look at — an empty route
+     ahead of you is the honest picture on day one, not a broken card. */
+  const n = Math.max(2, nodes.length);
+  /* Padded at the front, so the markers always end at the right. With nothing
+     reached the single pin was landing at the *start* of the trail and the
+     dashed line climbed away from it — drawing the thing you are walking
+     towards as something already behind you. */
+  while (nodes.length < n) nodes.unshift(null);
+  /* Inset by more than the pin radius, or the last pin is clipped by the
+     viewBox — which is exactly what the first version did. */
+  const x0 = 26, x1 = ROUTE_W - 26;
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const f = n === 1 ? 0 : i / (n - 1);
+    /* Climbing left to right, with a gentle undulation so it reads as ground
+       rather than a graph line. */
+    const y = 104 - f * 62 + Math.sin(f * Math.PI * 2.1) * 9;
+    pts.push([x0 + f * (x1 - x0), y]);
+  }
+
+  const doneN = nodes.filter(nd => nd && nd.done).length;
+  const walked = pts.slice(0, Math.max(1, doneN));
+  const ahead = pts.slice(Math.max(0, doneN - 1));
+
+  /* Ground only under the part you have walked. Filling the whole width put a
+     block of gradient under the dashed section, which read as a grey panel
+     rather than terrain — and said, wrongly, that the ground ahead is already
+     yours. The left edge runs off the card so it meets the frame like a
+     hillside instead of floating. */
+  /* Both ends run off the frame — the left below the card edge, the right as a
+     slope falling away. Closing it straight down from the last marker drew a
+     wall, which is the one shape terrain never makes. */
+  const ridge = doneN > 1
+    ? smoothPath(walked) + ` L${(walked[walked.length - 1][0] + 30).toFixed(1)} ${ROUTE_H} L0 ${ROUTE_H} Z`
+    : '';
+
+  /* Between the last marker and the next one, which is where you actually are.
+     Sitting it on top of the last pin hid the pin and claimed you were
+     standing still on it. */
+  const last = pts[Math.max(0, doneN - 1)];
+  const nextPt = pts[doneN];
+  const here = (doneN > 0 && nextPt)
+    ? [last[0] + (nextPt[0] - last[0]) * 0.42, last[1] + (nextPt[1] - last[1]) * 0.42 - 1]
+    : null;
+
+  const pin = (p, node, i) => {
+    if (!node) return '';
+    const done = node.done;
+    return `<g class="rt-pin ${done ? 'on' : 'ahead'}">
+      <circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="12.5"></circle>
+      <text x="${p[0].toFixed(1)}" y="${(p[1] + 4.6).toFixed(1)}" text-anchor="middle" font-size="12.5">${node.m.ico}</text>
+    </g>`;
+  };
+
+  return `<div class="route">
+    <div class="route-sky"></div>
+    <div class="route-head">
+      <div>
+        <div class="route-eyebrow">Your guzo</div>
+        <div class="route-day">Day ${st.day}</div>
+      </div>
+      <div class="route-count">
+        <span class="route-count-n">${reached.length}</span>
+        <span class="route-count-l">of ${MILESTONES.length}<br>markers</span>
+      </div>
+    </div>
+
+    <svg class="route-svg" viewBox="0 0 ${ROUTE_W} ${ROUTE_H}" role="img"
+         aria-label="Your route: ${reached.length} of ${MILESTONES.length} markers reached${next ? ', next is ' + next.title : ''}">
+      <defs>
+        <linearGradient id="rt-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#E9B44C" stop-opacity=".20"/>
+          <stop offset="100%" stop-color="#E9B44C" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      ${ridge ? `<path class="route-ground" d="${ridge}" fill="url(#rt-fill)"/>` : ''}
+      <path class="route-ahead" d="${smoothPath(ahead)}"/>
+      ${doneN > 1 ? `<path class="route-walked" d="${smoothPath(walked)}"/>` : ''}
+      ${here ? `<circle class="route-here" cx="${here[0].toFixed(1)}" cy="${here[1].toFixed(1)}" r="4.2"/>` : ''}
+      ${pts.map((p, i) => pin(p, nodes[i], i)).join('')}
+    </svg>
+
+    <div class="route-foot">
+      ${next
+        ? `<div class="route-next"><span class="route-next-k">Next</span>
+             <span class="route-next-t">${h(next.title)}</span>
+             ${next.left > 0 ? `<span class="route-next-d">${next.left} ${h(next.unit)} away</span>` : ''}</div>`
+        : `<div class="route-next"><span class="route-next-t">Every marker reached.</span>
+             <span class="route-next-d">The route carries on regardless.</span></div>`}
+      ${hidden > 0 ? `<span class="route-behind">+${hidden} behind you</span>` : ''}
+    </div>
+  </div>`;
+}
+
+/* The eight-week climb. Same numbers the bar chart carried, drawn as ground
+   rather than columns — a light week is a flat stretch of trail, not a short
+   bar next to a tall one. */
+function elevationHTML(weeks) {
+  const vals = weeks.map(w => w.tonnage);
+  const max = Math.max(1, ...vals);
+  const any = vals.some(v => v > 0);
+  const W = 320, H = 92, pad = 8;
+  const pts = vals.map((v, i) => [
+    pad + (i / Math.max(1, vals.length - 1)) * (W - pad * 2),
+    H - 6 - (v / max) * (H - 20)
+  ]);
+  /* The last point is the week you are standing in, which is always partial.
+     Drawn solid it reads as a collapse — the line dives to the floor because
+     Monday has not happened yet — so the final segment is dashed and labelled
+     "so far". The app's whole argument is that a light week is a real week;
+     it should not draw one as a cliff. */
+  const line = smoothPath(pts.slice(0, -1));
+  const tail = smoothPath(pts.slice(-2));
+  const area = smoothPath(pts.slice(0, -1)) + ` L${pts[pts.length - 2][0].toFixed(1)} ${H} L${pad} ${H} Z`;
+
+  return `<div class="card mb">
+    <div class="row between mb-s">
+      <div class="eyebrow">The climb &middot; 8 weeks</div>
+      <div class="tiny">${any ? fmtW(vals[vals.length - 1]) + unit() + ' so far this week' : unit() + ' moved'}</div>
+    </div>
+    ${any ? `<svg class="elev" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img"
+        aria-label="Weekly load moved over the last eight weeks">
+      <defs>
+        <linearGradient id="el-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#E9B44C" stop-opacity=".30"/>
+          <stop offset="100%" stop-color="#E9B44C" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <path d="${area}" fill="url(#el-fill)"/>
+      <path class="elev-line" d="${line}"/>
+      <path class="elev-line elev-open" d="${tail}"/>
+      ${pts.map((p, i) => vals[i] > 0
+        ? `<circle class="elev-dot${i === pts.length - 1 ? ' last' : ''}" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${i === pts.length - 1 ? 3.4 : 2.2}"/>`
+        : '').join('')}
+    </svg>
+    <div class="chart-x">${weeks.map(w => `<span>${w.label}</span>`).join('')}</div>`
+    : `<p class="small mt-s">Nothing loaded yet. Bodyweight work does not add to this &mdash; it is a record of external load, and an empty one is not a bad one.</p>`}
+    <p class="tiny mt-s">Weeks vary. That's the point &mdash; a light week during a shoot block is a successful week, not a failed one.</p>
+  </div>`;
+}
+
+/* The markers, named. The route above carries the feeling; this carries the
+   information, and the two must not both try to do both. */
 function journeyPathHTML() {
   const reached = milestonesReached();
-  const st = journeyStats();
   const upcoming = MILESTONES.filter(m => !(S.journey && S.journey.reached && S.journey.reached[m.k])).slice(0, 2);
   return `<div class="card mb">
-    <div class="row between mb-s"><div class="eyebrow">The journey</div><div class="pill em">${reached.length} of ${MILESTONES.length}</div></div>
-    <p class="small">Day ${st.day}. ${reached.length ? `${reached.length} marker${reached.length===1?'':'s'} behind you.` : 'No markers yet — the first arrives with your first session.'}</p>
-    <div class="jpath mt">
+    ${reached.length ? '' : `<p class="small mb">No markers yet &mdash; the first one arrives with your first session, and it is the one most people never reach.</p>`}
+    <div class="jpath">
       ${reached.slice().reverse().map(m => `
         <div class="jnode done">
           <div class="jnode-ico">${m.ico}</div>
-          <div class="grow"><div class="jnode-t">${m.title}</div><div class="jnode-d">${relDate(m.on)}</div></div>
+          <div class="grow"><div class="jnode-t">${h(m.title)}</div><div class="jnode-d">${h(relDate(m.on))}</div></div>
         </div>`).join('')}
       ${upcoming.map(m => `
         <div class="jnode">
           <div class="jnode-ico">${m.ico}</div>
-          <div class="grow"><div class="jnode-t">${m.title}</div><div class="jnode-d">Ahead</div></div>
+          <div class="grow"><div class="jnode-t">${h(m.title)}</div><div class="jnode-d">Ahead</div></div>
         </div>`).join('')}
     </div>
   </div>`;

@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **594,853 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (212) + `engine` (111) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **607,768 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (230) + `engine` (111) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -153,6 +153,28 @@ The evidence card that sat at the bottom of More is gone. It was a shorter copy 
 ### The nav is a floating pill
 
 The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
+
+### Progress was correct and lifeless
+
+Asked for directly: *"The progress screen feels clunky and boring. A lot of information but I feel like we should lean into the journey aspect a little more."* Eight stacked cards of accurate numbers, and the one screen where ጉዞ should be visible rather than implied was the one screen that looked like a spreadsheet.
+
+**The route is the hero now.** A trail climbing across the card with your markers pinned along it: solid ground and a solid line behind you, dashed ahead, a teal dot on the trail between the last marker you reached and the one you are walking towards. Underneath it, the next marker named and how far away it is.
+
+Everything in it is real. The trail is your milestones in the order you actually reached them, capped at five shown with the remainder stated rather than dropped ("+3 behind you"). Nothing is invented to make the picture nicer — a journey you did not take is not worth drawing.
+
+Three things it took two passes to get right, all caught by looking at a screenshot of the rendered screen rather than at the code:
+
+- **The ground was filled under the whole width**, including the part ahead of you. That drew a grey panel rather than terrain, and said — wrongly — that ground you have not covered is already yours. Fill is now only under the walked section, running off the left edge and tapering to a slope on the right. Closing it straight down from the last marker drew a wall, which is the one shape terrain never makes.
+- **The "you are here" dot sat on top of the last marker**, hiding it and claiming you were standing still on it. It sits between markers now.
+- **With nothing reached, the single pin landed at the *start* of the trail** and the dashed line climbed away from it — drawing the thing you are walking towards as something already behind you. The markers are padded to the right-hand end.
+
+**The eight-week volume chart became the climb** — the same numbers as ground rather than columns, so a light week is a flat stretch of trail instead of a short bar next to a tall one. The week you are standing in is drawn dashed and labelled "so far", because it is always partial and drawing it solid made the line dive to the floor on a Monday.
+
+**The four tiles became a trail log** — one quiet row of figures between hairlines, instead of four bordered boxes competing with each other and with every card below.
+
+The rest of the screen keeps all its data and gains section headers in the same language: the ground behind you, what you have covered, high points, carrying weight, energy spent.
+
+`blanks.mjs` asserts the drawing tracks the state rather than decorating it — markers reached are solid, the one ahead is not, an empty history draws an empty route, and **the trail passes through its own pins**. That last check found a flaw in itself first: it measured every pin against the walked line, and reported the correctly-placed pin ahead as 53 units adrift because that one sits on the dashed segment. Four subjects reverted individually and confirmed red, including swapping the Catmull-Rom for a curve that only approximates its points — which floats every pin 14 units off the trail.
 
 ### A phantom card on Today — reported, not reproduced
 
