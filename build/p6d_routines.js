@@ -64,6 +64,9 @@ function sheetRoutines() {
     </div>` : `<div class="note mb"><p class="note-t">Nothing built yet.</p><p class="note-b">A routine is just a list of movements you want to be able to start in one tap.</p></div>`}
 
     <button class="btn primary block lg" data-act="routine-new">New routine</button>
+    <button class="btn ghost block mt-s" data-act="import">Import one from a file</button>
+    <p class="tiny center mt-s">A PDF or text plan becomes a routine per day, with every movement shown
+      before anything is built.</p>
   `);
 }
 

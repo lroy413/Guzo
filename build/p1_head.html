@@ -851,6 +851,57 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 }
 @keyframes prStar{from{opacity:0;transform:scale(.3) rotate(-40deg)}to{opacity:1;transform:none}}
 
+/* ---------- import ---------- */
+.imp-drop{display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:26px 18px;border-radius:var(--r-l);cursor:pointer;
+  background:var(--surface-2);border:1.5px dashed var(--ember-line);text-align:center}
+.imp-drop:active{background:var(--surface-3)}
+.imp-drop-i{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;background:var(--ember-dim);color:var(--ember);margin-bottom:4px}
+.imp-drop-i svg{width:21px;height:21px}
+.imp-drop-t{font-size:15.5px;font-weight:650;letter-spacing:-.015em}
+.imp-drop-b{font-size:12px;color:var(--muted)}
+
+.imp-sum{display:flex;align-items:center;gap:14px;background:var(--surface-2);
+  border:1px solid var(--line-soft);border-radius:var(--r-l);padding:14px 16px}
+.imp-sum-n{font-family:var(--fm);font-size:30px;font-weight:700;color:var(--ember);
+  letter-spacing:-.04em;line-height:1;min-width:34px;text-align:center}
+.imp-sum-t{font-size:14.5px;font-weight:650;letter-spacing:-.015em}
+.imp-sum-b{font-size:12px;color:var(--muted);margin-top:2px}
+
+.imp-day{border:1px solid var(--line-soft);border-radius:var(--r-l);overflow:hidden;
+  margin-bottom:10px;background:var(--surface)}
+.imp-day.off{opacity:.5}
+.imp-day-h{display:flex;align-items:center;gap:12px;width:100%;min-height:56px;
+  padding:11px 14px;background:var(--surface-2);border:0;text-align:left;color:var(--text)}
+.imp-day-t{display:block;font-size:14.5px;font-weight:650;letter-spacing:-.015em}
+.imp-day-b{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+
+.imp-item{display:flex;align-items:flex-start;gap:10px;padding:9px 12px 9px 10px;
+  border-top:1px solid var(--line-soft)}
+.imp-item.off .imp-body{opacity:.42}
+/* Ember for a match worth a second look, rose for one that could not be made
+   at all — the two need to be told apart at a glance in a list of fifty. */
+.imp-item.unsure{background:rgba(233,180,76,.055)}
+.imp-item.miss{background:rgba(242,114,111,.06)}
+.imp-tick{width:30px;height:44px;flex:none;display:flex;align-items:center;justify-content:center;
+  background:none;border:0;padding:0;color:var(--faint)}
+.imp-tick svg{width:17px;height:17px;stroke-width:2.6;opacity:.28}
+.imp-tick.on{color:var(--teal)}
+.imp-tick.on svg{opacity:1}
+.imp-tick:active{transform:scale(.9)}
+.imp-body{flex:1;min-width:0;text-align:left;background:none;border:0;padding:2px 0;color:var(--text)}
+.imp-name{display:block;font-size:14px;font-weight:650;letter-spacing:-.01em}
+.imp-item.miss .imp-name{color:var(--rose)}
+.imp-from{display:block;font-size:11.5px;color:var(--muted);margin-top:1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imp-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:5px;
+  font-size:11.5px;color:var(--faint)}
+.imp-tag{font-size:10.5px;font-weight:650;letter-spacing:.03em;padding:2px 7px;
+  border-radius:999px;background:var(--surface-3);color:var(--muted)}
+.imp-tag.warn{background:var(--ember-dim);color:var(--ember-2)}
+.imp-item.miss .imp-tag.warn{background:var(--rose-dim);color:var(--rose)}
+
 /* ---------- the records from a finished session ---------- */
 .prs{background:var(--ember-dim);border:1px solid var(--ember-line);
   border-radius:var(--r-l);padding:13px 15px}

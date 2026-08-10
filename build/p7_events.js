@@ -265,6 +265,17 @@ document.addEventListener('click', ev => {
   if (a === 'ex-form' && !S.active) { if (v) sheetExerciseGuide(v, false); return; }
   /* Building a routine is a multi-select job. Throwing the sheet away after
      every single choice turns "add six movements" into six round trips. */
+  /* The picker, standing in for a match the import got wrong or could not
+     make. Handed back to the review rather than closed, so you keep your place
+     in a list that can be fifty movements long. */
+  if (a === 'pick-ex' && pickerFor && pickerFor.mode === 'import') {
+    const d = IMPORT && IMPORT.days[pickerFor.day];
+    const it = d && d.items[pickerFor.item];
+    if (it && EX[v]) { it.exId = v; it.sure = true; it.score = 1; it.on = true; }
+    pickerFor = null;
+    sheetImportReview();
+    return;
+  }
   if (a === 'pick-ex' && pickerFor && pickerFor.mode === 'routine') {
     if (!addToRoutine(pickerFor.id, v)) { toast('That routine is full'); return; }
     pickerAdded.push(v);
@@ -829,6 +840,38 @@ document.addEventListener('click', ev => {
       S.settings[f] = Math.max(15, Math.min(400, S.settings[f] + parseInt(v, 10)));
       save(); sheetRest(); break;
     }
+    /* ---- import ---- */
+    case 'import': sheetImport(); break;
+    case 'imp-day': {
+      const d = IMPORT && IMPORT.days[i];
+      if (!d) break;
+      d.on = !d.on;
+      sheetImportReview(); buzz(); break;
+    }
+    case 'imp-item': {
+      const d = IMPORT && IMPORT.days[i];
+      const it = d && d.items[si];
+      if (!it) break;
+      if (!it.exId && !it.on) { toast('Pick a movement for this one first'); break; }
+      it.on = !it.on;
+      sheetImportReview(); buzz(); break;
+    }
+    case 'imp-swap': {
+      const d = IMPORT && IMPORT.days[i];
+      if (!d || !d.items[si]) break;
+      sheetExercisePicker('import', null);
+      pickerFor = { mode: 'import', day: i, item: si };
+      break;
+    }
+    case 'imp-commit': {
+      const r = commitImport();
+      if (!r || !r.made) { toast('Nothing to build'); break; }
+      closeSheet(); render();
+      toast(r.made === 1 ? 'One routine built' : r.made + ' routines built', true);
+      setTimeout(() => sheetRoutines(), 260);
+      break;
+    }
+
     case 'toggle-autorest': {
       S.settings.autoRest = !S.settings.autoRest;
       save(); sheetRest(); break;
@@ -1296,6 +1339,16 @@ document.addEventListener('input', ev => {
   const tag = document.querySelector('[data-tag="' + id + '"]');
   if (row) row.classList.toggle('edited', isOwn);
   if (tag) tag.textContent = isOwn ? 'Yours' : (sug ? 'Suggested' : 'Enter one');
+});
+
+/* The file input is inside a sheet, so it does not exist until the sheet is
+   opened — bound by delegation on the document rather than by id at boot. */
+document.addEventListener('change', ev => {
+  const el = ev.target;
+  if (!el || el.id !== 'imp-file') return;
+  const f = el.files && el.files[0];
+  el.value = '';                       // so choosing the same file twice works
+  if (f) runImport(f);
 });
 
 /* ---- set field input ----

@@ -428,7 +428,7 @@ function renderPicker(query, env) {
 
   openSheet(`
     <div class="row between mb">
-      <h2 class="h1">${pickerFor && pickerFor.mode === 'swap' ? 'Swap for' : 'Add movements'}</h2>
+      <h2 class="h1">${pickerFor && (pickerFor.mode === 'swap' || pickerFor.mode === 'import') ? 'Swap for' : 'Add movements'}</h2>
       ${multi && pickerAdded.length ? `<span class="pill em">${pickerAdded.length} added</span>` : ''}
     </div>
     <input class="input mb" id="pick-q" placeholder="Search by name, muscle or kit…" value="${h(query || '')}"

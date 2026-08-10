@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **668,898 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (329) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (23) all green. Nothing known is broken.
+Verified against the build at **716,183 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (329) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (23) + `import` (53) all green. Nothing known is broken.
 
 ---
 
@@ -22,6 +22,7 @@ Last sweep: `dupes` + `blanks` (329) + `engine` (188) + `fuel` (37) + `sw` (17) 
 | Badges | Complete. Priority, Arms, Core, Mobility, Endurance, Unilateral, Heavy — capped at three per card, every one with a tone. |
 | What a set row offers | Complete. Each row shows what you did in that slot last time, carries down from set 1 as you type, and records the unrounded value behind the rounded one it painted. |
 | Personal bests | Complete. Called on the tick rather than at finish, marked in the row it happened in, taken back with the set. |
+| Import a plan | Complete. A PDF or text file becomes one routine per day: text extracted on-device with no library, movements matched to the catalogue by name, supersets read off the plan's own 4A/4B notation, and everything shown for review before anything is built. |
 | Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
 | When a day ends | Complete. `profile.dayStart` moves the boundary off midnight, up to 6am. Applied inside `today()`, so the whole app moves with it. Default 0. |
 | Two sessions a day | Complete. Both are kept and both are shown; the session that discharged the day names it. |
@@ -474,6 +475,50 @@ That one now runs a one-second rest and counts oscillators through a spy on the
 platform's own `createOscillator`, so the subject is untouched. And the
 withdraw-on-skip check counted cancellations without resetting first — `startRest`
 cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
+### A written plan can be uploaded, and becomes routines
+
+The 5-day cut plan in this repo's history has fifty-two movements in it.
+Retyping those into the builder is the reason a plan never makes it into the
+app, so now you hand it the file.
+
+**Getting text out of a PDF, with no library.** ASCII85 + `DecompressionStream`
++ a walk of the content stream. A library would be the first external request
+this app has ever made and would still not work offline, which is the product.
+Three things broke it and are now the reason it works: text has to be **grouped
+by baseline**, or a two-column table runs its columns together and a styled
+heading arrives as "TUESDA" / "Y — OFF" / "WORK"; **WinAnsi 0x80–0x9F** has to
+be translated, because that is the one range where PDF and latin1 disagree and
+it is where every dash lives — read as latin1 alone, "5–6 reps" is fifty-six;
+and an **en dash is a range while an em dash is a separator**, so collapsing
+them together does the same damage.
+
+**Finding the structure without assuming a format.** `parsePlan` anchors on the
+prescription, because "N sets × M reps" is the one part of a training plan
+written the same way everywhere. The name is whatever readable line came last
+before it — which covers a PDF table laying the two out on separate rows and a
+person typing "Bench Press 5x5", without either being special-cased. Supersets
+are read off the plan's own 4A/4B notation rather than off the SUPERSET
+heading, because the heading is prose and the index is structure.
+
+**Matching names to the catalogue,** scored rather than looked up, and the score
+comes back with the match so a weak one can be shown as weak. On the real
+document: 61 movements across 6 sessions, all matched, 3 flagged for checking.
+
+**Nothing is written until you say so.** The review shows the line the document
+actually said next to the movement the app chose. Anything unmatched starts
+unticked — inventing a squat because a line said something squat-ish and
+silently dropping a movement are the same bug.
+
+**One real bug, found by writing the check:** unticking half a superset left the
+link on its partner, which then pointed at whatever moved up underneath. Pairing
+now happens against original positions, the same principle as
+`clearLinksAround`. **And three of the twelve subjects came back green the first
+time I reverted them** — the fixture did not contain prose that wrapped the way
+the real document wraps it, a movement written without a set count, or anything
+the catalogue could not match. All three now fail when reverted.
 
 ---
 

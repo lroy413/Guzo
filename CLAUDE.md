@@ -26,6 +26,8 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 | Tests | Playwright (headless Chromium) driving the built file over a local `http.createServer` |
 | Native shell | Capacitor 8 (iOS), in `guzo-native/` — scaffolded, not yet wired |
 
+**Import reads files, and still never fetches.** `p4l_import.js` gets text out of a PDF with ASCII85 + `DecompressionStream` + a walk of the content stream — no library, because one would be the first external request the app has ever made and would still not work offline. Three rules it learned the hard way: **group text by baseline**, or a table's two columns run together and a styled heading arrives in three pieces; **translate WinAnsi 0x80–0x9F**, the one range where PDF and latin1 disagree, or every dash vanishes and "5–6 reps" becomes fifty-six; and **an en dash is a range while an em dash is a separator**, so they must not be collapsed together. `parsePlan` anchors on the *prescription* rather than on any layout, because "N sets × M reps" is the one thing every written plan has in common. Nothing writes until `commitImport`.
+
 **Sound is synthesised, never fetched.** `chime()` builds two oscillators; an audio file would be the first external request in the entire app, and a `data:` URI big enough to be a pleasant tone is larger than the code that makes it. The context is built inside the tap that starts the rest — one created outside a gesture starts suspended and stays that way, silent for the whole session. It exists because **iOS Safari implements no `navigator.vibrate` at all**, so `buzz()` is silence on the phone this app was built for, and nothing on the web can schedule an OS notification without a server to push it. On device, `scheduleRestAlert()` does that properly and is a no-op everywhere else.
 
 **The only network code in the entire app** is a service worker that caches the app shell — `build/sw.js`, emitted to the site root as `sw.js` and registered from `p7_events.js`. Nothing else fetches anything, ever. This is deliberate — see `docs/decisions.md`.
@@ -60,7 +62,8 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 │   ├── p4h_energy.js         ← adaptive TDEE, weekly intake, protein targets
 │   ├── p4i_order.js          ← week ordering: pin / swap / reflow / trained-elsewhere
 │   ├── p4j_meals.js          ← diet preferences, dietary tags, suggested meals
-│   ├── p4k_native.js         ← Capacitor bridge: storage mirror, haptics. Inert on the web.
+│   ├── p4k_native.js         ← Capacitor bridge: storage mirror, haptics, rest alerts. Inert on the web.
+│   ├── p4l_import.js         ← PDF/text extraction, plan parsing, catalogue matching
 │   ├── p5a_onboard.js        ← onboarding flow
 │   ├── p5_ui.js              ← render(), Today, Plan, Train, Progress + shared helpers
 │   ├── p6_more.js            ← More screen, Settings sheet, week sheet, exercise picker
@@ -70,6 +73,7 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 │   ├── p6e_profile.js        ← profile sheet
 │   ├── p6f_fuel.js           ← Fuel screen + all food sheets
 │   ├── p6g_order.js          ← week-order sheets
+│   ├── p6h_import.js         ← import review; the only thing that writes routines from a file
 │   ├── p7_events.js          ← ONE delegated click listener, input listeners, SW registration
 │   ├── p8_tail.html          ← closing tags
 │   └── sw.js                 ← service worker source; build.sh copies it to the root
@@ -260,6 +264,7 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of; a sheet that redraws itself keeps your scroll position; the week strip moves by arrow and by swipe, a day opens on what it is rather than on an editor, two sessions in one day are both counted, a movement can be counted in reps or in seconds, no two pieces of painted text share a box, the route on Progress is drawn from the markers you actually reached, motion arrives once rather than on every render, the session rail moves in place rather than by re-rendering, the rail breaks where the block changes and fills the movement after a break rather than the break, rest names the set on the other side of it, a record is taken back when the set that set it is corrected downward, the finish sheet lists what you beat, a rest running out is audible and the bar puts itself away, the builder offers a superset in every gap but not after the last movement, ticking the first half of a pair starts no rest and the second half does, a set row offers what you did in that slot last time and records the unrounded weight behind the rounded one it painted, typing into set 1 carries down without rebuilding the card, a personal best marks the row it happened in and is taken back with the set, and the RPE column can be turned off for the width |
 | `node fuel.mjs` | meal suggestions are deterministic, hit the target, and never break a stated dietary restriction |
 | `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, a Fuel bar means what it looks like, a recovery day is mobility spread across the body with nothing to beat, a routine warm-up matches what the routine trains, a session logged after the fact lands on the day it happened, a day can end at 4am instead of midnight, a circuit runs across the list before it repeats, the sky follows the wall clock rather than your day boundary, the exercise catalogue has no duplicate or malformed rows, editing around a superset breaks the pair rather than re-forming it, every badge the catalogue can produce has a tone and no movement earns more than three, and a record needs something to beat |
+| `node import.mjs` | a PDF decodes without a library, a rep range survives WinAnsi, a plan splits into days, a written name finds the right movement in the catalogue, and nothing is built until you say so |
 | `node native.mjs` | the Capacitor bridge is inert on the web, mirrors saves on device, never restores over live data, and schedules one rest alert per rest — asked for once, withdrawn when the rest is skipped |
 
 `png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.
