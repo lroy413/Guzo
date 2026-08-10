@@ -1321,25 +1321,73 @@ function elevationHTML(weeks) {
   </div>`;
 }
 
-/* The markers, named. The route above carries the feeling; this carries the
-   information, and the two must not both try to do both. */
+/* The markers, named.
+   -------------------
+   The route above carries the feeling; this carries the information, and the
+   two must not both try to do both.
+
+   It used to be three thin rows with "Ahead" on two of them, which is the
+   absence of information dressed as information. Every row now says what the
+   marker costs, the ones you can measure show how far along you are, and the
+   one you just passed says what it meant — the sentence was already written
+   and was only ever shown once, in the sheet at the end of a session. */
 function journeyPathHTML() {
+  const st = journeyStats();
   const reached = milestonesReached();
-  const upcoming = MILESTONES.filter(m => !(S.journey && S.journey.reached && S.journey.reached[m.k])).slice(0, 2);
+  const upcoming = MILESTONES.filter(m => !(S.journey && S.journey.reached && S.journey.reached[m.k]));
+  /* Four ahead, not two. Two makes the road look like it ends just past your
+     feet; the rest are counted underneath rather than hidden. */
+  const soon = upcoming.slice(0, 4);
+  const rest = upcoming.length - soon.length;
+  const back = reached.slice().reverse();
+
+  const doneRow = (m, first) => {
+    const need = milestoneNeed(m.k, st);
+    return `<div class="jnode done">
+      <div class="jnode-ico">${m.ico}</div>
+      <div class="grow">
+        <div class="row between gap-s"><div class="jnode-t">${h(m.title)}</div>
+          <div class="jnode-when">${h(relDate(m.on))}</div></div>
+        ${first
+          ? `<p class="jnode-body">${h(m.body)}</p>`
+          : `<div class="jnode-d">${h((need && need.t) || 'Reached')}</div>`}
+      </div>
+    </div>`;
+  };
+
+  const aheadRow = (m, next) => {
+    const need = milestoneNeed(m.k, st);
+    /* Only the one you are walking towards carries a count and a bar. Four
+       rows of "1/10, 1/25, 1/50" is a scoreboard of everything you have not
+       done yet, which is the opposite of what this screen is for. The rest
+       state what they cost, on one line, and leave it there. */
+    if (!next) {
+      return `<div class="jnode far">
+        <div class="jnode-ico">${m.ico}</div>
+        <div class="grow jnode-oneline">
+          <div class="jnode-t">${h(m.title)}</div>
+          <div class="jnode-need">${h((need && need.t) || 'Further on')}</div>
+        </div>
+      </div>`;
+    }
+    return `<div class="jnode next">
+      <div class="jnode-ico">${m.ico}</div>
+      <div class="grow">
+        <div class="row between gap-s"><div class="jnode-t">${h(m.title)}</div>
+          ${need && need.goal ? `<div class="jnode-when mono">${need.have}<span class="jnode-of">/${need.goal}</span></div>` : ''}</div>
+        <div class="jnode-d">${h((need && need.t) || 'Next on the route')}</div>
+        ${need && need.goal ? `<div class="jnode-bar"><i style="width:${need.pct}%"></i></div>` : ''}
+      </div>
+    </div>`;
+  };
+
   return `<div class="card mb">
-    ${reached.length ? '' : `<p class="small mb">No markers yet &mdash; the first one arrives with your first session, and it is the one most people never reach.</p>`}
+    ${reached.length ? '' : `<p class="small mb">Nothing behind you yet. The first marker arrives with your first session &mdash; and it is the one most people who download a training app never reach.</p>`}
     <div class="jpath">
-      ${reached.slice().reverse().map(m => `
-        <div class="jnode done">
-          <div class="jnode-ico">${m.ico}</div>
-          <div class="grow"><div class="jnode-t">${h(m.title)}</div><div class="jnode-d">${h(relDate(m.on))}</div></div>
-        </div>`).join('')}
-      ${upcoming.map(m => `
-        <div class="jnode">
-          <div class="jnode-ico">${m.ico}</div>
-          <div class="grow"><div class="jnode-t">${h(m.title)}</div><div class="jnode-d">Ahead</div></div>
-        </div>`).join('')}
+      ${back.map((m, i) => doneRow(m, i === 0)).join('')}
+      ${soon.map((m, i) => aheadRow(m, i === 0)).join('')}
     </div>
+    ${rest > 0 ? `<p class="tiny center mt-s">${rest} more marker${rest === 1 ? '' : 's'} further along the route.</p>` : ''}
   </div>`;
 }
 

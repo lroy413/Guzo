@@ -1086,8 +1086,28 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .jnode.done .jnode-ico{background:var(--ember-dim);border-color:var(--ember)}
 .jnode-t{font-size:14.5px;font-weight:650;letter-spacing:-.01em;color:var(--muted)}
 .jnode.done .jnode-t{color:var(--text)}
-.jnode-d{font-size:11px;color:var(--faint);margin-top:2px;letter-spacing:.03em}
-.jnode.done .jnode-d{color:var(--ember-2)}
+.jnode-d{font-size:11.5px;color:var(--faint);margin-top:3px;letter-spacing:.03em}
+.jnode.done .jnode-d{color:var(--muted)}
+/* The date sits on the title's line rather than under it, so the right side of
+   every row carries something and the row reads as one statement. */
+.jnode-when{font-size:11px;color:var(--ember-2);flex:none;padding-top:2px;letter-spacing:.03em}
+.jnode:not(.done) .jnode-when{color:var(--muted);font-size:12px}
+.jnode-of{color:var(--faint)}
+/* The sentence behind the marker you just passed. It was written for this and
+   was only ever shown once, in the sheet at the end of a session. */
+.jnode-body{font-size:12.5px;line-height:1.5;color:var(--muted);margin-top:5px;
+  padding-left:11px;border-left:2px solid var(--ember-line)}
+/* Only the next one gets a bar — a road of progress bars is a to-do list. */
+.jnode-bar{height:4px;border-radius:100px;background:var(--surface-3);
+  overflow:hidden;margin-top:8px}
+.jnode-bar i{display:block;height:100%;border-radius:100px;background:var(--ember)}
+.jnode.next .jnode-t{color:var(--text)}
+.jnode.next .jnode-ico{border-color:var(--ember-line);background:var(--surface-3)}
+/* Markers further along: one line, title left and cost right, so the row is
+   balanced rather than a heading with dead space beside it. */
+.jnode.far{padding:9px 0}
+.jnode-oneline{display:flex;align-items:baseline;justify-content:space-between;gap:12px;min-width:0}
+.jnode-need{font-size:11.5px;color:var(--faint);flex:none;letter-spacing:.03em}
 
 .milestone{padding:22px 18px;border-radius:20px;text-align:center;
   background:linear-gradient(180deg,rgba(233,180,76,.12),rgba(233,180,76,.02));
@@ -3842,6 +3862,47 @@ function journeyStats() {
     returned,
     day: journeyDay()
   };
+}
+
+/* What each marker takes, and how to measure the way there.
+   ----------------------------------------------------------
+   Kept beside MILESTONES rather than inside it, so the bodies above stay one
+   readable block. Every marker gets a line saying what it costs; the ones that
+   count something also get a way to read how far along you are, because "Ahead"
+   on its own is not information — it is the absence of it.
+
+   The four without a goal are conditions rather than counts: you have either
+   taken the three-minute version or you have not. Those show their line and no
+   bar, which is honest — a progress bar on a yes-or-no is a decoration. */
+const MILESTONE_NEED = {
+  first:   { t: 'One session',              at: s => s.count,  goal: 1 },
+  s5:      { t: 'Five sessions',            at: s => s.count,  goal: 5 },
+  s10:     { t: 'Ten sessions',             at: s => s.count,  goal: 10 },
+  s25:     { t: 'Twenty-five sessions',     at: s => s.count,  goal: 25 },
+  s50:     { t: 'Fifty sessions',           at: s => s.count,  goal: 50 },
+  s100:    { t: 'One hundred sessions',     at: s => s.count,  goal: 100 },
+  s200:    { t: 'Two hundred sessions',     at: s => s.count,  goal: 200 },
+  w4:      { t: 'Four weeks unbroken',      at: s => s.streak, goal: 4 },
+  w12:     { t: 'Twelve weeks unbroken',    at: s => s.streak, goal: 12 },
+  w26:     { t: 'Twenty-six weeks unbroken',at: s => s.streak, goal: 26 },
+  w52:     { t: 'Fifty-two weeks unbroken', at: s => s.streak, goal: 52 },
+  floor:   { t: 'One three-minute session' },
+  return:  { t: 'Come back after a real gap' },
+  tonne:   { t: 'A hundred tonnes moved',   at: s => s.tonnes, goal: 100 },
+  burn10k: { t: 'Ten thousand kcal',        at: s => s.kcal,   goal: 10000 }
+};
+
+/* One marker's requirement, resolved against where you actually are.
+   `pct` is capped at 100 so a marker you have passed but not yet been awarded
+   never draws a bar past its own end. */
+function milestoneNeed(k, st) {
+  const n = MILESTONE_NEED[k];
+  if (!n) return null;
+  const s = st || journeyStats();
+  if (!n.at) return { t: n.t, goal: null, have: null, pct: null };
+  const have = n.at(s) || 0;
+  return { t: n.t, goal: n.goal, have: Math.min(have, n.goal),
+           pct: Math.max(0, Math.min(100, Math.round(have / n.goal * 100))) };
 }
 
 /* Returns milestones newly reached since last check, and records them. */
@@ -8042,25 +8103,73 @@ function elevationHTML(weeks) {
   </div>`;
 }
 
-/* The markers, named. The route above carries the feeling; this carries the
-   information, and the two must not both try to do both. */
+/* The markers, named.
+   -------------------
+   The route above carries the feeling; this carries the information, and the
+   two must not both try to do both.
+
+   It used to be three thin rows with "Ahead" on two of them, which is the
+   absence of information dressed as information. Every row now says what the
+   marker costs, the ones you can measure show how far along you are, and the
+   one you just passed says what it meant — the sentence was already written
+   and was only ever shown once, in the sheet at the end of a session. */
 function journeyPathHTML() {
+  const st = journeyStats();
   const reached = milestonesReached();
-  const upcoming = MILESTONES.filter(m => !(S.journey && S.journey.reached && S.journey.reached[m.k])).slice(0, 2);
+  const upcoming = MILESTONES.filter(m => !(S.journey && S.journey.reached && S.journey.reached[m.k]));
+  /* Four ahead, not two. Two makes the road look like it ends just past your
+     feet; the rest are counted underneath rather than hidden. */
+  const soon = upcoming.slice(0, 4);
+  const rest = upcoming.length - soon.length;
+  const back = reached.slice().reverse();
+
+  const doneRow = (m, first) => {
+    const need = milestoneNeed(m.k, st);
+    return `<div class="jnode done">
+      <div class="jnode-ico">${m.ico}</div>
+      <div class="grow">
+        <div class="row between gap-s"><div class="jnode-t">${h(m.title)}</div>
+          <div class="jnode-when">${h(relDate(m.on))}</div></div>
+        ${first
+          ? `<p class="jnode-body">${h(m.body)}</p>`
+          : `<div class="jnode-d">${h((need && need.t) || 'Reached')}</div>`}
+      </div>
+    </div>`;
+  };
+
+  const aheadRow = (m, next) => {
+    const need = milestoneNeed(m.k, st);
+    /* Only the one you are walking towards carries a count and a bar. Four
+       rows of "1/10, 1/25, 1/50" is a scoreboard of everything you have not
+       done yet, which is the opposite of what this screen is for. The rest
+       state what they cost, on one line, and leave it there. */
+    if (!next) {
+      return `<div class="jnode far">
+        <div class="jnode-ico">${m.ico}</div>
+        <div class="grow jnode-oneline">
+          <div class="jnode-t">${h(m.title)}</div>
+          <div class="jnode-need">${h((need && need.t) || 'Further on')}</div>
+        </div>
+      </div>`;
+    }
+    return `<div class="jnode next">
+      <div class="jnode-ico">${m.ico}</div>
+      <div class="grow">
+        <div class="row between gap-s"><div class="jnode-t">${h(m.title)}</div>
+          ${need && need.goal ? `<div class="jnode-when mono">${need.have}<span class="jnode-of">/${need.goal}</span></div>` : ''}</div>
+        <div class="jnode-d">${h((need && need.t) || 'Next on the route')}</div>
+        ${need && need.goal ? `<div class="jnode-bar"><i style="width:${need.pct}%"></i></div>` : ''}
+      </div>
+    </div>`;
+  };
+
   return `<div class="card mb">
-    ${reached.length ? '' : `<p class="small mb">No markers yet &mdash; the first one arrives with your first session, and it is the one most people never reach.</p>`}
+    ${reached.length ? '' : `<p class="small mb">Nothing behind you yet. The first marker arrives with your first session &mdash; and it is the one most people who download a training app never reach.</p>`}
     <div class="jpath">
-      ${reached.slice().reverse().map(m => `
-        <div class="jnode done">
-          <div class="jnode-ico">${m.ico}</div>
-          <div class="grow"><div class="jnode-t">${h(m.title)}</div><div class="jnode-d">${h(relDate(m.on))}</div></div>
-        </div>`).join('')}
-      ${upcoming.map(m => `
-        <div class="jnode">
-          <div class="jnode-ico">${m.ico}</div>
-          <div class="grow"><div class="jnode-t">${h(m.title)}</div><div class="jnode-d">Ahead</div></div>
-        </div>`).join('')}
+      ${back.map((m, i) => doneRow(m, i === 0)).join('')}
+      ${soon.map((m, i) => aheadRow(m, i === 0)).join('')}
     </div>
+    ${rest > 0 ? `<p class="tiny center mt-s">${rest} more marker${rest === 1 ? '' : 's'} further along the route.</p>` : ''}
   </div>`;
 }
 

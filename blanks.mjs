@@ -1339,6 +1339,61 @@ try {
     onTrail.off.join(', '));
   check('...and there were markers to check', onTrail.checked >= 2, String(onTrail.checked));
 
+  /* ---- the markers card ----
+     One session in, this was three thin rows with the word "Ahead" on two of
+     them — the absence of information dressed as information. Every row has to
+     say what its marker costs, and the one you are walking towards has to show
+     how far along you actually are. */
+  const markers = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    const e = EX['bb-back-squat'];
+    S.sessions = [{ id: 's1', date: today(), type: 'full', env: 'full', rung: 'full',
+      dur: 45, kcal: 300, ended: Date.now(),
+      exercises: [{ exId: e.id, name: e.name, load: e.load, targetW: 60, targetR: 8,
+        sets: [{ w: 60, r: 8, rpe: 8, done: true }], note: '' }] }];
+    checkMilestones(); save(true);
+    go('progress');
+    const card = [...document.querySelectorAll('#progress-body .jpath')][0];
+    if (!card) return { found: false, rows: 0, bare: 1, text: '' };
+    const rows = [...card.querySelectorAll('.jnode')];
+    const next = card.querySelector('.jnode.next');
+    const bar = next && next.querySelector('.jnode-bar i');
+    return {
+      found: true,
+      rows: rows.length,
+      done: card.querySelectorAll('.jnode.done').length,
+      far: card.querySelectorAll('.jnode.far').length,
+      /* No row may be left saying only "Ahead". */
+      bare: rows.filter(r => /^\s*ahead\s*$/i.test(
+        ((r.querySelector('.jnode-d') || r.querySelector('.jnode-need') || {}).textContent || '').trim())).length,
+      body: (card.querySelector('.jnode-body') || {}).textContent || '',
+      nextTitle: next ? (next.querySelector('.jnode-t') || {}).textContent : '',
+      nextCount: next ? (next.querySelector('.jnode-when') || {}).textContent.replace(/\s/g, '') : '',
+      barWidth: bar ? bar.style.width : 'none',
+      bars: card.querySelectorAll('.jnode-bar').length,
+      remainder: (document.querySelector('#progress-body .jpath') || {}).parentElement.querySelector('.tiny.center')
+        ? document.querySelector('#progress-body .jpath').parentElement.querySelector('.tiny.center').textContent : '',
+      text: card.innerText || ''
+    };
+  });
+  check('the markers card renders', markers.found === true);
+  /* Two ahead made the road look like it ended just past your feet. */
+  check('...showing more than a couple of steps ahead', markers.rows >= 5, String(markers.rows));
+  check('...one of them reached', markers.done === 1, String(markers.done));
+  check('no row is left saying only "Ahead"', markers.bare === 0, String(markers.bare));
+  check('the marker you just passed says what it meant', markers.body.length > 40,
+    markers.body.slice(0, 50));
+  check('the next marker is named', markers.nextTitle === 'Finding your pace', markers.nextTitle);
+  check('...with your real count against it', markers.nextCount === '1/5', markers.nextCount);
+  /* One session of five: the bar has to be a fifth, not a decoration. */
+  check('...and a bar that matches it', markers.barWidth === '20%', markers.barWidth);
+  /* A road of progress bars is a to-do list. */
+  check('only the next one carries a bar', markers.bars === 1, String(markers.bars));
+  check('the rest state what they cost', markers.far >= 3, String(markers.far));
+  check('...and what is beyond them is counted, not hidden',
+    /\d+ more marker/.test(markers.remainder), markers.remainder);
+  check('no placeholder text in the markers card', !BAD.test(markers.text));
+
   /* ---- App Store readiness ---- */
 
   /* A subscription offer with nothing behind it reads as an incomplete app. */

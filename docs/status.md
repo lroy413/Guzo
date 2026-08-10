@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **607,768 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (230) + `engine` (111) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **613,638 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (242) + `engine` (120) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -167,6 +167,12 @@ Three things it took two passes to get right, all caught by looking at a screens
 - **The ground was filled under the whole width**, including the part ahead of you. That drew a grey panel rather than terrain, and said — wrongly — that ground you have not covered is already yours. Fill is now only under the walked section, running off the left edge and tapering to a slope on the right. Closing it straight down from the last marker drew a wall, which is the one shape terrain never makes.
 - **The "you are here" dot sat on top of the last marker**, hiding it and claiming you were standing still on it. It sits between markers now.
 - **With nothing reached, the single pin landed at the *start* of the trail** and the dashed line climbed away from it — drawing the thing you are walking towards as something already behind you. The markers are padded to the right-hand end.
+
+**The markers card was hollow.** One session in it was three thin rows with the word "Ahead" on two of them — the absence of information dressed as information. Every row now states what its marker costs, drawn from a `MILESTONE_NEED` table beside the milestones; the one you are walking towards shows your real count against it and a bar; the one you just passed shows the sentence that was written for it, which until now was only ever seen once, in the sheet at the end of a session. Four ahead instead of two, because two makes the road look like it ends just past your feet, and what is beyond them is counted rather than hidden.
+
+Only the next marker carries a bar. Four rows of "1 / 10, 1 / 25, 1 / 50" is a scoreboard of everything you have not done yet, which is the opposite of what the screen is for — the rest state their cost on one line, title left and price right, so the row is balanced instead of a heading with dead space beside it.
+
+`engine.mjs` cross-checks every stated requirement against the milestone's own `test`, by running it one below the stated goal and at it. A number in the copy that drifts from the number that awards the marker is the worst kind of wrong here — the screen would promise one thing and the app do another — and the check prints exactly that when reverted: `s5: awarded at 5, claims 6`.
 
 **The eight-week volume chart became the climb** — the same numbers as ground rather than columns, so a light week is a flat stretch of trail instead of a short bar next to a tall one. The week you are standing in is drawn dashed and labelled "so far", because it is always partial and drawing it solid made the line dive to the floor on a Monday.
 

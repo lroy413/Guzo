@@ -149,6 +149,47 @@ function journeyStats() {
   };
 }
 
+/* What each marker takes, and how to measure the way there.
+   ----------------------------------------------------------
+   Kept beside MILESTONES rather than inside it, so the bodies above stay one
+   readable block. Every marker gets a line saying what it costs; the ones that
+   count something also get a way to read how far along you are, because "Ahead"
+   on its own is not information — it is the absence of it.
+
+   The four without a goal are conditions rather than counts: you have either
+   taken the three-minute version or you have not. Those show their line and no
+   bar, which is honest — a progress bar on a yes-or-no is a decoration. */
+const MILESTONE_NEED = {
+  first:   { t: 'One session',              at: s => s.count,  goal: 1 },
+  s5:      { t: 'Five sessions',            at: s => s.count,  goal: 5 },
+  s10:     { t: 'Ten sessions',             at: s => s.count,  goal: 10 },
+  s25:     { t: 'Twenty-five sessions',     at: s => s.count,  goal: 25 },
+  s50:     { t: 'Fifty sessions',           at: s => s.count,  goal: 50 },
+  s100:    { t: 'One hundred sessions',     at: s => s.count,  goal: 100 },
+  s200:    { t: 'Two hundred sessions',     at: s => s.count,  goal: 200 },
+  w4:      { t: 'Four weeks unbroken',      at: s => s.streak, goal: 4 },
+  w12:     { t: 'Twelve weeks unbroken',    at: s => s.streak, goal: 12 },
+  w26:     { t: 'Twenty-six weeks unbroken',at: s => s.streak, goal: 26 },
+  w52:     { t: 'Fifty-two weeks unbroken', at: s => s.streak, goal: 52 },
+  floor:   { t: 'One three-minute session' },
+  return:  { t: 'Come back after a real gap' },
+  tonne:   { t: 'A hundred tonnes moved',   at: s => s.tonnes, goal: 100 },
+  burn10k: { t: 'Ten thousand kcal',        at: s => s.kcal,   goal: 10000 }
+};
+
+/* One marker's requirement, resolved against where you actually are.
+   `pct` is capped at 100 so a marker you have passed but not yet been awarded
+   never draws a bar past its own end. */
+function milestoneNeed(k, st) {
+  const n = MILESTONE_NEED[k];
+  if (!n) return null;
+  const s = st || journeyStats();
+  if (!n.at) return { t: n.t, goal: null, have: null, pct: null };
+  const have = n.at(s) || 0;
+  return { t: n.t, goal: n.goal, have: Math.min(have, n.goal),
+           pct: Math.max(0, Math.min(100, Math.round(have / n.goal * 100))) };
+}
+
 /* Returns milestones newly reached since last check, and records them. */
 function checkMilestones() {
   if (!S.journey) S.journey = { reached: {} };

@@ -819,6 +819,72 @@ try {
   check('a routine that is not a circuit still uses its own set count',
     plain.sets === 4 && plain.circuit === false, `${plain.sets} sets, circuit ${plain.circuit}`);
 
+  // ================= 9. what a marker costs ==============================
+  console.log('\nmarker requirements\n');
+
+  /* Every marker states its cost, and the ones that count something can say
+     how far along you are. A requirement that drifts from the test that
+     actually awards the marker would be the worst kind of wrong here: the
+     screen would promise one thing and the app would do another. */
+  const needs = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const missing = MILESTONES.filter(m => !MILESTONE_NEED[m.k]).map(m => m.k);
+
+    /* The stated goal must be the number the milestone's own test flips on.
+       Checked by running the test against a stat object built from the goal,
+       one below and one at it. */
+    const wrong = [];
+    MILESTONES.forEach(m => {
+      const n = MILESTONE_NEED[m.k];
+      if (!n || !n.at) return;
+      const zero = { count: 0, streak: 0, micro: 0, tonnes: 0, kcal: 0, returned: false, day: 1 };
+      const field = Object.keys(zero).find(f => {
+        const probe = { ...zero }; probe[f] = n.goal;
+        return n.at(probe) === n.goal;
+      });
+      if (!field) { wrong.push(m.k + ':unmeasurable'); return; }
+      const below = { ...zero }; below[field] = n.goal - 1;
+      const at = { ...zero }; at[field] = n.goal;
+      if (m.test(below)) wrong.push(`${m.k}: awarded at ${n.goal - 1}, claims ${n.goal}`);
+      if (!m.test(at)) wrong.push(`${m.k}: not awarded at its stated ${n.goal}`);
+    });
+
+    S.sessions = Array.from({ length: 3 }, (_, i) => ({ id: 'x' + i, ended: Date.now(),
+      date: dk(addDays(fromKey(today()), -i)), type: 'full', env: 'full', rung: 'full', exercises: [] }));
+    save(true);
+    const st = journeyStats();
+    return {
+      missing, wrong: wrong.slice(0, 5),
+      five: milestoneNeed('s5', st),
+      hundred: milestoneNeed('s100', st),
+      /* A yes-or-no marker has no bar to draw. */
+      floor: milestoneNeed('floor', st),
+      unknown: milestoneNeed('not-a-marker', st)
+    };
+  });
+  check('every marker states what it costs', needs.missing.length === 0, needs.missing.join(', '));
+  check('...and the stated cost is the one that awards it', needs.wrong.length === 0,
+    needs.wrong.join(' | '));
+  check('three sessions reads as 3 of 5', needs.five.have === 3 && needs.five.goal === 5,
+    JSON.stringify(needs.five));
+  check('...at 60 per cent', needs.five.pct === 60, String(needs.five.pct));
+  /* Three sessions against a hundred is 3%, not 0 and not a rounding artefact
+     that draws an empty bar as full. */
+  check('a distant marker reads honestly small', needs.hundred.pct === 3, String(needs.hundred.pct));
+  check('a yes-or-no marker has no bar to draw', needs.floor.goal === null, JSON.stringify(needs.floor));
+  check('an unknown key returns nothing rather than throwing', needs.unknown === null);
+
+  /* Passing a marker must not draw a bar past its own end. */
+  const capped = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.sessions = Array.from({ length: 40 }, (_, i) => ({ id: 'y' + i, ended: Date.now(),
+      date: dk(addDays(fromKey(today()), -i)), type: 'full', env: 'full', rung: 'full', exercises: [] }));
+    save(true);
+    return milestoneNeed('s5', journeyStats());
+  });
+  check('forty sessions never reads as 40 of 5', capped.have === 5, String(capped.have));
+  check('...nor as 800 per cent', capped.pct === 100, String(capped.pct));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {
