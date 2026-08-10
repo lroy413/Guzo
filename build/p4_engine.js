@@ -204,6 +204,78 @@ function relDate(k) {
    UNITS
    ============================================================ */
 function unit() { return S.profile.units; }
+
+/* ------------------------------------------------------------
+   Changing units converts the numbers. It used to just change the label.
+   ------------------------------------------------------------
+   Every weight in the store is held in whatever unit was showing when it was
+   written, so flipping `profile.units` on its own does not change any data —
+   it changes what all of it *means*. A 217 lb bodyweight became 217 kg. A 100
+   lb bench became a 100 kg bench, and then fed progression, the plate maths
+   and the personal-best comparison from there.
+
+   Reps, seconds and RPE are untouched — they are not weights. Plate config
+   needs no conversion either: it is already stored per unit as barKG/barLB and
+   platesKG/platesLB, so it has both and picks the right one. */
+const LB_PER_KG = 2.20462262185;
+
+function convertStoredWeights(f) {
+  if (!(f > 0) || f === 1) return 0;
+  let n = 0;
+  /* Two decimals: a converted weight is an approximation of a real one, and
+     carrying fourteen digits of float into the store would show up in the
+     plate calculator as 82.50000000000001. */
+  const cv = (o, k) => {
+    if (!o || o[k] === '' || o[k] == null) return;
+    const v = +o[k];
+    if (isNaN(v) || v === 0) return;
+    o[k] = Math.round(v * f * 100) / 100;
+    n++;
+  };
+  (S.profile.bodyweight || []).forEach(b => cv(b, 'w'));
+  Object.keys(S.lifts || {}).forEach(id => {
+    const L = S.lifts[id];
+    if (!L) return;
+    cv(L, 'w');
+    if (L.best) { cv(L.best, 'w'); cv(L.best, 'e1rm'); }
+    (L.history || []).forEach(row => { cv(row, 'w'); cv(row, 'e1rm'); });
+  });
+  const sess = s => (s && s.exercises || []).forEach(x => {
+    cv(x, 'targetW');
+    (x.sets || []).forEach(st => cv(st, 'w'));
+  });
+  (S.sessions || []).forEach(sess);
+  sess(S.active);
+  return n;
+}
+
+/* The factor that turns a number written in `from` into one in `to`. */
+function unitFactor(from, to) {
+  if (from === to) return 1;
+  return to === 'kg' ? 1 / LB_PER_KG : LB_PER_KG;
+}
+
+/* How many weights a conversion would touch, without touching them. Used to
+   tell you what you are about to change before you change it. */
+function storedWeightCount() {
+  let n = 0;
+  const has = (o, k) => { if (o && o[k] !== '' && o[k] != null && +o[k]) n++; };
+  (S.profile.bodyweight || []).forEach(b => has(b, 'w'));
+  Object.keys(S.lifts || {}).forEach(id => {
+    const L = S.lifts[id];
+    if (!L) return;
+    has(L, 'w');
+    if (L.best) { has(L.best, 'w'); has(L.best, 'e1rm'); }
+    (L.history || []).forEach(row => { has(row, 'w'); has(row, 'e1rm'); });
+  });
+  const sess = s => (s && s.exercises || []).forEach(x => {
+    has(x, 'targetW');
+    (x.sets || []).forEach(st => has(st, 'w'));
+  });
+  (S.sessions || []).forEach(sess);
+  sess(S.active);
+  return n;
+}
 function inc(pattern) {
   const lower = ['squat','hinge','lunge','calves'].includes(pattern);
   if (unit() === 'kg') return lower ? 5 : 2.5;

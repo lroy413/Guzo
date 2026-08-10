@@ -259,6 +259,13 @@ input[type=number]{-moz-appearance:textfield}
 .dm-note{text-align:center;font-size:11.5px;color:var(--faint);
   margin:12px 8px 0;padding-top:10px;border-top:1px solid var(--line-soft)}
 
+/* An inline text link inside a paragraph. A button element, because it does
+   something rather than going somewhere, and padded to a real target without
+   breaking the line it sits in. */
+.lnk{background:none;border:0;padding:2px 0;color:var(--ember);font-weight:650;
+  font-size:inherit;font-family:inherit;text-decoration:underline;
+  text-underline-offset:2px;text-decoration-thickness:1px}
+.lnk:active{opacity:.6}
 .src-chip{display:inline-block;font-size:11px;font-weight:650;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ember);background:var(--ember-dim);
   border:1px solid var(--ember-line);border-radius:100px;padding:2px 7px;
@@ -3345,6 +3352,78 @@ function relDate(k) {
    UNITS
    ============================================================ */
 function unit() { return S.profile.units; }
+
+/* ------------------------------------------------------------
+   Changing units converts the numbers. It used to just change the label.
+   ------------------------------------------------------------
+   Every weight in the store is held in whatever unit was showing when it was
+   written, so flipping `profile.units` on its own does not change any data —
+   it changes what all of it *means*. A 217 lb bodyweight became 217 kg. A 100
+   lb bench became a 100 kg bench, and then fed progression, the plate maths
+   and the personal-best comparison from there.
+
+   Reps, seconds and RPE are untouched — they are not weights. Plate config
+   needs no conversion either: it is already stored per unit as barKG/barLB and
+   platesKG/platesLB, so it has both and picks the right one. */
+const LB_PER_KG = 2.20462262185;
+
+function convertStoredWeights(f) {
+  if (!(f > 0) || f === 1) return 0;
+  let n = 0;
+  /* Two decimals: a converted weight is an approximation of a real one, and
+     carrying fourteen digits of float into the store would show up in the
+     plate calculator as 82.50000000000001. */
+  const cv = (o, k) => {
+    if (!o || o[k] === '' || o[k] == null) return;
+    const v = +o[k];
+    if (isNaN(v) || v === 0) return;
+    o[k] = Math.round(v * f * 100) / 100;
+    n++;
+  };
+  (S.profile.bodyweight || []).forEach(b => cv(b, 'w'));
+  Object.keys(S.lifts || {}).forEach(id => {
+    const L = S.lifts[id];
+    if (!L) return;
+    cv(L, 'w');
+    if (L.best) { cv(L.best, 'w'); cv(L.best, 'e1rm'); }
+    (L.history || []).forEach(row => { cv(row, 'w'); cv(row, 'e1rm'); });
+  });
+  const sess = s => (s && s.exercises || []).forEach(x => {
+    cv(x, 'targetW');
+    (x.sets || []).forEach(st => cv(st, 'w'));
+  });
+  (S.sessions || []).forEach(sess);
+  sess(S.active);
+  return n;
+}
+
+/* The factor that turns a number written in `from` into one in `to`. */
+function unitFactor(from, to) {
+  if (from === to) return 1;
+  return to === 'kg' ? 1 / LB_PER_KG : LB_PER_KG;
+}
+
+/* How many weights a conversion would touch, without touching them. Used to
+   tell you what you are about to change before you change it. */
+function storedWeightCount() {
+  let n = 0;
+  const has = (o, k) => { if (o && o[k] !== '' && o[k] != null && +o[k]) n++; };
+  (S.profile.bodyweight || []).forEach(b => has(b, 'w'));
+  Object.keys(S.lifts || {}).forEach(id => {
+    const L = S.lifts[id];
+    if (!L) return;
+    has(L, 'w');
+    if (L.best) { has(L.best, 'w'); has(L.best, 'e1rm'); }
+    (L.history || []).forEach(row => { has(row, 'w'); has(row, 'e1rm'); });
+  });
+  const sess = s => (s && s.exercises || []).forEach(x => {
+    has(x, 'targetW');
+    (x.sets || []).forEach(st => has(st, 'w'));
+  });
+  (S.sessions || []).forEach(sess);
+  sess(S.active);
+  return n;
+}
 function inc(pattern) {
   const lower = ['squat','hinge','lunge','calves'].includes(pattern);
   if (unit() === 'kg') return lower ? 5 : 2.5;
@@ -11666,6 +11745,11 @@ function sheetProfile() {
         <div class="chip ${S.profile.units==='kg'?'on':''}" data-act="set-units" data-v="kg">Kilograms</div>
         <div class="chip ${S.profile.units==='lb'?'on':''}" data-act="set-units" data-v="lb">Pounds</div>
       </div>
+      <p class="tiny mt-s">Switching converts everything you have logged &mdash; bodyweight, working
+        weights and every set you have recorded.
+        <button class="lnk" data-act="units-repair">Numbers look wrong?</button></p>
+      <div class="hide">
+      </div>
     </div>
     <button class="btn primary block lg" data-act="save-profile">Save</button>
   `, { key: 'profile' });
@@ -11736,6 +11820,60 @@ function sheetSleepNorm() {
       </div>
     </div>
   `);
+}
+
+/* ------------------------------------------------------------
+   Correcting a save that was mangled by the old units toggle.
+   ------------------------------------------------------------
+   Before convertStoredWeights existed, changing units changed only the label,
+   so a save can hold numbers written in pounds while the app calls them
+   kilograms. Nothing can detect that — 100 is a plausible bench in either — so
+   this is offered rather than applied, and it shows the arithmetic on your own
+   numbers first. It rewrites training history, which is the one thing in this
+   app that cannot be got back. */
+function sheetUnitsRepair() {
+  const u = unit();
+  const other = u === 'kg' ? 'lb' : 'kg';
+  const f = unitFactor(other, u);
+  const n = storedWeightCount();
+
+  const bwLog = S.profile.bodyweight || [];
+  const bw = bwLog.length ? +bwLog[bwLog.length - 1].w : null;
+  /* The heaviest few, because those are the ones you will recognise. */
+  const lifts = Object.keys(S.lifts || {})
+    .filter(id => EX[id] && S.lifts[id] && +S.lifts[id].w > 0)
+    .map(id => ({ name: EX[id].name, w: +S.lifts[id].w }))
+    .sort((a, b) => b.w - a.w).slice(0, 4);
+
+  const row = (label, from) => `<div class="row between" style="min-height:34px">
+    <span class="small">${h(label)}</span>
+    <span class="mono small"><span style="color:var(--faint)">${fmtW(from)}</span>
+      &nbsp;&rarr;&nbsp; <strong>${fmtW(from * f)} ${h(u)}</strong></span>
+  </div>`;
+
+  openSheet(`
+    <div class="row between mb"><h2 class="h1">Numbers look wrong?</h2></div>
+    <p class="small mb">Until recently, switching between kilograms and pounds changed the label and
+      left every stored number alone &mdash; so a weight you entered in ${h(other)} is being read as
+      ${h(u)}. If your bodyweight or your lifts look far too heavy or far too light, that is what
+      happened.</p>
+
+    ${n ? `<div class="card mb">
+      <div class="eyebrow mb-s">What this would do</div>
+      ${bw != null ? row('Bodyweight', bw) : ''}
+      ${lifts.map(l => row(l.name, l.w)).join('')}
+      <p class="tiny mt-s">${n} stored weight${n === 1 ? '' : 's'} in total &mdash; bodyweight,
+        working weights, personal bests and every set you have logged.</p>
+    </div>` : `<div class="note mb"><p class="note-t">Nothing to correct.</p>
+      <p class="note-b">There are no stored weights on this device yet.</p></div>`}
+
+    <div class="banner soft mb">Only do this if the numbers above are wrong now and right after.
+      It rewrites your training history, and there is no undo.</div>
+
+    ${n ? `<button class="btn primary block lg" data-act="units-repair-go">Convert them to ${h(u)}</button>` : ''}
+    <button class="btn quiet block mt-s" data-act="close">Leave them alone</button>
+    <p class="tiny center mt-s">Export a backup from Help &amp; guides first if you want one.</p>
+  `, { key: 'units-repair' });
 }
 /* ============================================================
    FUEL — the nutrition surface
@@ -13803,8 +13941,23 @@ document.addEventListener('click', ev => {
       save(true); closeSheet(); render(); toast(PROGRAMS[v].name + ' set', true); break;
     }
     case 'edit-profile': sheetProfile(); break;
+    /* The numbers move with the label. Flipping the label alone left every
+       stored weight meaning something else — see convertStoredWeights. */
     case 'set-units': {
-      S.profile.units = v; save(); sheetProfile();
+      const from = S.profile.units;
+      if (v === from || (v !== 'kg' && v !== 'lb')) break;
+      const n = convertStoredWeights(unitFactor(from, v));
+      S.profile.units = v;
+      save(true); render(); sheetProfile();
+      toast(n ? `Now in ${v} — ${n} stored weight${n === 1 ? '' : 's'} converted`
+              : `Now in ${v}`, true);
+      break;
+    }
+    case 'units-repair': sheetUnitsRepair(); break;
+    case 'units-repair-go': {
+      const n = convertStoredWeights(unitFactor(unit() === 'kg' ? 'lb' : 'kg', unit()));
+      save(true); render(); closeSheet();
+      toast(n ? n + ' weights corrected' : 'Nothing to correct', true);
       break;
     }
     case 'save-profile': {

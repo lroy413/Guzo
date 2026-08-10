@@ -1246,6 +1246,118 @@ try {
      everyone who had been filling it in. */
   check('a save from before the setting existed keeps the column', rpe.legacy === true);
 
+  // ================= 15. changing units moves the numbers ================
+  console.log('\nunits\n');
+
+  const units = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.profile.units = 'lb';
+    S.profile.bodyweight = [{ d: today(), w: 217 }];
+    S.lifts['bb-bench'] = { w: 225, r: 5, fails: 0,
+      best: { w: 225, r: 5, e1rm: e1rm(225, 5), date: today() },
+      lastDate: today(), history: [{ d: today(), w: 225, r: 5, e1rm: 262 }] };
+    S.sessions = [{ date: today(), ended: true, dur: 40, exercises: [
+      { exId: 'bb-bench', name: 'Bench Press', load: 'wt', targetW: 225,
+        sets: [{ w: 225, r: 5, rpe: '', done: true }, { w: '', r: '', rpe: '', done: false }] } ] }];
+    /* Plate config is stored per unit already, so it must NOT be converted —
+       converting it would corrupt the one thing that was already right. */
+    S.settings.barLB = 45; S.settings.barKG = 20;
+    save(true);
+
+    const counted = storedWeightCount();
+    const before = {
+      bw: S.profile.bodyweight[0].w, lift: S.lifts['bb-bench'].w,
+      best: S.lifts['bb-bench'].best.w, hist: S.lifts['bb-bench'].history[0].w,
+      target: S.sessions[0].exercises[0].targetW,
+      set: S.sessions[0].exercises[0].sets[0].w,
+      blank: S.sessions[0].exercises[0].sets[1].w,
+      reps: S.sessions[0].exercises[0].sets[0].r
+    };
+
+    /* Through the real handler, not by calling the converter. */
+    document.querySelector('#more-body') || go('more');
+    sheetProfile();
+    const kgChip = document.querySelector('#sheet-body [data-act="set-units"][data-v="kg"]');
+    if (!kgChip) return { miss: true };
+    kgChip.click();
+
+    const after = {
+      units: S.profile.units,
+      bw: S.profile.bodyweight[0].w, lift: S.lifts['bb-bench'].w,
+      best: S.lifts['bb-bench'].best.w, hist: S.lifts['bb-bench'].history[0].w,
+      e1rm: S.lifts['bb-bench'].best.e1rm,
+      target: S.sessions[0].exercises[0].targetW,
+      set: S.sessions[0].exercises[0].sets[0].w,
+      blank: S.sessions[0].exercises[0].sets[1].w,
+      reps: S.sessions[0].exercises[0].sets[0].r,
+      barLB: S.settings.barLB, barKG: S.settings.barKG
+    };
+    /* And back again, to prove it is a conversion and not a one-way scaling. */
+    document.querySelector('#sheet-body [data-act="set-units"][data-v="lb"]').click();
+    const round = { units: S.profile.units, bw: S.profile.bodyweight[0].w,
+                    lift: S.lifts['bb-bench'].w };
+    closeSheet();
+    return { counted, before, after, round };
+  });
+
+  check('the units toggle is reachable', !units.miss);
+  /* 217 lb is 98.4 kg. Before this, switching the label left it at 217 and the
+     app started calling it kilograms — 478 lb, which is not a person. */
+  check('bodyweight converts when you change units',
+    Math.abs(units.after.bw - 98.43) < 0.05, `${units.before.bw} → ${units.after.bw}`);
+  check('...so does the learned working weight',
+    Math.abs(units.after.lift - 102.06) < 0.05, `${units.before.lift} → ${units.after.lift}`);
+  check('...the personal best', Math.abs(units.after.best - 102.06) < 0.05,
+    `${units.before.best} → ${units.after.best}`);
+  check('...its estimated single', units.after.e1rm < 130 && units.after.e1rm > 110,
+    String(units.after.e1rm));
+  check('...the history behind it', Math.abs(units.after.hist - 102.06) < 0.05,
+    `${units.before.hist} → ${units.after.hist}`);
+  check('...the prescription on a logged session',
+    Math.abs(units.after.target - 102.06) < 0.05, `${units.before.target} → ${units.after.target}`);
+  check('...and every set you have recorded',
+    Math.abs(units.after.set - 102.06) < 0.05, `${units.before.set} → ${units.after.set}`);
+  /* Reps are not weights. */
+  check('reps are left alone', units.after.reps === 5, String(units.after.reps));
+  check('an empty set stays empty', units.after.blank === '', JSON.stringify(units.after.blank));
+  /* Plate config already holds both units and picks the right one. Converting
+     it would break the one thing that was never broken. */
+  check('the plate config is not converted',
+    units.after.barLB === 45 && units.after.barKG === 20,
+    `${units.after.barLB} / ${units.after.barKG}`);
+  check('switching back returns the numbers you started with',
+    units.round.units === 'lb' && Math.abs(units.round.bw - 217) < 0.05 &&
+    Math.abs(units.round.lift - 225) < 0.05,
+    `${units.round.bw} / ${units.round.lift}`);
+  check('the count offered up front matches what there is to convert',
+    units.counted === 8, String(units.counted));
+
+  /* The repair path, for a save the old toggle already mangled. */
+  const repair = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.profile.units = 'kg';                    // says kg
+    S.profile.bodyweight = [{ d: today(), w: 217 }];   // but the number is lb
+    S.lifts['bb-bench'] = { w: 225, r: 5, best: null, lastDate: today(), history: [] };
+    save(true);
+    go('more'); sheetProfile();
+    const link = document.querySelector('#sheet-body [data-act="units-repair"]');
+    if (!link) return { miss: true };
+    link.click();
+    const sheet = document.getElementById('sheet-body');
+    const shows = /217/.test(sheet.innerText) && /98\.4/.test(sheet.innerText);
+    const go2 = sheet.querySelector('[data-act="units-repair-go"]');
+    if (!go2) return { miss: true };
+    go2.click();
+    return { shows, units: S.profile.units,
+             bw: S.profile.bodyweight[0].w, lift: S.lifts['bb-bench'].w };
+  });
+  check('a mangled save can be corrected', !repair.miss);
+  /* Shown before it is done, on your own numbers. It rewrites history. */
+  check('...and shows the arithmetic first', repair.shows === true);
+  check('...converting the numbers without changing the label',
+    repair.units === 'kg' && Math.abs(repair.bw - 98.43) < 0.05 &&
+    Math.abs(repair.lift - 102.06) < 0.05, `${repair.units} ${repair.bw} / ${repair.lift}`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

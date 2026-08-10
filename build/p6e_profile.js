@@ -87,6 +87,11 @@ function sheetProfile() {
         <div class="chip ${S.profile.units==='kg'?'on':''}" data-act="set-units" data-v="kg">Kilograms</div>
         <div class="chip ${S.profile.units==='lb'?'on':''}" data-act="set-units" data-v="lb">Pounds</div>
       </div>
+      <p class="tiny mt-s">Switching converts everything you have logged &mdash; bodyweight, working
+        weights and every set you have recorded.
+        <button class="lnk" data-act="units-repair">Numbers look wrong?</button></p>
+      <div class="hide">
+      </div>
     </div>
     <button class="btn primary block lg" data-act="save-profile">Save</button>
   `, { key: 'profile' });
@@ -157,4 +162,58 @@ function sheetSleepNorm() {
       </div>
     </div>
   `);
+}
+
+/* ------------------------------------------------------------
+   Correcting a save that was mangled by the old units toggle.
+   ------------------------------------------------------------
+   Before convertStoredWeights existed, changing units changed only the label,
+   so a save can hold numbers written in pounds while the app calls them
+   kilograms. Nothing can detect that — 100 is a plausible bench in either — so
+   this is offered rather than applied, and it shows the arithmetic on your own
+   numbers first. It rewrites training history, which is the one thing in this
+   app that cannot be got back. */
+function sheetUnitsRepair() {
+  const u = unit();
+  const other = u === 'kg' ? 'lb' : 'kg';
+  const f = unitFactor(other, u);
+  const n = storedWeightCount();
+
+  const bwLog = S.profile.bodyweight || [];
+  const bw = bwLog.length ? +bwLog[bwLog.length - 1].w : null;
+  /* The heaviest few, because those are the ones you will recognise. */
+  const lifts = Object.keys(S.lifts || {})
+    .filter(id => EX[id] && S.lifts[id] && +S.lifts[id].w > 0)
+    .map(id => ({ name: EX[id].name, w: +S.lifts[id].w }))
+    .sort((a, b) => b.w - a.w).slice(0, 4);
+
+  const row = (label, from) => `<div class="row between" style="min-height:34px">
+    <span class="small">${h(label)}</span>
+    <span class="mono small"><span style="color:var(--faint)">${fmtW(from)}</span>
+      &nbsp;&rarr;&nbsp; <strong>${fmtW(from * f)} ${h(u)}</strong></span>
+  </div>`;
+
+  openSheet(`
+    <div class="row between mb"><h2 class="h1">Numbers look wrong?</h2></div>
+    <p class="small mb">Until recently, switching between kilograms and pounds changed the label and
+      left every stored number alone &mdash; so a weight you entered in ${h(other)} is being read as
+      ${h(u)}. If your bodyweight or your lifts look far too heavy or far too light, that is what
+      happened.</p>
+
+    ${n ? `<div class="card mb">
+      <div class="eyebrow mb-s">What this would do</div>
+      ${bw != null ? row('Bodyweight', bw) : ''}
+      ${lifts.map(l => row(l.name, l.w)).join('')}
+      <p class="tiny mt-s">${n} stored weight${n === 1 ? '' : 's'} in total &mdash; bodyweight,
+        working weights, personal bests and every set you have logged.</p>
+    </div>` : `<div class="note mb"><p class="note-t">Nothing to correct.</p>
+      <p class="note-b">There are no stored weights on this device yet.</p></div>`}
+
+    <div class="banner soft mb">Only do this if the numbers above are wrong now and right after.
+      It rewrites your training history, and there is no undo.</div>
+
+    ${n ? `<button class="btn primary block lg" data-act="units-repair-go">Convert them to ${h(u)}</button>` : ''}
+    <button class="btn quiet block mt-s" data-act="close">Leave them alone</button>
+    <p class="tiny center mt-s">Export a backup from Help &amp; guides first if you want one.</p>
+  `, { key: 'units-repair' });
 }

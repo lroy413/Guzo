@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **725,986 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (337) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (23) + `import` (62) all green. Nothing known is broken.
+Verified against the build at **733,670 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (37) + `sw` (17) + `native` (23) + `import` (62) all green. Nothing known is broken.
 
 ---
 
@@ -475,6 +475,35 @@ That one now runs a one-second rest and counts oscillators through a spy on the
 platform's own `createOscillator`, so the subject is untouched. And the
 withdraw-on-skip check counted cancellations without resetting first — `startRest`
 cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
+### Changing units changed the label and nothing else
+
+Reported from a screenshot: a bodyweight that read 217 lb one day read 215 kg
+the next. `set-units` was two statements — assign `profile.units`, save — and
+every weight in the store is held in whatever unit was showing when it was
+written. So flipping the setting did not change any data, it changed what all
+of it *meant*. A 100 lb bench became a 100 kg bench and fed progression, the
+plate maths and the personal-best comparison from there.
+
+`convertStoredWeights` now moves the numbers with the label: bodyweight log,
+learned working weights, personal bests and their estimated singles, lift
+history, session prescriptions and every logged set. Reps, seconds and RPE are
+untouched — they are not weights. Plate config is deliberately excluded: it is
+already stored per unit as `barKG`/`barLB`, so it has both and picks the right
+one, and converting it would corrupt the one part that was never broken.
+
+**And a save the old toggle already mangled can be corrected.** Nothing can
+detect it — 100 is a plausible bench in either unit — so the repair is offered
+rather than applied, from a link under the units chips, and it shows the
+arithmetic on your own bodyweight and heaviest lifts before you commit. It
+rewrites training history, which is the one thing in this app that cannot be
+got back, so it says that too.
+
+16 checks driven through the real chips rather than through the converter, 7
+subjects proven red. Reverting `set-units` to what shipped prints
+`217 → 217` on every line.
 
 ---
 

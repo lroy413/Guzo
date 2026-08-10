@@ -259,6 +259,13 @@ input[type=number]{-moz-appearance:textfield}
 .dm-note{text-align:center;font-size:11.5px;color:var(--faint);
   margin:12px 8px 0;padding-top:10px;border-top:1px solid var(--line-soft)}
 
+/* An inline text link inside a paragraph. A button element, because it does
+   something rather than going somewhere, and padded to a real target without
+   breaking the line it sits in. */
+.lnk{background:none;border:0;padding:2px 0;color:var(--ember);font-weight:650;
+  font-size:inherit;font-family:inherit;text-decoration:underline;
+  text-underline-offset:2px;text-decoration-thickness:1px}
+.lnk:active{opacity:.6}
 .src-chip{display:inline-block;font-size:11px;font-weight:650;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ember);background:var(--ember-dim);
   border:1px solid var(--ember-line);border-radius:100px;padding:2px 7px;

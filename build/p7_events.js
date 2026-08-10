@@ -816,8 +816,23 @@ document.addEventListener('click', ev => {
       save(true); closeSheet(); render(); toast(PROGRAMS[v].name + ' set', true); break;
     }
     case 'edit-profile': sheetProfile(); break;
+    /* The numbers move with the label. Flipping the label alone left every
+       stored weight meaning something else — see convertStoredWeights. */
     case 'set-units': {
-      S.profile.units = v; save(); sheetProfile();
+      const from = S.profile.units;
+      if (v === from || (v !== 'kg' && v !== 'lb')) break;
+      const n = convertStoredWeights(unitFactor(from, v));
+      S.profile.units = v;
+      save(true); render(); sheetProfile();
+      toast(n ? `Now in ${v} — ${n} stored weight${n === 1 ? '' : 's'} converted`
+              : `Now in ${v}`, true);
+      break;
+    }
+    case 'units-repair': sheetUnitsRepair(); break;
+    case 'units-repair-go': {
+      const n = convertStoredWeights(unitFactor(unit() === 'kg' ? 'lb' : 'kg', unit()));
+      save(true); render(); closeSheet();
+      toast(n ? n + ' weights corrected' : 'Nothing to correct', true);
       break;
     }
     case 'save-profile': {
