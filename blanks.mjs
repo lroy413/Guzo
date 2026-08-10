@@ -567,7 +567,7 @@ try {
      delegated on document precisely because the strip is rebuilt by every
      render, and a listener bound to the old node would silently stop working
      after the first move. */
-  const swipe = await page.evaluate(() => {
+  const swipe = await page.evaluate(async () => {
     go('today');
     const label = () => document.querySelector('#today-body .sec-head .sec-t').textContent.trim();
     const drag = (x0, y0, x1, y1) => {
@@ -586,11 +586,18 @@ try {
       fire('touchend', x1, y1);
       return label();
     };
+    /* The move is deferred a frame so it never lands inside the browser's own
+       touch-end paint, so each read waits for one. */
+    const frame = () => new Promise(r => requestAnimationFrame(r));
     const start = label();
-    const left = drag(300, 200, 180, 206);      // drag left → forward a week
-    const right = drag(180, 200, 300, 206);     // and back
-    const tiny = drag(300, 200, 280, 200);      // under the slop, must not move
-    const vertical = drag(300, 200, 220, 400);  // scrolling past, must not move
+    drag(300, 200, 180, 206); await frame();
+    const left = label();                       // drag left → forward a week
+    drag(180, 200, 300, 206); await frame();
+    const right = label();                      // and back
+    drag(300, 200, 280, 200); await frame();
+    const tiny = label();                       // under the slop, must not move
+    drag(300, 200, 220, 400); await frame();
+    const vertical = label();                   // scrolling past, must not move
     return { start, left, right, tiny, vertical };
   });
   check('dragging the strip left moves a week forward', swipe.left === 'Next week', swipe.left);
@@ -1043,7 +1050,10 @@ try {
         if (el.classList.contains('hide') || el.disabled) return;
         const r = el.getBoundingClientRect();
         if (!r.width || !r.height) return;
-        if (r.height < 44) small.push(`${label}:${(el.dataset.act || el.className || 'btn').slice(0, 22)}=${Math.round(r.height)}`);
+        /* Sub-pixel tolerance: a box that measures 43.99 because of a
+           border and a fractional line height is a 44px target, and treating
+           it as a failure teaches everyone to ignore this check. */
+        if (r.height < 43.5) small.push(`${label}:${(el.dataset.act || el.className || 'btn').slice(0, 22)}=${r.height.toFixed(1)}`);
       });
     };
     S = blank(); S.onboarded = true; save(true);
@@ -1071,6 +1081,163 @@ try {
   check('the timer bar was actually measured', targets.timerSeen === true);
   check('every new control clears a 44px touch target', targets.count === 0,
     targets.small.join(', '));
+
+  /* ---- nothing paints on top of anything else ----
+     `collide.mjs` is documented and absent, and this is the class it existed
+     for. Two text nodes sharing a box is invisible to every other instrument
+     here: the markup is right, the words are right, the contrast is right, and
+     the screen is unreadable.
+
+     Reported from a screenshot after the day-boundary work, where the
+     after-midnight note carried a negative top margin to absorb its own 44px
+     touch target and put that box straight through the date line above it. The
+     text was quiet enough that it looked fine and measured wrong.
+
+     Text nodes only, and only between elements where neither contains the
+     other — a parent's box legitimately covers its children. */
+  const collide = await page.evaluate(() => {
+    const at = (iso, fn) => {
+      const Real = Date; const fixed = new Real(iso).getTime();
+      class Fake extends Real {
+        constructor(...a) { if (!a.length) super(fixed); else super(...a); }
+        static now() { return fixed; }
+      }
+      globalThis.Date = Fake;
+      try { return fn(); } finally { globalThis.Date = Real; }
+    };
+
+    /* Measured with a Range over the text node, not the element's box.
+       An element box includes padding, and this codebase deliberately pads
+       small interactive text out to a 44px target — so element boxes overlap
+       all over the place by design, and a checker that used them would report
+       the layout as broken everywhere and be switched off within a day. A
+       Range gives the rectangle the glyphs actually occupy, which is the thing
+       that is either readable or not. */
+    const textRects = (root) => {
+      const out = [];
+      const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let n;
+      while ((n = walk.nextNode())) {
+        if (!n.textContent.trim()) continue;
+        const el = n.parentElement;
+        if (!el) continue;
+        const cs = getComputedStyle(el);
+        if (cs.visibility === 'hidden' || cs.opacity === '0' || cs.display === 'none') continue;
+        const rg = document.createRange();
+        rg.selectNodeContents(n);
+        const r = rg.getBoundingClientRect();
+        if (r.width < 1 || r.height < 1) continue;
+        out.push({ r, t: n.textContent.trim().slice(0, 18), el });
+      }
+      return out;
+    };
+
+    const sweep = (id) => {
+      const root = document.getElementById(id);
+      if (!root) return ['no ' + id];
+      const list = textRects(root);
+      const hits = [];
+      for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+        const a = list[i], b = list[j];
+        /* Text in the same line box legitimately shares vertical space. */
+        if (a.el === b.el || a.el.contains(b.el) || b.el.contains(a.el)) continue;
+        const ox = Math.min(a.r.right, b.r.right) - Math.max(a.r.left, b.r.left);
+        const oy = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+        if (ox > 2 && oy > 2) hits.push(`${id}: "${a.t}" over "${b.t}"`);
+      }
+      return hits;
+    };
+
+    /* The states this has actually gone wrong in: a boundary set, after
+       midnight, a routine already logged, and body data on file. */
+    S = blank(); S.onboarded = true;
+    S.profile.name = 'Probe'; S.profile.units = 'lb'; S.profile.dayStart = 4;
+    S.profile.bodyweight = [{ d: today(), w: 217 }];
+    save(true); buildWeekPlan(true);
+    const rt = newRoutine('Ab Night');
+    ['bw-crunch', 'bw-bicycle', 'bw-plank'].forEach(x => addToRoutine(rt.id, x));
+    setRoutineCircuit(rt.id, true);
+    S.week.plan[today()] = { type: 'custom', routineId: rt.id, done: true, pinned: true };
+    S.sessions = [{ id: 's1', date: today(), type: 'custom', routineId: rt.id,
+      routineName: 'Ab Night', env: 'bw', rung: 'full', dur: 13, kcal: 36, ended: Date.now(),
+      exercises: [{ exId: 'bw-crunch', name: 'Crunch', load: 'time', targetR: 40,
+        sets: Array.from({ length: 7 }, () => ({ w: '', r: 40, rpe: '', done: true })), note: '' }] }];
+    S.daily[today()] = { sleepH: 4.5, weight: 217 };
+    save(true);
+
+    const hits = [];
+    /* Once in the small hours, where the note exists, and once in daylight. */
+    [['2026-08-10T01:55:00', 'late'], ['2026-08-10T14:00:00', 'day']].forEach(([iso]) => {
+      at(iso, () => {
+        ['today', 'plan', 'progress', 'more'].forEach(scr => {
+          go(scr);
+          hits.push(...sweep(scr + '-body'));
+        });
+      });
+    });
+    /* And a circuit mid-run, which is the newest and densest screen. */
+    S.active = buildRoutineSession(rt.id, false);
+    save(true); go('train');
+    completeCircuitEntry(0, 0);
+    stopRest();
+    hits.push(...sweep('train-body'));
+    S.active = null; save(true); go('today');
+    /* How much was actually looked at. A sweep that found nothing because it
+       measured nothing is the exact shape of lie this project has hit before. */
+    go('today');
+    const sample = textRects(document.getElementById('today-body'));
+    return { hits: hits.slice(0, 8), n: hits.length,
+             measured: sample.length, sampleText: sample.slice(0, 4).map(x => x.t) };
+  });
+  check('the sweep actually measured painted text', collide.measured > 15,
+    `${collide.measured} nodes: ${(collide.sampleText || []).join(', ')}`);
+  check('no two text nodes share a box on any screen', collide.n === 0,
+    collide.hits.join(' | '));
+
+  /* The swipe must not fire on a gesture that scrolled. It re-renders the
+     whole screen, and doing that inside the browser's own scroll paint is how
+     you get one frame composited on top of another. */
+  const swipeGuard = await page.evaluate(async () => {
+    S = blank(); S.onboarded = true; save(true);
+    go('today');
+    const label = () => document.querySelector('#today-body .sec-head .sec-t').textContent.trim();
+    const screen = document.getElementById('s-today');
+    const drag = (x0, y0, x1, y1, scrollDuring) => {
+      const strip = document.querySelector('#today-body .week');
+      const touch = (x, y) => new Touch({ identifier: 1, target: strip, clientX: x, clientY: y });
+      const fire = (type, x, y) => {
+        const t = touch(x, y);
+        strip.dispatchEvent(new TouchEvent(type, {
+          bubbles: true, cancelable: true,
+          touches: type === 'touchend' ? [] : [t],
+          targetTouches: type === 'touchend' ? [] : [t],
+          changedTouches: [t]
+        }));
+      };
+      screen.scrollTop = 0;
+      fire('touchstart', x0, y0);
+      if (scrollDuring) screen.scrollTop = 120;
+      fire('touchend', x1, y1);
+      screen.scrollTop = 0;
+      return label();
+    };
+    const clean = drag(300, 200, 180, 206, false);
+    await new Promise(r => requestAnimationFrame(r));
+    const afterClean = label();
+    stripOffset = 0; render();
+    const scrolled = drag(300, 200, 180, 206, true);
+    await new Promise(r => requestAnimationFrame(r));
+    const afterScrolled = label();
+    return { clean, afterClean, scrolled, afterScrolled,
+             scrollable: screen.scrollHeight > screen.clientHeight };
+  });
+  check('the screen is tall enough for the scroll case to be real', swipeGuard.scrollable === true);
+  check('a clean horizontal swipe still moves the week', swipeGuard.afterClean === 'Next week',
+    swipeGuard.afterClean);
+  check('...and it is deferred a frame, not done inside the touch',
+    swipeGuard.clean === 'This week', swipeGuard.clean);
+  check('a gesture that scrolled the screen never re-renders it',
+    swipeGuard.afterScrolled === 'This week', swipeGuard.afterScrolled);
 
   /* ---- App Store readiness ---- */
 

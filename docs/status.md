@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **593,628 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (206) + `engine` (111) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **594,853 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (212) + `engine` (111) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -153,6 +153,27 @@ The evidence card that sat at the bottom of More is gone. It was a shorter copy 
 ### The nav is a floating pill
 
 The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
+
+### A phantom card on Today — reported, not reproduced
+
+Sent as a screenshot at 1:55am: a region on Today with several pieces of text painted on top of each other — "STEPS", "TUE", "Tap to log the day around it", "4", "Off" — and the week strip below the nav missing the cell for Tuesday the 4th.
+
+**It is almost certainly a repaint artifact rather than a layout bug**, and one detail in the image settles it: "STEPS" sits on a different baseline from "SLEEP" and "WEIGHT". Those three labels each follow a fixed-height 23px value inside stretch-aligned flex cells of the same row. There is no state in which CSS puts them on different lines. Two paint states composited into one frame explains every part of the image, including a week-strip cell appearing somewhere its markup never goes.
+
+It could not be reproduced in Chromium. The state was rebuilt exactly — boundary at 4am, clock frozen at 01:55, a circuit routine logged as the day's session, sleep and weight on file, steps empty — across four screens and two times of day, sweeping every text node for overlap. Nothing.
+
+So the work went into the mechanism instead. The only thing that re-renders Today from a touch on that region is the week-strip swipe, added two changes earlier, and it had two hazards worth removing on their own merits:
+
+- **A gesture that scrolled the screen now never counts as a swipe.** The geometry test alone (horizontal travel beats vertical) lets a fast diagonal flick through, and the `render()` it triggers replaces the whole screen's markup while the browser is still painting the scroll.
+- **The move is deferred a frame.** `requestAnimationFrame` keeps the re-render out of the browser's own touch-end paint.
+
+Both were reverted individually and confirmed red.
+
+**A real, smaller bug was found on the way.** The after-midnight note bought its 44px touch target with `margin:-11px 0`, and its box ran 4.2px into the date line above — so the last few pixels of "Sun 9 Aug" opened the day-boundary setting instead. Fixed with padding below rather than a negative margin above.
+
+Two things I got wrong while chasing this, both worth recording. The first detector measured element boxes and reported overlaps everywhere, because this codebase pads small interactive text out to 44px on purpose; it now measures painted glyphs with a Range over the text node. And the negative margin turned out not to move anything at all — `.home-late` is `inline-flex`, so it sits on a line box and a negative vertical margin resizes the line rather than shifting the text. `margin-top:-16px` moved its glyphs by one pixel. The hit-target overlap was real; the visual one I assumed alongside it never existed.
+
+The sweep is now part of `blanks.mjs`, asserts how much text it measured, and was proven red against a deliberate collision.
 
 ### A movement had one unit, and a routine had one shape
 

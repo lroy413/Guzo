@@ -791,10 +791,17 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .home-date{font-size:12.5px;color:var(--faint);margin-top:4px;letter-spacing:.02em}
 /* The after-midnight note. Tappable — it is also the way to the setting that
    put it there — so it carries a full touch target without looking like a
-   button, because it is a statement first. */
-.home-late{display:inline-flex;align-items:center;min-height:44px;margin:-11px 0 -11px;
+   button, because it is a statement first.
+
+   The target is bought with padding below rather than negative margins above.
+   The first version pulled itself up 11px to absorb its own touch target and
+   landed its 44px box on top of the date line — invisible at this font size
+   and this colour, and a real overlap. Two text nodes must never share a box
+   just because one of them is quiet enough to get away with it. */
+.home-late{display:inline-flex;align-items:flex-start;min-height:44px;padding:6px 0 0;
+  margin:0 0 -8px;
   font:inherit;font-size:12px;font-weight:650;color:var(--ember);
-  background:none;border:0;padding:0;text-align:left;letter-spacing:.01em}
+  background:none;border:0;text-align:left;letter-spacing:.01em}
 .streak-chip{display:flex;align-items:center;gap:9px;padding:9px 13px;border-radius:14px;flex:none;
   background:linear-gradient(180deg,rgba(233,180,76,.13),rgba(233,180,76,.04));
   border:1px solid var(--ember-line);box-shadow:var(--inset)}

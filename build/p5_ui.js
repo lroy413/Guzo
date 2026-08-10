@@ -505,22 +505,41 @@ function weekStripHTML(extra) {
    scrolling past it, and stealing that would make the dashboard feel broken.
    The CSS says touch-action:pan-y for the same reason. */
 (function weekSwipe() {
-  let x0 = null, y0 = null, on = false;
+  let x0 = null, y0 = null, t0 = 0, scroll0 = 0, on = false;
   const SLOP = 44;
+  const scroller = () => document.getElementById('s-' + SCREEN);
+
   document.addEventListener('touchstart', e => {
     on = !!(e.target.closest && e.target.closest('.week'));
     if (!on) return;
     x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    t0 = Date.now();
+    const sc = scroller();
+    scroll0 = sc ? sc.scrollTop : 0;
   }, { passive: true });
+
   document.addEventListener('touchend', e => {
-    if (!on || x0 == null) { on = false; return; }
+    const wasOn = on; on = false;
     const t = e.changedTouches && e.changedTouches[0];
-    on = false;
-    if (!t) return;
-    const dx = t.clientX - x0, dy = t.clientY - y0;
+    const sx = x0, sy = y0, st = t0, s0 = scroll0;
     x0 = y0 = null;
+    if (!wasOn || sx == null || !t) return;
+
+    const dx = t.clientX - sx, dy = t.clientY - sy;
     if (Math.abs(dx) < SLOP || Math.abs(dx) <= Math.abs(dy)) return;
-    stepStripWeek(dx < 0 ? 1 : -1);   // drag left, move forward
+    /* A gesture that scrolled the screen was a scroll, whatever its shape. The
+       geometry check alone lets a fast diagonal flick through, and the render
+       it triggers replaces the whole screen's markup while the browser is
+       still painting the scroll. */
+    const sc = scroller();
+    if (sc && Math.abs(sc.scrollTop - s0) > 4) return;
+    /* And a slow drag is someone holding the screen, not swiping it. */
+    if (Date.now() - st > 700) return;
+
+    /* Deferred a frame so the re-render never lands inside the browser's own
+       touch-end paint. */
+    const dir = dx < 0 ? 1 : -1;   // drag left, move forward
+    requestAnimationFrame(() => stepStripWeek(dir));
   }, { passive: true });
 })();
 
