@@ -1394,6 +1394,85 @@ try {
     /\d+ more marker/.test(markers.remainder), markers.remainder);
   check('no placeholder text in the markers card', !BAD.test(markers.text));
 
+  /* ---- motion ----
+     A screen should feel like it arrived, and the app has one set of curves so
+     that nothing in it moves in a way nothing else does. Two things can go
+     wrong and both are invisible to every other check here: the arrival never
+     replays (so navigating back to a screen you have seen feels dead), or it
+     replays on every render (so ticking a set re-animates the whole screen). */
+  const motion = await page.evaluate(async () => {
+    S = blank(); S.onboarded = true; save(true);
+    const el = () => document.getElementById('s-today');
+    go('more');
+    go('today');
+    const onArrival = el().classList.contains('entering');
+    /* It has to come off, or the next arrival cannot replay it. */
+    await new Promise(r => setTimeout(r, 850));
+    const settled = el().classList.contains('entering');
+    /* And once it has, an ordinary render — ticking a set, logging a weight,
+       any of the dozens of handlers that call render() — must not re-animate
+       the whole screen. That is the difference between motion that explains
+       something and motion that is just movement. */
+    render();
+    const afterRender = el().classList.contains('entering');
+    go('progress'); go('today');
+    const replays = el().classList.contains('entering');
+
+    const cs = getComputedStyle(document.documentElement);
+    return {
+      onArrival, afterRender, settled, replays,
+      ease: cs.getPropertyValue('--ease-out').trim(),
+      dur: cs.getPropertyValue('--t').trim()
+    };
+  });
+  check('arriving on a screen animates it', motion.onArrival === true);
+  check('...it clears itself once it has played', motion.settled === false);
+  check('...and an ordinary render does not re-animate the screen',
+    motion.afterRender === false, String(motion.afterRender));
+  check('...and replays when you come back', motion.replays === true);
+  check('the motion tokens exist', motion.ease.startsWith('cubic-bezier') && !!motion.dur,
+    `${motion.ease} / ${motion.dur}`);
+
+  /* Every animation added has to be inside a no-preference guard. Someone who
+     has asked their phone to stop moving things has asked this app too. */
+  const reduced = await page.evaluate(() => {
+    const wanted = ['riseIn', 'tickPop', 'tickDraw'];
+    const guarded = {};
+    wanted.forEach(k => { guarded[k] = false; });
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      for (const rule of rules) {
+        if (rule.type !== CSSRule.MEDIA_RULE) continue;
+        if (!/prefers-reduced-motion\s*:\s*no-preference/.test(rule.conditionText || '')) continue;
+        const txt = rule.cssText;
+        wanted.forEach(k => { if (txt.includes(k)) guarded[k] = true; });
+      }
+    }
+    return guarded;
+  });
+  check('the screen arrival is behind reduced-motion', reduced.riseIn === true);
+  check('the set tick flourish is behind reduced-motion', reduced.tickPop === true);
+  check('...including its mark', reduced.tickDraw === true);
+
+  /* The sky is ambient only. Every surface, line and text colour was measured
+     for contrast; the light in the room may change, the room may not. */
+  const skyScope = await page.evaluate(() => {
+    const bands = ['dawn', 'day', 'dusk', 'night'];
+    const root = document.documentElement;
+    const was = root.getAttribute('data-sky');
+    go('today');
+    const read = () => {
+      const cs = getComputedStyle(root);
+      return ['--text', '--muted', '--faint', '--surface', '--surface-2', '--line', '--ember']
+        .map(v => cs.getPropertyValue(v).trim()).join('|');
+    };
+    const seen = bands.map(b => { root.setAttribute('data-sky', b); return read(); });
+    root.setAttribute('data-sky', was || 'day');
+    return { same: new Set(seen).size === 1, seen: seen.slice(0, 2) };
+  });
+  check('the sky never moves a colour that was measured for contrast',
+    skyScope.same === true, skyScope.seen.join('  VS  '));
+
   /* ---- App Store readiness ---- */
 
   /* A subscription offer with nothing behind it reads as an incomplete app. */

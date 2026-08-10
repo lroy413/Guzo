@@ -885,6 +885,58 @@ try {
   check('forty sessions never reads as 40 of 5', capped.have === 5, String(capped.have));
   check('...nor as 800 per cent', capped.pct === 100, String(capped.pct));
 
+  // ================= 10. the sky ==========================================
+  console.log('\nthe sky\n');
+
+  /* The ambient light in the app follows the light outside it. The one thing
+     that must not happen is it following `today()` instead: dayStart moves
+     where your day ends and it does not move sunrise, so at 2am with a 4am
+     boundary the app correctly says Sunday and must still draw a night sky. */
+  const sky = await page.evaluate(`(() => {
+    ${CLOCK}
+    S = blank(); S.onboarded = true; save(true);
+    const bands = {};
+    [0, 3, 4, 5, 8, 9, 12, 16, 17, 20, 21, 23].forEach(hr => {
+      const iso = '2026-08-11T' + String(hr).padStart(2, '0') + ':30:00';
+      bands[hr] = at(iso, () => skyBand());
+    });
+    S.profile.dayStart = 4;
+    const lateNight = at('2026-08-11T02:30:00', () => ({ sky: skyBand(), day: today(), wall: dk() }));
+    /* 06:30 is where a wrong implementation actually shows: the wall clock
+       says dawn, and an hour shifted by the 4am boundary would say night.
+       At 02:30 both answers are "night", so testing only there proves
+       nothing — which is what the first version of this check did. */
+    const shifted = at('2026-08-11T06:30:00', () => ({ sky: skyBand(), day: today(), wall: dk() }));
+    S.profile.dayStart = 0;
+    const unshifted = at('2026-08-11T06:30:00', () => skyBand());
+    const applied = at('2026-08-11T02:30:00', () => { syncSky(); return document.documentElement.getAttribute('data-sky'); });
+    const daylight = at('2026-08-11T12:00:00', () => { syncSky(); return document.documentElement.getAttribute('data-sky'); });
+    return { bands, lateNight, shifted, unshifted, applied, daylight };
+  })()`);
+  check('the small hours are night', sky.bands[0] === 'night' && sky.bands[3] === 'night',
+    `${sky.bands[0]}/${sky.bands[3]}`);
+  check('five to nine is dawn', sky.bands[5] === 'dawn' && sky.bands[8] === 'dawn',
+    `${sky.bands[5]}/${sky.bands[8]}`);
+  check('...and four is not', sky.bands[4] === 'night', sky.bands[4]);
+  check('the working day is day', sky.bands[9] === 'day' && sky.bands[16] === 'day',
+    `${sky.bands[9]}/${sky.bands[16]}`);
+  check('the evening is dusk', sky.bands[17] === 'dusk' && sky.bands[20] === 'dusk',
+    `${sky.bands[17]}/${sky.bands[20]}`);
+  check('...and it is night again by nine', sky.bands[21] === 'night' && sky.bands[23] === 'night',
+    `${sky.bands[21]}/${sky.bands[23]}`);
+  /* The one that matters. */
+  check('the boundary still shifts the date at 2:30am',
+    sky.lateNight.day === '2026-08-10' && sky.lateNight.wall === '2026-08-11',
+    JSON.stringify(sky.lateNight));
+  /* The property that matters, tested where the two answers differ. */
+  check('...but a 4am boundary does not move sunrise',
+    sky.shifted.sky === 'dawn' && sky.shifted.day === '2026-08-11',
+    JSON.stringify(sky.shifted));
+  check('...and the boundary makes no difference to the sky at all',
+    sky.shifted.sky === sky.unshifted, `${sky.shifted.sky} vs ${sky.unshifted}`);
+  check('syncSky puts the band on the document', sky.applied === 'night', String(sky.applied));
+  check('...and changes it when the hour does', sky.daylight === 'day', String(sky.daylight));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

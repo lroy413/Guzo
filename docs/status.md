@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **613,638 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (242) + `engine` (120) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **621,107 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (251) + `engine` (131) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -153,6 +153,24 @@ The evidence card that sat at the bottom of More is gone. It was a shorter copy 
 ### The nav is a floating pill
 
 The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
+
+### A design-system pass, and a sky
+
+Asked for as a whole-app job: make it feel premium, keep the UX efficient, lean into the theme, have some fun with it. What follows is the system-level part of that — the things that change how every screen feels rather than how one screen looks.
+
+**Motion has tokens now.** Three curves and three durations, used everywhere, so nothing in the app moves in a way nothing else does. Every duration is short: motion exists to explain where something came from, and past about 400ms it stops explaining and starts costing.
+
+**Screens arrive rather than cross-fade.** The whole screen used to fade in as one block, which reads as a slide deck; content now comes up in sequence, first thing first. The stagger is driven by an `.entering` class that `go()` adds and a timer removes — deliberately not by `.screen.on`, because every render replaces the body's innerHTML and the animation would otherwise replay every time you ticked a set. Navigation is the only thing that should feel like arriving.
+
+**One response to a finger.** Several components had their own press state and several had none, which is the difference you feel without being able to name it.
+
+**The nav's selected pill grows into place** from under the icon instead of appearing fully formed, and the icon lifts a point. **The set tick — the single most repeated interaction in the app — got the one piece of deliberate delight in it**, driven by a transient class from the handler rather than by `.on`, so it fires when you tick a set and not eight times over when a card re-renders with sets already ticked.
+
+**And the app is under a sky.** A journey on foot happens under one that changes, and this app gets used at 6am before a call time and at 2am after one. The ambient gradient shifts through dawn, day, dusk and night on a 1.2-second fade you should never catch happening.
+
+Two rules make it safe. It touches **only** the background gradient — every surface, line and text colour is identical in all four bands, so nothing that was measured for contrast moves, and `blanks.mjs` asserts exactly that by reading the tokens in each band and requiring them to match. And it reads the **wall clock**, not `today()`: `profile.dayStart` moves where your day ends and it does not move sunrise, so at 2am with a 4am boundary the app correctly says Sunday and correctly draws a night sky.
+
+That last property took two attempts to test honestly. The first check asserted it at 02:30, where a correct implementation and one that shifted the hour by the boundary both answer "night" — it proved nothing. It now tests at 06:30, where the answers differ, and prints `night vs dawn` when reverted.
 
 ### Progress was correct and lifeless
 

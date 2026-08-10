@@ -117,11 +117,30 @@ document.addEventListener('keydown', e => {
 })();
 
 let SCREEN = 'today';
+/* Which sky the app is under.
+   Wall clock, deliberately — profile.dayStart moves where your *day* ends, and
+   it does not move sunrise. At 2am with the boundary at 4am the app correctly
+   says it is still Sunday, and just as correctly draws a night sky. */
+function skyBand() {
+  const hr = new Date().getHours();
+  if (hr >= 5 && hr < 9) return 'dawn';
+  if (hr >= 9 && hr < 17) return 'day';
+  if (hr >= 17 && hr < 21) return 'dusk';
+  return 'night';
+}
+
+function syncSky() {
+  const el = document.documentElement;
+  const band = skyBand();
+  if (el.getAttribute('data-sky') !== band) el.setAttribute('data-sky', band);
+}
+
 function go(name) {
   SCREEN = name;
   /* Leaving a screen and coming back lands on this week. "This week" on a
      dashboard has to mean this week, not wherever you last browsed to. */
   stripOffset = 0;
+  syncSky();
   $$('.screen').forEach(s => s.classList.remove('on'));
   const el = $('#s-' + name);
   if (el) el.classList.add('on');
@@ -135,6 +154,23 @@ function go(name) {
      go through here. */
   a11yPass(el || undefined);
   if (el) el.scrollTop = 0;   // the screen scrolls, the page never does
+  enterScreen(el);
+}
+
+/* Restart the arrival animation for one screen.
+   The class has to come off and go back on with a reflow between, or the
+   browser sees no change and the animation never replays — which is what makes
+   navigating back to a screen you have already visited feel dead. Cleared on a
+   timer rather than animationend, because animationend fires once per child
+   and the last one is not guaranteed to be the longest. */
+let enterTimer = null;
+function enterScreen(el) {
+  if (!el) return;
+  el.classList.remove('entering');
+  void el.offsetWidth;
+  el.classList.add('entering');
+  clearTimeout(enterTimer);
+  enterTimer = setTimeout(() => el.classList.remove('entering'), 700);
 }
 
 function render() {

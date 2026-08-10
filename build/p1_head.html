@@ -18,6 +18,7 @@
    ============================================================ */
 :root{
   --bg:#0a0c0f;
+  /* The light in the app follows the light outside it — see [data-sky] below. */
   --bg-grad:radial-gradient(1200px 600px at 50% -10%, #16202b 0%, #0a0c0f 60%);
   --surface:#12161c;
   --surface-2:#181d24;
@@ -46,6 +47,20 @@
   --sky:#6ba8f5;
   --sky-dim:rgba(107,168,245,.13);
 
+  /* ---- motion ----
+     Three curves and three speeds, used everywhere, so nothing in the app
+     moves in a way nothing else does. --ease-out is the workhorse; --ease-spring
+     overshoots very slightly and is only for something arriving; --ease-in-out
+     is for a thing that moves and settles in place.
+
+     Every duration here is short. A premium interface is not a slow one — the
+     motion exists to explain where something came from, and past about 400ms
+     it stops explaining and starts costing. */
+  --ease-out:cubic-bezier(.22,.9,.3,1);
+  --ease-spring:cubic-bezier(.22,1.12,.36,1);
+  --ease-in-out:cubic-bezier(.5,.05,.2,1);
+  --t-fast:.14s; --t:.22s; --t-slow:.38s;
+
   --r-sm:10px; --r:14px; --r-lg:20px; --r-xl:26px;
   --sp:16px;
   --shadow:0 18px 48px rgba(0,0,0,.5);
@@ -54,6 +69,36 @@
   --safe-t:env(safe-area-inset-top,0px);
   --ff:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --fm:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;
+}
+
+/* ---------- the sky ----------
+   A journey on foot happens under a sky that changes, and this app is used at
+   6am before a call time and at 2am after one. The background carries that:
+   the same dark surface all day, with the light above the horizon shifting
+   from a cold pre-dawn to a warm one, flat daylight, a low evening, and the
+   deep blue of a night that has gone on too long.
+
+   Deliberately only the ambient gradient. Every surface, every line and every
+   text colour is untouched, so nothing that was measured for contrast moves —
+   this is the light in the room, not a re-theme. The transition is slow
+   because it should never be something you catch happening. */
+html{transition:background-color 1.2s linear}
+body{transition:background-image 1.2s linear}
+[data-sky="dawn"]{
+  --bg:#0b0d10;
+  --bg-grad:radial-gradient(1200px 620px at 50% -12%, #2a2320 0%, #131117 34%, #0b0d10 66%);
+}
+[data-sky="day"]{
+  --bg:#0a0c0f;
+  --bg-grad:radial-gradient(1200px 600px at 50% -10%, #1a2733 0%, #0f151c 38%, #0a0c0f 68%);
+}
+[data-sky="dusk"]{
+  --bg:#0b0b0f;
+  --bg-grad:radial-gradient(1200px 620px at 50% -12%, #2b1f24 0%, #15121a 36%, #0b0b0f 68%);
+}
+[data-sky="night"]{
+  --bg:#08090d;
+  --bg-grad:radial-gradient(1200px 640px at 50% -14%, #131a2b 0%, #0c0e16 38%, #08090d 70%);
 }
 
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -100,10 +145,46 @@ input[type=number]{-moz-appearance:textfield}
 @supports (height:100dvh){#app{height:100dvh}}
 .screen{display:none;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;
   -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
-  padding:calc(var(--safe-t) + 14px) var(--sp) 28px;width:100%;animation:fade .28s ease}
+  padding:calc(var(--safe-t) + 14px) var(--sp) 28px;width:100%}
 .screen.on{display:block}
 .screen > *{max-width:640px;margin-left:auto;margin-right:auto}
 @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* ---------- arriving on a screen ----------
+   The whole screen used to cross-fade as one block, which reads as a slide
+   deck. Content arrives in sequence instead: the first thing you look at
+   settles first and the rest follow it up the page.
+
+   Fired by a class that go() adds and removes rather than by the animation
+   sitting on .screen.on, because every render replaces the body's innerHTML —
+   left to itself this would re-animate the entire screen every time you ticked
+   a set. Navigation is the only thing that should feel like arriving. */
+@keyframes riseIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:no-preference){
+  .screen.entering > div > *{animation:riseIn .34s var(--ease-out) both}
+  .screen.entering > div > *:nth-child(1){animation-delay:0ms}
+  .screen.entering > div > *:nth-child(2){animation-delay:34ms}
+  .screen.entering > div > *:nth-child(3){animation-delay:68ms}
+  .screen.entering > div > *:nth-child(4){animation-delay:100ms}
+  .screen.entering > div > *:nth-child(5){animation-delay:128ms}
+  .screen.entering > div > *:nth-child(6){animation-delay:152ms}
+  /* Everything past the sixth arrives together — a stagger that keeps counting
+     turns into a wait, and past the sixth card you are below the fold anyway. */
+  .screen.entering > div > *:nth-child(n+7){animation-delay:170ms}
+}
+
+/* ---------- press ----------
+   One response to a finger, everywhere. Several components had their own and
+   several had none, which is the difference you feel without being able to
+   name it. Scoped to things that actually do something. */
+@media (prefers-reduced-motion:no-preference){
+  .card[data-act],.lrow[data-act],.tile[data-act],.jnode[data-act],
+  .log-i[data-act],.route[data-act],.day[data-act],.dayrow[data-act]{
+    transition:transform var(--t-fast) var(--ease-out),background var(--t-fast) ease}
+  .card[data-act]:active,.lrow[data-act]:active,.tile[data-act]:active,
+  .jnode[data-act]:active,.log-i[data-act]:active,.route[data-act]:active,
+  .day[data-act]:active,.dayrow[data-act]:active{transform:scale(.982)}
+}
 .row{display:flex;align-items:center;gap:10px}
 .row.between{justify-content:space-between}
 .row.wrap{flex-wrap:wrap}
@@ -488,12 +569,22 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 }
 .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
   gap:2px;padding:7px 2px;min-height:46px;border-radius:999px;
-  color:var(--faint);transition:color .2s ease,background .2s ease;position:relative}
+  color:var(--faint);transition:color var(--t) ease;position:relative}
 /* The selected tab is a filled pill rather than a hairline above the icon —
    a 2px rule antialiases away at this size, which is the same reason the
-   arrows in this app are stroked paths and not text glyphs. */
-.nav-btn.on{color:var(--ember);background:var(--ember-dim)}
-.nav-btn svg{width:20px;height:20px;stroke-width:1.9}
+   arrows in this app are stroked paths and not text glyphs.
+   The pill is a pseudo-element so it can scale up from under the icon instead
+   of appearing fully formed: the tab you chose grows into place. */
+.nav-btn::before{content:'';position:absolute;inset:0;border-radius:999px;
+  background:var(--ember-dim);transform:scale(.72);opacity:0;
+  transition:transform var(--t) var(--ease-spring),opacity var(--t-fast) ease}
+.nav-btn.on::before{transform:none;opacity:1}
+.nav-btn svg,.nav-btn span{position:relative;z-index:1}
+.nav-btn.on{color:var(--ember)}
+.nav-btn svg{width:20px;height:20px;stroke-width:1.9;
+  transition:transform var(--t) var(--ease-spring)}
+.nav-btn.on svg{transform:translateY(-1px) scale(1.06)}
+.nav-btn:active svg{transform:scale(.9)}
 .nav-btn span{font-size:11px;font-weight:600;letter-spacing:.01em}
 
 /* The nav no longer takes up flow space, so every screen it floats over has
@@ -664,6 +755,17 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .tick:active{transform:scale(.9)}
 .tick.on{background:rgba(79,209,165,.9);border-color:transparent;color:#06251d}
 .tick svg{width:16px;height:16px;stroke-width:3.2}
+/* The single most repeated interaction in the app gets the one piece of
+   deliberate delight in it. Driven by a transient class from the handler
+   rather than by `.on`, so it fires when you tick a set and not every time a
+   card re-renders with sets already ticked — a screen that pops eight times
+   on arrival is a nervous tic, not a flourish. */
+@media (prefers-reduced-motion:no-preference){
+  .tick.pop{animation:tickPop .34s var(--ease-spring)}
+  .tick.pop svg{animation:tickDraw .3s var(--ease-out)}
+}
+@keyframes tickPop{0%{transform:scale(.86)}55%{transform:scale(1.09)}100%{transform:none}}
+@keyframes tickDraw{from{opacity:0;transform:scale(.5) rotate(-12deg)}to{opacity:1;transform:none}}
 .set-head{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) 52px 46px;gap:7px;padding:0 4px 7px;
   font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;font-weight:700;text-align:center}
 .ghost-note{font-size:11.5px;color:var(--faint);font-family:var(--fm);text-align:center;padding:2px 0 6px}

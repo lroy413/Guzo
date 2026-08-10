@@ -588,6 +588,11 @@ document.addEventListener('click', ev => {
       if (row) {
         row.classList.toggle('done', st.done);
         t.classList.toggle('on', st.done);
+        /* Transient, so the flourish belongs to the tap. Removed on a timer
+           because the class is what triggers it and it has to be gone before
+           the next one. */
+        if (st.done) { t.classList.remove('pop'); void t.offsetWidth; t.classList.add('pop');
+          setTimeout(() => t.classList.remove('pop'), 400); }
         const wi = row.querySelector('[data-set="w"]');
         const ri = row.querySelector('[data-set="r"]');
         if (wi) wi.value = st.w === '' || st.w == null ? '' : st.w;
@@ -1271,6 +1276,12 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
   try {
     STORAGE_OK = storageProbe();
     a11yWatch();
+    syncSky();
+    /* The sky is checked on a timer as well as on every navigation, because
+       the app is often left open on a bench between sets and the light should
+       have moved when you look back at it. Cheap: it sets an attribute only
+       when the band actually changes. */
+    setInterval(syncSky, 300000);
     const had = load();
     const ingested = ingestFromURL();
     S.meta.lastOpen = new Date().toISOString();
