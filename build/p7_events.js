@@ -1,24 +1,59 @@
 /* ============================================================
    REST TIMER
    ============================================================ */
-let restEnd = 0, restTotal = 0, restTick = null;
-function startRest(seconds, label) {
-  restTotal = seconds;
-  restEnd = Date.now() + seconds * 1000;
+/* One countdown, two jobs.
+   ------------------------
+   It was only ever a rest timer. A movement measured in seconds needs the same
+   thing pointed the other way — count the work, not the gap after it — and
+   running two timers with two bars would mean two things on screen fighting
+   for the same corner. So the bar takes a label, an appearance, and something
+   to do when it reaches zero.
+
+   `onDone` is captured before stopRest() clears it, because the callback ticks
+   a set and may start the next timer immediately. */
+let restEnd = 0, restTotal = 0, restTick = null, restDone = null;
+
+function startRest(seconds, label, opts) {
+  opts = opts || {};
+  restTotal = Math.max(1, seconds);
+  restEnd = Date.now() + restTotal * 1000;
+  restDone = opts.onDone || null;
   $('#rest-label').textContent = label || 'Rest';
-  $('#rest-bar').classList.add('on');
+  const bar = $('#rest-bar');
+  bar.classList.add('on');
+  bar.classList.toggle('work', !!opts.work);
+  /* Skipping a rest is finishing it early; skipping a work interval is
+     stopping it. The label has to say which. */
+  $('#rest-skip').textContent = opts.work ? 'Stop' : 'Skip';
+  $('#rest-add').classList.toggle('hide', !!opts.work);
   clearInterval(restTick);
   restTick = setInterval(tickRest, 200);
   tickRest();
 }
+
 function tickRest() {
   const left = Math.max(0, Math.round((restEnd - Date.now()) / 1000));
   const m = Math.floor(left / 60), s = left % 60;
   $('#rest-t').textContent = m + ':' + String(s).padStart(2, '0');
   $('#rest-bar-fill').style.width = Math.max(0, (left / restTotal) * 100) + '%';
-  if (left <= 0) { stopRest(); buzz([90, 60, 90]); toast('Rest done', true); }
+  if (left <= 0) {
+    const cb = restDone;
+    stopRest();
+    buzz([90, 60, 90]);
+    if (cb) cb(); else toast('Rest done', true);
+  }
 }
-function stopRest() { clearInterval(restTick); $('#rest-bar').classList.remove('on'); }
+
+function stopRest() {
+  clearInterval(restTick);
+  restTick = null;
+  restDone = null;
+  const bar = $('#rest-bar');
+  bar.classList.remove('on');
+  bar.classList.remove('work');
+}
+
+function timerRunning() { return $('#rest-bar').classList.contains('on'); }
 
 /* ============================================================
    SESSION LIFECYCLE
@@ -592,6 +627,42 @@ document.addEventListener('click', ev => {
       replaceExCard(i); save(); break;
     }
     case 'swap-ex': sheetExercisePicker('swap', i); break;
+    /* ---- the circuit runner ---- */
+    case 'circ-start': {
+      const item = S.active.exercises[i];
+      const st = item && item.sets[si];
+      if (!st || st.done) break;
+      const secs = item.load === 'min' ? item.targetR * 60 : item.targetR;
+      /* The set is ticked by the timer finishing, not by starting it. Ticking
+         up front would record work you have not done yet if you stop. */
+      startRest(secs, item.name, { work: true, onDone: () => {
+        completeCircuitEntry(i, si);
+        toast('Done — next', true);
+      }});
+      break;
+    }
+    case 'circ-done': { stopRest(); completeCircuitEntry(i, si); break; }
+    case 'circ-undo': {
+      const A = S.active;
+      if (!A) break;
+      stopRest();
+      /* Walk back to the last ticked entry in circuit order. */
+      const list = circuitItems(A);
+      const rounds = Math.max(1, A.rounds || 1);
+      let found = null;
+      for (let r = 0; r < rounds; r++)
+        for (let n = 0; n < list.length; n++) {
+          const st = A.exercises[list[n]].sets[r];
+          if (st && st.done) found = { ei: list[n], r };
+        }
+      if (!found) break;
+      const st = A.exercises[found.ei].sets[found.r];
+      st.done = false; st.r = '';
+      A.exercises[found.ei].collapsed = false;
+      save(); renderTrain(); buzz();
+      break;
+    }
+
     case 'add-exercise': sheetExercisePicker('add', null); break;
     case 'pick-env': renderPicker(($('#pick-q')||{}).value || '', v); break;
     case 'pick-ex': {
@@ -952,6 +1023,16 @@ document.addEventListener('click', ev => {
     case 'rt-move':   { moveInRoutine(v, i, +t.dataset.d); sheetRoutineEdit(v); break; }
     case 'rt-adj':    { adjustRoutineItem(v, i, t.dataset.f, +t.dataset.d); sheetRoutineEdit(v); break; }
     case 'rt-emoji':  { setRoutineEmoji(v, t.dataset.e); sheetRoutineEdit(v); break; }
+    case 'rt-mode':   { setItemMode(v, i, t.dataset.m); sheetRoutineEdit(v); break; }
+    case 'rt-circuit': {
+      const r = routineById(v);
+      if (!r) break;
+      setRoutineCircuit(v, !r.circuit);
+      sheetRoutineEdit(v); render(); buzz();
+      break;
+    }
+    case 'rt-rounds': { adjustRoutineRounds(v, +t.dataset.d); sheetRoutineEdit(v); break; }
+    case 'rt-rest':   { adjustRoutineRest(v, +t.dataset.d); sheetRoutineEdit(v); break; }
     case 'rt-warmup': {
       const r = routineById(v);
       if (!r) break;
@@ -1051,6 +1132,39 @@ document.addEventListener('click', ev => {
 });
 
 /* Swap a single exercise card without touching the rest of the screen */
+/* Tick one entry of a circuit and move on.
+   Rest goes after the whole round, never between movements — that is the
+   difference between a circuit and an ordinary session, and it is the thing
+   that was asked for. */
+function completeCircuitEntry(ei, round) {
+  const A = S.active;
+  if (!A) return;
+  const item = A.exercises[ei];
+  const st = item && item.sets[round];
+  if (!st || st.done) return;
+
+  st.done = true;
+  if (st.r === '' || st.r == null) st.r = item.targetR || '';
+  if ((st.w === '' || st.w == null) && item.targetW != null && item.targetW !== '') st.w = item.targetW;
+  buzz();
+  save();
+
+  const list = circuitItems(A);
+  const rounds = Math.max(1, A.rounds || 1);
+  const wasLastOfRound = list[list.length - 1] === ei;
+  const moreRounds = round + 1 < rounds;
+
+  renderTrain();
+
+  if (wasLastOfRound && moreRounds && A.restRound > 0) {
+    startRest(A.restRound, 'Round ' + (round + 1) + ' done — rest', {
+      onDone: () => { if (SCREEN === 'train' && S.active) { toast('Round ' + (round + 2), true); renderTrain(); } }
+    });
+  } else if (wasLastOfRound && !moreRounds) {
+    toast('Circuit finished', true);
+  }
+}
+
 function replaceExCard(i) {
   const el = document.querySelector('.ex-card[data-ei="' + i + '"]');
   if (!el || !S.active) return;

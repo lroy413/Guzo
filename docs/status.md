@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **572,670 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (173) + `engine` (88) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **593,628 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (206) + `engine` (111) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -17,6 +17,8 @@ Last sweep: `dupes` + `blanks` (173) + `engine` (88) + `fuel` (37) + `sw` (17) +
 | Week ordering | Complete and new. Pin / swap / reflow, move a session between days, place one on an empty day. |
 | "Already trained this week" | Complete. Marks days spent without inventing session records. |
 | Custom routines | Complete. Build, reorder, run as an extra, or assign to a planned day, with an optional warm-up per routine. The builder and the picker hold their scroll position through every tap. |
+| Reps or seconds | Complete. Any movement that is not a loaded compound can be counted either way, per routine item. A timed one counts itself down on the Train screen. |
+| Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
 | When a day ends | Complete. `profile.dayStart` moves the boundary off midnight, up to 6am. Applied inside `today()`, so the whole app moves with it. Default 0. |
 | Two sessions a day | Complete. Both are kept and both are shown; the session that discharged the day names it. |
 | The week strip | Complete. Arrows and swipe move it between weeks — back as far as your first session, forward to next week. A day opens on a summary; the editors are one tap in. |
@@ -151,6 +153,30 @@ The evidence card that sat at the bottom of More is gone. It was a shorter copy 
 ### The nav is a floating pill
 
 The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
+
+### A movement had one unit, and a routine had one shape
+
+Two requests that turned out to be the same gap: the app was deciding things it should have been asking.
+
+**Reps or seconds is the item's choice now.** The catalogue gives every exercise one load type, which is correct for a barbell — a back squat is reps under load and nothing else — and wrong for everything you might hold or keep moving through. A crunch is 15 reps or 40 seconds depending on how you train, and the app was picking.
+
+A routine item carries `mode`, the catalogue still supplies the default, and `itemLoad()` resolves the two. **Session exercises carry the resolved load rather than the catalogue's**, so `exerciseSeconds`, `setSummary`, the set-row labels and the progression guard all read the item. That last one matters more than it looks: `applyProgression`'s unloaded branch adds a rep every time you clear the target, so a movement switched to seconds would have ratcheted its rep target every time you held it *longer*. Twelve timed sessions took it from 15 to 27 when the guard was reverted to prove the check.
+
+The choice is withheld from loaded compounds. Reps against a working weight is the entire mechanism there — the progression, the plate maths and the e1RM all read it — and switching a bench press to seconds would quietly turn all of that off in exchange for a number nobody wants.
+
+**A timed movement counts itself down.** The rest bar was only ever a rest timer; it now takes a label, an appearance and something to do at zero, so the same bar counts work in teal and rest in ember. Starting it does not tick the set — the timer finishing does — because ticking up front would record work you have not done if you stop halfway.
+
+**Circuits.** Asked as a question worth answering directly: *"I work each exercise once for the duration or reps and move to the next like a superset and then do the whole routine in 3 sets. Is that interval training?"* It is a **circuit**. Interval training means prescribed work-and-rest periods; a circuit means working through a list and repeating it. A circuit whose movements are all timed is fairly called both, which is what this now builds.
+
+A routine can be set to run as one: rounds, and a rest that goes after the round rather than between movements. Per-movement set counts disappear when it is on, because a pass through the list *is* the set.
+
+The Train screen becomes a runner for it. A list of six cards with three set rows each is eighteen checkboxes to hunt for while you are moving continuously — the card screen assumes you stop between sets, which in a circuit you specifically do not. The runner shows one movement, the round you are on, and what is next. **Where you are is derived from which sets are ticked, not stored**: set `r` of exercise `i` is round `r`, so it survives a reload, a crash and leaving the session half-done, and there is no second copy of the truth to go stale. The underlying session is unchanged, so volume, energy, progression and history all work on it without knowing.
+
+Reverting the round-major walk to exercise-major printed `Crunch > Crunch > Bicycle > Bicycle > Plank > Plank` — a superset, which is the thing a circuit is not.
+
+**A check I had to rewrite.** "A movement set to seconds never earns reps" asserted `lifts[].r` stayed `null`, and it went red immediately: `targetFor()` seeds that field at the catalogue's low rep the first time an exercise is used. The value was never *progressed*, just initialised. Asserting it stays at the seed across twelve sessions is the real property and is properly falsifiable.
+
+**And a mistake of my own worth recording.** I ran `git checkout build/p1_head.html` to undo a one-line regression probe and discarded every CSS change for this feature along with it. The suite caught it — the touch-target check went red with `rt-mode=33` — but only because that check existed. `git checkout <file>` takes the whole file, not the last edit.
 
 ### Midnight was treated as a fact about people
 

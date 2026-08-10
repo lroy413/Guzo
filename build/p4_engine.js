@@ -433,7 +433,11 @@ function applyProgression(sess) {
       }
     });
 
-    if (ex.load === 'time' || ex.load === 'min') return; // no load progression on held/timed work
+    /* The item's load, not the catalogue's. A movement can be set to seconds
+       in a routine, and progressing a weight against a number that is now a
+       duration would push the bar up every time you held it longer. */
+    const load = item.load || ex.load;
+    if (load === 'time' || load === 'min') return; // no load progression on held/timed work
 
     const tgtR = L.r || ex.rl;
     const working = done.filter(s => (+s.r || 0) > 0);

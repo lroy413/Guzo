@@ -898,6 +898,180 @@ try {
     /Upper/.test(twice.sheet) && /Abs before bed/i.test(twice.sheet), twice.sheet.slice(0, 80));
   check('no placeholder text with two sessions on a day', !BAD.test(twice.sheet || ''));
 
+  /* ---- reps or seconds, in the builder ---- */
+  const modeUI = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    go('today');
+    const r = newRoutine('Abs');
+    addToRoutine(r.id, 'bw-crunch');
+    addToRoutine(r.id, 'bb-bench');
+    sheetRoutineEdit(r.id);
+    const items = [...document.querySelectorAll('#sheet-body .rt-item')];
+    const segs = items.map(el => !!el.querySelector('[data-act="rt-mode"]'));
+    const label = () => (document.querySelectorAll('#sheet-body .rt-num-k')[1] || {}).textContent;
+    const before = label();
+    const timeBtn = document.querySelector('#sheet-body [data-act="rt-mode"][data-i="0"][data-m="time"]');
+    if (timeBtn) timeBtn.click();
+    return {
+      segs, before, after: label(),
+      mode: routineById(r.id).items[0].mode,
+      marked: !!document.querySelector('#sheet-body [data-act="rt-mode"][data-i="0"][data-m="time"].on'),
+      text: document.getElementById('sheet-body').innerText || ''
+    };
+  });
+  check('an ab movement offers reps or time', modeUI.segs[0] === true);
+  check('...and a bench press does not', modeUI.segs[1] === false);
+  check('the stepper is labelled Reps to begin with', /rep/i.test(modeUI.before || ''), modeUI.before);
+  check('...and Seconds once switched', /second/i.test(modeUI.after || ''), modeUI.after);
+  check('...with the item actually changed', modeUI.mode === 'time', modeUI.mode);
+  check('...and the control showing it', modeUI.marked === true);
+  check('no placeholder text in the builder', !BAD.test(modeUI.text || ''));
+
+  /* ---- the circuit controls ---- */
+  const circUI = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Abs before bed');
+    ['bw-crunch', 'bw-bicycle', 'bw-plank'].forEach(id => addToRoutine(r.id, id));
+    sheetRoutineEdit(r.id);
+    const setsBefore = document.querySelectorAll('#sheet-body [data-act="rt-adj"][data-f="sets"]').length;
+    const toggle = document.querySelector('#sheet-body [data-act="rt-circuit"]');
+    if (!toggle) return { offered: false };
+    toggle.click();
+    const b = document.getElementById('sheet-body');
+    return {
+      offered: true, setsBefore,
+      on: routineById(r.id).circuit,
+      /* Per-movement sets stop meaning anything once a round is the set. */
+      setsAfter: b.querySelectorAll('[data-act="rt-adj"][data-f="sets"]').length,
+      rounds: b.querySelectorAll('[data-act="rt-rounds"]').length,
+      rest: b.querySelectorAll('[data-act="rt-rest"]').length,
+      text: b.innerText || '',
+      id: r.id
+    };
+  });
+  check('the builder offers a circuit toggle', circUI.offered === true);
+  check('...off by default, with per-movement sets', circUI.setsBefore === 6, String(circUI.setsBefore));
+  check('...turning it on switches the routine', circUI.on === true);
+  check('...the per-movement set steppers go away', circUI.setsAfter === 0, String(circUI.setsAfter));
+  check('...replaced by rounds', circUI.rounds === 2, String(circUI.rounds));
+  check('...and a rest-between-rounds control', circUI.rest === 2, String(circUI.rest));
+  check('...and it describes what will happen', /back to back/i.test(circUI.text));
+  check('no placeholder text with a circuit set up', !BAD.test(circUI.text || ''));
+
+  /* ---- running one ----
+     The ordinary Train screen is eighteen checkboxes for a three-movement,
+     three-round circuit. The runner shows one movement at a time. */
+  const run = await page.evaluate(() => {
+    const r = ensureRoutines()[0];
+    S.active = buildRoutineSession(r.id, false);
+    save(true); go('train');
+    const body = document.getElementById('train-body');
+    const now = () => (body.querySelector('.circ-name') || {}).textContent;
+    const round = () => (body.querySelector('.circ-round') || {}).textContent;
+    if (!body.querySelector('.circ')) return { runner: false };
+    const first = { name: now(), round: round(),
+                    cards: body.querySelectorAll('.ex-card').length,
+                    rows: body.querySelectorAll('.circ-row').length };
+    body.querySelector('[data-act="circ-done"]').click();
+    const second = { name: now(), round: round() };
+    document.getElementById('train-body').querySelector('[data-act="circ-done"]').click();
+    const third = { name: now(), round: round() };
+    /* Third is the last of round one — completing it should roll the round. */
+    document.getElementById('train-body').querySelector('[data-act="circ-done"]').click();
+    stopRest();
+    const fourth = { name: now(), round: round() };
+    return { runner: true, first, second, third, fourth, text: body.innerText || '' };
+  });
+  check('a circuit runs as a runner, not a card list', run.runner === true);
+  check('...with no set-row cards at all', run.first && run.first.cards === 0, String(run.first && run.first.cards));
+  check('...listing the whole circuit', run.first && run.first.rows === 3, String(run.first && run.first.rows));
+  check('it opens on round 1', /round 1 of 3/i.test((run.first || {}).round || ''), (run.first || {}).round);
+  check('...on the first movement', (run.first || {}).name === 'Crunch', (run.first || {}).name);
+  check('Done moves to the next movement, same round',
+    (run.second || {}).name === 'Bicycle Crunch' && /round 1/i.test((run.second || {}).round || ''),
+    `${(run.second || {}).name} · ${(run.second || {}).round}`);
+  check('...and on to the third', (run.third || {}).name === 'Plank', (run.third || {}).name);
+  /* The behaviour that makes it a circuit rather than a superset of one. */
+  check('finishing the list starts round 2 at the top',
+    (run.fourth || {}).name === 'Crunch' && /round 2 of 3/i.test((run.fourth || {}).round || ''),
+    `${(run.fourth || {}).name} · ${(run.fourth || {}).round}`);
+  check('no placeholder text in the runner', !BAD.test(run.text || ''));
+
+  /* ---- the work timer ---- */
+  const workTimer = await page.evaluate(async () => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Holds');
+    addToRoutine(r.id, 'bw-plank');            // seconds by default
+    setRoutineCircuit(r.id, true);
+    S.active = buildRoutineSession(r.id, false);
+    save(true); go('train');
+    const body = document.getElementById('train-body');
+    const start = body.querySelector('[data-act="circ-start"]');
+    if (!start) return { offered: false };
+    const secs = start.textContent;
+    start.click();
+    const bar = document.getElementById('rest-bar');
+    const running = { on: bar.classList.contains('on'), work: bar.classList.contains('work'),
+                      t: document.getElementById('rest-t').textContent,
+                      label: document.getElementById('rest-label').textContent,
+                      skip: document.getElementById('rest-skip').textContent };
+    /* Starting the timer must not tick the set — that would record work you
+       have not done if you stop halfway. */
+    const tickedOnStart = S.active.exercises[0].sets[0].done;
+    stopRest();
+    return { offered: true, secs, running, tickedOnStart,
+             stoppedClean: !bar.classList.contains('on') && !bar.classList.contains('work') };
+  });
+  check('a timed movement offers to count it down', workTimer.offered === true);
+  check('...saying how long', /\d+s/.test(workTimer.secs || ''), workTimer.secs);
+  check('...and the bar runs in work mode, not rest',
+    workTimer.running && workTimer.running.on && workTimer.running.work === true);
+  check('...counting the movement, by name',
+    /plank/i.test((workTimer.running || {}).label || ''), (workTimer.running || {}).label);
+  check('...with a stop, not a skip', (workTimer.running || {}).skip === 'Stop',
+    (workTimer.running || {}).skip);
+  check('starting the timer does not tick the set', workTimer.tickedOnStart === false);
+  check('...and stopping clears the work styling', workTimer.stoppedClean === true);
+
+  /* Every new control is something you tap mid-set with one hand. There is no
+     touch-target instrument in this repo, so the ones added here are measured
+     where they are added rather than assumed. */
+  const targets = await page.evaluate(() => {
+    const small = [];
+    const measure = (root, label) => {
+      root.querySelectorAll('button,[role="button"]').forEach(el => {
+        if (el.classList.contains('hide') || el.disabled) return;
+        const r = el.getBoundingClientRect();
+        if (!r.width || !r.height) return;
+        if (r.height < 44) small.push(`${label}:${(el.dataset.act || el.className || 'btn').slice(0, 22)}=${Math.round(r.height)}`);
+      });
+    };
+    S = blank(); S.onboarded = true; save(true);
+    go('today');
+    const r = newRoutine('Abs');
+    ['bw-crunch', 'bw-plank'].forEach(id => addToRoutine(r.id, id));
+    setRoutineCircuit(r.id, true);
+    sheetRoutineEdit(r.id);
+    measure(document.getElementById('sheet-body'), 'builder');
+    closeSheet();
+    S.active = buildRoutineSession(r.id, false);
+    save(true); go('train');
+    measure(document.getElementById('train-body'), 'runner');
+    /* The first movement is in reps, so the timer has to be reached through
+       the one that is not — guarded, because a missing button is a failed
+       check and not an exception that stops the instrument. */
+    const timed = S.active.exercises.findIndex(x => x.load === 'time' || x.load === 'min');
+    if (timed >= 0) {
+      startRest(30, S.active.exercises[timed].name, { work: true });
+      measure(document.getElementById('rest-bar'), 'timer');
+      stopRest();
+    }
+    return { small: small.slice(0, 8), count: small.length, timerSeen: timed >= 0 };
+  });
+  check('the timer bar was actually measured', targets.timerSeen === true);
+  check('every new control clears a 44px touch target', targets.count === 0,
+    targets.small.join(', '));
+
   /* ---- App Store readiness ---- */
 
   /* A subscription offer with nothing behind it reads as an incomplete app. */

@@ -14,7 +14,54 @@
 
 const ROUTINE_EMOJI = ['🌙', '🔥', '🧘', '⚡', '🪨', '🎒', '🩹', '🏃', '💪', '⏱'];
 
-const ROUTINE_LIMITS = { name: 40, items: 24, sets: 12, reps: 300 };
+const ROUTINE_LIMITS = { name: 40, items: 24, sets: 12, reps: 300, rounds: 12, rest: 600 };
+
+/* Reps or seconds, per movement.
+   -------------------------------
+   The catalogue gives every exercise one load type, which is right for a
+   barbell — a back squat is reps under load and nothing else. It is wrong for
+   everything you might hold or keep moving through: a crunch is 15 reps or 40
+   seconds depending on how you train, and the app was picking for you.
+
+   `mode` is the item's own answer. The catalogue still supplies the default,
+   so nothing changes for anyone who does not touch it.
+
+   Not offered on heavy loaded compounds. Reps against a working weight is the
+   entire mechanism there — the progression, the plate maths and the e1RM all
+   read it — and switching a bench press to seconds would quietly turn all of
+   that off in exchange for a number nobody wants. */
+function canRetime(exId) {
+  const ex = EX[exId];
+  if (!ex) return false;
+  return !(ex.load === 'wt' && ex.tier <= 2);
+}
+
+function defaultMode(exId) {
+  const ex = EX[exId] || {};
+  return (ex.load === 'time' || ex.load === 'min') ? 'time' : 'reps';
+}
+
+/* What a routine item actually is, once its own choice is taken into account.
+   Session exercises carry this as their `load`, so everything downstream —
+   the set rows, the seconds estimate, the energy cost, the progression guard —
+   reads the item rather than the catalogue. */
+function itemLoad(it) {
+  const ex = EX[it.exId] || {};
+  const mode = it.mode || defaultMode(it.exId);
+  if (mode === 'time') return ex.load === 'min' ? 'min' : 'time';
+  return ex.load === 'wt' ? 'wt' : 'bw';
+}
+
+function itemIsTimed(it) { const l = itemLoad(it); return l === 'time' || l === 'min'; }
+
+/* A sensible starting number when the unit changes under you. Carrying 15
+   across from reps to seconds would prescribe a 15-second plank. */
+function defaultAmount(exId, mode) {
+  const ex = EX[exId] || {};
+  const catalogueTimed = ex.load === 'time' || ex.load === 'min';
+  if (mode === 'time') return catalogueTimed ? (ex.rl || 30) : 40;
+  return catalogueTimed ? 12 : (ex.rl || 8);
+}
 
 function ensureRoutines() {
   if (!Array.isArray(S.routines)) S.routines = [];
@@ -23,7 +70,15 @@ function ensureRoutines() {
      in one place, and an older save read on a newer build behaves the same as
      a routine made this morning. Off, because a routine is a thing you wrote
      down yourself and the app should not quietly add a movement to it. */
-  S.routines.forEach(r => { if (typeof r.warmup !== 'boolean') r.warmup = false; });
+  S.routines.forEach(r => {
+    if (typeof r.warmup !== 'boolean') r.warmup = false;
+    /* Circuit fields, backfilled the same way and for the same reason: a
+       routine saved before any of this existed must behave exactly as it did. */
+    if (typeof r.circuit !== 'boolean') r.circuit = false;
+    if (!(r.rounds > 0)) r.rounds = 3;
+    if (!(r.restRound > 0)) r.restRound = 60;
+    (r.items || []).forEach(it => { if (!it.mode) it.mode = defaultMode(it.exId); });
+  });
   return S.routines;
 }
 
@@ -37,7 +92,8 @@ function newRoutine(name, emoji) {
     id: 'rt' + Date.now().toString(36) + Math.floor(list.length + 1),
     name: String(name || 'New routine').slice(0, ROUTINE_LIMITS.name),
     emoji: emoji || ROUTINE_EMOJI[list.length % ROUTINE_EMOJI.length],
-    items: [], warmup: false, created: today(), uses: 0, lastUsed: null
+    items: [], warmup: false, circuit: false, rounds: 3, restRound: 60,
+    created: today(), uses: 0, lastUsed: null
   };
   list.push(r);
   save(true);
@@ -174,10 +230,47 @@ function addToRoutine(id, exId) {
   const ex = EX[exId];
   if (!r || !ex) return false;
   if (r.items.length >= ROUTINE_LIMITS.items) return false;
-  const timed = ex.load === 'time' || ex.load === 'min';
-  r.items.push({ exId, sets: 3, reps: timed ? (ex.rl || 30) : (ex.rl || 8) });
+  const mode = defaultMode(exId);
+  r.items.push({ exId, sets: 3, reps: defaultAmount(exId, mode), mode });
   save(true);
   return true;
+}
+
+/* Switching a movement between reps and seconds. The number moves with it —
+   keeping 15 across the switch would prescribe a 15-second plank, and keeping
+   40 the other way would prescribe 40 crunches. */
+function setItemMode(id, idx, mode) {
+  const r = routineById(id);
+  if (!r || !r.items[idx]) return false;
+  if (mode !== 'reps' && mode !== 'time') return false;
+  const it = r.items[idx];
+  if (!canRetime(it.exId)) return false;
+  if (it.mode === mode) return true;
+  it.mode = mode;
+  it.reps = defaultAmount(it.exId, mode);
+  save(true); return true;
+}
+
+function setRoutineCircuit(id, on) {
+  const r = routineById(id);
+  if (!r) return false;
+  r.circuit = !!on; save(true); return true;
+}
+
+function adjustRoutineRounds(id, delta) {
+  const r = routineById(id);
+  if (!r) return false;
+  r.rounds = Math.max(1, Math.min(ROUTINE_LIMITS.rounds, (r.rounds || 3) + delta));
+  save(true); return true;
+}
+
+/* In fifteen-second steps: the difference between 60 and 61 seconds of rest is
+   not a thing anyone is choosing between. */
+function adjustRoutineRest(id, delta) {
+  const r = routineById(id);
+  if (!r) return false;
+  r.restRound = Math.max(0, Math.min(ROUTINE_LIMITS.rest, (r.restRound == null ? 60 : r.restRound) + delta * 15));
+  save(true); return true;
 }
 
 function removeFromRoutine(id, idx) {
@@ -200,8 +293,7 @@ function adjustRoutineItem(id, idx, field, delta) {
   const r = routineById(id);
   if (!r || !r.items[idx]) return false;
   const it = r.items[idx];
-  const ex = EX[it.exId] || {};
-  const timed = ex.load === 'time' || ex.load === 'min';
+  const timed = itemIsTimed(it);
   if (field === 'sets') {
     it.sets = Math.max(1, Math.min(ROUTINE_LIMITS.sets, (it.sets || 3) + delta));
   } else {
@@ -216,11 +308,27 @@ function adjustRoutineItem(id, idx, field, delta) {
 function routineMins(r) {
   if (!r || !r.items.length) return 0;
   let mins = 0;
+  if (r.circuit) {
+    /* A circuit costs what one round costs, times the rounds, plus the rest
+       between them. No inter-set rest, because there isn't any — that is the
+       whole point of running it as a circuit. Ten seconds a movement for
+       getting from one to the next. */
+    let round = 0;
+    r.items.forEach(it => {
+      const l = itemLoad(it);
+      round += (l === 'min' ? it.reps * 60 : l === 'time' ? it.reps : it.reps * 3.5) + 10;
+    });
+    const rounds = r.rounds || 3;
+    mins = (round * rounds + (r.restRound || 0) * Math.max(0, rounds - 1)) / 60;
+    if (r.warmup) mins += 1.5;
+    return Math.max(1, Math.round(mins));
+  }
   r.items.forEach(it => {
     const ex = EX[it.exId];
     if (!ex) return;
     const rest = (ex.tier <= 2 ? 2.4 : 1.4);
-    const work = (ex.load === 'time' || ex.load === 'min') ? (it.reps / 60) : (it.reps * 3.5 / 60);
+    const l = itemLoad(it);
+    const work = (l === 'min') ? it.reps : (l === 'time') ? (it.reps / 60) : (it.reps * 3.5 / 60);
     mins += it.sets * (work + rest);
   });
   /* The opener costs about a minute and a half. Counted, because the whole
@@ -256,17 +364,26 @@ function buildRoutineSession(id, asPlanned) {
   const env = c.env || (S.profile.envs && S.profile.envs[0]) || 'full';
   const blocked = blockedIds(env);
 
+  /* In a circuit the per-movement set count is meaningless — one pass through
+     the list IS a set, and the routine's `rounds` says how many. */
+  const rounds = r.circuit ? Math.max(1, r.rounds || 3) : null;
+
   const exercises = r.items.map(it => {
     const ex = EX[it.exId];
     if (!ex) return null;
     const tg = targetFor(ex.id);
-    const timed = ex.load === 'time' || ex.load === 'min';
+    const load = itemLoad(it);
+    const timed = load === 'time' || load === 'min';
+    /* A weighted movement keeps its weight target even when it is being held
+       for time — you still want to know it was the 10kg plate. */
+    const wTarget = (ex.load === 'wt' || !timed) ? tg.w : null;
+    const n = rounds != null ? rounds : it.sets;
     return {
-      exId: ex.id, name: ex.name, load: ex.load,
-      targetW: timed ? null : tg.w,
+      exId: ex.id, name: ex.name, load,
+      targetW: wTarget,
       targetR: it.reps,
-      sets: Array.from({ length: it.sets }, () => ({
-        w: (!timed && tg.w != null) ? tg.w : '', r: '', rpe: '', done: false
+      sets: Array.from({ length: n }, () => ({
+        w: wTarget != null ? wTarget : '', r: '', rpe: '', done: false
       })),
       note: ''
     };
@@ -276,6 +393,7 @@ function buildRoutineSession(id, asPlanned) {
 
   /* Prepended, not appended, and only after the routine itself is known to be
      buildable — a warm-up in front of an empty session would be a session. */
+  let warmups = 0;
   if (r.warmup) {
     const w = warmupFor(r, env, blocked);
     if (w) {
@@ -287,6 +405,7 @@ function buildRoutineSession(id, asPlanned) {
         sets: [{ w: '', r: w.rl, rpe: '', done: false }],
         note: timed ? 'Warm-up. Hold it, breathing.' : 'Warm-up. Slow, through the whole range.'
       });
+      warmups = 1;
     }
   }
 
@@ -298,6 +417,14 @@ function buildRoutineSession(id, asPlanned) {
     routineName: r.name,
     extra: !asPlanned,         // an extra never discharges the week's planned session
     env, rung: 'full',
+    /* Carried onto the session, not read back off the routine: editing a
+       routine mid-session would otherwise change the thing you are doing. */
+    circuit: !!r.circuit,
+    rounds: rounds || null,
+    restRound: r.circuit ? (r.restRound == null ? 60 : r.restRound) : null,
+    /* The warm-up sits outside the circuit — it is one movement, once, and
+       the runner walks the exercises after it. */
+    warmupCount: warmups,
     planMins: routineMins(r),
     exercises,
     started: null, ended: null, dur: 0

@@ -682,6 +682,11 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 @keyframes restIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .rest .t{font-family:var(--fm);font-size:22px;font-weight:700;letter-spacing:-.03em;
   color:var(--ember);min-width:62px;font-variant-numeric:tabular-nums}
+/* The same bar counting work rather than rest. Teal, because everywhere else
+   in the app teal means "this is the doing part" and ember means "waiting". */
+.rest.work{border-color:rgba(79,209,165,.34)}
+.rest.work .t{color:var(--teal)}
+.rest.work .bar i{background:var(--teal)}
 
 /* ---------- charts ---------- */
 .chart{display:flex;align-items:flex-end;gap:5px;height:110px;padding-top:6px}
@@ -738,6 +743,46 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .seg{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
 .seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:13px;font-weight:650;color:var(--muted);transition:all .15s ease}
 .seg button.on{background:var(--surface-3);color:var(--text)}
+/* A two-way switch inside a builder row. Still 44px tall — it is the control
+   that decides whether a movement is counted in reps or in seconds, and it
+   sits under a thumb mid-edit like everything else here. */
+.seg.sm button{min-height:44px;padding:6px;font-size:12.5px}
+
+/* ---------- the circuit runner ---------- */
+.circ-top{display:flex;align-items:center;justify-content:space-between;margin:2px 0 10px}
+.circ-round{font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ember)}
+.circ-count{font-size:12.5px;color:var(--muted)}
+.circ-now{background:var(--surface-2);border:1px solid var(--ember-line);border-radius:var(--r-l);
+  padding:18px 16px 16px;margin-bottom:14px}
+.circ-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:6px}
+.circ-name{font-size:24px;font-weight:700;letter-spacing:-.03em;line-height:1.15}
+.circ-amt{font-size:15px;color:var(--ember);font-weight:650;margin-top:6px}
+.circ-next{font-size:12.5px;color:var(--muted);margin-top:12px;line-height:1.45}
+.circ-next strong{color:var(--text);font-weight:650}
+
+.circ-list{background:var(--surface-2);border:1px solid var(--line-soft);
+  border-radius:var(--r);padding:12px 13px}
+.circ-list-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.circ-pips{display:flex;gap:5px}
+.circ-pip{width:8px;height:8px;border-radius:50%;background:var(--surface-3)}
+.circ-pip.on{background:var(--ember)}
+.circ-pip.full{background:var(--teal)}
+.circ-row{display:flex;align-items:center;gap:11px;padding:9px 2px;min-height:44px;
+  border-top:1px solid var(--line-soft)}
+.circ-row:first-of-type{border-top:0}
+.circ-row-n{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.circ-row-a{font-size:12.5px;color:var(--muted);flex:none}
+/* Deliberately only a ring until it is filled — a row you have not reached is
+   information, not an empty box asking to be ticked. */
+.circ-dot{width:20px;height:20px;flex:none;border-radius:50%;border:1.6px solid var(--surface-3);
+  display:flex;align-items:center;justify-content:center;color:#0F1216}
+.circ-dot svg{width:12px;height:12px}
+.circ-row.is-done .circ-dot{background:var(--teal);border-color:var(--teal)}
+.circ-row.is-done .circ-row-n{color:var(--muted)}
+.circ-row.is-now{margin:0 -13px;padding-left:15px;padding-right:15px;background:var(--surface-3)}
+.circ-row.is-now .circ-dot{border-color:var(--ember)}
+.circ-row.is-now .circ-row-n{color:var(--text);font-weight:700}
 /* ============================================================
    HOME DASHBOARD
    ============================================================ */

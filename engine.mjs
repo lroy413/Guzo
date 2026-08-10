@@ -657,6 +657,168 @@ try {
   check('...nor once the question has been answered', hint.answered === false);
   check('...nor when the boundary is already set', hint.alreadySet === false);
 
+  // ================= 8. reps or seconds, and circuits =====================
+  console.log('\nreps or seconds\n');
+
+  const retime = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Abs');
+    addToRoutine(r.id, 'bw-crunch');       // reps by default
+    addToRoutine(r.id, 'bw-plank');        // seconds by default
+    const before = r.items.map(it => ({ mode: it.mode, reps: it.reps, load: itemLoad(it) }));
+
+    setItemMode(r.id, 0, 'time');
+    const crunchTimed = { ...r.items[0], load: itemLoad(r.items[0]) };
+    setItemMode(r.id, 1, 'reps');
+    const plankReps = { ...r.items[1], load: itemLoad(r.items[1]) };
+
+    return {
+      before, crunchTimed, plankReps,
+      /* The choice is not offered where reps against a working weight is the
+         entire mechanism. */
+      offered: {
+        crunch: canRetime('bw-crunch'), bicycle: canRetime('bw-bicycle'),
+        walk: canRetime('car-walk'), dbCrunch: canRetime('db-crunch'),
+        bench: canRetime('bb-bench'), squat: canRetime('bb-back-squat'),
+        dbBench: canRetime('db-bench')
+      }
+    };
+  });
+  check('a crunch starts in reps', retime.before[0].mode === 'reps' && retime.before[0].load === 'bw',
+    JSON.stringify(retime.before[0]));
+  check('a plank starts in seconds', retime.before[1].mode === 'time' && retime.before[1].load === 'time',
+    JSON.stringify(retime.before[1]));
+  check('a crunch can be switched to seconds', retime.crunchTimed.load === 'time', retime.crunchTimed.load);
+  /* Carrying 15 across from reps would prescribe a 15-second plank. */
+  check('...and the number moves with the unit', retime.crunchTimed.reps >= 20,
+    String(retime.crunchTimed.reps));
+  check('a plank can be switched to reps', retime.plankReps.load === 'bw', retime.plankReps.load);
+  check('...with a rep count, not 30 of them', retime.plankReps.reps <= 20, String(retime.plankReps.reps));
+  check('the choice is offered on abs and cardio',
+    retime.offered.crunch && retime.offered.bicycle && retime.offered.walk && retime.offered.dbCrunch);
+  check('...and withheld from loaded compounds',
+    !retime.offered.bench && !retime.offered.squat && !retime.offered.dbBench,
+    JSON.stringify(retime.offered));
+
+  const built = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Abs');
+    addToRoutine(r.id, 'bw-crunch');
+    setItemMode(r.id, 0, 'time');
+    const s = buildRoutineSession(r.id, false);
+    const item = s.exercises[0];
+    /* Twelve sessions of holding it: the rep target must not creep, because
+       the number is now a duration. */
+    for (let i = 0; i < 12; i++) {
+      const one = buildRoutineSession(r.id, false);
+      one.date = today();
+      one.exercises.forEach(x => x.sets.forEach(st => { st.done = true; st.r = x.targetR; }));
+      applyProgression(one);
+    }
+    const L = S.lifts['bw-crunch'] || {};
+    return { load: item.load, target: item.targetR, catalogue: EX['bw-crunch'].load,
+             /* Seeded by targetFor at the catalogue's low rep — asserting it
+                stays null would be asserting the wrong thing. What matters is
+                that twelve timed sessions do not ratchet it. */
+             learned: L.r, seed: EX['bw-crunch'].rl };
+  });
+  check('the session carries the item\'s load, not the catalogue\'s',
+    built.load === 'time' && built.catalogue === 'bw', `${built.load} vs ${built.catalogue}`);
+  check('...and a seconds target', built.target >= 20, String(built.target));
+  check('twelve timed sessions never ratchet the rep target',
+    built.learned === built.seed, `${built.seed} → ${built.learned}`);
+
+  console.log('\ncircuits\n');
+
+  /* The complaint, verbatim: "I work each exercise once for the duration or
+     reps and move to the next like a superset and then do the whole routine in
+     3 sets." */
+  const circ = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Abs before bed');
+    ['bw-crunch', 'bw-bicycle', 'bw-plank'].forEach(id => addToRoutine(r.id, id));
+    setRoutineCircuit(r.id, true);
+    adjustRoutineRounds(r.id, -1);            // 3 → 2, to keep the walk short
+    const A = buildRoutineSession(r.id, false);
+    S.active = A;
+
+    const order = [];
+    const rounds = [];
+    let guard = 0;
+    while (!circuitPos(A).finished && guard++ < 50) {
+      const p = circuitPos(A);
+      order.push(A.exercises[p.ei].name);
+      rounds.push(p.round);
+      completeCircuitEntry(p.ei, p.round);
+    }
+    return {
+      circuit: A.circuit, rounds: A.rounds, restRound: A.restRound,
+      setsPer: A.exercises.map(x => x.sets.length),
+      order, roundSeq: rounds,
+      mins: routineMins(routineById(r.id)),
+      allDone: A.exercises.every(x => x.sets.every(s => s.done))
+    };
+  });
+  check('a circuit session knows it is one', circ.circuit === true);
+  check('...with the routine\'s round count', circ.rounds === 2, String(circ.rounds));
+  check('...and one set per round on every movement',
+    circ.setsPer.every(n => n === circ.rounds), JSON.stringify(circ.setsPer));
+  /* The whole point: across the list first, then round again — not three
+     crunches, then three bicycles. */
+  check('it runs across the list, then repeats',
+    circ.order.join(' > ') === 'Crunch > Bicycle Crunch > Plank > Crunch > Bicycle Crunch > Plank',
+    circ.order.join(' > '));
+  check('...and the round number advances with it',
+    circ.roundSeq.join('') === '000111', circ.roundSeq.join(''));
+  check('working through it completes the session', circ.allDone === true);
+  check('the minute estimate accounts for the rounds and the rest',
+    circ.mins >= 3 && circ.mins <= 20, circ.mins + ' min');
+
+  /* Rest goes after the round, not between movements. That is the difference
+     between a circuit and an ordinary session. */
+  const resting = await page.evaluate(async () => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Abs');
+    ['bw-crunch', 'bw-bicycle'].forEach(id => addToRoutine(r.id, id));
+    setRoutineCircuit(r.id, true);
+    adjustRoutineRounds(r.id, -1);                 // 3 → 2, so "the last round" is round 2
+    const A = buildRoutineSession(r.id, false);
+    S.active = A; save(true); go('train');
+
+    const bar = () => document.getElementById('rest-bar').classList.contains('on');
+    stopRest();                                    // a timer left running by an earlier probe is not a result
+    completeCircuitEntry(0, 0);                    // mid-round
+    const afterFirst = bar();
+    stopRest();
+    completeCircuitEntry(1, 0);                    // last of round 1
+    const afterRound = bar();
+    const label = document.getElementById('rest-label').textContent;
+    stopRest();
+    /* And none after the final round — there is nothing left to rest for. */
+    completeCircuitEntry(0, 1);
+    stopRest();
+    completeCircuitEntry(1, 1);
+    const afterLast = bar();
+    stopRest();
+    return { afterFirst, afterRound, label, afterLast, rounds: A.rounds };
+  });
+  check('no rest between movements in a circuit', resting.afterFirst === false);
+  check('...but rest after a full round', resting.afterRound === true);
+  check('...and it says which round finished', /round 1/i.test(resting.label), resting.label);
+  check('...with none after the last round', resting.afterLast === false);
+
+  /* Turning it off has to leave the ordinary shape untouched. */
+  const plain = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Normal');
+    addToRoutine(r.id, 'bw-crunch');
+    adjustRoutineItem(r.id, 0, 'sets', 1);      // 3 → 4
+    const s = buildRoutineSession(r.id, false);
+    return { circuit: s.circuit, rounds: s.rounds, sets: s.exercises[0].sets.length };
+  });
+  check('a routine that is not a circuit still uses its own set count',
+    plain.sets === 4 && plain.circuit === false, `${plain.sets} sets, circuit ${plain.circuit}`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

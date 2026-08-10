@@ -683,10 +683,17 @@ function renderTrain() {
     html += `<div class="banner warm mb">${EVIDENCE.micro}<span class="src">${EVIDENCE.microSrc}</span></div>`;
   }
 
-  A.exercises.forEach((item, ei) => { html += exCardHTML(item, ei); });
+  if (A.circuit) {
+    /* The warm-up still renders as an ordinary card above the circuit — it is
+       one movement done once, before any of this starts. */
+    A.exercises.forEach((item, ei) => { if (item.warmup) html += exCardHTML(item, ei); });
+    html += circuitHTML(A);
+  } else {
+    A.exercises.forEach((item, ei) => { html += exCardHTML(item, ei); });
+  }
 
   html += `
-    <button class="btn ghost block mt" data-act="add-exercise">+ Add an exercise</button>
+    ${A.circuit ? '' : '<button class="btn ghost block mt" data-act="add-exercise">+ Add an exercise</button>'}
     <button class="btn primary block lg mt" data-act="finish">Finish session</button>
     <p class="tiny center mt-s">Partial sessions save exactly as they are. There's no penalty for stopping early.</p>
     <div class="divide"></div>
@@ -731,6 +738,134 @@ function setSummary(item) {
     wTxt = ' · ' + (uniq ? fmtW(ws[0]) : fmtW(Math.min(...ws)) + '–' + fmtW(Math.max(...ws))) + unit();
   }
   return done.length + ' × ' + repTxt + (isTime ? 's' : '') + wTxt;
+}
+
+/* ============================================================
+   THE CIRCUIT RUNNER
+   ------------------------------------------------------------
+   What this is for, in the words it was asked in: "I work each exercise once
+   for the duration or reps and move to the next like a superset, and then do
+   the whole routine in 3 sets."
+
+   That is a circuit, and the ordinary Train screen is the wrong shape for it.
+   A list of six cards with three set rows each is eighteen checkboxes to hunt
+   for while you are moving continuously — the screen assumes you stop between
+   sets, which in a circuit you specifically do not.
+
+   So a circuit renders as one movement at a time, in the order you do them,
+   with the round you are on and what is coming next. The underlying session is
+   unchanged — the same exercises with the same sets — so volume, energy,
+   progression and the history all work on it without knowing.
+
+   Where you are is derived from which sets are ticked rather than stored: set
+   `r` of exercise `i` is round r. That survives a reload, a crash and leaving
+   the session half-done, and there is no second copy of the truth to go stale. */
+function circuitPos(A) {
+  const list = circuitItems(A);
+  const rounds = Math.max(1, A.rounds || 1);
+  for (let r = 0; r < rounds; r++) {
+    for (let n = 0; n < list.length; n++) {
+      const st = A.exercises[list[n]].sets[r];
+      if (!st || !st.done) return { round: r, n, ei: list[n], finished: false };
+    }
+  }
+  return { round: rounds - 1, n: list.length - 1, ei: list[list.length - 1], finished: true };
+}
+
+/* The circuit is everything except the warm-up, which is one movement done
+   once before any of it starts. */
+function circuitItems(A) {
+  return A.exercises.map((it, i) => (it.warmup ? -1 : i)).filter(i => i >= 0);
+}
+
+function circuitDoneCount(A) {
+  return circuitItems(A).reduce((a, i) => a + A.exercises[i].sets.filter(s => s.done).length, 0);
+}
+
+function circuitEntryHTML(A, item, ei, round, cls) {
+  const isTime = item.load === 'time' || item.load === 'min';
+  const amount = item.targetR + (item.load === 'min' ? ' min' : isTime ? 's' : ' reps');
+  const st = item.sets[round];
+  return `<div class="circ-row ${cls}${st && st.done ? ' is-done' : ''}">
+    <div class="circ-dot">${st && st.done
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>'
+      : ''}</div>
+    <div class="grow"><div class="circ-row-n">${h(item.name)}</div></div>
+    <div class="circ-row-a mono">${h(amount)}</div>
+  </div>`;
+}
+
+function circuitHTML(A) {
+  const list = circuitItems(A);
+  if (!list.length) return '<div class="note"><p class="note-t">Nothing in this circuit.</p></div>';
+  const rounds = Math.max(1, A.rounds || 1);
+  const pos = circuitPos(A);
+  const item = A.exercises[pos.ei];
+  const isTime = item.load === 'time' || item.load === 'min';
+  const secs = item.load === 'min' ? item.targetR * 60 : item.targetR;
+  const nextN = pos.n + 1 < list.length ? list[pos.n + 1] : null;
+  const lastOfRound = pos.n === list.length - 1;
+  const doneAll = circuitDoneCount(A);
+  const totalAll = list.length * rounds;
+
+  if (pos.finished) {
+    return `<div class="circ">
+      <div class="circ-top"><span class="circ-round">Circuit done</span></div>
+      <div class="circ-now">
+        <div class="circ-name">All ${rounds} round${rounds === 1 ? '' : 's'}</div>
+        <div class="circ-amt mono">${doneAll} of ${totalAll}</div>
+        <p class="small mt">Everything is ticked. Finish the session below, or add another round from the list.</p>
+      </div>
+      ${circuitListHTML(A, pos, rounds)}
+    </div>`;
+  }
+
+  return `<div class="circ">
+    <div class="circ-top">
+      <span class="circ-round">Round ${pos.round + 1} of ${rounds}</span>
+      <span class="circ-count mono">${pos.n + 1}/${list.length}</span>
+    </div>
+
+    <div class="circ-now">
+      <div class="circ-eyebrow">Now</div>
+      <div class="circ-name">${h(item.name)}</div>
+      <div class="circ-amt mono">${item.targetR}${item.load === 'min' ? ' min' : isTime ? 's' : ''}${isTime ? '' : ' reps'}${item.targetW != null && item.targetW !== '' ? ' · ' + fmtW(item.targetW) + unit() : ''}</div>
+
+      ${isTime
+        ? `<button class="btn primary block lg mt" data-act="circ-start" data-i="${pos.ei}" data-s="${pos.round}">Start ${secs}s</button>
+           <button class="btn quiet block" data-act="circ-done" data-i="${pos.ei}" data-s="${pos.round}">Mark it done instead</button>`
+        : `<button class="btn primary block lg mt" data-act="circ-done" data-i="${pos.ei}" data-s="${pos.round}">Done &mdash; next</button>`}
+
+      <div class="circ-next">${nextN != null
+        ? 'Next: <strong>' + h(A.exercises[nextN].name) + '</strong>, straight on'
+        : (pos.round + 1 < rounds
+            ? 'Last one &mdash; then ' + (A.restRound ? fmtRest(A.restRound) + ' rest' : 'straight into round ' + (pos.round + 2))
+            : 'Last one of the whole circuit')}</div>
+    </div>
+
+    ${circuitListHTML(A, pos, rounds)}
+
+    ${doneAll ? `<button class="btn quiet block mt-s" data-act="circ-undo">Undo the last one</button>` : ''}
+  </div>`;
+}
+
+function fmtRest(s) {
+  if (s >= 60 && s % 60 === 0) return (s / 60) + ' min';
+  if (s > 60) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+  return s + 's';
+}
+
+function circuitListHTML(A, pos, rounds) {
+  const list = circuitItems(A);
+  return `<div class="circ-list">
+    <div class="circ-list-h">
+      <span class="eyebrow">The circuit</span>
+      <span class="circ-pips">${Array.from({ length: rounds }, (_, r) =>
+        `<span class="circ-pip${r < pos.round || (pos.finished && r === rounds - 1) ? ' full' : r === pos.round ? ' on' : ''}"></span>`).join('')}</span>
+    </div>
+    ${list.map((ei, n) => circuitEntryHTML(A, A.exercises[ei], ei, pos.round,
+      n === pos.n && !pos.finished ? 'is-now' : '')).join('')}
+  </div>`;
 }
 
 function exCardHTML(item, ei) {

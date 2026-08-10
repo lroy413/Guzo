@@ -75,7 +75,8 @@ function sheetRoutineEdit(id) {
   const rows = r.items.map((it, i) => {
     const ex = EX[it.exId];
     if (!ex) return '';
-    const timed = ex.load === 'time' || ex.load === 'min';
+    const timed = itemIsTimed(it);
+    const mode = it.mode || defaultMode(it.exId);
     return `<div class="rt-item">
       <div class="row between">
         <div class="grow">
@@ -84,17 +85,23 @@ function sheetRoutineEdit(id) {
         </div>
         <span class="rt-pos mono">${i + 1}</span>
       </div>
+
+      ${canRetime(it.exId) ? `<div class="seg sm mt-s">
+        <button class="${mode === 'reps' ? 'on' : ''}" data-act="rt-mode" data-v="${h(id)}" data-i="${i}" data-m="reps">Reps</button>
+        <button class="${mode === 'time' ? 'on' : ''}" data-act="rt-mode" data-v="${h(id)}" data-i="${i}" data-m="time">Time</button>
+      </div>` : ''}
+
       <div class="rt-nums mt-s">
-        <div class="rt-num">
+        ${r.circuit ? '' : `<div class="rt-num">
           <div class="rt-num-k">Sets</div>
           <div class="stepper sm">
             <button data-act="rt-adj" data-v="${h(id)}" data-i="${i}" data-f="sets" data-d="-1">&minus;</button>
             <input type="text" value="${it.sets}" readonly>
             <button data-act="rt-adj" data-v="${h(id)}" data-i="${i}" data-f="sets" data-d="1">+</button>
           </div>
-        </div>
+        </div>`}
         <div class="rt-num">
-          <div class="rt-num-k">${timed ? 'Seconds' : 'Reps'}</div>
+          <div class="rt-num-k">${timed ? (itemLoad(it) === 'min' ? 'Minutes' : 'Seconds') : 'Reps'}</div>
           <div class="stepper sm">
             <button data-act="rt-adj" data-v="${h(id)}" data-i="${i}" data-f="reps" data-d="-1">&minus;</button>
             <input type="text" value="${it.reps}" readonly>
@@ -141,7 +148,41 @@ function sheetRoutineEdit(id) {
         </div>
         <div class="switch ${r.warmup ? 'on' : ''}"></div>
       </div>
+      <div class="lrow" data-act="rt-circuit" data-v="${h(id)}">
+        <div class="ico">🔁</div>
+        <div class="grow">
+          <div class="h3">Run it as a circuit</div>
+          <div class="tiny mt-s">${r.circuit
+            ? 'One pass through the list is a round. Rest comes after the round, not between movements.'
+            : 'Off &mdash; each movement is finished, with its rest, before the next one'}</div>
+        </div>
+        <div class="switch ${r.circuit ? 'on' : ''}"></div>
+      </div>
     </div>
+
+    ${r.circuit ? `<div class="rt-item mt-s">
+      <div class="rt-nums">
+        <div class="rt-num">
+          <div class="rt-num-k">Rounds</div>
+          <div class="stepper sm">
+            <button data-act="rt-rounds" data-v="${h(id)}" data-d="-1">&minus;</button>
+            <input type="text" value="${r.rounds}" readonly>
+            <button data-act="rt-rounds" data-v="${h(id)}" data-d="1">+</button>
+          </div>
+        </div>
+        <div class="rt-num">
+          <div class="rt-num-k">Rest between</div>
+          <div class="stepper sm">
+            <button data-act="rt-rest" data-v="${h(id)}" data-d="-1">&minus;</button>
+            <input type="text" value="${r.restRound ? fmtRest(r.restRound) : 'none'}" readonly>
+            <button data-act="rt-rest" data-v="${h(id)}" data-d="1">+</button>
+          </div>
+        </div>
+      </div>
+      <p class="tiny mt-s">${r.items.length
+        ? `${r.items.length} movement${r.items.length === 1 ? '' : 's'} back to back, ${r.rounds} time${r.rounds === 1 ? '' : 's'}${r.restRound ? `, with ${fmtRest(r.restRound)} between rounds` : ', with no rest between rounds'}.`
+        : 'Add the movements and they run in the order you list them.'}</p>
+    </div>` : ''}
     ${r.items.length ? `<button class="btn primary block lg mt" data-act="routine-start" data-v="${h(id)}">Start it now</button>` : ''}
 
     <div class="divide"></div>

@@ -682,6 +682,11 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 @keyframes restIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .rest .t{font-family:var(--fm);font-size:22px;font-weight:700;letter-spacing:-.03em;
   color:var(--ember);min-width:62px;font-variant-numeric:tabular-nums}
+/* The same bar counting work rather than rest. Teal, because everywhere else
+   in the app teal means "this is the doing part" and ember means "waiting". */
+.rest.work{border-color:rgba(79,209,165,.34)}
+.rest.work .t{color:var(--teal)}
+.rest.work .bar i{background:var(--teal)}
 
 /* ---------- charts ---------- */
 .chart{display:flex;align-items:flex-end;gap:5px;height:110px;padding-top:6px}
@@ -738,6 +743,46 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .seg{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
 .seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:13px;font-weight:650;color:var(--muted);transition:all .15s ease}
 .seg button.on{background:var(--surface-3);color:var(--text)}
+/* A two-way switch inside a builder row. Still 44px tall — it is the control
+   that decides whether a movement is counted in reps or in seconds, and it
+   sits under a thumb mid-edit like everything else here. */
+.seg.sm button{min-height:44px;padding:6px;font-size:12.5px}
+
+/* ---------- the circuit runner ---------- */
+.circ-top{display:flex;align-items:center;justify-content:space-between;margin:2px 0 10px}
+.circ-round{font-size:11px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ember)}
+.circ-count{font-size:12.5px;color:var(--muted)}
+.circ-now{background:var(--surface-2);border:1px solid var(--ember-line);border-radius:var(--r-l);
+  padding:18px 16px 16px;margin-bottom:14px}
+.circ-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--faint);margin-bottom:6px}
+.circ-name{font-size:24px;font-weight:700;letter-spacing:-.03em;line-height:1.15}
+.circ-amt{font-size:15px;color:var(--ember);font-weight:650;margin-top:6px}
+.circ-next{font-size:12.5px;color:var(--muted);margin-top:12px;line-height:1.45}
+.circ-next strong{color:var(--text);font-weight:650}
+
+.circ-list{background:var(--surface-2);border:1px solid var(--line-soft);
+  border-radius:var(--r);padding:12px 13px}
+.circ-list-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.circ-pips{display:flex;gap:5px}
+.circ-pip{width:8px;height:8px;border-radius:50%;background:var(--surface-3)}
+.circ-pip.on{background:var(--ember)}
+.circ-pip.full{background:var(--teal)}
+.circ-row{display:flex;align-items:center;gap:11px;padding:9px 2px;min-height:44px;
+  border-top:1px solid var(--line-soft)}
+.circ-row:first-of-type{border-top:0}
+.circ-row-n{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.circ-row-a{font-size:12.5px;color:var(--muted);flex:none}
+/* Deliberately only a ring until it is filled — a row you have not reached is
+   information, not an empty box asking to be ticked. */
+.circ-dot{width:20px;height:20px;flex:none;border-radius:50%;border:1.6px solid var(--surface-3);
+  display:flex;align-items:center;justify-content:center;color:#0F1216}
+.circ-dot svg{width:12px;height:12px}
+.circ-row.is-done .circ-dot{background:var(--teal);border-color:var(--teal)}
+.circ-row.is-done .circ-row-n{color:var(--muted)}
+.circ-row.is-now{margin:0 -13px;padding-left:15px;padding-right:15px;background:var(--surface-3)}
+.circ-row.is-now .circ-dot{border-color:var(--ember)}
+.circ-row.is-now .circ-row-n{color:var(--text);font-weight:700}
 /* ============================================================
    HOME DASHBOARD
    ============================================================ */
@@ -3040,7 +3085,11 @@ function applyProgression(sess) {
       }
     });
 
-    if (ex.load === 'time' || ex.load === 'min') return; // no load progression on held/timed work
+    /* The item's load, not the catalogue's. A movement can be set to seconds
+       in a routine, and progressing a weight against a number that is now a
+       duration would push the bar up every time you held it longer. */
+    const load = item.load || ex.load;
+    if (load === 'time' || load === 'min') return; // no load progression on held/timed work
 
     const tgtR = L.r || ex.rl;
     const working = done.filter(s => (+s.r || 0) > 0);
@@ -4259,7 +4308,54 @@ function lastSetAt(exId, idx) {
 
 const ROUTINE_EMOJI = ['🌙', '🔥', '🧘', '⚡', '🪨', '🎒', '🩹', '🏃', '💪', '⏱'];
 
-const ROUTINE_LIMITS = { name: 40, items: 24, sets: 12, reps: 300 };
+const ROUTINE_LIMITS = { name: 40, items: 24, sets: 12, reps: 300, rounds: 12, rest: 600 };
+
+/* Reps or seconds, per movement.
+   -------------------------------
+   The catalogue gives every exercise one load type, which is right for a
+   barbell — a back squat is reps under load and nothing else. It is wrong for
+   everything you might hold or keep moving through: a crunch is 15 reps or 40
+   seconds depending on how you train, and the app was picking for you.
+
+   `mode` is the item's own answer. The catalogue still supplies the default,
+   so nothing changes for anyone who does not touch it.
+
+   Not offered on heavy loaded compounds. Reps against a working weight is the
+   entire mechanism there — the progression, the plate maths and the e1RM all
+   read it — and switching a bench press to seconds would quietly turn all of
+   that off in exchange for a number nobody wants. */
+function canRetime(exId) {
+  const ex = EX[exId];
+  if (!ex) return false;
+  return !(ex.load === 'wt' && ex.tier <= 2);
+}
+
+function defaultMode(exId) {
+  const ex = EX[exId] || {};
+  return (ex.load === 'time' || ex.load === 'min') ? 'time' : 'reps';
+}
+
+/* What a routine item actually is, once its own choice is taken into account.
+   Session exercises carry this as their `load`, so everything downstream —
+   the set rows, the seconds estimate, the energy cost, the progression guard —
+   reads the item rather than the catalogue. */
+function itemLoad(it) {
+  const ex = EX[it.exId] || {};
+  const mode = it.mode || defaultMode(it.exId);
+  if (mode === 'time') return ex.load === 'min' ? 'min' : 'time';
+  return ex.load === 'wt' ? 'wt' : 'bw';
+}
+
+function itemIsTimed(it) { const l = itemLoad(it); return l === 'time' || l === 'min'; }
+
+/* A sensible starting number when the unit changes under you. Carrying 15
+   across from reps to seconds would prescribe a 15-second plank. */
+function defaultAmount(exId, mode) {
+  const ex = EX[exId] || {};
+  const catalogueTimed = ex.load === 'time' || ex.load === 'min';
+  if (mode === 'time') return catalogueTimed ? (ex.rl || 30) : 40;
+  return catalogueTimed ? 12 : (ex.rl || 8);
+}
 
 function ensureRoutines() {
   if (!Array.isArray(S.routines)) S.routines = [];
@@ -4268,7 +4364,15 @@ function ensureRoutines() {
      in one place, and an older save read on a newer build behaves the same as
      a routine made this morning. Off, because a routine is a thing you wrote
      down yourself and the app should not quietly add a movement to it. */
-  S.routines.forEach(r => { if (typeof r.warmup !== 'boolean') r.warmup = false; });
+  S.routines.forEach(r => {
+    if (typeof r.warmup !== 'boolean') r.warmup = false;
+    /* Circuit fields, backfilled the same way and for the same reason: a
+       routine saved before any of this existed must behave exactly as it did. */
+    if (typeof r.circuit !== 'boolean') r.circuit = false;
+    if (!(r.rounds > 0)) r.rounds = 3;
+    if (!(r.restRound > 0)) r.restRound = 60;
+    (r.items || []).forEach(it => { if (!it.mode) it.mode = defaultMode(it.exId); });
+  });
   return S.routines;
 }
 
@@ -4282,7 +4386,8 @@ function newRoutine(name, emoji) {
     id: 'rt' + Date.now().toString(36) + Math.floor(list.length + 1),
     name: String(name || 'New routine').slice(0, ROUTINE_LIMITS.name),
     emoji: emoji || ROUTINE_EMOJI[list.length % ROUTINE_EMOJI.length],
-    items: [], warmup: false, created: today(), uses: 0, lastUsed: null
+    items: [], warmup: false, circuit: false, rounds: 3, restRound: 60,
+    created: today(), uses: 0, lastUsed: null
   };
   list.push(r);
   save(true);
@@ -4419,10 +4524,47 @@ function addToRoutine(id, exId) {
   const ex = EX[exId];
   if (!r || !ex) return false;
   if (r.items.length >= ROUTINE_LIMITS.items) return false;
-  const timed = ex.load === 'time' || ex.load === 'min';
-  r.items.push({ exId, sets: 3, reps: timed ? (ex.rl || 30) : (ex.rl || 8) });
+  const mode = defaultMode(exId);
+  r.items.push({ exId, sets: 3, reps: defaultAmount(exId, mode), mode });
   save(true);
   return true;
+}
+
+/* Switching a movement between reps and seconds. The number moves with it —
+   keeping 15 across the switch would prescribe a 15-second plank, and keeping
+   40 the other way would prescribe 40 crunches. */
+function setItemMode(id, idx, mode) {
+  const r = routineById(id);
+  if (!r || !r.items[idx]) return false;
+  if (mode !== 'reps' && mode !== 'time') return false;
+  const it = r.items[idx];
+  if (!canRetime(it.exId)) return false;
+  if (it.mode === mode) return true;
+  it.mode = mode;
+  it.reps = defaultAmount(it.exId, mode);
+  save(true); return true;
+}
+
+function setRoutineCircuit(id, on) {
+  const r = routineById(id);
+  if (!r) return false;
+  r.circuit = !!on; save(true); return true;
+}
+
+function adjustRoutineRounds(id, delta) {
+  const r = routineById(id);
+  if (!r) return false;
+  r.rounds = Math.max(1, Math.min(ROUTINE_LIMITS.rounds, (r.rounds || 3) + delta));
+  save(true); return true;
+}
+
+/* In fifteen-second steps: the difference between 60 and 61 seconds of rest is
+   not a thing anyone is choosing between. */
+function adjustRoutineRest(id, delta) {
+  const r = routineById(id);
+  if (!r) return false;
+  r.restRound = Math.max(0, Math.min(ROUTINE_LIMITS.rest, (r.restRound == null ? 60 : r.restRound) + delta * 15));
+  save(true); return true;
 }
 
 function removeFromRoutine(id, idx) {
@@ -4445,8 +4587,7 @@ function adjustRoutineItem(id, idx, field, delta) {
   const r = routineById(id);
   if (!r || !r.items[idx]) return false;
   const it = r.items[idx];
-  const ex = EX[it.exId] || {};
-  const timed = ex.load === 'time' || ex.load === 'min';
+  const timed = itemIsTimed(it);
   if (field === 'sets') {
     it.sets = Math.max(1, Math.min(ROUTINE_LIMITS.sets, (it.sets || 3) + delta));
   } else {
@@ -4461,11 +4602,27 @@ function adjustRoutineItem(id, idx, field, delta) {
 function routineMins(r) {
   if (!r || !r.items.length) return 0;
   let mins = 0;
+  if (r.circuit) {
+    /* A circuit costs what one round costs, times the rounds, plus the rest
+       between them. No inter-set rest, because there isn't any — that is the
+       whole point of running it as a circuit. Ten seconds a movement for
+       getting from one to the next. */
+    let round = 0;
+    r.items.forEach(it => {
+      const l = itemLoad(it);
+      round += (l === 'min' ? it.reps * 60 : l === 'time' ? it.reps : it.reps * 3.5) + 10;
+    });
+    const rounds = r.rounds || 3;
+    mins = (round * rounds + (r.restRound || 0) * Math.max(0, rounds - 1)) / 60;
+    if (r.warmup) mins += 1.5;
+    return Math.max(1, Math.round(mins));
+  }
   r.items.forEach(it => {
     const ex = EX[it.exId];
     if (!ex) return;
     const rest = (ex.tier <= 2 ? 2.4 : 1.4);
-    const work = (ex.load === 'time' || ex.load === 'min') ? (it.reps / 60) : (it.reps * 3.5 / 60);
+    const l = itemLoad(it);
+    const work = (l === 'min') ? it.reps : (l === 'time') ? (it.reps / 60) : (it.reps * 3.5 / 60);
     mins += it.sets * (work + rest);
   });
   /* The opener costs about a minute and a half. Counted, because the whole
@@ -4501,17 +4658,26 @@ function buildRoutineSession(id, asPlanned) {
   const env = c.env || (S.profile.envs && S.profile.envs[0]) || 'full';
   const blocked = blockedIds(env);
 
+  /* In a circuit the per-movement set count is meaningless — one pass through
+     the list IS a set, and the routine's `rounds` says how many. */
+  const rounds = r.circuit ? Math.max(1, r.rounds || 3) : null;
+
   const exercises = r.items.map(it => {
     const ex = EX[it.exId];
     if (!ex) return null;
     const tg = targetFor(ex.id);
-    const timed = ex.load === 'time' || ex.load === 'min';
+    const load = itemLoad(it);
+    const timed = load === 'time' || load === 'min';
+    /* A weighted movement keeps its weight target even when it is being held
+       for time — you still want to know it was the 10kg plate. */
+    const wTarget = (ex.load === 'wt' || !timed) ? tg.w : null;
+    const n = rounds != null ? rounds : it.sets;
     return {
-      exId: ex.id, name: ex.name, load: ex.load,
-      targetW: timed ? null : tg.w,
+      exId: ex.id, name: ex.name, load,
+      targetW: wTarget,
       targetR: it.reps,
-      sets: Array.from({ length: it.sets }, () => ({
-        w: (!timed && tg.w != null) ? tg.w : '', r: '', rpe: '', done: false
+      sets: Array.from({ length: n }, () => ({
+        w: wTarget != null ? wTarget : '', r: '', rpe: '', done: false
       })),
       note: ''
     };
@@ -4521,6 +4687,7 @@ function buildRoutineSession(id, asPlanned) {
 
   /* Prepended, not appended, and only after the routine itself is known to be
      buildable — a warm-up in front of an empty session would be a session. */
+  let warmups = 0;
   if (r.warmup) {
     const w = warmupFor(r, env, blocked);
     if (w) {
@@ -4532,6 +4699,7 @@ function buildRoutineSession(id, asPlanned) {
         sets: [{ w: '', r: w.rl, rpe: '', done: false }],
         note: timed ? 'Warm-up. Hold it, breathing.' : 'Warm-up. Slow, through the whole range.'
       });
+      warmups = 1;
     }
   }
 
@@ -4543,6 +4711,14 @@ function buildRoutineSession(id, asPlanned) {
     routineName: r.name,
     extra: !asPlanned,         // an extra never discharges the week's planned session
     env, rung: 'full',
+    /* Carried onto the session, not read back off the routine: editing a
+       routine mid-session would otherwise change the thing you are doing. */
+    circuit: !!r.circuit,
+    rounds: rounds || null,
+    restRound: r.circuit ? (r.restRound == null ? 60 : r.restRound) : null,
+    /* The warm-up sits outside the circuit — it is one movement, once, and
+       the runner walks the exercises after it. */
+    warmupCount: warmups,
     planMins: routineMins(r),
     exercises,
     started: null, ended: null, dur: 0
@@ -7160,10 +7336,17 @@ function renderTrain() {
     html += `<div class="banner warm mb">${EVIDENCE.micro}<span class="src">${EVIDENCE.microSrc}</span></div>`;
   }
 
-  A.exercises.forEach((item, ei) => { html += exCardHTML(item, ei); });
+  if (A.circuit) {
+    /* The warm-up still renders as an ordinary card above the circuit — it is
+       one movement done once, before any of this starts. */
+    A.exercises.forEach((item, ei) => { if (item.warmup) html += exCardHTML(item, ei); });
+    html += circuitHTML(A);
+  } else {
+    A.exercises.forEach((item, ei) => { html += exCardHTML(item, ei); });
+  }
 
   html += `
-    <button class="btn ghost block mt" data-act="add-exercise">+ Add an exercise</button>
+    ${A.circuit ? '' : '<button class="btn ghost block mt" data-act="add-exercise">+ Add an exercise</button>'}
     <button class="btn primary block lg mt" data-act="finish">Finish session</button>
     <p class="tiny center mt-s">Partial sessions save exactly as they are. There's no penalty for stopping early.</p>
     <div class="divide"></div>
@@ -7208,6 +7391,134 @@ function setSummary(item) {
     wTxt = ' · ' + (uniq ? fmtW(ws[0]) : fmtW(Math.min(...ws)) + '–' + fmtW(Math.max(...ws))) + unit();
   }
   return done.length + ' × ' + repTxt + (isTime ? 's' : '') + wTxt;
+}
+
+/* ============================================================
+   THE CIRCUIT RUNNER
+   ------------------------------------------------------------
+   What this is for, in the words it was asked in: "I work each exercise once
+   for the duration or reps and move to the next like a superset, and then do
+   the whole routine in 3 sets."
+
+   That is a circuit, and the ordinary Train screen is the wrong shape for it.
+   A list of six cards with three set rows each is eighteen checkboxes to hunt
+   for while you are moving continuously — the screen assumes you stop between
+   sets, which in a circuit you specifically do not.
+
+   So a circuit renders as one movement at a time, in the order you do them,
+   with the round you are on and what is coming next. The underlying session is
+   unchanged — the same exercises with the same sets — so volume, energy,
+   progression and the history all work on it without knowing.
+
+   Where you are is derived from which sets are ticked rather than stored: set
+   `r` of exercise `i` is round r. That survives a reload, a crash and leaving
+   the session half-done, and there is no second copy of the truth to go stale. */
+function circuitPos(A) {
+  const list = circuitItems(A);
+  const rounds = Math.max(1, A.rounds || 1);
+  for (let r = 0; r < rounds; r++) {
+    for (let n = 0; n < list.length; n++) {
+      const st = A.exercises[list[n]].sets[r];
+      if (!st || !st.done) return { round: r, n, ei: list[n], finished: false };
+    }
+  }
+  return { round: rounds - 1, n: list.length - 1, ei: list[list.length - 1], finished: true };
+}
+
+/* The circuit is everything except the warm-up, which is one movement done
+   once before any of it starts. */
+function circuitItems(A) {
+  return A.exercises.map((it, i) => (it.warmup ? -1 : i)).filter(i => i >= 0);
+}
+
+function circuitDoneCount(A) {
+  return circuitItems(A).reduce((a, i) => a + A.exercises[i].sets.filter(s => s.done).length, 0);
+}
+
+function circuitEntryHTML(A, item, ei, round, cls) {
+  const isTime = item.load === 'time' || item.load === 'min';
+  const amount = item.targetR + (item.load === 'min' ? ' min' : isTime ? 's' : ' reps');
+  const st = item.sets[round];
+  return `<div class="circ-row ${cls}${st && st.done ? ' is-done' : ''}">
+    <div class="circ-dot">${st && st.done
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>'
+      : ''}</div>
+    <div class="grow"><div class="circ-row-n">${h(item.name)}</div></div>
+    <div class="circ-row-a mono">${h(amount)}</div>
+  </div>`;
+}
+
+function circuitHTML(A) {
+  const list = circuitItems(A);
+  if (!list.length) return '<div class="note"><p class="note-t">Nothing in this circuit.</p></div>';
+  const rounds = Math.max(1, A.rounds || 1);
+  const pos = circuitPos(A);
+  const item = A.exercises[pos.ei];
+  const isTime = item.load === 'time' || item.load === 'min';
+  const secs = item.load === 'min' ? item.targetR * 60 : item.targetR;
+  const nextN = pos.n + 1 < list.length ? list[pos.n + 1] : null;
+  const lastOfRound = pos.n === list.length - 1;
+  const doneAll = circuitDoneCount(A);
+  const totalAll = list.length * rounds;
+
+  if (pos.finished) {
+    return `<div class="circ">
+      <div class="circ-top"><span class="circ-round">Circuit done</span></div>
+      <div class="circ-now">
+        <div class="circ-name">All ${rounds} round${rounds === 1 ? '' : 's'}</div>
+        <div class="circ-amt mono">${doneAll} of ${totalAll}</div>
+        <p class="small mt">Everything is ticked. Finish the session below, or add another round from the list.</p>
+      </div>
+      ${circuitListHTML(A, pos, rounds)}
+    </div>`;
+  }
+
+  return `<div class="circ">
+    <div class="circ-top">
+      <span class="circ-round">Round ${pos.round + 1} of ${rounds}</span>
+      <span class="circ-count mono">${pos.n + 1}/${list.length}</span>
+    </div>
+
+    <div class="circ-now">
+      <div class="circ-eyebrow">Now</div>
+      <div class="circ-name">${h(item.name)}</div>
+      <div class="circ-amt mono">${item.targetR}${item.load === 'min' ? ' min' : isTime ? 's' : ''}${isTime ? '' : ' reps'}${item.targetW != null && item.targetW !== '' ? ' · ' + fmtW(item.targetW) + unit() : ''}</div>
+
+      ${isTime
+        ? `<button class="btn primary block lg mt" data-act="circ-start" data-i="${pos.ei}" data-s="${pos.round}">Start ${secs}s</button>
+           <button class="btn quiet block" data-act="circ-done" data-i="${pos.ei}" data-s="${pos.round}">Mark it done instead</button>`
+        : `<button class="btn primary block lg mt" data-act="circ-done" data-i="${pos.ei}" data-s="${pos.round}">Done &mdash; next</button>`}
+
+      <div class="circ-next">${nextN != null
+        ? 'Next: <strong>' + h(A.exercises[nextN].name) + '</strong>, straight on'
+        : (pos.round + 1 < rounds
+            ? 'Last one &mdash; then ' + (A.restRound ? fmtRest(A.restRound) + ' rest' : 'straight into round ' + (pos.round + 2))
+            : 'Last one of the whole circuit')}</div>
+    </div>
+
+    ${circuitListHTML(A, pos, rounds)}
+
+    ${doneAll ? `<button class="btn quiet block mt-s" data-act="circ-undo">Undo the last one</button>` : ''}
+  </div>`;
+}
+
+function fmtRest(s) {
+  if (s >= 60 && s % 60 === 0) return (s / 60) + ' min';
+  if (s > 60) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+  return s + 's';
+}
+
+function circuitListHTML(A, pos, rounds) {
+  const list = circuitItems(A);
+  return `<div class="circ-list">
+    <div class="circ-list-h">
+      <span class="eyebrow">The circuit</span>
+      <span class="circ-pips">${Array.from({ length: rounds }, (_, r) =>
+        `<span class="circ-pip${r < pos.round || (pos.finished && r === rounds - 1) ? ' full' : r === pos.round ? ' on' : ''}"></span>`).join('')}</span>
+    </div>
+    ${list.map((ei, n) => circuitEntryHTML(A, A.exercises[ei], ei, pos.round,
+      n === pos.n && !pos.finished ? 'is-now' : '')).join('')}
+  </div>`;
 }
 
 function exCardHTML(item, ei) {
@@ -8923,7 +9234,8 @@ function sheetRoutineEdit(id) {
   const rows = r.items.map((it, i) => {
     const ex = EX[it.exId];
     if (!ex) return '';
-    const timed = ex.load === 'time' || ex.load === 'min';
+    const timed = itemIsTimed(it);
+    const mode = it.mode || defaultMode(it.exId);
     return `<div class="rt-item">
       <div class="row between">
         <div class="grow">
@@ -8932,17 +9244,23 @@ function sheetRoutineEdit(id) {
         </div>
         <span class="rt-pos mono">${i + 1}</span>
       </div>
+
+      ${canRetime(it.exId) ? `<div class="seg sm mt-s">
+        <button class="${mode === 'reps' ? 'on' : ''}" data-act="rt-mode" data-v="${h(id)}" data-i="${i}" data-m="reps">Reps</button>
+        <button class="${mode === 'time' ? 'on' : ''}" data-act="rt-mode" data-v="${h(id)}" data-i="${i}" data-m="time">Time</button>
+      </div>` : ''}
+
       <div class="rt-nums mt-s">
-        <div class="rt-num">
+        ${r.circuit ? '' : `<div class="rt-num">
           <div class="rt-num-k">Sets</div>
           <div class="stepper sm">
             <button data-act="rt-adj" data-v="${h(id)}" data-i="${i}" data-f="sets" data-d="-1">&minus;</button>
             <input type="text" value="${it.sets}" readonly>
             <button data-act="rt-adj" data-v="${h(id)}" data-i="${i}" data-f="sets" data-d="1">+</button>
           </div>
-        </div>
+        </div>`}
         <div class="rt-num">
-          <div class="rt-num-k">${timed ? 'Seconds' : 'Reps'}</div>
+          <div class="rt-num-k">${timed ? (itemLoad(it) === 'min' ? 'Minutes' : 'Seconds') : 'Reps'}</div>
           <div class="stepper sm">
             <button data-act="rt-adj" data-v="${h(id)}" data-i="${i}" data-f="reps" data-d="-1">&minus;</button>
             <input type="text" value="${it.reps}" readonly>
@@ -8989,7 +9307,41 @@ function sheetRoutineEdit(id) {
         </div>
         <div class="switch ${r.warmup ? 'on' : ''}"></div>
       </div>
+      <div class="lrow" data-act="rt-circuit" data-v="${h(id)}">
+        <div class="ico">🔁</div>
+        <div class="grow">
+          <div class="h3">Run it as a circuit</div>
+          <div class="tiny mt-s">${r.circuit
+            ? 'One pass through the list is a round. Rest comes after the round, not between movements.'
+            : 'Off &mdash; each movement is finished, with its rest, before the next one'}</div>
+        </div>
+        <div class="switch ${r.circuit ? 'on' : ''}"></div>
+      </div>
     </div>
+
+    ${r.circuit ? `<div class="rt-item mt-s">
+      <div class="rt-nums">
+        <div class="rt-num">
+          <div class="rt-num-k">Rounds</div>
+          <div class="stepper sm">
+            <button data-act="rt-rounds" data-v="${h(id)}" data-d="-1">&minus;</button>
+            <input type="text" value="${r.rounds}" readonly>
+            <button data-act="rt-rounds" data-v="${h(id)}" data-d="1">+</button>
+          </div>
+        </div>
+        <div class="rt-num">
+          <div class="rt-num-k">Rest between</div>
+          <div class="stepper sm">
+            <button data-act="rt-rest" data-v="${h(id)}" data-d="-1">&minus;</button>
+            <input type="text" value="${r.restRound ? fmtRest(r.restRound) : 'none'}" readonly>
+            <button data-act="rt-rest" data-v="${h(id)}" data-d="1">+</button>
+          </div>
+        </div>
+      </div>
+      <p class="tiny mt-s">${r.items.length
+        ? `${r.items.length} movement${r.items.length === 1 ? '' : 's'} back to back, ${r.rounds} time${r.rounds === 1 ? '' : 's'}${r.restRound ? `, with ${fmtRest(r.restRound)} between rounds` : ', with no rest between rounds'}.`
+        : 'Add the movements and they run in the order you list them.'}</p>
+    </div>` : ''}
     ${r.items.length ? `<button class="btn primary block lg mt" data-act="routine-start" data-v="${h(id)}">Start it now</button>` : ''}
 
     <div class="divide"></div>
@@ -10101,24 +10453,59 @@ function sheetElsewherePick(k) {
 /* ============================================================
    REST TIMER
    ============================================================ */
-let restEnd = 0, restTotal = 0, restTick = null;
-function startRest(seconds, label) {
-  restTotal = seconds;
-  restEnd = Date.now() + seconds * 1000;
+/* One countdown, two jobs.
+   ------------------------
+   It was only ever a rest timer. A movement measured in seconds needs the same
+   thing pointed the other way — count the work, not the gap after it — and
+   running two timers with two bars would mean two things on screen fighting
+   for the same corner. So the bar takes a label, an appearance, and something
+   to do when it reaches zero.
+
+   `onDone` is captured before stopRest() clears it, because the callback ticks
+   a set and may start the next timer immediately. */
+let restEnd = 0, restTotal = 0, restTick = null, restDone = null;
+
+function startRest(seconds, label, opts) {
+  opts = opts || {};
+  restTotal = Math.max(1, seconds);
+  restEnd = Date.now() + restTotal * 1000;
+  restDone = opts.onDone || null;
   $('#rest-label').textContent = label || 'Rest';
-  $('#rest-bar').classList.add('on');
+  const bar = $('#rest-bar');
+  bar.classList.add('on');
+  bar.classList.toggle('work', !!opts.work);
+  /* Skipping a rest is finishing it early; skipping a work interval is
+     stopping it. The label has to say which. */
+  $('#rest-skip').textContent = opts.work ? 'Stop' : 'Skip';
+  $('#rest-add').classList.toggle('hide', !!opts.work);
   clearInterval(restTick);
   restTick = setInterval(tickRest, 200);
   tickRest();
 }
+
 function tickRest() {
   const left = Math.max(0, Math.round((restEnd - Date.now()) / 1000));
   const m = Math.floor(left / 60), s = left % 60;
   $('#rest-t').textContent = m + ':' + String(s).padStart(2, '0');
   $('#rest-bar-fill').style.width = Math.max(0, (left / restTotal) * 100) + '%';
-  if (left <= 0) { stopRest(); buzz([90, 60, 90]); toast('Rest done', true); }
+  if (left <= 0) {
+    const cb = restDone;
+    stopRest();
+    buzz([90, 60, 90]);
+    if (cb) cb(); else toast('Rest done', true);
+  }
 }
-function stopRest() { clearInterval(restTick); $('#rest-bar').classList.remove('on'); }
+
+function stopRest() {
+  clearInterval(restTick);
+  restTick = null;
+  restDone = null;
+  const bar = $('#rest-bar');
+  bar.classList.remove('on');
+  bar.classList.remove('work');
+}
+
+function timerRunning() { return $('#rest-bar').classList.contains('on'); }
 
 /* ============================================================
    SESSION LIFECYCLE
@@ -10692,6 +11079,42 @@ document.addEventListener('click', ev => {
       replaceExCard(i); save(); break;
     }
     case 'swap-ex': sheetExercisePicker('swap', i); break;
+    /* ---- the circuit runner ---- */
+    case 'circ-start': {
+      const item = S.active.exercises[i];
+      const st = item && item.sets[si];
+      if (!st || st.done) break;
+      const secs = item.load === 'min' ? item.targetR * 60 : item.targetR;
+      /* The set is ticked by the timer finishing, not by starting it. Ticking
+         up front would record work you have not done yet if you stop. */
+      startRest(secs, item.name, { work: true, onDone: () => {
+        completeCircuitEntry(i, si);
+        toast('Done — next', true);
+      }});
+      break;
+    }
+    case 'circ-done': { stopRest(); completeCircuitEntry(i, si); break; }
+    case 'circ-undo': {
+      const A = S.active;
+      if (!A) break;
+      stopRest();
+      /* Walk back to the last ticked entry in circuit order. */
+      const list = circuitItems(A);
+      const rounds = Math.max(1, A.rounds || 1);
+      let found = null;
+      for (let r = 0; r < rounds; r++)
+        for (let n = 0; n < list.length; n++) {
+          const st = A.exercises[list[n]].sets[r];
+          if (st && st.done) found = { ei: list[n], r };
+        }
+      if (!found) break;
+      const st = A.exercises[found.ei].sets[found.r];
+      st.done = false; st.r = '';
+      A.exercises[found.ei].collapsed = false;
+      save(); renderTrain(); buzz();
+      break;
+    }
+
     case 'add-exercise': sheetExercisePicker('add', null); break;
     case 'pick-env': renderPicker(($('#pick-q')||{}).value || '', v); break;
     case 'pick-ex': {
@@ -11052,6 +11475,16 @@ document.addEventListener('click', ev => {
     case 'rt-move':   { moveInRoutine(v, i, +t.dataset.d); sheetRoutineEdit(v); break; }
     case 'rt-adj':    { adjustRoutineItem(v, i, t.dataset.f, +t.dataset.d); sheetRoutineEdit(v); break; }
     case 'rt-emoji':  { setRoutineEmoji(v, t.dataset.e); sheetRoutineEdit(v); break; }
+    case 'rt-mode':   { setItemMode(v, i, t.dataset.m); sheetRoutineEdit(v); break; }
+    case 'rt-circuit': {
+      const r = routineById(v);
+      if (!r) break;
+      setRoutineCircuit(v, !r.circuit);
+      sheetRoutineEdit(v); render(); buzz();
+      break;
+    }
+    case 'rt-rounds': { adjustRoutineRounds(v, +t.dataset.d); sheetRoutineEdit(v); break; }
+    case 'rt-rest':   { adjustRoutineRest(v, +t.dataset.d); sheetRoutineEdit(v); break; }
     case 'rt-warmup': {
       const r = routineById(v);
       if (!r) break;
@@ -11151,6 +11584,39 @@ document.addEventListener('click', ev => {
 });
 
 /* Swap a single exercise card without touching the rest of the screen */
+/* Tick one entry of a circuit and move on.
+   Rest goes after the whole round, never between movements — that is the
+   difference between a circuit and an ordinary session, and it is the thing
+   that was asked for. */
+function completeCircuitEntry(ei, round) {
+  const A = S.active;
+  if (!A) return;
+  const item = A.exercises[ei];
+  const st = item && item.sets[round];
+  if (!st || st.done) return;
+
+  st.done = true;
+  if (st.r === '' || st.r == null) st.r = item.targetR || '';
+  if ((st.w === '' || st.w == null) && item.targetW != null && item.targetW !== '') st.w = item.targetW;
+  buzz();
+  save();
+
+  const list = circuitItems(A);
+  const rounds = Math.max(1, A.rounds || 1);
+  const wasLastOfRound = list[list.length - 1] === ei;
+  const moreRounds = round + 1 < rounds;
+
+  renderTrain();
+
+  if (wasLastOfRound && moreRounds && A.restRound > 0) {
+    startRest(A.restRound, 'Round ' + (round + 1) + ' done — rest', {
+      onDone: () => { if (SCREEN === 'train' && S.active) { toast('Round ' + (round + 2), true); renderTrain(); } }
+    });
+  } else if (wasLastOfRound && !moreRounds) {
+    toast('Circuit finished', true);
+  }
+}
+
 function replaceExCard(i) {
   const el = document.querySelector('.ex-card[data-ei="' + i + '"]');
   if (!el || !S.active) return;
