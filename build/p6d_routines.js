@@ -149,6 +149,10 @@ function sheetRoutineEdit(id) {
     ${r.items.length ? rows : `<div class="note mb"><p class="note-t">Empty so far.</p><p class="note-b">Add the movements you want, in the order you want to do them.</p></div>`}
 
     <button class="btn ghost block mt" data-act="rt-add" data-v="${h(id)}">+ Add a movement</button>
+    ${/* Straight into this routine rather than building new ones. Adding
+          twenty movements one tap at a time is exactly the work the import
+          exists to remove, and the builder is where you feel it. */''}
+    <button class="btn quiet block mt-s" data-act="import-into" data-v="${h(id)}">Add them from a file</button>
 
     <div class="list mt">
       <div class="lrow" data-act="rt-warmup" data-v="${h(id)}">

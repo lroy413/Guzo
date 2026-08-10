@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **716,183 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (329) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (23) + `import` (53) all green. Nothing known is broken.
+Verified against the build at **721,666 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (329) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (23) + `import` (62) all green. Nothing known is broken.
 
 ---
 
@@ -22,7 +22,7 @@ Last sweep: `dupes` + `blanks` (329) + `engine` (188) + `fuel` (37) + `sw` (17) 
 | Badges | Complete. Priority, Arms, Core, Mobility, Endurance, Unilateral, Heavy — capped at three per card, every one with a tone. |
 | What a set row offers | Complete. Each row shows what you did in that slot last time, carries down from set 1 as you type, and records the unrounded value behind the rounded one it painted. |
 | Personal bests | Complete. Called on the tick rather than at finish, marked in the row it happened in, taken back with the set. |
-| Import a plan | Complete. A PDF or text file becomes one routine per day: text extracted on-device with no library, movements matched to the catalogue by name, supersets read off the plan's own 4A/4B notation, and everything shown for review before anything is built. |
+| Import a plan | Complete. Offered from Structure, from the routines list, and from inside the builder. A PDF or text file becomes one routine per day — or, from the builder, movements appended to the routine you already have open: text extracted on-device with no library, movements matched to the catalogue by name, supersets read off the plan's own 4A/4B notation, and everything shown for review before anything is built. |
 | Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
 | When a day ends | Complete. `profile.dayStart` moves the boundary off midnight, up to 6am. Applied inside `today()`, so the whole app moves with it. Default 0. |
 | Two sessions a day | Complete. Both are kept and both are shown; the session that discharged the day names it. |
@@ -475,6 +475,25 @@ That one now runs a one-second rest and counts oscillators through a spy on the
 platform's own `createOscillator`, so the subject is untouched. And the
 withdraw-on-skip check counted cancellations without resetting first — `startRest`
 cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
+### The import is offered where you would look for it
+
+It shipped with one entry point, at the bottom of the routines list, which is
+the last place you would go looking. It is now on **Structure** — the screen you
+are on when you are thinking about how your training is shaped — on the
+**routines list**, and inside the **builder**, where it adds to the routine you
+already have open rather than building new ones.
+
+That third one is a different operation, so it is a different path:
+`commitImportInto` appends in document order after whatever was already in the
+routine, preserving the existing movements and only forming a superset between
+two movements that were neighbours inside one day. A pair cannot form across a
+day boundary, and a day you turned off contributes nothing.
+
+`applyImportItem` is shared by both commit paths, so the two cannot disagree
+about what an imported movement's sets, reps and unit are.
 
 ---
 

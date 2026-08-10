@@ -344,7 +344,27 @@ function sheetProgram() {
             <p class="small mt-s">${p.desc}</p>
           </div>
         </div>`).join('')}
-    </div>`);
+    </div>
+
+    ${/* A written plan is a structure too — the one you already decided on.
+          Offered here because this is the screen you are on when you are
+          thinking about how your training is shaped, and looking for it under
+          Routines means knowing it exists. */''}
+    <div class="divide"></div>
+    <div class="sec-head"><span class="sec-t">Already have a plan?</span></div>
+    <div class="list">
+      <div class="lrow" data-act="import">
+        <div class="ico">📄</div>
+        <div class="grow">
+          <div class="h3">Import one from a file</div>
+          <div class="tiny mt-s">A PDF or text plan becomes a routine per day, with every movement
+            shown before anything is built</div>
+        </div>
+        <span class="chev">›</span>
+      </div>
+    </div>
+    <p class="tiny center mt-s">An imported plan sits alongside the structure above rather than
+      replacing it &mdash; run its days as routines whenever you want them.</p>`);
 }
 
 let pickerFor = null; // {mode:'swap'|'add', i}

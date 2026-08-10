@@ -372,6 +372,67 @@ try {
   check('a file with no plan in it says so', junk.said === true, junk.txt);
   check('...and builds nothing', junk.after === junk.before, String(junk.after));
 
+  // ================= 5. where you find it, and adding into a routine ======
+  console.log('\nthe ways in\n');
+
+  const doors = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const has = () => !!document.querySelector('#sheet-body [data-act="import"]');
+    /* Where you go to decide how your training is shaped. */
+    sheetProgram();
+    const structure = has();
+    /* Where your own sessions live. */
+    sheetRoutines();
+    const routines = has();
+    /* And inside the thing you are building, which is where adding twenty
+       movements one tap at a time actually hurts. */
+    const r = newRoutine('Legs');
+    addToRoutine(r.id, 'bb-back-squat');
+    sheetRoutineEdit(r.id);
+    const el = document.querySelector('#sheet-body [data-act="import-into"]');
+    const builder = !!el && el.dataset.v === r.id;
+    closeSheet();
+    return { structure, routines, builder };
+  });
+  check('Structure offers the import', doors.structure === true);
+  check('...so does the routines list', doors.routines === true);
+  check('...and the builder offers it for the routine you have open',
+    doors.builder === true);
+
+  const into = await page.evaluate(async (arr) => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Legs');
+    addToRoutine(r.id, 'bb-deadlift');          // already in it, must survive
+    sheetImport(r.id);
+    await runImport(new File([new Uint8Array(arr)], 'plan.pdf', { type: 'application/pdf' }));
+    const body = document.getElementById('sheet-body');
+    const saysInto = /Adding to/.test(body.innerText) && /Legs/.test(body.innerText);
+    const before = ensureRoutines().length;
+    /* Only the first day. */
+    IMPORT.days[1].on = false;
+    const res = commitImport();
+    const list = ensureRoutines();
+    const legs = routineById(r.id);
+    return { saysInto, before, after: list.length, added: res.added,
+      names: legs.items.map(i => EX[i.exId].name),
+      sup: supersetGroups(legs.items).map(g => g.map(i => EX[legs.items[i].exId].name).join('+')) };
+  }, PDF_BYTES);
+  check('importing into a routine says which one', into.saysInto === true);
+  /* The whole difference between the two modes. */
+  check('...adds to it rather than building new ones',
+    into.after === 1 && into.before === 1, `${into.before} → ${into.after}`);
+  check('...keeps what was already in it, first',
+    into.names[0] === 'Deadlift', into.names.join(','));
+  check('...appends the imported movements after it',
+    into.names.join(',') === 'Deadlift,Back Squat,Close-Grip Bench,Leg Curl,Leg Extension,Plank,Bicycle Crunch',
+    into.names.join(','));
+  check('...and the superset comes with them',
+    into.sup.length === 1 && into.sup[0] === 'Leg Curl+Leg Extension', JSON.stringify(into.sup));
+  /* A day that was turned off contributes nothing, and the movement that would
+     have followed it is not linked to across the gap. */
+  check('...while a day turned off contributes nothing',
+    into.names.indexOf('Bench Press') < 0, into.names.join(','));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

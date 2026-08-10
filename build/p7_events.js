@@ -842,6 +842,8 @@ document.addEventListener('click', ev => {
     }
     /* ---- import ---- */
     case 'import': sheetImport(); break;
+    /* Straight into the routine you already have open. */
+    case 'import-into': sheetImport(v); break;
     case 'imp-day': {
       const d = IMPORT && IMPORT.days[i];
       if (!d) break;
@@ -864,11 +866,21 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'imp-commit': {
+      const into = IMPORT_INTO;
       const r = commitImport();
       if (!r || !r.made) { toast('Nothing to build'); break; }
-      closeSheet(); render();
-      toast(r.made === 1 ? 'One routine built' : r.made + ' routines built', true);
-      setTimeout(() => sheetRoutines(), 260);
+      render();
+      if (into) {
+        /* Back to the routine you were building, so you can see what landed
+           and keep going. */
+        toast(r.added === 1 ? 'One movement added' : r.added + ' movements added', true);
+        if (r.skipped) setTimeout(() => toast(r.skipped + ' would not fit — the routine is full'), 2400);
+        sheetRoutineEdit(into);
+      } else {
+        closeSheet();
+        toast(r.made === 1 ? 'One routine built' : r.made + ' routines built', true);
+        setTimeout(() => sheetRoutines(), 260);
+      }
       break;
     }
 
