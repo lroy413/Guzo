@@ -73,14 +73,21 @@
   </section>
 
   <!-- ============ REST TIMER ============ -->
+  <!-- Rest is a third of a session's wall clock and used to get a 44px strip
+       with a hairline bar in it. It still does not cover the screen — you log
+       and read while you rest — but it now says what you are resting *for*,
+       which is the one thing that makes the wait useful. -->
   <div class="rest" id="rest-bar">
-    <span class="t mono" id="rest-t">1:30</span>
-    <div class="grow">
-      <div class="bar thin"><i id="rest-bar-fill" style="width:100%"></i></div>
-      <div class="tiny mt-s" id="rest-label">Rest</div>
+    <div class="rest-row">
+      <span class="t mono" id="rest-t">1:30</span>
+      <div class="grow">
+        <div class="rest-label" id="rest-label">Rest</div>
+        <div class="rest-next" id="rest-next"></div>
+      </div>
+      <button class="btn xs ghost" id="rest-add">+30s</button>
+      <button class="btn xs" id="rest-skip">Skip</button>
     </div>
-    <button class="btn xs ghost" id="rest-add">+30s</button>
-    <button class="btn xs" id="rest-skip">Skip</button>
+    <div class="bar thin"><i id="rest-bar-fill" style="width:100%"></i></div>
   </div>
 
   <!-- ============ NAV ============ -->

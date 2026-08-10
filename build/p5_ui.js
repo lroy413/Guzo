@@ -1045,13 +1045,21 @@ function trainRailHTML(A) {
      worse than no rail. */
   const order = sessionOrder(A);
   const cur = order.find(i => !isComplete(A.exercises[i]));
+  /* A break wherever the block changes, so the rail reads as stages of a route
+     rather than one undifferentiated bar — the same structure the headings
+     below it already describe. Decorative, and therefore hidden from the
+     accessibility tree and never counted as a segment. */
+  let block = null;
   return `<div class="rail">
     ${order.map(i => {
       const it = A.exercises[i];
+      const b = exBlock(it);
+      const brk = (block !== null && b !== block) ? '<span class="rail-brk" aria-hidden="true"></span>' : '';
+      block = b;
       const done = it.sets.filter(s => s.done).length;
       const all = it.sets.length || 1;
       const state = isComplete(it) ? 'done' : (i === cur ? 'now' : '');
-      return `<button class="rail-seg ${state}" data-act="rail-go" data-i="${i}"
+      return brk + `<button class="rail-seg ${state}" data-act="rail-go" data-i="${i}"
         aria-label="${h(it.name)}, ${done} of ${all} sets"><i style="width:${Math.round(done / all * 100)}%"></i></button>`;
     }).join('')}
   </div>`;
@@ -1065,6 +1073,94 @@ function trainWhere(A) {
   const at = order.findIndex(i => !isComplete(A.exercises[i]));
   if (at < 0) return 'Everything ticked';
   return A.exercises[order[at]].name + ' · ' + (at + 1) + ' of ' + order.length;
+}
+
+/* One copy of the star. It is drawn from three places — the card, the tick
+   handler and the re-check below — and three copies of a path drift. */
+const PR_STAR = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.3 1.3 6.3L12 16.6l-5.6 3.2 1.3-6.3-4.8-4.3 6.4-.7z"/></svg>';
+
+/* Paint a row as a record, or as an ordinary numbered set. */
+function paintPR(row, si, isRecord) {
+  if (!row) return;
+  row.classList.toggle('pr', !!isRecord);
+  const sn = row.querySelector('.sn');
+  if (!sn) return;
+  if (isRecord) {
+    sn.setAttribute('role', 'img');
+    sn.setAttribute('aria-label', 'Personal best, set ' + (si + 1));
+    sn.innerHTML = PR_STAR;
+  } else {
+    sn.removeAttribute('role');
+    sn.removeAttribute('aria-label');
+    sn.textContent = String(si + 1);
+  }
+}
+
+/* A set edited after it was ticked has to re-decide whether it is still a
+   record. Tick an untouched row at the offered 120, notice it was really 40,
+   correct it — and without this the star stays on a set that never earned it,
+   and the finish sheet reports a best you did not hit. */
+function refreshPR(ei, si) {
+  if (!S.active) return;
+  const item = S.active.exercises[ei];
+  if (!item || !item.sets[si] || !item.sets[si].done) return;
+  const st = item.sets[si];
+  const was = !!st.pr;
+  st.pr = isPR(item, st);
+  if (st.pr === was) return;
+  const row = document.querySelectorAll('.ex-card[data-ei="' + ei + '"] .set-row')[si];
+  paintPR(row, si, st.pr);
+}
+
+/* What you beat, on the screen that exists to say what you did. The stars sat
+   on the rows during the session and would otherwise be the only record of it
+   — a personal best is the thing you tell someone about, and finding it should
+   not mean scrolling back through a session you have already finished. */
+function sessionPRsHTML(A) {
+  const hits = [];
+  (A.exercises || []).forEach(x => {
+    const best = (x.sets || []).filter(s => s.done && s.pr)
+      .sort((a, b) => e1rm(+b.w || 0, +b.r || 0) - e1rm(+a.w || 0, +a.r || 0))[0];
+    if (best) hits.push({ name: x.name, w: best.w, r: best.r });
+  });
+  if (!hits.length) return '';
+  return `<div class="prs mb">
+    <div class="prs-h">${PR_STAR}<span>${hits.length === 1
+      ? 'A personal best' : hits.length + ' personal bests'}</span></div>
+    ${hits.map(p => `<div class="prs-row">
+      <span class="grow">${h(p.name)}</span>
+      <span class="mono">${+p.w > 0 ? fmtW(+p.w) + unit() + ' &times; ' : ''}${h(String(p.r))}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+/* What the rest is for — the set you will do when it runs out.
+   ------------------------------------------------------------
+   A countdown on its own is time passing. Naming what is on the other side of
+   it is what turns the wait into part of the session, and it is the one thing
+   you want to know while you are standing there.
+
+   Derived from what is ticked rather than stored, the same as the rail and the
+   circuit runner: the first unfinished set in display order is the next one.
+   Returns escaped HTML because the movement name goes in bold. */
+function nextUpHTML(A) {
+  if (!A) return '';
+  if (A.circuit) {
+    const pos = circuitPos(A);
+    if (pos.finished) return '';
+    const it = A.exercises[pos.ei];
+    if (!it) return '';
+    return `Next &middot; <b>${h(it.name)}</b>, round ${pos.round + 1} of ${Math.max(1, A.rounds || 1)}`;
+  }
+  const order = sessionOrder(A);
+  for (const i of order) {
+    const it = A.exercises[i];
+    if (!it || !it.sets) continue;
+    const si = it.sets.findIndex(s => !s.done);
+    if (si < 0) continue;
+    return `Next &middot; <b>${h(it.name)}</b>, set ${si + 1} of ${it.sets.length}`;
+  }
+  return 'Nothing left — finish when you are ready';
 }
 
 /* The badges for one movement, or nothing at all. Deliberately capped: a row
@@ -1148,7 +1244,7 @@ function exCardHTML(item, ei) {
                 label rides on the element rather than on hidden text, which
                 would be one more box for the collision sweep to trip over. */''}
           ${st.pr
-            ? `<div class="sn" role="img" aria-label="Personal best, set ${si+1}"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.3 1.3 6.3L12 16.6l-5.6 3.2 1.3-6.3-4.8-4.3 6.4-.7z"/></svg></div>`
+            ? `<div class="sn" role="img" aria-label="Personal best, set ${si+1}">${PR_STAR}</div>`
             : `<div class="sn">${si+1}</div>`}
           <label class="set-f">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${h(ghostW(item, g))}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
@@ -1271,7 +1367,11 @@ function updateTrainProgress() {
   if (rail) {
     const order = sessionOrder(A);
     const cur = order.find(i => !isComplete(A.exercises[i]));
-    [...rail.children].forEach((seg, pos) => {
+    /* .rail-seg, not children: the rail also holds decorative block breaks,
+       and walking every child would map segment N onto order[N + breaks so
+       far] — the rail would fill the wrong movements the moment a session had
+       more than one block in it. */
+    [...rail.querySelectorAll('.rail-seg')].forEach((seg, pos) => {
       const i = order[pos];
       const it = A.exercises[i];
       if (!it) return;

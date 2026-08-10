@@ -851,6 +851,16 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 }
 @keyframes prStar{from{opacity:0;transform:scale(.3) rotate(-40deg)}to{opacity:1;transform:none}}
 
+/* ---------- the records from a finished session ---------- */
+.prs{background:var(--ember-dim);border:1px solid var(--ember-line);
+  border-radius:var(--r-l);padding:13px 15px}
+.prs-h{display:flex;align-items:center;gap:8px;color:var(--ember);
+  font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.prs-h svg{width:14px;height:14px;flex:none}
+.prs-row{display:flex;align-items:center;gap:12px;min-height:32px;
+  font-size:14px;font-weight:600;letter-spacing:-.01em;padding-top:7px}
+.prs-row .mono{color:var(--ember-2);font-size:13px;flex:none}
+
 /* ---------- the session rail ----------
    A segment per movement, filling as its sets are ticked. */
 /* The bar reads as 8px and the button *is* 44px: the track is drawn by a
@@ -870,6 +880,11 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .rail-seg.done i{background:var(--teal)}
 /* The movement you are on takes more of the bar, so the rail says where you
    are without needing a marker on top of it. */
+/* Purely a gap. flex:none so it never steals width from a movement, and the
+   rail's own 4px gap sits on both sides of it, which is what makes the break
+   read at a glance without a visible rule. */
+.rail-brk{flex:none;width:1px;align-self:center;height:14px;
+  background:var(--line);border-radius:1px}
 .rail-seg.now{flex-grow:2.1}
 .rail-seg.now::before{background:rgba(233,180,76,.20)}
 .rail-seg:active::before{background:var(--line)}
@@ -900,14 +915,26 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   background:rgba(22,27,34,.82);backdrop-filter:blur(24px) saturate(1.5);
   -webkit-backdrop-filter:blur(24px) saturate(1.5);
   border:1px solid rgba(233,180,76,.24);
-  border-radius:18px;padding:11px 13px 11px 16px;display:none;align-items:center;gap:13px;
+  border-radius:18px;padding:11px 13px 12px 16px;display:none;
   box-shadow:var(--shadow),var(--inset);max-width:608px;margin:0 auto;
   animation:restIn .3s cubic-bezier(.2,.9,.3,1);
 }
-.rest.on{display:flex}
+.rest.on{display:block}
+.rest-row{display:flex;align-items:center;gap:13px;margin-bottom:9px}
 @keyframes restIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.rest .t{font-family:var(--fm);font-size:22px;font-weight:700;letter-spacing:-.03em;
-  color:var(--ember);min-width:62px;font-variant-numeric:tabular-nums}
+/* The bar runs the full width now rather than sharing a row with the label —
+   it is the only thing on screen that is moving, and it reads as a distance
+   left to cover instead of a detail beside the number. */
+.rest .bar.thin{height:4px}
+.rest .t{font-family:var(--fm);font-size:26px;font-weight:700;letter-spacing:-.035em;
+  color:var(--ember);min-width:72px;font-variant-numeric:tabular-nums;line-height:1}
+.rest-label{font-size:12.5px;font-weight:650;color:var(--text);letter-spacing:-.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* What the wait is for. Without it the bar is time passing and nothing else. */
+.rest-next{font-size:11.5px;color:var(--muted);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rest-next b{color:var(--ember-2);font-weight:650}
+.rest-next:empty{display:none}
 /* The same bar counting work rather than rest. Teal, because everywhere else
    in the app teal means "this is the doing part" and ember means "waiting". */
 .rest.work{border-color:rgba(79,209,165,.34)}

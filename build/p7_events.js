@@ -19,6 +19,9 @@ function startRest(seconds, label, opts) {
   restEnd = Date.now() + restTotal * 1000;
   restDone = opts.onDone || null;
   $('#rest-label').textContent = label || 'Rest';
+  /* Suppressed while the bar is counting work rather than rest: what is next
+     is the thing you are in the middle of, and saying so mid-hold is noise. */
+  $('#rest-next').innerHTML = opts.work ? '' : nextUpHTML(S.active);
   const bar = $('#rest-bar');
   bar.classList.add('on');
   bar.classList.toggle('work', !!opts.work);
@@ -151,6 +154,7 @@ function sheetSessionDone(A, v, fresh) {
       ${kc ? `<div class="tile"><div class="v" style="color:var(--ember)">${kc}</div><div class="k">kcal</div></div>` : ''}
       ${v.tonnage ? `<div class="tile"><div class="v">${(v.tonnage/1000).toFixed(1)}k</div><div class="k">${unit()}</div></div>` : ''}
     </div>
+    ${sessionPRsHTML(A)}
     ${fresh && fresh.length ? fresh.map(m => `
       <div class="milestone mb">
         <div class="milestone-ico">${m.ico}</div>
@@ -599,7 +603,6 @@ document.addEventListener('click', ev => {
       const row = t.closest('.set-row');
       if (row) {
         row.classList.toggle('done', st.done);
-        row.classList.toggle('pr', !!st.pr);
         t.classList.toggle('on', st.done);
         /* Transient, so the flourish belongs to the tap. Removed on a timer
            because the class is what triggers it and it has to be gone before
@@ -613,18 +616,7 @@ document.addEventListener('click', ev => {
         /* The set number becomes the star and back again. Swapped in place
            rather than by rebuilding the card, which would close the keyboard
            on the row below. */
-        const sn = row.querySelector('.sn');
-        if (sn) {
-          if (st.pr) {
-            sn.setAttribute('role', 'img');
-            sn.setAttribute('aria-label', 'Personal best, set ' + (si + 1));
-            sn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.3 1.3 6.3L12 16.6l-5.6 3.2 1.3-6.3-4.8-4.3 6.4-.7z"/></svg>';
-          } else {
-            sn.removeAttribute('role');
-            sn.removeAttribute('aria-label');
-            sn.textContent = String(si + 1);
-          }
-        }
+        paintPR(row, si, st.pr);
       }
       /* Ticking set 1 fills it in, which is what the sets under it should now
          be offering. In place, because the point of all of this is that the
@@ -1300,6 +1292,9 @@ document.addEventListener('input', ev => {
        sets below it stop being last week's guess. */
     if (f === 'w' || f === 'r') refreshGhosts(i);
   }
+  /* Correcting a set you already ticked has to re-decide whether it is still
+     a record — see refreshPR. */
+  if (f === 'w' || f === 'r') refreshPR(i, si);
   save();
 });
 

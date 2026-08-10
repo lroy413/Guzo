@@ -1732,7 +1732,7 @@ try {
     const r = newRoutine('Push');
     ['bb-bench', 'db-fly', 'bb-ohp'].forEach(id => addToRoutine(r.id, id));
     sheetRoutineEdit(r.id);
-    const sh = document.querySelector('.sheet-body') || document.body;
+    const sh = document.getElementById('sheet-body');
     const links = [...sh.querySelectorAll('[data-act="rt-superset"]')];
     const off = { count: links.length, pressed: links.map(b => b.getAttribute('aria-pressed')) };
     /* Return a fully shaped miss rather than reaching into an empty list. A
@@ -1743,7 +1743,7 @@ try {
     /* Two movements, two gaps between three of them — and none after the last,
        which has nothing to run into. */
     links[0].click();
-    const sh2 = document.querySelector('.sheet-body') || document.body;
+    const sh2 = document.getElementById('sheet-body');
     const on = {
       pressed: [...sh2.querySelectorAll('[data-act="rt-superset"]')].map(b => b.getAttribute('aria-pressed')),
       letters: [...sh2.querySelectorAll('.rt-sup')].map(e => e.textContent.trim()),
@@ -1753,7 +1753,7 @@ try {
     /* A circuit already runs every movement back to back. */
     setRoutineCircuit(r.id, true);
     sheetRoutineEdit(r.id);
-    const sh3 = document.querySelector('.sheet-body') || document.body;
+    const sh3 = document.getElementById('sheet-body');
     const inCircuit = sh3.querySelectorAll('[data-act="rt-superset"]').length;
     setRoutineCircuit(r.id, false);
     closeSheet();
@@ -1932,6 +1932,151 @@ try {
      preference with no payoff. */
   check('...and weight gets the width back', rpeUI.wOff > rpeUI.wOn + 20,
     `${Math.round(rpeUI.wOn)}px → ${Math.round(rpeUI.wOff)}px`);
+
+  /* ---- rest says what it is for, and the rail shows the terrain ---- */
+  const restUI = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    const mk = (id, sets) => { const e = EX[id]; return { exId:id, name:e.name, load:e.load,
+      targetW: e.load === 'wt' ? 60 : null, targetR: e.rl, note:'',
+      sets: Array.from({length:sets}, () => ({ w:'', r:'', rpe:'', done:false })) }; };
+    S.settings.autoRest = true;
+    S.active = { date: today(), type:'push', rung:'full', env:'full', started: Date.now(),
+      rounds:1, exercises: [mk('bb-bench', 3), mk('db-lateral', 2)] };
+    save(true); go('train');
+
+    const railSegs = () => document.querySelectorAll('#train-body .rail .rail-seg').length;
+    const railBrks = () => document.querySelectorAll('#train-body .rail .rail-brk').length;
+    const before = { segs: railSegs(), brks: railBrks(),
+                     blocks: [...new Set(S.active.exercises.map(x => exBlock(x)))] };
+
+    const tick = (ei, si) => document.querySelectorAll(`.ex-card[data-ei="${ei}"] .set-row`)[si]
+                                     .querySelector('.tick').click();
+    stopRest();
+    tick(0, 0);
+    const mid = { label: document.getElementById('rest-label').textContent,
+                  next: document.getElementById('rest-next').textContent };
+
+    /* Finish the movement and the rest is now for the next one, not the next
+       set of the one you just finished. */
+    stopRest(); tick(0, 1); stopRest(); tick(0, 2);
+    const after = { next: document.getElementById('rest-next').textContent };
+    stopRest();
+
+    /* And the rail fills the movement you actually ticked, not the segment
+       sitting at that position among the block breaks. The second movement is
+       the one that matters: walking rail.children maps segment 1 onto the
+       break, so the movement *after* a break never updates. Read without a
+       re-render, because updateTrainProgress is the thing under test. */
+    tick(1, 0);
+    stopRest();
+    const fills = [...document.querySelectorAll('#train-body .rail .rail-seg i')]
+                    .map(e => e.style.width);
+    return { before, mid, after, fills,
+             names: S.active.exercises.map(x => x.name) };
+  });
+  check('the rail is one segment per movement', restUI.before.segs === 2, String(restUI.before.segs));
+  /* Two movements in two different blocks, so exactly one break between them.
+     A session that is all one block gets none. */
+  check('...with a break where the block changes',
+    restUI.before.blocks.length === 2 && restUI.before.brks === 1,
+    restUI.before.blocks.join('/') + ' → ' + restUI.before.brks + ' breaks');
+  check('resting names what it is for', /Bench Press/.test(restUI.mid.next) &&
+    /set 2 of 3/.test(restUI.mid.next), restUI.mid.next);
+  check('...and moves on to the next movement once one is finished',
+    /Lateral Raise/.test(restUI.after.next), restUI.after.next);
+  /* The bug the break introduced: updateTrainProgress walked rail.children, so
+     segment N mapped onto order[N + breaks so far] and the wrong movement
+     filled the moment a session had more than one block. */
+  check('the rail fills the movement after a break, not the break',
+    restUI.fills[0] === '100%' && restUI.fills[1] === '50%', restUI.fills.join(', '));
+
+  /* ---- a record survives to the finish sheet, and a corrected set does not ---- */
+  const prDone = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    const e = EX['bb-bench'];
+    S.lifts['bb-bench'] = { w:80, r:8, fails:0, best:{ w:80, r:8, e1rm:e1rm(80,8) },
+                            lastDate: today(), history:[] };
+    S.settings.autoRest = false;
+    /* Two sets, not one: ticking the last set of a movement legitimately folds
+       the card away, and there would be no row left to look at. */
+    S.active = { date: today(), type:'push', rung:'full', env:'full', started: Date.now(),
+      rounds:1, exercises: [{ exId:'bb-bench', name:e.name, load:'wt', targetW:120, targetR:5,
+        sets: [{ w:'', r:'', rpe:'', done:false }, { w:'', r:'', rpe:'', done:false }], note:'' }] };
+    save(true); go('train');
+    const row = () => document.querySelectorAll('.ex-card[data-ei="0"] .set-row')[0];
+    /* Fail, do not throw: a missing row would kill the instrument before it
+       printed anything, and a reverted subject would read as a crash. */
+    const miss = { marked:'no row', afterEdit:{ pr:null, flag:null, num:'' },
+                   restored:null, finishHTML:'', noneHTML:'' };
+    if (!row()) return miss;
+    row().querySelector('.tick').click();
+    if (!row()) return miss;
+    const marked = row().classList.contains('pr');
+
+    /* Ticked at the offered 120, then corrected to what you actually lifted.
+       Without the re-check the star stays and the finish sheet reports a best
+       that never happened. */
+    const w = row().querySelector('[data-set="w"]');
+    w.value = '40'; w.dispatchEvent(new Event('input', { bubbles: true }));
+    const afterEdit = { pr: row().classList.contains('pr'),
+                        flag: !!S.active.exercises[0].sets[0].pr,
+                        num: row().querySelector('.sn').textContent.trim() };
+
+    /* Put it back above the record and it is a record again. */
+    w.value = '150'; w.dispatchEvent(new Event('input', { bubbles: true }));
+    const restored = row().classList.contains('pr');
+
+    return { marked, afterEdit, restored };
+  });
+  check('a record is marked when the set is ticked', prDone.marked === true);
+  check('correcting the weight downward takes the record back',
+    prDone.afterEdit.pr === false && prDone.afterEdit.flag === false &&
+    prDone.afterEdit.num === '1', JSON.stringify(prDone.afterEdit));
+  check('...and correcting it back up returns it', prDone.restored === true);
+
+  /* Finished for real and the sheet read out of the DOM. Calling
+     sessionPRsHTML() and matching its return proves the function works and
+     says nothing about whether the sheet renders it — reverted, that version
+     stayed green with the call deleted from sheetSessionDone. */
+  const seedFinish = (pr) => page.evaluate(`(() => {
+    S = blank(); S.onboarded = true;
+    const e = EX['bb-bench'];
+    S.lifts['bb-bench'] = { w:80, r:8, fails:0, best:{ w:80, r:8, e1rm:e1rm(80,8) },
+                            lastDate: today(), history:[] };
+    S.settings.autoRest = false;
+    S.active = { date: today(), type:'push', rung:'full', env:'full', started: Date.now() - 600000,
+      rounds:1, exercises: [{ exId:'bb-bench', name:e.name, load:'wt',
+        targetW: ${pr ? 150 : 40}, targetR:5,
+        sets: [{ w:'', r:'', rpe:'', done:false }, { w:'', r:'', rpe:'', done:false }], note:'' }] };
+    save(true); go('train');
+    document.querySelectorAll('.ex-card[data-ei="0"] .tick').forEach(b => b.click());
+    finishSession();
+  })()`);
+  const readSheet = () => page.evaluate(() => {
+    /* #sheet-body always exists, so its presence proves nothing — the sheet is
+       open when #sheet carries .on. */
+    const open = document.getElementById('sheet').classList.contains('on');
+    const b = document.getElementById('sheet-body');
+    return { open, prs: open ? b.querySelectorAll('.prs').length : -1,
+             text: open ? (b.innerText || '') : '' };
+  });
+
+  await seedFinish(true);
+  await page.waitForTimeout(500);
+  const doneWith = await readSheet();
+  await page.evaluate(() => closeSheet());
+  await seedFinish(false);
+  await page.waitForTimeout(500);
+  const doneWithout = await readSheet();
+  await page.evaluate(() => closeSheet());
+
+  check('the finish sheet is reached at all', doneWith.open === true);
+  check('...and lists what you beat', doneWith.prs === 1 &&
+    /personal best/i.test(doneWith.text) && /Bench Press/.test(doneWith.text),
+    `${doneWith.prs} blocks`);
+  check('...and says nothing at all when you beat nothing',
+    doneWithout.open === true && doneWithout.prs === 0, `${doneWithout.prs} blocks`);
+  check('no placeholder text on the finish sheet', !BAD.test(doneWith.text));
 
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 

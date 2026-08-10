@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **655,807 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (310) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **662,040 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (322) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -404,6 +404,42 @@ unloaded plank, and `e1rm()` returns 0 for a zero weight, so nothing could beat
 anything. All three now fail when reverted. A fourth probe threw on a missing
 element instead of failing — killing the instrument before it printed — and now
 returns a shaped miss.
+
+---
+
+### Rest says what it is for, the rail shows terrain, and the finish names what you beat
+
+**Rest.** A third of a session's wall clock was getting a 44px strip with a
+hairline bar in it. It still does not cover the screen — you read and log while
+you rest — but the bar now runs full width, the countdown is legible from arm's
+length, and it names the set on the other side of the wait: "Next · Bench
+Press, set 2 of 3". Derived from what is ticked rather than stored, so it is
+right after a reload, and it handles a circuit by asking `circuitPos`.
+
+**The rail.** A break wherever the block changes, so the session reads as stages
+of a route rather than one undifferentiated bar. That immediately introduced a
+bug and the check caught it: `updateTrainProgress` walked `rail.children`, so
+segment N mapped onto `order[N + breaks so far]` and every movement after a
+break stopped filling. It selects `.rail-seg` now.
+
+**The finish sheet lists your records.** The stars were on the rows during the
+session and were otherwise the only trace of them. A personal best is the thing
+you tell someone about; finding it should not mean scrolling back through a
+session you have already finished.
+
+**And one lie fixed.** Ticking an untouched row records what the row offered —
+so tick at the offered 120, notice it was really 40, correct it, and the star
+stayed on a set that never earned it. `refreshPR()` re-decides on every edit to
+a ticked set.
+
+Two of the checks for this were not testing what they claimed. The rail-fill
+check asserted on the movement *before* the break, which maps correctly either
+way; it now asserts on the one after it. The finish-sheet check called
+`sessionPRsHTML()` and matched its return, which proves the function works and
+says nothing about whether the sheet renders it — deleting the call from
+`sheetSessionDone` left it green. It finishes a session for real and reads the
+open sheet now. A third probe threw on a card that had legitimately folded
+away, killing the instrument before it printed.
 
 ---
 

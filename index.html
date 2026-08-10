@@ -851,6 +851,16 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 }
 @keyframes prStar{from{opacity:0;transform:scale(.3) rotate(-40deg)}to{opacity:1;transform:none}}
 
+/* ---------- the records from a finished session ---------- */
+.prs{background:var(--ember-dim);border:1px solid var(--ember-line);
+  border-radius:var(--r-l);padding:13px 15px}
+.prs-h{display:flex;align-items:center;gap:8px;color:var(--ember);
+  font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase}
+.prs-h svg{width:14px;height:14px;flex:none}
+.prs-row{display:flex;align-items:center;gap:12px;min-height:32px;
+  font-size:14px;font-weight:600;letter-spacing:-.01em;padding-top:7px}
+.prs-row .mono{color:var(--ember-2);font-size:13px;flex:none}
+
 /* ---------- the session rail ----------
    A segment per movement, filling as its sets are ticked. */
 /* The bar reads as 8px and the button *is* 44px: the track is drawn by a
@@ -870,6 +880,11 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .rail-seg.done i{background:var(--teal)}
 /* The movement you are on takes more of the bar, so the rail says where you
    are without needing a marker on top of it. */
+/* Purely a gap. flex:none so it never steals width from a movement, and the
+   rail's own 4px gap sits on both sides of it, which is what makes the break
+   read at a glance without a visible rule. */
+.rail-brk{flex:none;width:1px;align-self:center;height:14px;
+  background:var(--line);border-radius:1px}
 .rail-seg.now{flex-grow:2.1}
 .rail-seg.now::before{background:rgba(233,180,76,.20)}
 .rail-seg:active::before{background:var(--line)}
@@ -900,14 +915,26 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   background:rgba(22,27,34,.82);backdrop-filter:blur(24px) saturate(1.5);
   -webkit-backdrop-filter:blur(24px) saturate(1.5);
   border:1px solid rgba(233,180,76,.24);
-  border-radius:18px;padding:11px 13px 11px 16px;display:none;align-items:center;gap:13px;
+  border-radius:18px;padding:11px 13px 12px 16px;display:none;
   box-shadow:var(--shadow),var(--inset);max-width:608px;margin:0 auto;
   animation:restIn .3s cubic-bezier(.2,.9,.3,1);
 }
-.rest.on{display:flex}
+.rest.on{display:block}
+.rest-row{display:flex;align-items:center;gap:13px;margin-bottom:9px}
 @keyframes restIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.rest .t{font-family:var(--fm);font-size:22px;font-weight:700;letter-spacing:-.03em;
-  color:var(--ember);min-width:62px;font-variant-numeric:tabular-nums}
+/* The bar runs the full width now rather than sharing a row with the label —
+   it is the only thing on screen that is moving, and it reads as a distance
+   left to cover instead of a detail beside the number. */
+.rest .bar.thin{height:4px}
+.rest .t{font-family:var(--fm);font-size:26px;font-weight:700;letter-spacing:-.035em;
+  color:var(--ember);min-width:72px;font-variant-numeric:tabular-nums;line-height:1}
+.rest-label{font-size:12.5px;font-weight:650;color:var(--text);letter-spacing:-.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* What the wait is for. Without it the bar is time passing and nothing else. */
+.rest-next{font-size:11.5px;color:var(--muted);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rest-next b{color:var(--ember-2);font-weight:650}
+.rest-next:empty{display:none}
 /* The same bar counting work rather than rest. Teal, because everywhere else
    in the app teal means "this is the doing part" and ember means "waiting". */
 .rest.work{border-color:rgba(79,209,165,.34)}
@@ -1471,14 +1498,21 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   </section>
 
   <!-- ============ REST TIMER ============ -->
+  <!-- Rest is a third of a session's wall clock and used to get a 44px strip
+       with a hairline bar in it. It still does not cover the screen — you log
+       and read while you rest — but it now says what you are resting *for*,
+       which is the one thing that makes the wait useful. -->
   <div class="rest" id="rest-bar">
-    <span class="t mono" id="rest-t">1:30</span>
-    <div class="grow">
-      <div class="bar thin"><i id="rest-bar-fill" style="width:100%"></i></div>
-      <div class="tiny mt-s" id="rest-label">Rest</div>
+    <div class="rest-row">
+      <span class="t mono" id="rest-t">1:30</span>
+      <div class="grow">
+        <div class="rest-label" id="rest-label">Rest</div>
+        <div class="rest-next" id="rest-next"></div>
+      </div>
+      <button class="btn xs ghost" id="rest-add">+30s</button>
+      <button class="btn xs" id="rest-skip">Skip</button>
     </div>
-    <button class="btn xs ghost" id="rest-add">+30s</button>
-    <button class="btn xs" id="rest-skip">Skip</button>
+    <div class="bar thin"><i id="rest-bar-fill" style="width:100%"></i></div>
   </div>
 
   <!-- ============ NAV ============ -->
@@ -8271,13 +8305,21 @@ function trainRailHTML(A) {
      worse than no rail. */
   const order = sessionOrder(A);
   const cur = order.find(i => !isComplete(A.exercises[i]));
+  /* A break wherever the block changes, so the rail reads as stages of a route
+     rather than one undifferentiated bar — the same structure the headings
+     below it already describe. Decorative, and therefore hidden from the
+     accessibility tree and never counted as a segment. */
+  let block = null;
   return `<div class="rail">
     ${order.map(i => {
       const it = A.exercises[i];
+      const b = exBlock(it);
+      const brk = (block !== null && b !== block) ? '<span class="rail-brk" aria-hidden="true"></span>' : '';
+      block = b;
       const done = it.sets.filter(s => s.done).length;
       const all = it.sets.length || 1;
       const state = isComplete(it) ? 'done' : (i === cur ? 'now' : '');
-      return `<button class="rail-seg ${state}" data-act="rail-go" data-i="${i}"
+      return brk + `<button class="rail-seg ${state}" data-act="rail-go" data-i="${i}"
         aria-label="${h(it.name)}, ${done} of ${all} sets"><i style="width:${Math.round(done / all * 100)}%"></i></button>`;
     }).join('')}
   </div>`;
@@ -8291,6 +8333,94 @@ function trainWhere(A) {
   const at = order.findIndex(i => !isComplete(A.exercises[i]));
   if (at < 0) return 'Everything ticked';
   return A.exercises[order[at]].name + ' · ' + (at + 1) + ' of ' + order.length;
+}
+
+/* One copy of the star. It is drawn from three places — the card, the tick
+   handler and the re-check below — and three copies of a path drift. */
+const PR_STAR = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.3 1.3 6.3L12 16.6l-5.6 3.2 1.3-6.3-4.8-4.3 6.4-.7z"/></svg>';
+
+/* Paint a row as a record, or as an ordinary numbered set. */
+function paintPR(row, si, isRecord) {
+  if (!row) return;
+  row.classList.toggle('pr', !!isRecord);
+  const sn = row.querySelector('.sn');
+  if (!sn) return;
+  if (isRecord) {
+    sn.setAttribute('role', 'img');
+    sn.setAttribute('aria-label', 'Personal best, set ' + (si + 1));
+    sn.innerHTML = PR_STAR;
+  } else {
+    sn.removeAttribute('role');
+    sn.removeAttribute('aria-label');
+    sn.textContent = String(si + 1);
+  }
+}
+
+/* A set edited after it was ticked has to re-decide whether it is still a
+   record. Tick an untouched row at the offered 120, notice it was really 40,
+   correct it — and without this the star stays on a set that never earned it,
+   and the finish sheet reports a best you did not hit. */
+function refreshPR(ei, si) {
+  if (!S.active) return;
+  const item = S.active.exercises[ei];
+  if (!item || !item.sets[si] || !item.sets[si].done) return;
+  const st = item.sets[si];
+  const was = !!st.pr;
+  st.pr = isPR(item, st);
+  if (st.pr === was) return;
+  const row = document.querySelectorAll('.ex-card[data-ei="' + ei + '"] .set-row')[si];
+  paintPR(row, si, st.pr);
+}
+
+/* What you beat, on the screen that exists to say what you did. The stars sat
+   on the rows during the session and would otherwise be the only record of it
+   — a personal best is the thing you tell someone about, and finding it should
+   not mean scrolling back through a session you have already finished. */
+function sessionPRsHTML(A) {
+  const hits = [];
+  (A.exercises || []).forEach(x => {
+    const best = (x.sets || []).filter(s => s.done && s.pr)
+      .sort((a, b) => e1rm(+b.w || 0, +b.r || 0) - e1rm(+a.w || 0, +a.r || 0))[0];
+    if (best) hits.push({ name: x.name, w: best.w, r: best.r });
+  });
+  if (!hits.length) return '';
+  return `<div class="prs mb">
+    <div class="prs-h">${PR_STAR}<span>${hits.length === 1
+      ? 'A personal best' : hits.length + ' personal bests'}</span></div>
+    ${hits.map(p => `<div class="prs-row">
+      <span class="grow">${h(p.name)}</span>
+      <span class="mono">${+p.w > 0 ? fmtW(+p.w) + unit() + ' &times; ' : ''}${h(String(p.r))}</span>
+    </div>`).join('')}
+  </div>`;
+}
+
+/* What the rest is for — the set you will do when it runs out.
+   ------------------------------------------------------------
+   A countdown on its own is time passing. Naming what is on the other side of
+   it is what turns the wait into part of the session, and it is the one thing
+   you want to know while you are standing there.
+
+   Derived from what is ticked rather than stored, the same as the rail and the
+   circuit runner: the first unfinished set in display order is the next one.
+   Returns escaped HTML because the movement name goes in bold. */
+function nextUpHTML(A) {
+  if (!A) return '';
+  if (A.circuit) {
+    const pos = circuitPos(A);
+    if (pos.finished) return '';
+    const it = A.exercises[pos.ei];
+    if (!it) return '';
+    return `Next &middot; <b>${h(it.name)}</b>, round ${pos.round + 1} of ${Math.max(1, A.rounds || 1)}`;
+  }
+  const order = sessionOrder(A);
+  for (const i of order) {
+    const it = A.exercises[i];
+    if (!it || !it.sets) continue;
+    const si = it.sets.findIndex(s => !s.done);
+    if (si < 0) continue;
+    return `Next &middot; <b>${h(it.name)}</b>, set ${si + 1} of ${it.sets.length}`;
+  }
+  return 'Nothing left — finish when you are ready';
 }
 
 /* The badges for one movement, or nothing at all. Deliberately capped: a row
@@ -8374,7 +8504,7 @@ function exCardHTML(item, ei) {
                 label rides on the element rather than on hidden text, which
                 would be one more box for the collision sweep to trip over. */''}
           ${st.pr
-            ? `<div class="sn" role="img" aria-label="Personal best, set ${si+1}"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.3 1.3 6.3L12 16.6l-5.6 3.2 1.3-6.3-4.8-4.3 6.4-.7z"/></svg></div>`
+            ? `<div class="sn" role="img" aria-label="Personal best, set ${si+1}">${PR_STAR}</div>`
             : `<div class="sn">${si+1}</div>`}
           <label class="set-f">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${h(ghostW(item, g))}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
@@ -8497,7 +8627,11 @@ function updateTrainProgress() {
   if (rail) {
     const order = sessionOrder(A);
     const cur = order.find(i => !isComplete(A.exercises[i]));
-    [...rail.children].forEach((seg, pos) => {
+    /* .rail-seg, not children: the rail also holds decorative block breaks,
+       and walking every child would map segment N onto order[N + breaks so
+       far] — the rail would fill the wrong movements the moment a session had
+       more than one block in it. */
+    [...rail.querySelectorAll('.rail-seg')].forEach((seg, pos) => {
       const i = order[pos];
       const it = A.exercises[i];
       if (!it) return;
@@ -11583,6 +11717,9 @@ function startRest(seconds, label, opts) {
   restEnd = Date.now() + restTotal * 1000;
   restDone = opts.onDone || null;
   $('#rest-label').textContent = label || 'Rest';
+  /* Suppressed while the bar is counting work rather than rest: what is next
+     is the thing you are in the middle of, and saying so mid-hold is noise. */
+  $('#rest-next').innerHTML = opts.work ? '' : nextUpHTML(S.active);
   const bar = $('#rest-bar');
   bar.classList.add('on');
   bar.classList.toggle('work', !!opts.work);
@@ -11715,6 +11852,7 @@ function sheetSessionDone(A, v, fresh) {
       ${kc ? `<div class="tile"><div class="v" style="color:var(--ember)">${kc}</div><div class="k">kcal</div></div>` : ''}
       ${v.tonnage ? `<div class="tile"><div class="v">${(v.tonnage/1000).toFixed(1)}k</div><div class="k">${unit()}</div></div>` : ''}
     </div>
+    ${sessionPRsHTML(A)}
     ${fresh && fresh.length ? fresh.map(m => `
       <div class="milestone mb">
         <div class="milestone-ico">${m.ico}</div>
@@ -12163,7 +12301,6 @@ document.addEventListener('click', ev => {
       const row = t.closest('.set-row');
       if (row) {
         row.classList.toggle('done', st.done);
-        row.classList.toggle('pr', !!st.pr);
         t.classList.toggle('on', st.done);
         /* Transient, so the flourish belongs to the tap. Removed on a timer
            because the class is what triggers it and it has to be gone before
@@ -12177,18 +12314,7 @@ document.addEventListener('click', ev => {
         /* The set number becomes the star and back again. Swapped in place
            rather than by rebuilding the card, which would close the keyboard
            on the row below. */
-        const sn = row.querySelector('.sn');
-        if (sn) {
-          if (st.pr) {
-            sn.setAttribute('role', 'img');
-            sn.setAttribute('aria-label', 'Personal best, set ' + (si + 1));
-            sn.innerHTML = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l2.7 5.9 6.4.7-4.8 4.3 1.3 6.3L12 16.6l-5.6 3.2 1.3-6.3-4.8-4.3 6.4-.7z"/></svg>';
-          } else {
-            sn.removeAttribute('role');
-            sn.removeAttribute('aria-label');
-            sn.textContent = String(si + 1);
-          }
-        }
+        paintPR(row, si, st.pr);
       }
       /* Ticking set 1 fills it in, which is what the sets under it should now
          be offering. In place, because the point of all of this is that the
@@ -12864,6 +12990,9 @@ document.addEventListener('input', ev => {
        sets below it stop being last week's guess. */
     if (f === 'w' || f === 'r') refreshGhosts(i);
   }
+  /* Correcting a set you already ticked has to re-decide whether it is still
+     a record — see refreshPR. */
+  if (f === 'w' || f === 'r') refreshPR(i, si);
   save();
 });
 
