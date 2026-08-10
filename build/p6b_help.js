@@ -55,7 +55,7 @@ function sheetFormList(query) {
           <span class="chev">›</span>
         </button>`).join('')}
     </div>
-    ${ids.length ? '' : '<div class="empty"><div class="big">🔍</div>No diagram for that yet.<br>Every lift still has muscle targets and rep ranges in the picker.</div>'}
+    ${ids.length ? '' : '<div class="blankstate"><div class="big">🔍</div>No diagram for that yet.<br>Every lift still has muscle targets and rep ranges in the picker.</div>'}
   `);
   const qi = document.getElementById('form-q');
   if (qi) qi.addEventListener('input', ev => {
@@ -321,7 +321,7 @@ function sheetJourney() {
             <p class="small mt-s">${m.body}</p>
           </div>
         </div>`).join('')}
-    </div>` : '<div class="empty"><div class="big">🌅</div>None yet.<br>The first arrives the moment you finish a session — any size.</div>'}
+    </div>` : '<div class="blankstate"><div class="big">🌅</div>None yet.<br>The first arrives the moment you finish a session — any size.</div>'}
 
     <div class="eyebrow mb-s mt-l">Still ahead</div>
     <div class="jpath mb">

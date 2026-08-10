@@ -208,26 +208,57 @@ input[type=number]{-moz-appearance:textfield}
 .boot-note{font-size:12.5px;line-height:1.6;color:var(--faint);margin-top:18px;padding:0 6px}
 
 /* ---------- daily metrics strip ---------- */
-.day-strip{display:flex;align-items:center;gap:0;width:100%;padding:13px 6px 12px;margin:14px 0 22px;
-  background:transparent;border:0;border-top:1px solid var(--line-soft);
-  border-bottom:1px solid var(--line-soft);border-radius:0;box-shadow:none;
-  text-align:left;flex-wrap:wrap;align-items:stretch;transition:opacity .12s ease}
-.day-strip:active{opacity:.65}
-.day-cell{flex:1 1 0;min-width:0;text-align:center;padding:0 4px;
-  display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+/* ---------- the day strip on Today ----------
+   Three numbers and seven days of each, as a card rather than a bare band —
+   everything else on Today is a card, and a bordered strip read as a divider
+   with text in it.
+
+   Every row is a fixed height. The columns have to line up whatever
+   combination of them you have filled in, and the first version sized each
+   column to its own content: an unlogged Steps left a lone dash floating and
+   its label 65px below the other two. */
+.dm{display:block;width:100%;text-align:left;padding:15px 4px 12px;margin:14px 0 22px;
+  background:var(--surface);border:1px solid var(--line-soft);border-radius:var(--r-l);
+  box-shadow:var(--inset);transition:opacity .12s ease,transform .12s var(--ease-out)}
+.dm:active{opacity:.75;transform:scale(.995)}
+.dm-row{display:flex;align-items:stretch}
+.dm-cell{flex:1 1 0;min-width:0;text-align:center;padding:0 10px;
   border-right:1px solid var(--line-soft)}
-.day-cell:nth-child(3){border-right:0}
-.day-v{font-family:var(--fm);font-size:19px;font-weight:650;color:var(--text);
-  letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums;
-  height:23px;display:flex;align-items:baseline;justify-content:center}
-.day-v.empty{color:var(--line);font-weight:500}
+.dm-cell:last-child{border-right:0}
+
+.dm-v{height:26px;font-family:var(--fm);font-size:22px;font-weight:650;
+  color:var(--text);letter-spacing:-.035em;line-height:26px;
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+/* Not a failure, and never coloured like one. */
+/* --faint, not --line. A dash is a single hairline glyph and the darkest
+   surface token renders it as a scratch you cannot see in daylight — the same
+   reason arrows here are stroked SVG rather than characters. */
+.dm-v.none{color:var(--faint);font-weight:500;letter-spacing:0}
 /* An 11px unit suffix is one or two thin glyphs; --muted measures 5.5:1 on
    paper and lands at 4.5 once antialiased, so the token is lifted here. */
-.day-u{font-size:11px;font-weight:600;color:#98a2ae;margin-left:1px;letter-spacing:0}
-.day-k{font-size:11px;font-weight:650;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--muted);margin-top:3px}
-.day-note{flex:1 0 100%;text-align:center;font-size:11.5px;color:var(--faint);
-  margin-top:10px;padding-top:9px;border-top:1px solid var(--line-soft)}
+.dm-u{font-size:11px;font-weight:600;color:#98a2ae;margin-left:2px;letter-spacing:0}
+.dm-k{height:14px;font-size:10px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--muted);margin-top:2px;line-height:14px;
+  overflow:hidden;white-space:nowrap}
+
+/* Seven days. A missing day is a stub rather than a gap, because "I did not
+   log it" and "it was zero" are different things and the strip should not
+   claim the second. */
+.dm-bars{display:flex;align-items:flex-end;justify-content:center;gap:3px;
+  height:18px;margin-top:9px}
+/* 5px wide with a 1.5px radius. At 4px and 2px the shortest bar was as round
+   as it was tall and read as a dot someone had dropped there. */
+.dm-bars i{width:5px;border-radius:1.5px;background:var(--surface-3);
+  height:100%;flex:none;min-height:7px}
+.dm-bars i.none{height:3px;min-height:0;background:var(--line)}
+.dm-bars i.now{background:var(--ember)}
+@media (prefers-reduced-motion: no-preference){
+  .dm-bars i{transition:height .4s var(--ease-out)}
+}
+.dm-note{text-align:center;font-size:11.5px;color:var(--faint);
+  margin:12px 8px 0;padding-top:10px;border-top:1px solid var(--line-soft)}
+
 .src-chip{display:inline-block;font-size:11px;font-weight:650;letter-spacing:.08em;
   text-transform:uppercase;color:var(--ember);background:var(--ember-dim);
   border:1px solid var(--ember-line);border-radius:100px;padding:2px 7px;
@@ -390,7 +421,7 @@ button.recall:active{transform:scale(.99)}
 .pf-cell:active{transform:scale(.97)}
 .pf-k{font-size:11px;font-weight:650;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
 .pf-v{font-family:var(--fm);font-size:17px;font-weight:650;color:var(--text);letter-spacing:-.02em}
-.pf-v.empty{color:var(--ember);font-weight:600;font-size:14px}
+.pf-v.none{color:var(--ember);font-weight:600;font-size:14px}
 .lrow.on{background:var(--ember-dim);border-color:var(--ember-line)}
 
 /* ---------- fuel ---------- */
@@ -1041,8 +1072,13 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .banner.good{background:var(--teal-dim);border-color:rgba(79,209,165,.3);color:#b6f0dc}
 .banner.soft{background:var(--surface-2);border-color:var(--line);color:var(--text-dim)}
 .src{font-size:11px;color:var(--faint);font-style:italic;margin-top:7px;display:block}
-.empty{text-align:center;padding:44px 20px;color:var(--muted)}
-.empty .big{font-size:34px;margin-bottom:12px;opacity:.5}
+/* Namespaced, and deliberately. As a bare `.empty` this was a one-word class
+   that any component's own "empty" modifier inherited by accident — .day-v.empty
+   picked up its 44px padding and grew from 23px to 88px, which is what pushed
+   the Steps label two-thirds of the way down the strip. Component classes in
+   this file are namespaced by feature; this one was the exception. */
+.blankstate{text-align:center;padding:44px 20px;color:var(--muted)}
+.blankstate .big{font-size:34px;margin-bottom:12px;opacity:.5}
 .pro-tag{font-size:11px;font-weight:700;letter-spacing:.09em;padding:2px 6px;border-radius:5px;background:var(--ember-dim);color:var(--ember-2);border:1px solid var(--ember-line);vertical-align:middle}
 .seg{display:flex;background:var(--surface-2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
 .seg button{flex:1;padding:9px 6px;border-radius:9px;font-size:13px;font-weight:650;color:var(--muted);transition:all .15s ease}

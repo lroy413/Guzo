@@ -189,7 +189,7 @@ function sheetWeek() {
     ${hidden && !isNext ? `<p class="tiny" style="margin:-4px 0 12px">${hidden} day${hidden===1?'':'s'} of this week already gone. Only what's left is shown.</p>` : ''}
     ${isNext ? `<p class="tiny" style="margin:-4px 0 12px">Setting next week early is the single most useful thing you can do here — especially if you already have the call sheet.</p>` : ''}
 
-    <div class="list mb">${rows || '<div class="empty"><div class="big">✓</div>Nothing left to set this week.</div>'}</div>
+    <div class="list mb">${rows || '<div class="blankstate"><div class="big">✓</div>Nothing left to set this week.</div>'}</div>
 
     <div class="card ${placed >= prog.target ? 'teal' : 'accent'} mb">
       <div class="row between">

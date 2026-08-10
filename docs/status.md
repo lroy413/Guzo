@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **721,666 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (329) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (23) + `import` (62) all green. Nothing known is broken.
+Verified against the build at **725,986 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (337) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (23) + `import` (62) all green. Nothing known is broken.
 
 ---
 
@@ -475,6 +475,37 @@ That one now runs a one-second rest and counts oscillators through a spy on the
 platform's own `createOscillator`, so the subject is untouched. And the
 withdraw-on-skip check counted cancellations without resetting first — `startRest`
 cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
+### The day strip was broken, and is now a card that shows a week
+
+Reported as "let's make this look more premium". It was worse than unpolished:
+with Steps unlogged, the dash sat alone in mid-air and the STEPS label was 65px
+below SLEEP and WEIGHT.
+
+**The cause was a one-word class.** `p1_head.html` carried a bare `.empty`
+empty-state panel with `padding:44px 20px` on it, and the strip's own
+`.day-v.empty` modifier inherited it — `height:23px` lost to `min-height:auto`
+resolving against 88px of padded content. `.pf-v.empty` on the profile sheet
+had exactly the same bug and nobody had ever noticed. The panel is
+`.blankstate` now and a component's "nothing here" modifier is `.none`.
+Component classes in this file are namespaced by feature; that one was the
+exception, and being the exception is what made it dangerous.
+
+**And the strip is now worth looking at.** A card rather than a bordered band —
+everything else on Today is a card, and a strip with hairlines top and bottom
+read as a divider with text in it. Each metric carries seven days of itself as
+micro-bars: today in ember, a day you did not log as a stub rather than a bar,
+because "not logged" and "zero" are different things. Bars are scaled between
+the week's own low and high with a high floor, which is deliberately a shape
+rather than a magnitude — the number above it is the magnitude, and a week of
+bodyweight drawn from zero says nothing while the same week drawn from its own
+low says your weight halved.
+
+Every row is a fixed band, which is what actually guarantees the three columns
+line up whatever combination of them you have filled in. Reverting that prints
+`88,26` and two different label tops — the reported bug, exactly.
 
 ---
 

@@ -286,3 +286,36 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') wakeAcquire();
   else wakeSentinel = null;      // the browser has already dropped it
 });
+
+/* ------------------------------------------------------------
+   The last few days of one metric, for the strip on Today.
+   ------------------------------------------------------------
+   Oldest first, with null where a day has nothing — a gap is information and
+   filling it in would be inventing data.
+
+   Bodyweight reads the profile's own log rather than `daily`, because that is
+   where a weigh-in actually lands, and it is carried forward: you do not weigh
+   yourself every morning, and a line that drops to zero on the days you did
+   not would say something untrue about your weight. */
+function daySeries(field, n) {
+  const days = Math.max(1, n || 7);
+  const base = fromKey(today());
+  const out = [];
+  const log = field === 'weight'
+    ? (S.profile.bodyweight || []).slice().sort((a, b) => (a.d < b.d ? -1 : 1))
+    : null;
+  for (let i = days - 1; i >= 0; i--) {
+    const k = key(addDays(base, -i));
+    let v = null;
+    if (log) {
+      let last = null;
+      for (let j = 0; j < log.length; j++) if (log[j].d <= k) last = log[j];
+      v = last ? +last.w : null;
+    } else {
+      const d = S.daily[k];
+      v = d && d[field] ? +d[field] : null;
+    }
+    out.push({ k: k, v: v });
+  }
+  return out;
+}

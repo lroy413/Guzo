@@ -8,21 +8,55 @@ function dayStripHTML() {
   const d = dailyToday() || {};
   const st = d.steps || null;
   const sl = d.sleepH || null;
-  const bw = bodyKg() != null && (S.profile.bodyweight || []).length
-             ? (S.profile.bodyweight[S.profile.bodyweight.length - 1].w) : null;
+  const bwLog = S.profile.bodyweight || [];
+  const bw = bwLog.length ? bwLog[bwLog.length - 1].w : null;
   const read = st ? stepsRead(st) : null;
 
-  const cell = (val, key, dim) => `
-    <div class="day-cell">
-      <div class="day-v ${val == null ? 'empty' : ''}">${val == null ? '—' : val}${dim ? `<span class="day-u">${dim}</span>` : ''}</div>
-      <div class="day-k">${key}</div>
+  /* Seven days of it, as bars rather than a line. Bars need no aspect-ratio
+     gymnastics at this size, a missing day is a visible stub rather than a
+     gap the line jumps over, and the app already speaks in bars on Fuel. */
+  const bars = (field) => {
+    const series = daySeries(field, 7);
+    const vals = series.map(p => p.v).filter(v => v != null);
+    /* Scaled between the week's own low and high rather than from zero, and
+       floored well clear of the bottom.
+
+       That is deliberately a *shape*, not a magnitude: seven days of bodyweight
+       within a kilo of each other drawn from zero is a flat line saying
+       nothing, and drawn from its own low would say your weight halved. The
+       high floor is what keeps it readable as "which days were bigger" without
+       inviting anyone to read a ratio off it. The number above it is the
+       magnitude. */
+    const hi = vals.length ? Math.max.apply(null, vals) : 0;
+    const lo = vals.length ? Math.min.apply(null, vals) : 0;
+    const span = (hi - lo) || hi || 1;
+    return `<div class="dm-bars" aria-hidden="true">${series.map((p, i) => {
+      const last = i === series.length - 1;
+      if (p.v == null) return `<i class="none"></i>`;
+      const pct = Math.round(45 + ((p.v - lo) / span) * 55);
+      return `<i class="${last ? 'now' : ''}" style="height:${pct}%"></i>`;
+    }).join('')}</div>`;
+  };
+
+  /* Every row is its own fixed-height band, so the three columns line up
+     whatever combination of them you have filled in. The first version let
+     each column size itself and an unlogged Steps pushed its label 65px below
+     the other two — see .day-v.empty in docs/status.md. */
+  const cell = (val, unitLbl, key, field) => `
+    <div class="dm-cell">
+      <div class="dm-v${val == null ? ' none' : ''}">${val == null ? '&mdash;' : val
+        }${val != null && unitLbl ? `<span class="dm-u">${unitLbl}</span>` : ''}</div>
+      <div class="dm-k">${key}</div>
+      ${bars(field)}
     </div>`;
 
-  return `<button class="day-strip" data-act="daily">
-    ${cell(st != null ? fmtSteps(st) : null, 'Steps')}
-    ${cell(sl != null ? sl : null, 'Sleep', 'h')}
-    ${cell(bw != null ? bw : null, 'Weight', ' ' + unit())}
-    <div class="day-note">${read ? h(read.t) : 'Tap to log the day around it'}</div>
+  return `<button class="dm" data-act="daily">
+    <div class="dm-row">
+      ${cell(st != null ? fmtSteps(st) : null, '', 'Steps', 'steps')}
+      ${cell(sl != null ? sl : null, 'h', 'Sleep', 'sleepH')}
+      ${cell(bw != null ? fmtW(bw) : null, unit(), 'Weight', 'weight')}
+    </div>
+    <div class="dm-note">${read ? h(read.t) : 'Tap to log the day around it'}</div>
   </button>`;
 }
 

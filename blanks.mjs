@@ -2129,6 +2129,76 @@ try {
   check('a rest running out is audible', heard.made === 2, String(heard.made));
   check('...and the bar puts itself away when it does', heard.running === false);
 
+  /* ---- the day strip lines up, whatever you have filled in ----
+     A bare `.empty` empty-state utility sat in the stylesheet with 44px of
+     padding on it, and the strip's own `.day-v.empty` modifier inherited it:
+     an unlogged Steps grew its value box from 23px to 88px and pushed the
+     STEPS label two-thirds of the way down the card while SLEEP and WEIGHT
+     stayed at the top. */
+  const dayStrip = await page.evaluate(() => {
+    const seed = (fill) => {
+      S = blank(); S.onboarded = true; S.profile.units = 'kg';
+      const D = n => key(addDays(fromKey(today()), -n));
+      if (fill.steps) for (let i = 0; i < 5; i++) {
+        S.daily[D(i)] = Object.assign(S.daily[D(i)] || {}, { steps: 6000 + i * 1500 });
+      }
+      if (fill.sleep) for (let i = 0; i < 7; i++) {
+        S.daily[D(i)] = Object.assign(S.daily[D(i)] || {}, { sleepH: 6 + (i % 3) });
+      }
+      if (fill.weight) S.profile.bodyweight = [{ d: D(3), w: 88 }, { d: today(), w: 87.2 }];
+      save(true); render(); go('today');
+    };
+    const rows = () => [...document.querySelectorAll('#today-body .dm-cell')].map(c => ({
+      k: c.querySelector('.dm-k').textContent,
+      vTop: Math.round(c.querySelector('.dm-v').getBoundingClientRect().top),
+      vH: Math.round(c.querySelector('.dm-v').getBoundingClientRect().height),
+      kTop: Math.round(c.querySelector('.dm-k').getBoundingClientRect().top),
+      bTop: Math.round(c.querySelector('.dm-bars').getBoundingClientRect().top),
+      bars: c.querySelectorAll('.dm-bars i').length,
+      filled: [...c.querySelectorAll('.dm-bars i')].filter(i => !i.classList.contains('none')).length,
+      now: !!c.querySelector('.dm-bars i.now')
+    }));
+    const one = (rs) => ({
+      vTops: [...new Set(rs.map(r => r.vTop))].length,
+      kTops: [...new Set(rs.map(r => r.kTop))].length,
+      bTops: [...new Set(rs.map(r => r.bTop))].length,
+      vHs: [...new Set(rs.map(r => r.vH))]
+    });
+    seed({ sleep: true, weight: true });          // Steps blank — the reported case
+    const noSteps = { align: one(rows()), rows: rows() };
+    seed({});                                     // nothing at all
+    const nothing = { align: one(rows()), rows: rows() };
+    seed({ steps: true, sleep: true, weight: true });
+    const all = { align: one(rows()), rows: rows() };
+    return { noSteps, nothing, all,
+      /* And the utility that caused it can no longer be reached by a
+         component modifier that happens to be called "empty". */
+      bareEmpty: !!document.querySelector('.empty'),
+      panel: (() => { sheetSettings(); const has = !!document.querySelector('#sheet-body .blankstate, #sheet-body .list'); closeSheet(); return has; })() };
+  });
+
+  ['noSteps', 'nothing', 'all'].forEach(kind => {
+    const a = dayStrip[kind].align;
+    check(`the day strip lines up with ${kind === 'noSteps' ? 'steps unlogged' : kind === 'nothing' ? 'nothing logged' : 'everything logged'}`,
+      a.vTops === 1 && a.kTops === 1 && a.bTops === 1,
+      `${a.vTops} value tops, ${a.kTops} label tops, ${a.bTops} bar tops`);
+  });
+  /* The value box is a fixed band. 88px was the collision; 23px was the intent. */
+  check('...and every value box is one fixed height',
+    dayStrip.noSteps.align.vHs.length === 1 && dayStrip.noSteps.align.vHs[0] < 40,
+    dayStrip.noSteps.align.vHs.join(','));
+  check('no bare .empty class is left to be inherited by accident',
+    dayStrip.bareEmpty === false);
+
+  const sb = dayStrip.all.rows;
+  check('each metric shows seven days', sb.every(r => r.bars === 7),
+    sb.map(r => r.bars).join(','));
+  check('...with today marked', sb.every(r => r.now === true), sb.map(r => r.now).join(','));
+  /* A day you did not log and a day that was zero are different things. */
+  check('a day with nothing logged is a stub, not a bar',
+    dayStrip.noSteps.rows[0].filled === 0 && dayStrip.all.rows[0].filled === 5,
+    `${dayStrip.noSteps.rows[0].filled} then ${dayStrip.all.rows[0].filled}`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

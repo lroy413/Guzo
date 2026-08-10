@@ -28,15 +28,15 @@ function sheetProfile() {
     <div class="pf-grid mb">
       <button class="pf-cell" data-act="pf-height">
         <span class="pf-k">Height</span>
-        <span class="pf-v ${hLabel ? '' : 'empty'}">${hLabel || 'Add'}</span>
+        <span class="pf-v ${hLabel ? '' : 'none'}">${hLabel || 'Add'}</span>
       </button>
       <button class="pf-cell" data-act="daily">
         <span class="pf-k">Weight</span>
-        <span class="pf-v ${bw ? '' : 'empty'}">${bw ? fmtW(bw.w) + ' ' + unit() : 'Add'}</span>
+        <span class="pf-v ${bw ? '' : 'none'}">${bw ? fmtW(bw.w) + ' ' + unit() : 'Add'}</span>
       </button>
       <button class="pf-cell" data-act="pf-age">
         <span class="pf-k">Age</span>
-        <span class="pf-v ${age ? '' : 'empty'}">${age || 'Add'}</span>
+        <span class="pf-v ${age ? '' : 'none'}">${age || 'Add'}</span>
       </button>
     </div>
 
