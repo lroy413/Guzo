@@ -31,15 +31,18 @@ function sheetNutrition() {
 function renderMore() {
   const p = S.profile;
   const st = totalStats();
-  let html = `
-  <div class="card mb">
-    <div class="row gap-l">
-      <div style="width:52px;height:52px;border-radius:16px;background:var(--ember-dim);border:1px solid var(--ember-line);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none">🏔️</div>
-      <div class="grow">
-        <div class="h2">${h(p.name || 'Traveller')}</div>
-        <div class="tiny mt-s">${st.count} sessions · ${weekStreak()} week streak · since ${prettyDate(dk(new Date(S.meta.created)))}</div>
-      </div>
+  const jst = journeyStats();
+  /* An identity header rather than a card with inline styles in it. This is
+     the first thing on the screen and it was the least designed thing in the
+     app — a bordered box with a 52px emoji square hand-styled at the call
+     site. */
+  let html = `<div class="who">
+    <div class="who-mark">🏔️</div>
+    <div class="grow">
+      <div class="who-name">${h(p.name || 'Traveller')}</div>
+      <div class="who-sub">Day ${jst.day} on the route &middot; ${st.count} session${st.count === 1 ? '' : 's'}</div>
     </div>
+    <div class="who-since">since<br><b>${h(prettyDate(dk(new Date(S.meta.created))))}</b></div>
   </div>`;
 
   /* More is a list of places to go. Everything you tune rather than visit now
@@ -49,24 +52,23 @@ function renderMore() {
 
      "Shape this week" is not here any more. It was never a setting, and Today
      and Plan already offer it in five places. */
-  const jst = journeyStats();
-  html += `<div class="eyebrow mb-s">Your journey</div><div class="list mb">
+  html += `<div class="sec-head"><span class="sec-t">Your journey</span></div><div class="list mb">
     <div class="lrow" data-act="open-journey"><div class="ico">🧭</div><div class="grow"><div class="h3">Day ${jst.day} of your guzo</div><div class="tiny mt-s">${milestonesReached().length} of ${MILESTONES.length} markers reached · ${(jst.kcal/1000).toFixed(1)}k kcal estimated</div></div><span class="chev">›</span></div>
     <div class="lrow" data-act="routines"><div class="ico">🧩</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="chev">›</span></div>
     ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">🗺</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="chev">›</span></div>` : ''}
     ${fuelOn() ? `<div class="lrow" data-act="open-nutrition"><div class="ico">📊</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">›</span></div>` : ''}
   </div>`;
 
-  html += `<div class="eyebrow mb-s">Guides</div><div class="list mb">
+  html += `<div class="sec-head"><span class="sec-t">Guides</span></div><div class="list mb">
     <div class="lrow" data-act="open-help"><div class="ico">🧭</div><div class="grow"><div class="h3">Help &amp; guides</div><div class="tiny mt-s">How it works, form diagrams, terms, backups</div></div><span class="chev">›</span></div>
     <div class="lrow" data-act="help-form-list"><div class="ico">📐</div><div class="grow"><div class="h3">Form guides</div><div class="tiny mt-s">${Object.keys(FORMS).length} lifts with diagrams and cues</div></div><span class="chev">›</span></div>
   </div>`;
 
-  html += `<div class="eyebrow mb-s">App</div><div class="list mb">
+  html += `<div class="sec-head"><span class="sec-t">App</span></div><div class="list mb">
     <div class="lrow" data-act="open-settings"><div class="ico">⚙</div><div class="grow"><div class="h3">Settings</div><div class="tiny mt-s">${settingsSummary()}</div></div><span class="chev">›</span></div>
   </div>`;
 
-  html += `<div class="eyebrow mb-s">Membership</div>
+  html += `<div class="sec-head"><span class="sec-t">Membership</span></div>
   <div class="card accent mb">
     <div class="row between"><div class="h3">Guzo Pro</div><div class="pill em">Beta — unlocked</div></div>
     <p class="small mt-s">Everything is on while this is in testing. Nothing charges, nothing phones home, and there is no account to make.</p>

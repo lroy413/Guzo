@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **621,107 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (251) + `engine` (131) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **629,322 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (271) + `engine` (131) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -153,6 +153,22 @@ The evidence card that sat at the bottom of More is gone. It was a shorter copy 
 ### The nav is a floating pill
 
 The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
+
+### The session screen was a spreadsheet
+
+It held exactly the right data and read like one: five columns of table per set — a number, three unlabelled boxes and a tick — under a repeated uppercase header, on the one screen in the app you use one-handed with a bar on your back.
+
+**The field is the container now, not the input.** The unit lives inside the box it belongs to, so the label is where you are already looking instead of in a header row above every exercise. The header row is gone; the focus ring belongs to the field; the tick is wider than everything else, because ticking is what you are there to do and typing is the exception.
+
+**The card header stopped being a toolbar.** A form guide, a swap and a menu on every card, with the amber help button pulling harder than the movement you were about to do. All three live behind one menu now — form is something you read once, swapping is occasional — and the sheet leads with the movement and what it trains. Nothing was deleted; `blanks.mjs` asserts the swap, the note and the removal all still exist, because a feature deletion wearing a tidier screen is not a tidier screen.
+
+**And the flat progress bar became a rail.** One segment per movement, filling as its sets are ticked, with the one you are on taking more of the width — the session as ground to cover, which is what the rest of the app already says it is. Tapping a segment goes to that movement, opening it if it had folded itself away. Under it, "Back Squat · 2 of 6", which is the question the old "1 of 14 sets" could not answer.
+
+The rail moves **in place**. `updateTrainProgress()` touches those nodes directly; a `renderTrain()` mid-session would replace the body's innerHTML, close the keyboard and lose your caret.
+
+**Two checks I wrote wrong.** One asserted an identity — `headerBtns === more + (headerBtns - more)` — which is true of every possible input; it now asserts that no swap or form button survives in the header and that there is exactly one menu per movement. The other tested "in place" by comparing `#train-body` before and after, which never changes because `renderTrain()` replaces its contents rather than the element; it compares an input node now, and it had to tick a movement with more than one set, since ticking the last set of an exercise legitimately folds the card away and rebuilds it.
+
+**More gained an identity header**, replacing the least designed thing in the app — a bordered box with a 52px emoji square styled inline at the call site — and its section labels now match the ones on Progress.
 
 ### A design-system pass, and a sky
 

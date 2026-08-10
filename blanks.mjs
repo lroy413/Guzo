@@ -1473,6 +1473,113 @@ try {
   check('the sky never moves a colour that was measured for contrast',
     skyScope.same === true, skyScope.seen.join('  VS  '));
 
+  /* ---- the session screen ----
+     It held the right data and read like a spreadsheet: five columns of table
+     under a repeated uppercase header, three controls in every card's header,
+     and one flat bar that said how much was left and nothing about where you
+     were. What is asserted here is that the reinvention kept every function it
+     replaced — losing a control to a tidier screen is not a tidier screen. */
+  const train = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    buildWeekPlan(true);
+    startSession((plannedToday() || {}).type || 'full', 'full');
+    const A = S.active;
+    if (!A) return { started: false };
+    go('train');
+    const body = document.getElementById('train-body');
+    const rail = body.querySelector('.rail');
+    const firstRow = body.querySelector('.set-row');
+    return {
+      started: true,
+      exercises: A.exercises.length,
+      /* One segment per movement, not per set. */
+      segs: rail ? rail.querySelectorAll('.rail-seg').length : -1,
+      nowSegs: rail ? rail.querySelectorAll('.rail-seg.now').length : -1,
+      where: (body.querySelector('#tp-where') || {}).textContent || '',
+      /* The spreadsheet header is gone and the units moved into the fields. */
+      headers: body.querySelectorAll('.set-head').length,
+      units: firstRow ? [...firstRow.querySelectorAll('.set-u')].map(u => u.textContent) : [],
+      /* Every input the old row had is still there and still addressed the
+         same way, or the input listener and the progression silently stop. */
+      fields: firstRow ? [...firstRow.querySelectorAll('.set-in')].map(i => i.dataset.set) : [],
+      labelled: firstRow ? [...firstRow.querySelectorAll('.set-in')].every(i => (i.getAttribute('aria-label') || '').length > 3) : false,
+      tick: firstRow ? !!firstRow.querySelector('[data-act="toggle-set"]') : false,
+      /* One control in the card header, and everything it replaced inside it. */
+      headerActs: [...body.querySelectorAll('.ex-card .ex-head [data-act]')].map(e => e.dataset.act),
+      more: body.querySelectorAll('.ex-card .ex-head [data-act="ex-menu"]').length,
+      text: body.innerText || ''
+    };
+  });
+  check('a session opens on the Train screen', train.started === true);
+  check('the rail carries one segment per movement', train.segs === train.exercises,
+    `${train.segs} segs / ${train.exercises} movements`);
+  check('...with exactly one marked as where you are', train.nowSegs === 1, String(train.nowSegs));
+  check('...and it names the movement and its position', /·\s*1 of \d+/.test(train.where), train.where);
+  check('the spreadsheet header is gone', train.headers === 0, String(train.headers));
+  check('...and the units are in the fields instead', train.units.length === 3,
+    train.units.join(', '));
+  check('every input survived the redesign', train.fields.join(',') === 'w,r,rpe',
+    train.fields.join(','));
+  check('...still announced to a screen reader', train.labelled === true);
+  check('...and the set still ticks', train.tick === true);
+  /* The toolbar in every card header became one menu. The form guide and the
+     swap have to still exist somewhere, or this is a feature deletion wearing
+     a tidier screen. */
+  check('the toolbar is gone from the card header',
+    train.headerActs.filter(a => a === 'swap-ex' || a === 'ex-form').length === 0,
+    train.headerActs.join(', '));
+  check('...replaced by one menu per movement', train.more === train.exercises,
+    `${train.more} menus / ${train.exercises} movements`);
+  check('no placeholder text on the session screen', !BAD.test(train.text));
+
+  const trainMenu = await page.evaluate(() => {
+    const btn = document.querySelector('#train-body .ex-card .ex-head [data-act="ex-menu"]');
+    if (!btn) return { opened: false, acts: [] };
+    btn.click();
+    const b = document.getElementById('sheet-body');
+    return { opened: true, acts: [...b.querySelectorAll('[data-act]')].map(e => e.dataset.act),
+             text: b.innerText || '' };
+  });
+  check('the menu opens', trainMenu.opened === true);
+  check('...and still offers a swap', trainMenu.acts.includes('swap-ex'), trainMenu.acts.join(', '));
+  check('...a note', trainMenu.acts.includes('save-note'));
+  check('...and removing the movement', trainMenu.acts.includes('remove-ex'));
+  check('no placeholder text in it', !BAD.test(trainMenu.text || ''));
+
+  /* Ticking a set has to move the rail without re-rendering the screen — a
+     full re-render mid-session closes the keyboard and loses your place. */
+  const railLive = await page.evaluate(() => {
+    closeSheet();
+    const body = document.getElementById('train-body');
+    const eiPre = S.active.exercises.findIndex(x => x.sets.length > 1);
+    const segOf = () => document.querySelectorAll('#train-body .rail-seg')[eiPre].firstElementChild.style.width;
+    const before = segOf();
+    const beforeCount = (body.querySelector('#tp-count') || {}).textContent;
+    /* The input node itself, not the container: renderTrain() rewrites the
+       body's innerHTML but never replaces the body element, so comparing the
+       container proves nothing — which is what the first version of this
+       check did. If this node survives, so does your caret and your keyboard. */
+    /* And from a movement with more than one set: ticking the last set of an
+       exercise legitimately folds the card away and rebuilds it, so a
+       single-set movement would fail this for the right reason and tell you
+       nothing about the wrong one. */
+    const ei = eiPre;
+    const card = body.querySelector('.ex-card[data-ei="' + ei + '"]');
+    const inputBefore = card.querySelector('.set-in');
+    card.querySelector('[data-act="toggle-set"]').click();
+    const after = segOf();
+    const afterCount = (document.getElementById('train-body').querySelector('#tp-count') || {}).textContent;
+    const inputAfter = document.querySelector('#train-body .ex-card[data-ei="' + ei + '"] .set-in');
+    stopRest();
+    return { before, after, beforeCount, afterCount,
+             sameNode: inputBefore === inputAfter };
+  });
+  check('ticking a set fills the rail', railLive.after !== railLive.before,
+    `${railLive.before} → ${railLive.after}`);
+  check('...and moves the count', railLive.afterCount !== railLive.beforeCount,
+    `${railLive.beforeCount} → ${railLive.afterCount}`);
+  check('...in place, without re-rendering the screen', railLive.sameNode === true);
+
   /* ---- App Store readiness ---- */
 
   /* A subscription offer with nothing behind it reads as an incomplete app. */

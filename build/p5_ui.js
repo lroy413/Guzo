@@ -711,15 +711,20 @@ function renderTrain() {
       <h1 class="h1 mt-s">${A.backdated ? 'Logging a past day' : typeLabel(A.type)}</h1>
     </div>
   </div>
+  ${/* One flat bar told you how much of the session was left and nothing about
+        where you were in it. The rail is a segment per movement, filling as its
+        sets are ticked — the session as ground to cover, which is what the rest
+        of the app already says it is. Tapping a segment goes to that movement. */''}
   <div class="card tight mb">
-    <div class="row between mb-s">
-      <span class="small" id="tp-count">${doneSets} of ${allSets} sets</span>
-      <span class="row gap-s"><span class="small mono em" id="tp-kcal">${sessionKcal(A)} kcal</span>
+    ${trainRailHTML(A)}
+    <div class="row between mt-s">
+      <span class="small" id="tp-where">${h(trainWhere(A))}</span>
+      <span class="row gap-s"><span class="small mono" id="tp-count">${doneSets}/${allSets}</span>
+      <span class="small mono em" id="tp-kcal">${sessionKcal(A)} kcal</span>
       <!-- A running clock on a session you are typing in after the fact would
            be measuring the wrong thing entirely. -->
       <span class="small mono" id="tp-time">${A.backdated ? sessionMinsEstimate(A) : elapsed} min</span></span>
     </div>
-    <div class="bar"><i id="tp-fill" style="width:${pct}%"></i></div>
   </div>`;
 
   if (A.backdated) {
@@ -923,6 +928,34 @@ function circuitListHTML(A, pos, rounds) {
   </div>`;
 }
 
+/* The session drawn as ground to cover: one segment per movement, filling as
+   its sets are ticked. Where you are is derived from the sets rather than
+   stored, the same as the circuit runner — the first movement that is not
+   finished is the one you are on. */
+function trainRailHTML(A) {
+  const list = A.exercises || [];
+  const cur = list.findIndex(x => !isComplete(x));
+  return `<div class="rail">
+    ${list.map((it, i) => {
+      const done = it.sets.filter(s => s.done).length;
+      const all = it.sets.length || 1;
+      const state = isComplete(it) ? 'done' : (i === cur ? 'now' : '');
+      return `<button class="rail-seg ${state}" data-act="rail-go" data-i="${i}"
+        aria-label="${h(it.name)}, ${done} of ${all} sets"><i style="width:${Math.round(done / all * 100)}%"></i></button>`;
+    }).join('')}
+  </div>`;
+}
+
+/* "Back Squat · 2 of 6" — the movement you are on and where it sits, which is
+   the question the old "1 of 14 sets" could not answer. */
+function trainWhere(A) {
+  const list = A.exercises || [];
+  if (!list.length) return 'Nothing added yet';
+  const cur = list.findIndex(x => !isComplete(x));
+  if (cur < 0) return 'Everything ticked';
+  return list[cur].name + ' · ' + (cur + 1) + ' of ' + list.length;
+}
+
 function exCardHTML(item, ei) {
   const ex = EX[item.exId] || { name:item.name, primary:'', sec:[], load:'wt', rl:8, rh:12 };
   const complete = isComplete(item);
@@ -956,24 +989,38 @@ function exCardHTML(item, ei) {
         <div class="ex-name">${h(item.name)}${item.priority?'<span class="ex-flag">focus</span>':''}${item.cardio?'<span class="ex-flag">finisher</span>':''}</div>
         <div class="ex-meta">${h(ex.primary)}${ex.sec && ex.sec.length ? ' · ' + h(ex.sec.join(', ')) : ''}</div>
       </button>
-      <div class="row gap-s">
-        <button class="btn xs icon" data-act="ex-form" data-i="${ei}" data-v="${h(item.exId)}" aria-label="How to do it">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 1 1 3.3 2.4c-.6.2-.9.8-.9 1.4v.4"/><path d="M12 17h.01"/></svg>
-        </button>
-        <button class="btn xs ghost" data-act="swap-ex" data-i="${ei}">Swap</button>
-        <button class="btn xs quiet" data-act="ex-menu" data-i="${ei}">⋯</button>
-      </div>
+      ${/* One control, not three. A form guide, a swap and a menu on every card
+            made the header a toolbar with an exercise name in it — and the
+            amber help button pulled the eye harder than the movement you were
+            about to do. All three live in the menu now: form is something you
+            read once, swapping is occasional, and the card is about the
+            exercise again. */''}
+      <button class="ex-more" data-act="ex-menu" data-i="${ei}" aria-label="Options for ${h(item.name)}">
+        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="19" cy="12" r="1.9"/></svg>
+      </button>
     </div>
     <div class="ex-body">
       ${item.targetR ? `<div class="ex-target"><span>Target</span> <strong>${item.targetW != null && item.targetW !== '' ? fmtW(item.targetW) + unit() + ' × ' : ''}${item.targetR}${isTime?'s':''}</strong>${item.deloaded ? '<span class="ex-target-sub">−10%</span>' : ''}${exerciseKcal(item) ? `<span class="ex-kcal">${exerciseKcal(item)} kcal</span>` : ''}</div>` : ''}
       ${recallRowHTML(item)}
-      <div class="set-head"><span>SET</span><span>${item.load==='bw'?'ADDED':'WEIGHT'}</span><span>${unitLbl}</span><span>RPE</span><span></span></div>
+      ${/* The column header is gone. Four uppercase labels repeated above every
+            exercise was a spreadsheet header on a screen you use one-handed
+            between sets; the unit now sits inside the field it belongs to,
+            which says the same thing once and in the place you are looking. */''}
       ${item.sets.map((st, si) => `
         <div class="set-row ${st.done?'done':''}">
           <div class="sn">${si+1}</div>
-          <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${item.targetW != null && item.targetW !== '' ? fmtW(item.targetW) : (item.load==='bw'?'0':'–')}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
-          <input class="set-in" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" aria-label="${unitLbl==='REPS'?'Reps':unitLbl==='SECS'?'Seconds':'Minutes'}, set ${si+1}" placeholder="${item.targetR||''}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
-          <input class="set-in" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="RPE, set ${si+1}" placeholder="–" value="${st.rpe===''?'':h(st.rpe)}" data-set="rpe" data-i="${ei}" data-s="${si}">
+          <label class="set-f">
+            <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${item.targetW != null && item.targetW !== '' ? fmtW(item.targetW) : (item.load==='bw'?'0':'–')}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
+            <span class="set-u">${item.load==='bw' ? '+' + unit() : unit()}</span>
+          </label>
+          <label class="set-f">
+            <input class="set-in" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" aria-label="${unitLbl==='REPS'?'Reps':unitLbl==='SECS'?'Seconds':'Minutes'}, set ${si+1}" placeholder="${item.targetR||''}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
+            <span class="set-u">${unitLbl==='REPS'?'reps':unitLbl==='SECS'?'sec':'min'}</span>
+          </label>
+          <label class="set-f narrow">
+            <input class="set-in" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off" aria-label="RPE, set ${si+1}" placeholder="–" value="${st.rpe===''?'':h(st.rpe)}" data-set="rpe" data-i="${ei}" data-s="${si}">
+            <span class="set-u">rpe</span>
+          </label>
           <button class="tick ${st.done?'on':''}" data-act="toggle-set" data-i="${ei}" data-s="${si}" aria-label="${st.done?'Undo set':'Mark set'} ${si+1} ${st.done?'':'done'}" aria-pressed="${st.done?'true':'false'}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
           </button>
@@ -1053,10 +1100,26 @@ function updateTrainProgress() {
   const done = A.exercises.reduce((a,i)=>a+i.sets.filter(s=>s.done).length,0);
   const all = A.exercises.reduce((a,i)=>a+i.sets.length,0);
   const c = document.getElementById('tp-count');
-  const f = document.getElementById('tp-fill');
   const t = document.getElementById('tp-time');
-  if (c) c.textContent = done + ' of ' + all + ' sets';
-  if (f) f.style.width = (all ? Math.round(done/all*100) : 0) + '%';
+  if (c) c.textContent = done + '/' + all;
+  /* Updated in place, never by re-rendering: a full re-render mid-session
+     closes the keyboard and loses your place, which is the whole reason this
+     function exists. */
+  const w = document.getElementById('tp-where');
+  if (w) w.textContent = trainWhere(A);
+  const rail = document.querySelector('#train-body .rail');
+  if (rail) {
+    const cur = A.exercises.findIndex(x => !isComplete(x));
+    [...rail.children].forEach((seg, i) => {
+      const it = A.exercises[i];
+      if (!it) return;
+      const d = it.sets.filter(s => s.done).length, n = it.sets.length || 1;
+      const fill = seg.firstElementChild;
+      if (fill) fill.style.width = Math.round(d / n * 100) + '%';
+      seg.classList.toggle('done', isComplete(it));
+      seg.classList.toggle('now', !isComplete(it) && i === cur);
+    });
+  }
   if (t && A.started) t.textContent = Math.round((Date.now() - A.started)/60000) + ' min';
   const kc = document.getElementById('tp-kcal');
   if (kc) kc.textContent = sessionKcal(A) + ' kcal';

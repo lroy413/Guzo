@@ -721,6 +721,25 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 }
 .ex-num.ok{background:rgba(79,209,165,.16);color:var(--teal)}
 .ex-num svg{width:15px;height:15px;stroke-width:3}
+/* ---------- who you are (More) ---------- */
+.who{display:flex;align-items:center;gap:14px;padding:4px 2px 20px;margin-bottom:2px;
+  border-bottom:1px solid var(--line-soft)}
+.who-mark{width:54px;height:54px;flex:none;border-radius:18px;font-size:24px;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(160deg,rgba(233,180,76,.20),rgba(233,180,76,.05));
+  border:1px solid var(--ember-line);box-shadow:var(--inset)}
+.who-name{font-size:22px;font-weight:700;letter-spacing:-.03em;line-height:1.15}
+.who-sub{font-size:12.5px;color:var(--muted);margin-top:3px;letter-spacing:.01em}
+.who-since{font-size:10.5px;color:var(--faint);text-align:right;flex:none;
+  line-height:1.45;letter-spacing:.04em}
+.who-since b{color:var(--text-dim);font-weight:650;font-size:11.5px}
+
+.ex-more{flex:none;width:44px;height:44px;margin:-7px -6px -7px 0;border-radius:12px;
+  border:0;background:none;color:var(--faint);
+  display:flex;align-items:center;justify-content:center;
+  transition:background var(--t-fast) ease,color var(--t-fast) ease}
+.ex-more svg{width:19px;height:19px}
+.ex-more:active{background:var(--surface-3);color:var(--text)}
 .ex-title{text-align:left;min-width:0;min-height:44px;display:flex;flex-direction:column;justify-content:center;padding:4px 0}
 .ex-name{font-size:15.5px;font-weight:650;letter-spacing:-.015em;line-height:1.25}
 .ex-meta{font-size:11.5px;color:var(--faint);margin-top:3px;letter-spacing:.01em}
@@ -738,17 +757,62 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .ex-target strong{font-family:var(--fm);font-weight:700;color:var(--text-dim);font-size:13px;letter-spacing:-.01em}
 .ex-target-sub{font-size:11px;color:var(--faint);font-family:var(--fm)}
 
-.set-row{display:grid;grid-template-columns:24px minmax(0,1fr) minmax(0,1fr) 52px 46px;gap:7px;
-  align-items:center;padding:4px 4px;border-radius:12px;position:relative;transition:background .22s ease}
+/* ---------- a set ----------
+   Was five columns of a table: a number, three unlabelled boxes and a tick,
+   under a repeated uppercase header. It held the right data and read like a
+   spreadsheet, on the one screen you use one-handed with a bar on your back.
+
+   The field is the container now, not the input — the unit lives inside it, so
+   the label is where you are already looking instead of in a header row above
+   every exercise. The tick is wider than everything else because ticking is
+   what you are here to do; typing is the exception. */
+.set-row{display:grid;grid-template-columns:22px minmax(0,1fr) minmax(0,1fr) 64px 62px;gap:7px;
+  align-items:center;padding:4px 2px;border-radius:13px;position:relative;
+  transition:background .22s ease}
 .set-row.done{background:var(--teal-dim)}
-.set-row .sn{font-size:13px;font-weight:700;color:var(--muted);text-align:center;font-family:var(--fm);transition:color .2s ease}
+.set-row .sn{font-size:12.5px;font-weight:700;color:var(--faint);text-align:center;
+  font-family:var(--fm);transition:color .2s ease}
 .set-row.done .sn{color:var(--teal)}
-.set-in{width:100%;padding:12px 4px;min-height:44px;border-radius:10px;background:var(--surface-2);
-  border:1px solid transparent;text-align:center;font-family:var(--fm);font-weight:650;font-size:15px;
-  letter-spacing:-.02em;transition:border-color .18s ease,background .22s ease,color .22s ease}
+
+.set-f{display:flex;align-items:baseline;gap:3px;min-height:46px;padding:0 9px;min-width:0;
+  border-radius:12px;background:var(--surface-2);border:1px solid transparent;
+  transition:border-color .18s ease,background .22s ease}
+.set-f.narrow{padding:0 7px}
+/* focus-within, because the ring belongs to the field and the caret is in the
+   input inside it. */
+.set-f:focus-within{border-color:var(--ember);background:var(--surface-3)}
+.set-in{flex:1;min-width:0;width:100%;background:none;border:0;padding:0;
+  text-align:right;font-family:var(--fm);font-weight:650;font-size:16px;
+  letter-spacing:-.02em;color:var(--text);transition:color .22s ease}
 .set-in::placeholder{color:var(--faint);font-weight:500}
-.set-in:focus{outline:none;border-color:var(--ember);background:var(--surface-3)}
-.set-row.done .set-in{background:transparent;color:var(--teal-soft)}
+.set-in:focus{outline:none}
+.set-u{font-size:10.5px;font-weight:650;color:var(--faint);flex:none;letter-spacing:.02em}
+.set-row.done .set-f{background:transparent;border-color:transparent}
+.set-row.done .set-in{color:var(--teal-soft)}
+.set-row.done .set-u{color:rgba(125,224,192,.6)}
+
+/* ---------- the session rail ----------
+   A segment per movement, filling as its sets are ticked. */
+/* The bar reads as 8px and the button *is* 44px: the track is drawn by a
+   pseudo-element centred inside a full-height target, and the surrounding
+   negative margin gives the row back the space it does not need to show.
+   A transparent ::after pad would have extended the tap area without extending
+   the box — which looks identical, passes by eye, and measures as an 8px
+   target. blanks.mjs caught exactly that on the first attempt. */
+.rail{display:flex;gap:4px;align-items:stretch;height:44px;margin:-13px 0 -11px}
+.rail-seg{flex:1;min-width:6px;padding:0;border:0;background:none;position:relative;
+  transition:flex-grow .3s var(--ease-out)}
+.rail-seg::before{content:'';position:absolute;left:0;right:0;top:50%;
+  transform:translateY(-50%);height:8px;border-radius:100px;
+  background:var(--surface-3);transition:background .2s ease}
+.rail-seg i{position:absolute;left:0;top:50%;transform:translateY(-50%);height:8px;
+  border-radius:100px;background:var(--ember);transition:width .34s var(--ease-out)}
+.rail-seg.done i{background:var(--teal)}
+/* The movement you are on takes more of the bar, so the rail says where you
+   are without needing a marker on top of it. */
+.rail-seg.now{flex-grow:2.1}
+.rail-seg.now::before{background:rgba(233,180,76,.20)}
+.rail-seg:active::before{background:var(--line)}
 .tick{width:100%;height:44px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;color:var(--faint);
   transition:background .2s ease,border-color .2s ease,color .2s ease,transform .12s ease}

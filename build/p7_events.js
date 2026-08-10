@@ -668,6 +668,19 @@ document.addEventListener('click', ev => {
       break;
     }
 
+    /* Tapping a segment of the rail goes to that movement — and opens it if it
+       had folded itself away, because scrolling to a collapsed card would look
+       like nothing happened. */
+    case 'rail-go': {
+      const it = S.active && S.active.exercises[i];
+      if (!it) break;
+      if (it.collapsed) { it.collapsed = false; replaceExCard(i); }
+      const el = document.querySelector('.ex-card[data-ei="' + i + '"]');
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      buzz();
+      break;
+    }
+
     case 'add-exercise': sheetExercisePicker('add', null); break;
     case 'pick-env': renderPicker(($('#pick-q')||{}).value || '', v); break;
     case 'pick-ex': {
@@ -691,11 +704,28 @@ document.addEventListener('click', ev => {
     }
     case 'ex-menu': {
       const item = S.active.exercises[i];
+      const ex = EX[item.exId] || {};
       openSheet(`
-        <div class="row between mb"><h2 class="h2">${h(item.name)}</h2></div>
+        <div class="eyebrow">${h(ex.primary || '')}${ex.sec && ex.sec.length ? ' &middot; ' + h(ex.sec.join(', ')) : ''}</div>
+        <h2 class="h1 mt-s mb">${h(item.name)}</h2>
+        <div class="list mb">
+          ${hasForm(item.exId) ? `<div class="lrow" data-act="ex-form" data-i="${i}" data-v="${h(item.exId)}">
+            <div class="ico">◎</div>
+            <div class="grow"><div class="h3">How to do it</div>
+              <div class="tiny mt-s">Form guide, drawn for this movement</div></div>
+            <span class="chev">&rsaquo;</span>
+          </div>` : ''}
+          <div class="lrow" data-act="swap-ex" data-i="${i}">
+            <div class="ico">⇄</div>
+            <div class="grow"><div class="h3">Swap it out</div>
+              <div class="tiny mt-s">Something else that trains the same thing</div></div>
+            <span class="chev">&rsaquo;</span>
+          </div>
+        </div>
         <div class="field mb"><div class="label">Note</div><textarea class="input" id="ex-note" placeholder="Left shoulder tight, used neutral grip…">${h(item.note||'')}</textarea></div>
         <button class="btn ghost block mb-s" data-act="save-note" data-i="${i}">Save note</button>
-        <button class="btn danger block" data-act="remove-ex" data-i="${i}">Remove from session</button>`);
+        <button class="btn danger block" data-act="remove-ex" data-i="${i}">Remove from session</button>`,
+        { key: 'ex-menu:' + i });
       break;
     }
     case 'save-note': {
