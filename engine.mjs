@@ -1011,6 +1011,13 @@ try {
     toggleSupersetLink(r.id, 3);                       // the last item has no next
     const onLast = r.items.map(x => !!x.supNext);
 
+    /* And the same thing arriving from the store rather than from a tap: a
+       save written by an older build, or one hand-edited, can hold a link on
+       the final item. ensureRoutines() is what every read goes through. */
+    S.routines[0].items[3].supNext = true;
+    ensureRoutines();
+    const onLastStored = r.items.map(x => !!x.supNext);
+
     /* Pull one half of the pair out from under the other. */
     moveInRoutine(r.id, 0, 1);
     const moved = { names: r.items.map(x => EX[x.exId].name),
@@ -1036,7 +1043,7 @@ try {
     setRoutineCircuit(r3.id, true);
     const circ = buildRoutineSession(r3.id, false);
 
-    return { paired, onLast, moved, deleted,
+    return { paired, onLast, onLastStored, moved, deleted,
       sess: { carried: sess.exercises.map(x => !!x.supNext),
               blocks: sess.exercises.map(x => exBlock(x)),
               orderNames: order.map(i => sess.exercises[i].name),
@@ -1056,6 +1063,8 @@ try {
   /* Left set, it would silently suppress the rest after the final movement. */
   check('the last movement cannot be linked to a next one that does not exist',
     sup.onLast[3] === false, JSON.stringify(sup.onLast));
+  check('...and a link on the last movement is stripped when the save is read',
+    sup.onLastStored[3] === false, JSON.stringify(sup.onLastStored));
 
   /* The bug this section was written for: the flag travels with the item, so
      without clearLinksAround, moving the bench out of a bench+fly pair leaves
@@ -1101,8 +1110,20 @@ try {
       unknown: [...new Set(EXLIST.flatMap(e => exBadges({ exId: e.id })))].filter(b => !BADGE_TONE[b]),
       /* A row of six labels under every exercise is decoration. */
       worst: Math.max(...EXLIST.map(e => exBadges({ exId: e.id }).length)),
-      capped: (document.createElement('div').innerHTML = badgeRowHTML({ exId:'db-lunge' }, 3),
-               (badgeRowHTML({ exId:'db-lunge' }, 3).match(/class="badge/g) || []).length),
+      /* The cap is asserted against the vocabulary's widest movement, at a
+         limit below its badge count. Checking `<= 3` proves nothing while no
+         exercise earns more than three — it would pass with the slice deleted,
+         which is exactly how a check ends up guarding nothing. */
+      widest: (() => {
+        const e = EXLIST.map(x => ({ id:x.id, n: exBadges({ exId:x.id }).length }))
+                        .sort((a, b) => b.n - a.n)[0];
+        return { id: e.id, n: e.n,
+                 /* The trailing space matters: the wrapper is class="badges",
+                    which a bare /class="badge/ counts as a badge of its own. */
+                 at1: (badgeRowHTML({ exId:e.id }, 1).match(/class="badge /g) || []).length,
+                 at3: (badgeRowHTML({ exId:e.id }, 3).match(/class="badge /g) || []).length,
+                 uncapped: exBadges({ exId:e.id }).length };
+      })(),
       uni: EXLIST.filter(e => UNILATERAL_RE.test(e.name)).length,
       /* Both halves of the unilateral rule, on movements that are plainly one
          or the other. A regex that matched everything would pass the first
@@ -1121,7 +1142,11 @@ try {
   check('every badge the catalogue can produce has a tone', badge.toned === true,
     badge.unknown.join(', '));
   check('no movement is given more than three badges', badge.worst <= 3, String(badge.worst));
-  check('...and the row renders at most three', badge.capped <= 3, String(badge.capped));
+  check('the widest movement in the vocabulary earns more than one badge',
+    badge.widest.uncapped > 1, badge.widest.id + ' → ' + badge.widest.uncapped);
+  check('...and the row honours the cap it is given',
+    badge.widest.at1 === 1 && badge.widest.at3 === badge.widest.uncapped,
+    `${badge.widest.id}: ${badge.widest.uncapped} badges → ${badge.widest.at1} at max 1, ${badge.widest.at3} at max 3`);
   check('the unilateral rule matches one-sided work', badge.uniHits === true);
   check('...and leaves two-sided work alone', badge.uniMisses === true);
   check('it matches a real share of the catalogue, not one row and not all of it',
@@ -1187,8 +1212,12 @@ try {
       beats: isPR(wt, { w:100, r:5, done:true }),
       under: isPR(wt, { w:60, r:5, done:true }),
       notDone: isPR(wt, { w:100, r:5, done:false }),
-      timed: isPR({ exId:'bw-plank', load:'time' }, { w:0, r:600, done:true }),
-      mobility: isPR({ exId:'mob-cat-cow', load:'bw' }, { w:0, r:99, done:true }) };
+      /* Weighted, and deliberately so. e1rm() returns 0 when the weight is 0,
+         so an unloaded plank can never beat anything and the check would pass
+         with the guards deleted — a held movement has to be carrying load for
+         this to be testing the exclusion rather than the arithmetic. */
+      timed: isPR({ exId:'bw-plank', load:'time' }, { w:20, r:600, done:true }),
+      mobility: isPR({ exId:'mob-cat-cow', load:'bw' }, { w:20, r:99, done:true }) };
   });
   /* "PR" on the first set of a movement you have never done is a
      participation medal, and this app does not hand those out. */
