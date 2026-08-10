@@ -1580,6 +1580,82 @@ try {
     `${railLive.beforeCount} → ${railLive.afterCount}`);
   check('...in place, without re-rendering the screen', railLive.sameNode === true);
 
+  /* ---- the session reads like a written programme ----
+     A real plan groups its movements and the heading tells you how to treat
+     what is under it — you read "Main lifts" and you know to rest three
+     minutes before you have read the exercise. The session was a flat column. */
+  const blocks = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.settings.warmup = true;
+    S.profile.cardio = { amount: 'some', modes: ['car-walk'] };
+    save(true); buildWeekPlan(true);
+    startSession('full', 'full');
+    /* A generated full session does not always contain core or cardio, and
+       `.every()` over an empty list is true — so the checks below would pass by
+       having nothing to look at. Both categories are put in deliberately. */
+    const add = (id, extra) => {
+      const ex = EX[id];
+      S.active.exercises.push(Object.assign({ exId: id, name: ex.name, load: ex.load,
+        targetW: null, targetR: ex.rl, sets: [{ w: '', r: '', rpe: '', done: false }], note: '' }, extra || {}));
+    };
+    add('bw-plank');
+    add('car-walk', { cardio: true });
+    save(true);
+    go('train');
+    const body = document.getElementById('train-body');
+    /* Read in document order, so the assertion is about the order you actually
+       see rather than about a set of labels. */
+    const heads = [...body.querySelectorAll('.sec-head.blk .sec-t')].map(e => e.textContent);
+    const perEx = S.active.exercises.map(x => ({ name: x.name, block: exBlock(x),
+      tier: (EX[x.exId] || {}).tier, pattern: (EX[x.exId] || {}).pattern }));
+    return { heads, perEx, n: S.active.exercises.length, text: body.innerText || '' };
+  });
+  check('a session is grouped into blocks', blocks.heads.length >= 2, blocks.heads.join(' / '));
+  /* Each of the checks below is an .every() over a filter, and a filter that
+     matches nothing passes. Assert there was something to look at first. */
+  check('...and there is core and cardio in it to classify',
+    blocks.perEx.filter(x => x.pattern === 'core').length > 0 &&
+    blocks.perEx.filter(x => x.pattern === 'cardio').length > 0,
+    blocks.perEx.map(x => x.pattern).join(','));
+  check('...starting with the warm-up', blocks.heads[0] === 'Warm-up', blocks.heads[0]);
+  check('...and the headings are in the order you meet them',
+    blocks.heads.join('|') === [...new Set(blocks.heads)].join('|'), blocks.heads.join(' / '));
+  check('the warm-up movement is in the warm-up block',
+    blocks.perEx[0] && blocks.perEx[0].block === 'warmup', JSON.stringify(blocks.perEx[0]));
+  /* Tier is the app's own measure of how much a movement asks of you, which is
+     the same question that decides whether it is a main lift. */
+  check('heavy compounds land in Main lifts',
+    blocks.perEx.filter(x => x.tier <= 2 && x.pattern !== 'core' && x.pattern !== 'cardio' && x.pattern !== 'mobility')
+                .every(x => x.block === 'main'),
+    blocks.perEx.filter(x => x.tier <= 2 && x.block !== 'main').map(x => x.name + ':' + x.block).join(', '));
+  check('...and lighter work in Accessories',
+    blocks.perEx.filter(x => x.tier > 2 && !['core','cardio','mobility','carry'].includes(x.pattern))
+                .every(x => x.block === 'accessory'),
+    blocks.perEx.filter(x => x.tier > 2 && x.block === 'main').map(x => x.name).join(', '));
+  check('core work is its own block',
+    blocks.perEx.filter(x => x.pattern === 'core').every(x => x.block === 'core'),
+    blocks.perEx.filter(x => x.pattern === 'core').map(x => x.name + ':' + x.block).join(', '));
+  check('cardio is the finisher',
+    blocks.perEx.filter(x => x.pattern === 'cardio').every(x => x.block === 'finisher'),
+    blocks.perEx.filter(x => x.pattern === 'cardio').map(x => x.name + ':' + x.block).join(', '));
+  check('no placeholder text with blocks on', !BAD.test(blocks.text));
+
+  /* One block is not a structure. A recovery day is mobility from top to
+     bottom, and a heading over every single card says nothing. */
+  const oneBlock = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    S.active = generateSession('recovery', 'full', 'full', 60);
+    save(true); go('train');
+    const body = document.getElementById('train-body');
+    return { heads: body.querySelectorAll('.sec-head.blk').length,
+             cards: body.querySelectorAll('.ex-card').length,
+             blocks: [...new Set(S.active.exercises.map(x => exBlock(x)))] };
+  });
+  check('a recovery day is one block from top to bottom', oneBlock.blocks.length === 1,
+    oneBlock.blocks.join(', '));
+  check('...so it gets no headings at all', oneBlock.heads === 0, String(oneBlock.heads));
+  check('...and still renders its movements', oneBlock.cards >= 3, String(oneBlock.cards));
+
   /* ---- App Store readiness ---- */
 
   /* A subscription offer with nothing behind it reads as an incomplete app. */

@@ -937,6 +937,65 @@ try {
   check('syncSky puts the band on the document', sky.applied === 'night', String(sky.applied));
   check('...and changes it when the hour does', sky.daylight === 'day', String(sky.daylight));
 
+  // ================= 11. the catalogue holds together ====================
+  console.log('\nthe catalogue\n');
+
+  /* EXDATA is a pipe-delimited block parsed at load. Nothing validated it, so
+     a malformed row became an exercise with undefined fields, and a repeated
+     id silently shadowed an earlier one — which is exactly what happened while
+     adding the movements from the 5-day plan: "Close-Grip Bench Press" went in
+     next to the "Close-Grip Bench" that was already there, and a second
+     "Upright Row" took the first one's id. Both were caught by hand. This is
+     so the next one is not. */
+  const cat = await page.evaluate(() => {
+    const PATTERNS = new Set(['squat','hinge','push-h','push-v','pull-h','pull-v','lunge',
+                              'delts','arms-bi','arms-tri','core','calves','carry','cardio','mobility']);
+    const LOADS = new Set(['bw','wt','time','min']);
+    const MUSCLES = new Set(['Chest','Back','Quads','Hamstrings','Glutes','Shoulders',
+                             'Biceps','Triceps','Core','Calves','Forearms','Cardio']);
+    const EQ = new Set(['Barbell','Dumbbell','Machine','Cable','Bodyweight','Band','Cardio','Kettlebell']);
+    const rows = EXDATA.trim().split('\n').filter(Boolean).map(r => r.split('|'));
+    const bad = { cols: [], dupId: [], dupName: [], pattern: [], load: [], primary: [],
+                  secondary: [], eq: [], env: [], tier: [], reps: [] };
+    const ids = new Set(), names = new Set();
+    rows.forEach(c => {
+      if (c.length !== 11) { bad.cols.push(c[0] || c.join('|').slice(0, 24)); return; }
+      const [id, name, eq, env, pat, pri, sec, tier, rl, rh, load] = c;
+      if (ids.has(id)) bad.dupId.push(id); ids.add(id);
+      /* Names as well as ids: two rows can be distinct to the parser and the
+         same movement to a person, and the picker shows names. */
+      if (names.has(name.toLowerCase())) bad.dupName.push(name); names.add(name.toLowerCase());
+      if (!PATTERNS.has(pat)) bad.pattern.push(id + ':' + pat);
+      if (!LOADS.has(load)) bad.load.push(id + ':' + load);
+      if (!MUSCLES.has(pri)) bad.primary.push(id + ':' + pri);
+      (sec ? sec.split(',') : []).forEach(x => { if (!MUSCLES.has(x)) bad.secondary.push(id + ':' + x); });
+      if (!EQ.has(eq)) bad.eq.push(id + ':' + eq);
+      if (!/^[fhb]+$/.test(env)) bad.env.push(id + ':' + env);
+      if (!(+tier >= 1 && +tier <= 4)) bad.tier.push(id + ':' + tier);
+      if (+rl > +rh) bad.reps.push(id);
+    });
+    /* And the parsed objects have to match the rows they came from — a parser
+       that silently drops one is the same bug one layer down. */
+    return { rows: rows.length, parsed: EXLIST.length, keyed: Object.keys(EX).length, bad,
+             every: EXLIST.every(e => e.id && e.name && e.pattern && e.load) };
+  });
+  check('every catalogue row has all eleven fields', cat.bad.cols.length === 0, cat.bad.cols.join(', '));
+  check('no exercise id appears twice', cat.bad.dupId.length === 0, cat.bad.dupId.join(', '));
+  check('no exercise name appears twice', cat.bad.dupName.length === 0, cat.bad.dupName.join(', '));
+  check('every pattern is a real pattern', cat.bad.pattern.length === 0, cat.bad.pattern.join(', '));
+  check('every load type is real', cat.bad.load.length === 0, cat.bad.load.join(', '));
+  check('every primary muscle is a real one', cat.bad.primary.length === 0, cat.bad.primary.join(', '));
+  check('...and every secondary', cat.bad.secondary.length === 0, cat.bad.secondary.join(', '));
+  check('every equipment name is one the app knows', cat.bad.eq.length === 0, cat.bad.eq.join(', '));
+  check('every environment flag is f, h or b', cat.bad.env.length === 0, cat.bad.env.join(', '));
+  check('every tier is 1 to 4', cat.bad.tier.length === 0, cat.bad.tier.join(', '));
+  check('no rep range runs backwards', cat.bad.reps.length === 0, cat.bad.reps.join(', '));
+  check('every row parsed into an exercise', cat.parsed === cat.rows && cat.keyed === cat.rows,
+    `${cat.rows} rows → ${cat.parsed} listed, ${cat.keyed} keyed`);
+  check('...with the fields the rest of the app reads', cat.every === true);
+  check('the catalogue was actually large enough to be worth checking', cat.rows > 250,
+    String(cat.rows));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

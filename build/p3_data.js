@@ -340,6 +340,20 @@ car-ruck|Rucking|Cardio|fhb|cardio|Cardio|Back,Core|4|20|60|min
 car-swim|Swimming|Cardio|f|cardio|Cardio|Back,Shoulders|4|15|45|min
 car-box-step|Box Step-Ups|Cardio|fh|cardio|Cardio|Quads,Glutes|4|8|20|min
 car-hike|Hiking|Cardio|fhb|cardio|Cardio|Quads,Glutes|4|30|90|min
+bb-deficit-rdl|Deficit Romanian Deadlift|Barbell|f|hinge|Hamstrings|Glutes,Back|2|6|10|wt
+tb-deadlift|Trap Bar Deadlift|Barbell|f|hinge|Glutes|Hamstrings,Quads,Back|1|4|8|wt
+bb-ez-curl|EZ Bar Curl|Barbell|fh|arms-bi|Biceps|Forearms|2|8|12|wt
+bw-weighted-pullup|Weighted Pull-Up|Bodyweight|fh|pull-v|Back|Biceps|1|4|8|wt
+bw-sl-calf-raise|Single-Leg Calf Raise|Bodyweight|fhb|calves|Calves||3|12|25|bw
+bw-inchworm|Inchworm|Bodyweight|fhb|mobility|Core|Shoulders,Hamstrings|4|5|10|bw
+db-kickback|Dumbbell Triceps Kickback|Dumbbell|fh|arms-tri|Triceps||4|12|18|wt
+cab-lateral-single|Single-Arm Cable Lateral Raise|Cable|fh|delts|Shoulders||3|12|20|wt
+cab-hammer-single|Single-Arm Cable Hammer Curl|Cable|fh|arms-bi|Biceps|Forearms|3|10|15|wt
+cab-oh-tricep|Overhead Cable Triceps Extension|Cable|fh|arms-tri|Triceps||3|10|15|wt
+cab-wood-chop|Cable Wood Chop|Cable|f|core|Core|Shoulders|3|10|16|wt
+mob-leg-swing|Leg Swing|Bodyweight|fhb|mobility|Hamstrings|Glutes|4|10|20|bw
+mob-cross-body|Cross-Body Shoulder Stretch|Bodyweight|fhb|mobility|Shoulders||4|20|45|time
+mob-foam-thoracic|Thoracic Foam Roll|Bodyweight|fh|mobility|Back||4|30|90|time
 `.trim();
 
 const EX = {};

@@ -45,7 +45,7 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 ├── build/
 │   ├── p1_head.html          ← <head> + ALL CSS (~63 KB). Design tokens at the top.
 │   ├── p2_body.html          ← all screen markup, nav, sheet container, boot fallback
-│   ├── p3_data.js            ← constants, 267 exercises, 6 programmes, copy strings
+│   ├── p3_data.js            ← constants, 281 exercises, 6 programmes, copy strings
 │   ├── p3b_intake.js         ← onboarding question definitions
 │   ├── p3c_form.js           ← 45 hand-built SVG form diagrams
 │   ├── p4_engine.js          ← state, dates, units, readiness, session generation, week plan
@@ -183,6 +183,8 @@ That one entry point is also what makes `profile.dayStart` a three-line feature.
 
 **The `data-sky` band on `<html>` is ambient light and nothing else.** It shifts the background gradient by time of day (dawn / day / dusk / night) and **must never touch a colour that was measured for contrast** — surfaces, lines and text tokens are identical in all four bands, and `blanks.mjs` asserts it. It reads the wall clock, not `today()`: `profile.dayStart` moves where your day ends and it does not move sunrise.
 
+**A session is shown in block order, not array order.** `exBlock(item)` derives warm-up / main / accessory / core / finisher from flags the session already carries plus the catalogue's tier and pattern — nothing is stored, so a session logged last year still groups. `sessionOrder(A)` returns **indices**, never a reordered copy: every handler addresses an exercise by its real position in `A.exercises`, and a reordered copy would point `toggle-set` at the wrong movement. The cards, the rail and `trainWhere()` all walk that one order, because a rail that disagrees with the list under it is worse than no rail.
+
 **Train updates in place, never by re-rendering.** `updateTrainProgress()` moves the rail, the count, the kcal and the clock by touching those nodes directly. A `renderTrain()` mid-session replaces the body's innerHTML, which closes the keyboard and loses your caret — the reason `replaceExCard(i)` exists is to rebuild exactly one card when it folds away. A check that compares `#train-body` before and after proves nothing, because innerHTML is replaced and the element is not; compare an input node.
 
 **A screen is hidden, never removed.** `go()` toggles a class; every other screen's markup stays in the document. So an `id` inside anything two screens render is an `id` that exists twice — Today and Plan both draw the week strip, and giving it one made every lookup find whichever screen had rendered first. Use a class and scope by screen (`#today-body .week`).
@@ -251,7 +253,7 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node sw.mjs` | the service worker registers, caches, survives the network being cut, and still lets an update through |
 | `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of; a sheet that redraws itself keeps your scroll position; the week strip moves by arrow and by swipe, a day opens on what it is rather than on an editor, two sessions in one day are both counted, a movement can be counted in reps or in seconds, no two pieces of painted text share a box, the route on Progress is drawn from the markers you actually reached, motion arrives once rather than on every render, and the session rail moves in place rather than by re-rendering |
 | `node fuel.mjs` | meal suggestions are deterministic, hit the target, and never break a stated dietary restriction |
-| `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, a Fuel bar means what it looks like, a recovery day is mobility spread across the body with nothing to beat, a routine warm-up matches what the routine trains, a session logged after the fact lands on the day it happened, a day can end at 4am instead of midnight, a circuit runs across the list before it repeats, and the sky follows the wall clock rather than your day boundary |
+| `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, a Fuel bar means what it looks like, a recovery day is mobility spread across the body with nothing to beat, a routine warm-up matches what the routine trains, a session logged after the fact lands on the day it happened, a day can end at 4am instead of midnight, a circuit runs across the list before it repeats, the sky follows the wall clock rather than your day boundary, and the exercise catalogue has no duplicate or malformed rows |
 | `node native.mjs` | the Capacitor bridge is inert on the web, mirrors saves on device, and never restores over live data |
 
 `png.mjs` is the shared PNG decoder and ink-vs-background analysis used by both contrast instruments. Everything else at the root (`diag*.mjs`, `shot*.mjs`, `probe.mjs`, `lose*.mjs`, `tiers.mjs`, `freq.mjs`, `resil.mjs`, `nostore.mjs`, `sheet.mjs`, `final.mjs`, `gaps.mjs`) is a one-off probe kept for reference; none are part of the suite.

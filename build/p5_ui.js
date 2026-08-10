@@ -749,7 +749,26 @@ function renderTrain() {
     A.exercises.forEach((item, ei) => { if (item.warmup) html += exCardHTML(item, ei); });
     html += circuitHTML(A);
   } else {
-    A.exercises.forEach((item, ei) => { html += exCardHTML(item, ei); });
+    /* A heading whenever the block changes, walking the list in the order it
+       is already in — the generator puts the warm-up first and the finisher
+       last, so grouping consecutive runs is enough and nothing gets reordered
+       under someone mid-session. */
+    let block = null;
+    sessionOrder(A).forEach(ei => {
+      const item = A.exercises[ei];
+      const b = exBlock(item);
+      if (b !== block) {
+        block = b;
+        const [label, hint] = BLOCK_LABEL[b] || [b, ''];
+        /* One block is not a structure. A session that is all one thing gets
+           no heading at all rather than a heading over everything. */
+        if (A.exercises.some(x => exBlock(x) !== b)) {
+          html += `<div class="sec-head blk"><span class="sec-t">${h(label)}</span>${
+            hint ? `<span class="tiny">${h(hint)}</span>` : ''}</div>`;
+        }
+      }
+      html += exCardHTML(item, ei);
+    });
   }
 
   html += `
@@ -928,15 +947,75 @@ function circuitListHTML(A, pos, rounds) {
   </div>`;
 }
 
+/* ============================================================
+   SESSION BLOCKS
+   ------------------------------------------------------------
+   A written programme does not list twelve movements in a column — it groups
+   them, and the group tells you how to treat what is in it. Warm-up. Main
+   lifts. Accessories. Core. Finisher. You read the heading and you know
+   whether to rest three minutes or sixty seconds before you have read the
+   exercise.
+
+   Derived rather than stored. Sessions already carry everything needed —
+   `warmup` and `cardio` flags, the recovery marker, and the catalogue's tier
+   and pattern — so nothing has to migrate and a session logged last year still
+   groups correctly when you open it.
+   ============================================================ */
+function exBlock(item) {
+  if (!item) return 'main';
+  if (item.warmup) return 'warmup';
+  if (item.recovery) return 'recovery';
+  if (item.cardio) return 'finisher';
+  const ex = EX[item.exId] || {};
+  if (ex.pattern === 'mobility') return 'warmup';
+  if (ex.pattern === 'cardio') return 'finisher';
+  if (ex.pattern === 'core' || ex.pattern === 'carry') return 'core';
+  /* Tier is the app's own word for "how much does this ask of you", which is
+     the same question that decides whether something is a main lift. */
+  return (ex.tier <= 2) ? 'main' : 'accessory';
+}
+
+const BLOCK_LABEL = {
+  warmup:    ['Warm-up', 'before you start'],
+  main:      ['Main lifts', 'heavy, long rests'],
+  accessory: ['Accessories', 'volume, shorter rests'],
+  core:      ['Core', ''],
+  finisher:  ['Finisher', ''],
+  recovery:  ['Mobility', 'nothing to beat']
+};
+const BLOCK_RANK = { warmup: 0, recovery: 0, main: 1, accessory: 2, core: 3, finisher: 4 };
+
+/* The order the session is shown in, as a list of indices into A.exercises.
+   ------------------------------------------------------------------------
+   Grouping by walking the array and starting a heading whenever the block
+   changed produced "Core … Accessories … Core" the moment anything was out of
+   order — which happens as soon as you add a movement mid-session, because it
+   lands at the end of the array. So the display order *is* the block order.
+
+   Indices rather than a reordered copy: every handler addresses an exercise by
+   its real position in A.exercises, and a reordered copy would silently point
+   `toggle-set` at the wrong movement. Stable inside a block, so nothing the
+   generator decided about sequencing is lost. */
+function sessionOrder(A) {
+  const list = (A && A.exercises) || [];
+  return list.map((_, i) => i).sort((a, b) => {
+    const ra = BLOCK_RANK[exBlock(list[a])], rb = BLOCK_RANK[exBlock(list[b])];
+    return ra === rb ? a - b : ra - rb;
+  });
+}
+
 /* The session drawn as ground to cover: one segment per movement, filling as
    its sets are ticked. Where you are is derived from the sets rather than
    stored, the same as the circuit runner — the first movement that is not
    finished is the one you are on. */
 function trainRailHTML(A) {
-  const list = A.exercises || [];
-  const cur = list.findIndex(x => !isComplete(x));
+  /* Same order as the cards — a rail that disagrees with the list under it is
+     worse than no rail. */
+  const order = sessionOrder(A);
+  const cur = order.find(i => !isComplete(A.exercises[i]));
   return `<div class="rail">
-    ${list.map((it, i) => {
+    ${order.map(i => {
+      const it = A.exercises[i];
       const done = it.sets.filter(s => s.done).length;
       const all = it.sets.length || 1;
       const state = isComplete(it) ? 'done' : (i === cur ? 'now' : '');
@@ -949,11 +1028,11 @@ function trainRailHTML(A) {
 /* "Back Squat · 2 of 6" — the movement you are on and where it sits, which is
    the question the old "1 of 14 sets" could not answer. */
 function trainWhere(A) {
-  const list = A.exercises || [];
-  if (!list.length) return 'Nothing added yet';
-  const cur = list.findIndex(x => !isComplete(x));
-  if (cur < 0) return 'Everything ticked';
-  return list[cur].name + ' · ' + (cur + 1) + ' of ' + list.length;
+  const order = sessionOrder(A);
+  if (!order.length) return 'Nothing added yet';
+  const at = order.findIndex(i => !isComplete(A.exercises[i]));
+  if (at < 0) return 'Everything ticked';
+  return A.exercises[order[at]].name + ' · ' + (at + 1) + ' of ' + order.length;
 }
 
 function exCardHTML(item, ei) {
@@ -1109,8 +1188,10 @@ function updateTrainProgress() {
   if (w) w.textContent = trainWhere(A);
   const rail = document.querySelector('#train-body .rail');
   if (rail) {
-    const cur = A.exercises.findIndex(x => !isComplete(x));
-    [...rail.children].forEach((seg, i) => {
+    const order = sessionOrder(A);
+    const cur = order.find(i => !isComplete(A.exercises[i]));
+    [...rail.children].forEach((seg, pos) => {
+      const i = order[pos];
       const it = A.exercises[i];
       if (!it) return;
       const d = it.sets.filter(s => s.done).length, n = it.sets.length || 1;

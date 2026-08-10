@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **629,322 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (271) + `engine` (131) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **634,501 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (284) + `engine` (145) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -10,7 +10,7 @@ Last sweep: `dupes` + `blanks` (271) + `engine` (131) + `fuel` (37) + `sw` (17) 
 | Area | State |
 |---|---|
 | Onboarding | Complete. Seeds starting weights from stated experience, deliberately conservative. |
-| Session generation | Complete. 267 exercises, 6 programmes, 3 environments, 4 session sizes. |
+| Session generation | Complete. 281 exercises, 6 programmes, 3 environments, 4 session sizes. |
 | Progression | Complete. Learned weights per lift, deload after two sessions short of target. |
 | Readiness check-in | Complete. Scored against your own sleep norm, sizes the session, explains itself. |
 | Week planning | Complete. Availability + environment per day, plan distributed across the days with the most time. |
@@ -153,6 +153,24 @@ The evidence card that sat at the bottom of More is gone. It was a shorter copy 
 ### The nav is a floating pill
 
 The old bar was full width, in the flex flow, with its own padding plus the safe-area inset plus a top border — roughly 100px of permanent chrome for five icons. It is now a fixed, blurred pill inset from the edges, about 56px tall, with the selected tab as a filled pill rather than a 2px hairline that antialiased away. The background stays near-opaque deliberately: the labels are `--faint`, and a genuinely transparent pill would leave them over whatever scrolled underneath.
+
+### The catalogue could not hold a written plan, and sessions had no shape
+
+A real 5-day cut programme was handed over as the reference: warm-up blocks, main lifts, named supersets, a core block, a LISS finisher, per-movement cues and badges. Two gaps.
+
+**Sixty-five movements, forty in the catalogue.** Of the twenty-five that looked missing, nine were name variants of something already there — Lying Leg Curl is Leg Curl, Rope Pushdown is Tricep Pushdown, Rower is Rowing Machine, Hollow Body Hold is Hollow Hold. Fifteen were genuinely absent and are in now: Deficit Romanian Deadlift, Trap Bar Deadlift, EZ Bar Curl, Weighted Pull-Up, Single-Leg Calf Raise, Inchworm, Dumbbell Triceps Kickback, Single-Arm Cable Lateral Raise, Single-Arm Cable Hammer Curl, Overhead Cable Triceps Extension, Cable Wood Chop, Leg Swing, Cross-Body Shoulder Stretch and Thoracic Foam Roll. 267 → 281.
+
+**Two of my additions were duplicates and nothing caught them.** "Close-Grip Bench Press" went in beside the "Close-Grip Bench" already there, and a second "Upright Row" took the first one's id — which in a map-keyed catalogue means one silently shadows the other. Both were found by hand. `engine.mjs` now validates the whole catalogue on every run: eleven fields per row, no repeated id, **no repeated name** (two rows can be distinct to the parser and the same movement to a person), every pattern, load, muscle, equipment name, environment flag and tier from the sets the app actually understands, no backwards rep range, and every row parsed into both `EXLIST` and `EX`.
+
+**And sessions are grouped now.** A written programme does not list twelve movements in a column; it blocks them, and the heading tells you how to treat what is under it — you read "Main lifts · heavy, long rests" and you know before you have read the exercise. `exBlock()` derives the block from flags the session already carries plus the catalogue's tier and pattern, so nothing migrates and a session from last year groups correctly.
+
+The first version walked the array and started a heading whenever the block changed, which produced `Warm-up / Main lifts / Accessories / Finisher / Core / Finisher` the moment anything was out of order — and something is out of order as soon as you add a movement mid-session, because it lands at the end. So the display order **is** the block order: `sessionOrder()` returns indices, never a reordered copy, because every handler addresses an exercise by its real position and a copy would point `toggle-set` at the wrong movement. The cards, the rail and the "where you are" line all walk that one order.
+
+A session that is all one thing — a recovery day is mobility top to bottom — gets no headings at all rather than a heading over everything.
+
+**A check that passed by having nothing to look at.** "Core work is its own block" is an `.every()` over a filter, and a generated full session does not always contain core: the filter matched nothing and `.every()` on an empty list is true. It now asserts there was core and cardio in the session before classifying it, and the reverted subject prints `Plank:accessory`.
+
+**Still to do from the plan: supersets.** The 5-day plan pairs movements — "4A then 4B immediately · rest 60 sec" — and the app has no way to express that outside a full circuit. The circuit feature covers "run these back to back" for a whole routine; a superset is the same idea scoped to a pair inside a larger session. Per-movement cue text and the badge vocabulary (Priority / Arms / Unilateral / Cut / Endurance) are also not modelled.
 
 ### The session screen was a spreadsheet
 
