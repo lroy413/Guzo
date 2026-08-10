@@ -1722,6 +1722,217 @@ try {
   check('an interactive div can take keyboard focus', keyboard.focused);
   check('...and Enter activates it', keyboard.opened);
 
+  /* ---- supersets, on the screens you meet them on ----
+     Two movements run straight through with no rest between them, then one
+     rest after the pair. The model is checked in engine.mjs; what is checked
+     here is that the builder offers it, the session says so, and — the whole
+     point — that ticking the first half starts no clock. */
+  const supUI = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Push');
+    ['bb-bench', 'db-fly', 'bb-ohp'].forEach(id => addToRoutine(r.id, id));
+    sheetRoutineEdit(r.id);
+    const sh = document.querySelector('.sheet-body') || document.body;
+    const links = [...sh.querySelectorAll('[data-act="rt-superset"]')];
+    const off = { count: links.length, pressed: links.map(b => b.getAttribute('aria-pressed')) };
+    /* Return a fully shaped miss rather than reaching into an empty list. A
+       probe that throws has not run: it kills the instrument before it prints
+       anything, so a reverted subject reads as a crash instead of a red. */
+    if (!links.length) { closeSheet(); return { off, on: { pressed:[], letters:[], bracketed:-1 }, inCircuit:-1 }; }
+
+    /* Two movements, two gaps between three of them — and none after the last,
+       which has nothing to run into. */
+    links[0].click();
+    const sh2 = document.querySelector('.sheet-body') || document.body;
+    const on = {
+      pressed: [...sh2.querySelectorAll('[data-act="rt-superset"]')].map(b => b.getAttribute('aria-pressed')),
+      letters: [...sh2.querySelectorAll('.rt-sup')].map(e => e.textContent.trim()),
+      bracketed: sh2.querySelectorAll('.rt-item.sup').length
+    };
+
+    /* A circuit already runs every movement back to back. */
+    setRoutineCircuit(r.id, true);
+    sheetRoutineEdit(r.id);
+    const sh3 = document.querySelector('.sheet-body') || document.body;
+    const inCircuit = sh3.querySelectorAll('[data-act="rt-superset"]').length;
+    setRoutineCircuit(r.id, false);
+    closeSheet();
+    return { off, on, inCircuit };
+  });
+  check('the builder offers a link in every gap between movements',
+    supUI.off.count === 2, String(supUI.off.count));
+  /* Offered after the last one, it would suppress the session's final rest. */
+  check('...and not after the last one', supUI.off.count === 2 &&
+    supUI.off.pressed.every(p => p === 'false'), supUI.off.pressed.join(','));
+  check('tapping it pairs the two movements',
+    supUI.on.pressed[0] === 'true' && supUI.on.pressed[1] === 'false', supUI.on.pressed.join(','));
+  check('...and they are lettered A and B',
+    supUI.on.letters.length === 2 && supUI.on.letters[0].endsWith('A') && supUI.on.letters[1].endsWith('B'),
+    supUI.on.letters.join(' / '));
+  check('...and bracketed as one thing', supUI.on.bracketed === 2, String(supUI.on.bracketed));
+  check('a circuit is not offered supersets at all', supUI.inCircuit === 0, String(supUI.inCircuit));
+
+  const supTrain = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const r = newRoutine('Push');
+    ['bb-bench', 'db-lateral', 'bb-ohp'].forEach(id => addToRoutine(r.id, id));
+    toggleSupersetLink(r.id, 0);
+    S.active = buildRoutineSession(r.id, false);
+    S.settings.autoRest = true;
+    save(true); go('train');
+    const body = document.getElementById('train-body');
+    const heads = [...body.querySelectorAll('.sup-head .sup-tag')].map(e => e.textContent.trim());
+    const nums = [...body.querySelectorAll('.ex-card .ex-num')].map(e => e.textContent.trim());
+
+    /* The behaviour, driven through the real handler rather than described:
+       tick A and no clock starts; tick B and one does. */
+    const tickAt = ei => {
+      const b = document.querySelector(`.ex-card[data-ei="${ei}"] .tick`);
+      if (!b) return null;
+      b.click();
+      return document.getElementById('rest-bar').classList.contains('on');
+    };
+    stopRest();
+    const afterA = tickAt(0);
+    stopRest();
+    const afterB = tickAt(1);
+    stopRest();
+    return { heads, nums, afterA, afterB, text: body.innerText || '' };
+  });
+  check('a session names its superset once, over the pair',
+    supTrain.heads.length === 1 && /Superset A/i.test(supTrain.heads[0]), supTrain.heads.join(' / '));
+  check('...and numbers the pair A, B rather than 01, 02',
+    supTrain.nums[0] === 'A' && supTrain.nums[1] === 'B', supTrain.nums.join(','));
+  /* This is the entire behaviour of a superset. Everything else is labelling. */
+  check('ticking the first of a pair starts no rest', supTrain.afterA === false,
+    String(supTrain.afterA));
+  check('...and ticking the second does', supTrain.afterB === true, String(supTrain.afterB));
+  check('no placeholder text on a session with a superset in it', !BAD.test(supTrain.text));
+
+  /* ---- what a set row offers, and what the tick actually records ----
+     engine.mjs checks ghostFor() directly. This drives the real button,
+     because the bug worth catching is the placeholder and the handler
+     disagreeing — and a probe that recomputes the handler's arithmetic its
+     own way would agree with itself and prove nothing. */
+  const rowUI = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    /* 1.25 is the weight fmtW paints as "1.3". If the tick records what the
+       row painted rather than what it meant, that lands in the store. */
+    S.sessions = [{ date: today(), ended: true, dur: 40, exercises: [
+      { exId:'bb-bench', name:'Bench Press', load:'wt',
+        sets: [{ w:1.25, r:9, done:true }, { w:82.5, r:8, done:true }] } ] }];
+    save(true);
+    const ex = EX['bb-bench'];
+    S.active = { date: today(), type:'push', rung:'full', env:'full', started: Date.now(),
+      rounds: 1, exercises: [{ exId:'bb-bench', name: ex.name, load:'wt', targetW: 70, targetR: 5,
+        sets: [0,1,2].map(() => ({ w:'', r:'', rpe:'', done:false })), note:'' }] };
+    S.settings.autoRest = false;
+    save(true); go('train');
+    const card = document.querySelector('.ex-card[data-ei="0"]');
+    const ph = si => {
+      const row = card.querySelectorAll('.set-row')[si];
+      return { w: row.querySelector('[data-set="w"]').placeholder,
+               r: row.querySelector('[data-set="r"]').placeholder };
+    };
+    const offered = [ph(0), ph(1), ph(2)];
+
+    card.querySelectorAll('.set-row')[0].querySelector('.tick').click();
+    const stored = { w: S.active.exercises[0].sets[0].w, r: S.active.exercises[0].sets[0].r };
+
+    /* Type a different weight into set 1 and the rows under it must follow,
+       without the card being rebuilt. */
+    const wIn = card.querySelectorAll('.set-row')[1].querySelector('[data-set="w"]');
+    const w1 = card.querySelectorAll('.set-row')[0].querySelector('[data-set="w"]');
+    w1.value = '95';
+    w1.dispatchEvent(new Event('input', { bubbles: true }));
+    const carried = ph(1);
+    const sameNode = card.querySelectorAll('.set-row')[1].querySelector('[data-set="w"]') === wIn;
+    return { offered, stored, carried, sameNode, text: document.getElementById('train-body').innerText || '' };
+  });
+  check('a set row offers what you did in that slot last time',
+    rowUI.offered[0].w === '1.3' && rowUI.offered[0].r === '9' &&
+    rowUI.offered[1].w === '82.5', JSON.stringify(rowUI.offered.slice(0, 2)));
+  check('...and falls back to the prescription where there is no last set',
+    rowUI.offered[2].w === '70' && rowUI.offered[2].r === '5', JSON.stringify(rowUI.offered[2]));
+  /* fmtW rounds to a tenth, which is right for a label and wrong for a store:
+     1.25 saved as 1.3 sends you to the wrong plate with confidence. */
+  check('ticking an untouched row records the reps it was offering',
+    String(rowUI.stored.r) === '9', String(rowUI.stored.r));
+  check('...and the unrounded weight behind the one it painted',
+    Number(rowUI.stored.w) === 1.25, `painted ${rowUI.offered[0].w}, stored ${rowUI.stored.w}`);
+  check('typing into set 1 carries down to the rows under it',
+    rowUI.carried.w === '95', rowUI.carried.w);
+  check('...in place, without rebuilding the card under your caret',
+    rowUI.sameNode === true);
+  check('no placeholder text on a card with offered values', !BAD.test(rowUI.text));
+
+  /* ---- a record, at the moment it happens ---- */
+  const prUI = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    const ex = EX['bb-bench'];
+    S.lifts['bb-bench'] = { w:80, r:8, fails:0, best:{ w:80, r:8, e1rm:e1rm(80,8) },
+                            lastDate: today(), history:[] };
+    S.settings.autoRest = false;
+    S.active = { date: today(), type:'push', rung:'full', env:'full', started: Date.now(),
+      rounds: 1, exercises: [{ exId:'bb-bench', name: ex.name, load:'wt', targetW: 120, targetR: 5,
+        sets: [{ w:'', r:'', rpe:'', done:false }, { w:'', r:'', rpe:'', done:false }], note:'' }] };
+    save(true); go('train');
+    const card = () => document.querySelector('.ex-card[data-ei="0"]');
+    const row = si => card().querySelectorAll('.set-row')[si];
+    row(0).querySelector('.tick').click();
+    const hit = { pr: row(0).classList.contains('pr'),
+                  star: !!row(0).querySelector('.sn svg'),
+                  label: row(0).querySelector('.sn').getAttribute('aria-label') || '' };
+    /* Untick and it has to go away — a record you took back is not a record. */
+    row(0).querySelector('.tick').click();
+    const undone = { pr: row(0).classList.contains('pr'),
+                     star: !!row(0).querySelector('.sn svg'),
+                     num: row(0).querySelector('.sn').textContent.trim() };
+    /* And a set that does not beat it stays an ordinary set. */
+    const w = row(1).querySelector('[data-set="w"]');
+    w.value = '40'; w.dispatchEvent(new Event('input', { bubbles: true }));
+    const rr = row(1).querySelector('[data-set="r"]');
+    rr.value = '5'; rr.dispatchEvent(new Event('input', { bubbles: true }));
+    row(1).querySelector('.tick').click();
+    const ordinary = row(1).classList.contains('pr');
+    return { hit, undone, ordinary };
+  });
+  check('beating your best marks the row it happened in', prUI.hit.pr === true);
+  check('...with a star rather than the set number', prUI.hit.star === true);
+  check('...and says so to a screen reader', /personal best/i.test(prUI.hit.label), prUI.hit.label);
+  check('taking the set back takes the record back',
+    prUI.undone.pr === false && prUI.undone.star === false && prUI.undone.num === '1',
+    JSON.stringify(prUI.undone));
+  check('a set that does not beat your best is an ordinary set',
+    prUI.ordinary === false);
+
+  /* ---- the RPE column ---- */
+  const rpeUI = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    const ex = EX['bb-bench'];
+    S.active = { date: today(), type:'push', rung:'full', env:'full', started: Date.now(),
+      rounds: 1, exercises: [{ exId:'bb-bench', name: ex.name, load:'wt', targetW: 70, targetR: 5,
+        sets: [{ w:'', r:'', rpe:'', done:false }], note:'' }] };
+    save(true); go('train');
+    const fieldsOn = document.querySelectorAll('.ex-card[data-ei="0"] .set-row .set-f').length;
+    const wOn = document.querySelector('.ex-card[data-ei="0"] [data-set="w"]')
+                        .getBoundingClientRect().width;
+    S.settings.rpe = false; save(true); renderTrain();
+    const fieldsOff = document.querySelectorAll('.ex-card[data-ei="0"] .set-row .set-f').length;
+    const wOff = document.querySelector('.ex-card[data-ei="0"] [data-set="w"]')
+                         .getBoundingClientRect().width;
+    const rpeGone = !document.querySelector('.ex-card[data-ei="0"] [data-set="rpe"]');
+    return { fieldsOn, fieldsOff, wOn, wOff, rpeGone };
+  });
+  check('a set row carries three fields with RPE on', rpeUI.fieldsOn === 3, String(rpeUI.fieldsOn));
+  check('...and two with it off', rpeUI.fieldsOff === 2 && rpeUI.rpeGone,
+    `${rpeUI.fieldsOff} fields, rpe gone: ${rpeUI.rpeGone}`);
+  /* The reason for the setting: the column costs a fixed 64px of a row that
+     is tight on a phone. If turning it off does not widen anything, it is a
+     preference with no payoff. */
+  check('...and weight gets the width back', rpeUI.wOff > rpeUI.wOn + 20,
+    `${Math.round(rpeUI.wOn)}px → ${Math.round(rpeUI.wOff)}px`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

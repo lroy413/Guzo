@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **634,501 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (284) + `engine` (145) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
+Verified against the build at **655,807 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (310) + `engine` (188) + `fuel` (37) + `sw` (17) + `native` (16) all green. Nothing known is broken.
 
 ---
 
@@ -18,6 +18,10 @@ Last sweep: `dupes` + `blanks` (284) + `engine` (145) + `fuel` (37) + `sw` (17) 
 | "Already trained this week" | Complete. Marks days spent without inventing session records. |
 | Custom routines | Complete. Build, reorder, run as an extra, or assign to a planned day, with an optional warm-up per routine. The builder and the picker hold their scroll position through every tap. |
 | Reps or seconds | Complete. Any movement that is not a loaded compound can be counted either way, per routine item. A timed one counts itself down on the Train screen. |
+| Supersets | Complete. A `supNext` boolean per routine item, so a link survives reorder and delete without renumbering. Editing around a pair breaks it rather than re-forming it silently. The whole runtime behaviour is one guard: no auto-rest between A and B. |
+| Badges | Complete. Priority, Arms, Core, Mobility, Endurance, Unilateral, Heavy — capped at three per card, every one with a tone. |
+| What a set row offers | Complete. Each row shows what you did in that slot last time, carries down from set 1 as you type, and records the unrounded value behind the rounded one it painted. |
+| Personal bests | Complete. Called on the tick rather than at finish, marked in the row it happened in, taken back with the set. |
 | Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
 | When a day ends | Complete. `profile.dayStart` moves the boundary off midnight, up to 6am. Applied inside `today()`, so the whole app moves with it. Default 0. |
 | Two sessions a day | Complete. Both are kept and both are shown; the session that discharged the day names it. |
@@ -349,6 +353,60 @@ Measured in `blanks.mjs` rather than described: the probe builds a twelve-moveme
 
 `bw-hollow-rock` aside, the catalogue's core work was mostly planks and carries — nothing you would actually pick to build a routine called "abs before bed". Added: Crunch, Bicycle Crunch, Reverse Crunch, Oblique Crunch, Flutter Kick, Scissor Kick, Lying Leg Raise, Heel Tap, Seated Knee Tuck, Plank Up-Down, Side Plank Hip Dip, Dragon Flag, Weighted Crunch, Weighted Russian Twist and Rope Crunch. 236 → 267 exercises, Core 27 → 42. All bodyweight ones carry the `fhb` environment flag, so they are available in a hotel room and with no kit at all, which is where a core routine is most likely to be run.
 
+### Supersets, badges, and a set row that says what it will record
+
+Four things on the Train screen, and one bug the checks for them found.
+
+**Supersets.** `supNext` on a routine item means "this one runs into the next
+one". Chosen over group ids because ids need renumbering on every move and
+delete, and drift out of sync the first time one is missed. The builder shows a
+link control in every gap between movements and none after the last, which has
+nothing to run into. `sessionOrder()` groups before it sorts — a tier-1 press
+paired with a tier-3 raise would otherwise be pulled apart by the block sort,
+which is the one thing a superset cannot survive. The entire runtime behaviour
+is one guard in `toggle-set`: no auto-rest when `item.supNext`.
+
+**The bug.** The flag travels with the item, which is what makes it survive a
+reorder — and is also what let it latch onto whatever slid in underneath.
+Moving a fly out of a bench+fly pair left the bench supersetted with the
+overhead press, silently, looking exactly like a pair you had asked for.
+`clearLinksAround()` now breaks every link in the window an edit touched,
+including the one pointing into it. Found by writing the check, not by using
+the app.
+
+**Badges.** Priority, Arms, Core, Mobility, Endurance, Unilateral, Heavy,
+capped at three. A row of six labels under every exercise is decoration; the
+cap is what keeps a badge worth reading.
+
+**What a set row offers.** One "Last: 82.5×8, 82.5×8, 80×6" line above the card
+made you parse a list and count along it to find the row you were on. Each row
+now offers what you did in that slot. But a placeholder that shows a number
+obliges the tick to record *that* number, so `ghostFor()` resolves it once and
+the render, the live carry-down and `toggle-set` all read the one answer. It
+returns raw values: `fmtW` rounds 1.25 to 1.3, which is right for a label and
+sends you to the wrong plate if it reaches the store. `lastSetAt()` had been
+written for this and called from nowhere.
+
+**Personal bests, on the tick.** `applyProgression` only rewrites `L.best` when
+a session is finished, so the app knew you had set a record and waited until you
+had put the phone away to say so.
+
+**RPE is optional.** The column most people never fill, costing a fixed 64px of
+a row that is tight on a phone. Off, weight and reps go from ~94px to ~125px
+each. Stored as an explicit `false` so a save written before the setting existed
+keeps the column.
+
+**Three of the new checks were guarding nothing**, and reverting each subject is
+what showed it. The trailing-link check was testing a guard in
+`toggleSupersetLink` rather than `normaliseSupersets`; the badge cap asserted
+`<= 3` while nothing earns more than three; the held-work exclusion passed an
+unloaded plank, and `e1rm()` returns 0 for a zero weight, so nothing could beat
+anything. All three now fail when reverted. A fourth probe threw on a missing
+element instead of failing — killing the instrument before it printed — and now
+returns a shaped miss.
+
+---
+
 ### The Fuel module row read as a paywall
 
 The More row rendered `Fuel PRO` with an empty chevron slot when off. No affordance said "switch", and the badge said "locked" — so the reasonable move was to go and activate Pro, which does nothing at all, and Fuel stayed out of the navbar. This cost a real debugging session that started as "is the latest file deployed?".
@@ -374,8 +432,8 @@ Sleep is the signal that changes what the app does; it drives readiness, which s
 ### 2. Warm-up ramp calculator
 Given a working weight, produce the ramp sets. It is deterministic, it is the most-requested thing missing from a session screen, it needs no new data, and the plate calculator already knows how to express a load in plates.
 
-### 3. Supersets
-Structurally the largest remaining gap in the session model. `S.active.exercises` is a flat list; supersets need a grouping concept that survives generation, reordering, the rest timer, and progression. Design it before writing it — and note that the routine builder will need to express it too.
+### 3. Rest that survives the screen going dark
+`tickRest()` is a 200ms `setInterval` and its payoff is `buzz()`. Put the phone in a pocket and the timer is suspended: no notification, no sound, nothing. `@capacitor/local-notifications` is already a pinned dependency and unwired. Every comparable app gets this right, and it is the largest remaining functional gap on the Train screen.
 
 ---
 
