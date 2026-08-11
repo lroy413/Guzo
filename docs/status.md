@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **798,577 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (362) + `engine` (204) + `fuel` (69) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **800,549 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (362) + `engine` (213) + `fuel` (69) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -476,6 +476,37 @@ That one now runs a one-second rest and counts oscillators through a spy on the
 platform's own `createOscillator`, so the subject is untouched. And the
 withdraw-on-skip check counted cancellations without resetting first — `startRest`
 cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
+### A treadmill run had a 323 lb one-rep max
+
+Reported from a screenshot: High Points listing **Treadmill Run — 215lb × 15 —
+323 lb**, above the squat.
+
+The arithmetic was real. `e1rm(215, 15)` is 322.5. The numbers it was given
+meant minutes and something typed into a weight field, and nothing stopped it.
+Two causes:
+
+- The e1RM block in `applyProgression` sat **above** the load guard, so a
+  movement whose load is `min` or `time` got a best anyway if anything was in
+  its weight field.
+- Nothing excluded cardio *by what it is*. A cardio movement switched to reps
+  in a routine resolves to a `bw` load and sailed through.
+
+`tracksOneRM()` now decides it in one place: cardio, carries and mobility are
+out by pattern, held and timed work by resolved load. Bodyweight stays, because
+a weighted pull-up is a loaded lift and an unweighted one scores zero anyway.
+Used by `applyProgression`, by `isPR` — which had a partial version of the same
+rule — and by `allPRs`.
+
+**Filtered on the way out as well as on the way in.** A save written before
+this already holds a best for a treadmill run, and there is no honest migration:
+you cannot tell which stored bests came from real lifts. The list drops them at
+read time instead, so the nonsense disappears without guessing.
+
+10 checks, 3 subjects proven red. Reverting the guard prints
+`{"w":215,"r":15,"e1rm":322.5}` — the reported number, exactly.
 
 ---
 

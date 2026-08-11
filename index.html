@@ -3772,6 +3772,26 @@ function targetFor(exId) {
 function e1rm(w, r) { if (!w || !r) return 0; return w * (1 + r / 30); }
 
 /* ------------------------------------------------------------
+   What an estimated one-rep max is meaningful for.
+   ------------------------------------------------------------
+   Not a treadmill run. An e1RM is weight times a rep-count factor, and it means
+   something only where the weight is load being moved and the reps are
+   repetitions of a lift. Feed it a cardio entry and it happily reports that
+   your best Treadmill Run is 323 lb, which is exactly what it did — real
+   arithmetic on two numbers that meant something else.
+
+   Cardio, carries and mobility are excluded by pattern; held and timed work by
+   its resolved load. Bodyweight stays: a weighted pull-up is a loaded lift and
+   belongs here, and an unweighted one scores zero on its own anyway. */
+function tracksOneRM(item, exIn) {
+  const ex = exIn || (item && EX[item.exId]);
+  if (!ex) return false;
+  if (ex.pattern === 'mobility' || ex.pattern === 'cardio' || ex.pattern === 'carry') return false;
+  const load = (item && item.load) || ex.load;
+  return load !== 'time' && load !== 'min';
+}
+
+/* ------------------------------------------------------------
    A personal best, at the moment it happens.
    ------------------------------------------------------------
    applyProgression() only rewrites L.best when a session is *finished*, so
@@ -3787,9 +3807,7 @@ function e1rm(w, r) { if (!w || !r) return 0; return w * (1 + r / 30); }
 function isPR(item, st) {
   const ex = EX[item.exId];
   if (!ex || !st || !st.done) return false;
-  if (ex.pattern === 'mobility') return false;
-  const load = item.load || ex.load;
-  if (load === 'time' || load === 'min') return false;
+  if (!tracksOneRM(item, ex)) return false;
   const L = S.lifts[item.exId];
   if (!L || !L.best || !L.best.e1rm) return false;
   return e1rm(+st.w || 0, +st.r || 0) > L.best.e1rm;
@@ -3822,13 +3840,17 @@ function applyProgression(sess) {
        that is exactly what rotates the picks on a recovery day. */
     if (ex.pattern === 'mobility') return;
 
-    // track best e1RM
-    done.forEach(s => {
-      const est = e1rm(+s.w || 0, +s.r || 0);
-      if (est > 0 && (!L.best || est > L.best.e1rm)) {
-        L.best = { w:+s.w, r:+s.r, e1rm:est, date:sess.date };
-      }
-    });
+    /* Only where a one-rep max means anything. This block used to sit ABOVE
+       the load guard below, so a timed or cardio movement with a number in its
+       weight field got an e1RM anyway — a treadmill run reported at 323 lb. */
+    if (tracksOneRM(item, ex)) {
+      done.forEach(s => {
+        const est = e1rm(+s.w || 0, +s.r || 0);
+        if (est > 0 && (!L.best || est > L.best.e1rm)) {
+          L.best = { w:+s.w, r:+s.r, e1rm:est, date:sess.date };
+        }
+      });
+    }
 
     /* The item's load, not the catalogue's. A movement can be set to seconds
        in a routine, and progressing a weight against a number that is now a
@@ -4359,7 +4381,11 @@ function muscleVolume(days) {
 
 function allPRs() {
   return Object.keys(S.lifts)
-    .filter(id => S.lifts[id].best && EX[id])
+    /* Filtered on the way out as well as on the way in. A save written before
+       tracksOneRM existed already holds a best for a treadmill run, and this
+       makes it disappear without a migration that would have to guess which of
+       the stored bests were nonsense. */
+    .filter(id => S.lifts[id].best && EX[id] && tracksOneRM(null, EX[id]))
     .map(id => ({ id, name: EX[id].name, ...S.lifts[id].best }))
     .sort((a, b) => b.e1rm - a.e1rm);
 }

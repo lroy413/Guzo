@@ -1358,6 +1358,79 @@ try {
     repair.units === 'kg' && Math.abs(repair.bw - 98.43) < 0.05 &&
     Math.abs(repair.lift - 102.06) < 0.05, `${repair.units} ${repair.bw} / ${repair.lift}`);
 
+  // ================= 16. a one-rep max needs a lift ======================
+  console.log('\nwhat can have a one-rep max\n');
+
+  const orm = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const mk = (id, w, r, load) => {
+      const ex = EX[id];
+      return { date: today(), ended: true, dur: 30, exercises: [{
+        exId: id, name: ex.name, load: load || ex.load,
+        sets: [{ w: w, r: r, rpe: '', done: true }] }] };
+    };
+    /* A treadmill run with a number in the weight field. Whatever put it there
+       — a carry-down, a fat finger, a routine item switched to reps — it is not
+       load being moved, and 215 × 15 is not a 323 lb one-rep max. */
+    const run = mk('car-treadmill-run', 215, 15);
+    applyProgression(run);
+    const runBest = (S.lifts['car-treadmill-run'] || {}).best || null;
+
+    const squat = mk('bb-back-squat', 225, 5);
+    applyProgression(squat);
+    const squatBest = (S.lifts['bb-back-squat'] || {}).best || null;
+
+    /* A weighted pull-up is a loaded lift and does belong here. */
+    const pull = mk('bw-pullup', 20, 6);
+    applyProgression(pull);
+    const pullBest = (S.lifts['bw-pullup'] || {}).best || null;
+
+    const plank = mk('bw-plank', 20, 60, 'time');
+    applyProgression(plank);
+    const plankBest = (S.lifts['bw-plank'] || {}).best || null;
+
+    return {
+      runBest, squatBest: squatBest && Math.round(squatBest.e1rm), pullBest: !!pullBest,
+      plankBest,
+      tracks: {
+        squat: tracksOneRM(null, EX['bb-back-squat']),
+        run: tracksOneRM(null, EX['car-treadmill-run']),
+        walk: tracksOneRM(null, EX['car-treadmill-walk']),
+        cat: tracksOneRM(null, EX['mob-cat-cow']),
+        plankTimed: tracksOneRM({ exId: 'bw-plank', load: 'time' }, EX['bw-plank']),
+        /* A cardio movement switched to reps in a routine is still cardio. */
+        runAsReps: tracksOneRM({ exId: 'car-treadmill-run', load: 'bw' }, EX['car-treadmill-run'])
+      },
+      inList: allPRs().map(x => x.name)
+    };
+  });
+  /* The reported bug. */
+  check('a run gets no estimated one-rep max', orm.runBest === null, JSON.stringify(orm.runBest));
+  check('...and does not appear among your best lifts',
+    orm.inList.indexOf('Treadmill Run') < 0, orm.inList.join(', '));
+  check('a squat still does', orm.squatBest === 263, String(orm.squatBest));
+  check('...and so does a weighted pull-up', orm.pullBest === true);
+  check('held work does not', orm.plankBest === null, JSON.stringify(orm.plankBest));
+  check('cardio is excluded by what it is, not by how it was logged',
+    orm.tracks.run === false && orm.tracks.walk === false && orm.tracks.runAsReps === false,
+    JSON.stringify(orm.tracks));
+  check('...and lifting is not', orm.tracks.squat === true);
+  check('mobility and timed work are excluded too',
+    orm.tracks.cat === false && orm.tracks.plankTimed === false, JSON.stringify(orm.tracks));
+
+  /* A save written before this existed already holds the nonsense, and there is
+     no honest migration — you cannot tell which stored bests were real. So the
+     list filters on the way out as well. */
+  const staleBests = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.lifts['car-treadmill-run'] = { w: 215, r: 15, best: { w: 215, r: 15, e1rm: 322.5, date: today() }, history: [] };
+    S.lifts['bb-back-squat'] = { w: 225, r: 5, best: { w: 225, r: 5, e1rm: 262.5, date: today() }, history: [] };
+    save(true);
+    return allPRs().map(x => x.name);
+  });
+  check('a save that already holds a run as a best stops showing it',
+    staleBests.indexOf('Treadmill Run') < 0 && staleBests.indexOf('Back Squat') >= 0, staleBests.join(', '));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {
