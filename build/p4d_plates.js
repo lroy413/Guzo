@@ -183,7 +183,7 @@ function lastSetAt(exId, idx) {
    the caller that stores them must not round 1.25 into 1.3. */
 function ghostFor(item, si, prev) {
   prev = prev || prevSets(item.exId);
-  const out = { w:'', r:'', src:'' };
+  const out = { w:'', r:'', d:'', src:'' };
   const first = item.sets && item.sets[0];
 
   /* Carry-down. Once set 1 is filled in, the sets under it are almost always
@@ -191,11 +191,15 @@ function ghostFor(item, si, prev) {
   if (si > 0 && first) {
     if (first.w !== '' && first.w != null) { out.w = first.w; out.src = 'carry'; }
     if (first.r !== '' && first.r != null) { out.r = first.r; out.src = 'carry'; }
+    /* Distance carries the same way — interval sets are repeats of one another
+       far more often than they are not. */
+    if (first.d !== '' && first.d != null) { out.d = first.d; out.src = 'carry'; }
   }
 
   const p = prev[si];
   if (out.w === '' && p && +p.w > 0) { out.w = +p.w; out.src = out.src || 'last'; }
   if (out.r === '' && p && p.r !== '' && p.r != null) { out.r = p.r; out.src = out.src || 'last'; }
+  if (out.d === '' && p && +p.d > 0) { out.d = +p.d; out.src = out.src || 'last'; }
 
   if (out.w === '' && item.targetW != null && item.targetW !== '') {
     out.w = item.targetW; out.src = out.src || 'target';

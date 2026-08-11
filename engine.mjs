@@ -1431,6 +1431,205 @@ try {
   check('a save that already holds a run as a best stops showing it',
     staleBests.indexOf('Treadmill Run') < 0 && staleBests.indexOf('Back Squat') >= 0, staleBests.join(', '));
 
+  // ================= 17. a run has a distance, not a weight ==============
+  console.log('\ndistance and pace\n');
+
+  /* Builds a live session holding one movement and renders the real Train
+     screen, so what is read is the row a person would see rather than what a
+     formatter would have produced if anything called it. */
+  const runRow = await page.evaluate(() => {
+    const start = id => {
+      const ex = EX[id];
+      S = blank(); S.onboarded = true; save(true);
+      S.active = { date: today(), started: Date.now(), type: 'cardio', exercises: [{
+        exId: id, name: ex.name, load: ex.load, targetR: ex.rl, targetW: '',
+        sets: [{ w:'', r:'', d:'', rpe:'', done:false }] }] };
+      go('train'); renderTrain();
+      const row = document.querySelector('#train-body .set-row');
+      const f = k => row && row.querySelector('[data-set="' + k + '"]');
+      const unitOf = k => {
+        const el = f(k);
+        const lab = el && el.closest('.set-f');
+        const u = lab && lab.querySelector('.set-u');
+        return u ? u.textContent : null;
+      };
+      return { hasW: !!f('w'), hasD: !!f('d'), hasR: !!f('r'),
+               dUnit: unitOf('d'), wUnit: unitOf('w') };
+    };
+    return {
+      run:    start('car-treadmill-run'),
+      squat:  start('bb-back-squat'),
+      /* Cardio that does not travel. A stair climber counts floors and a rope
+         counts nothing; offering either a distance would be the same category
+         error as offering a run a weight. */
+      stair:  start('car-stair'),
+      rope:   start('car-jump-rope'),
+      rower:  start('car-rower')
+    };
+  });
+  /* The reported bug: "A run should not be calculated as weight." */
+  check('a run asks for distance and never for weight',
+    runRow.run.hasD && !runRow.run.hasW, JSON.stringify(runRow.run));
+  check('...in the distance unit, on the row itself', runRow.run.dUnit === 'km', String(runRow.run.dUnit));
+  check('...and still asks for the minutes', runRow.run.hasR === true);
+  check('a barbell lift is untouched — weight, no distance',
+    runRow.squat.hasW && !runRow.squat.hasD, JSON.stringify(runRow.squat));
+  check('a rower travels, so it gets one too', runRow.rower.hasD === true);
+  check('a stair climber does not, so it does not',
+    !runRow.stair.hasD, JSON.stringify(runRow.stair));
+  check('...nor does a skipping rope', !runRow.rope.hasD, JSON.stringify(runRow.rope));
+
+  const pace = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const p = (m, d, id) => { const r = paceOf(m, d, id || 'car-run'); return r ? r.text : null; };
+    S.profile.distUnit = 'mi';
+    const miles = p(50, 5);
+    S.profile.distUnit = 'km';
+    return {
+      even: p(30, 5),
+      /* 5.999… min/km. Rounding the seconds carries into the minute, and a
+         pace printing 5:60 reads as a bug to anybody who runs. */
+      carry: p(35.999, 6),
+      odd: p(28, 5.2),
+      miles,
+      /* Wheels read in speed. 40 minutes over 20 km is 30 km/h, and "2:00 /km"
+         is not a number a cyclist has ever used. */
+      bike: p(40, 20, 'car-bike'),
+      noDist: p(30, 0),
+      noTime: p(0, 5)
+    };
+  });
+  check('pace divides the minutes by the distance', pace.even === '6:00 /km', String(pace.even));
+  check('...and rounding never prints :60', pace.carry === '6:00 /km', String(pace.carry));
+  check('...with the seconds padded', pace.odd === '5:23 /km', String(pace.odd));
+  check('...in whichever unit is set', pace.miles === '10:00 /mi', String(pace.miles));
+  check('a bike reads in speed rather than pace', pace.bike === '30 km/h', String(pace.bike));
+  check('nothing to divide is no pace, not a zero',
+    pace.noDist === null && pace.noTime === null, JSON.stringify([pace.noDist, pace.noTime]));
+
+  /* Typed and ticked with the real controls. Calling distTotals() directly
+     would prove the arithmetic and say nothing about whether the number a
+     person types reaches it. */
+  const ticked = await page.evaluate(() => {
+    const ex = EX['car-run'];
+    S = blank(); S.onboarded = true; save(true);
+    /* Two sets, and only the first is ticked. Ticking the last one completes
+       the exercise, which folds the card away by design — so a one-set fixture
+       reads the pace row after the app has correctly removed it. */
+    S.active = { date: today(), started: Date.now(), type: 'cardio', exercises: [{
+      exId: 'car-run', name: ex.name, load: 'min', targetR: 30, targetW: 80,
+      sets: [{ w:'', r:'', d:'', rpe:'', done:false },
+             { w:'', r:'', d:'', rpe:'', done:false }] }] };
+    go('train'); renderTrain();
+    const row = document.querySelector('#train-body .set-row');
+    /* Shaped return on the miss rather than a throw. With the subject reverted
+       there is no distance field, and `el.value =` on null kills the whole
+       instrument before it prints anything — which reads as a hang, not a red.
+       A probe that throws has not run. */
+    const miss = why => ({ d:'(none)', w:'(none)', r:'(none)', pace:why, summary:why });
+    if (!row) return miss('(no set row)');
+    const set = (k, val) => {
+      const el = row.querySelector('[data-set="' + k + '"]');
+      if (!el) return false;
+      el.value = val;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;
+    };
+    if (!set('d', '5')) return miss('(no distance field)');
+    if (!set('r', '30')) return miss('(no minutes field)');
+    const tick = row.querySelector('[data-act="toggle-set"]');
+    if (!tick) return miss('(no tick)');
+    tick.click();
+    const st = S.active.exercises[0].sets[0];
+    const paceEl = document.querySelector('.pace-row[data-pace="0"]');
+    return {
+      d: st.d, w: st.w, r: st.r,
+      /* targetW was 80. A distance row never offered it, so ticking must not
+         record it — that is the reported bug with a second way in. */
+      pace: paceEl ? paceEl.textContent.replace(/\s+/g, ' ').trim() : '(no pace row)',
+      summary: setSummary(S.active.exercises[0])
+    };
+  });
+  check('typing a distance and ticking records the distance', ticked.d === '5', String(ticked.d));
+  check('...and records no weight, even with one prescribed',
+    ticked.w === '' || ticked.w == null, JSON.stringify(ticked.w));
+  check('...and the pace line names what was covered',
+    /5 km/.test(ticked.pace) && /6:00 \/km/.test(ticked.pace), ticked.pace);
+  check('...and the folded card reads as a run, not as 0kg',
+    /5 km/.test(ticked.summary) && /6:00/.test(ticked.summary) && !/kg/.test(ticked.summary),
+    ticked.summary);
+
+  const dUnits = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    S.profile.units = 'kg'; S.profile.distUnit = 'km';
+    S.sessions = [{ date: today(), ended: true, dur: 30, exercises: [
+      { exId: 'car-run', name: 'Outdoor Run', load: 'min',
+        sets: [{ w:'', r:30, d:10, rpe:'', done:true }] },
+      { exId: 'bb-back-squat', name: 'Back Squat', load: 'wt',
+        sets: [{ w:100, r:5, rpe:'', done:true }] }
+    ] }];
+    save(true);
+    const read = () => ({
+      d: S.sessions[0].exercises[0].sets[0].d,
+      w: S.sessions[0].exercises[1].sets[0].w
+    });
+    const before = read();
+    /* Distance to miles: the distance moves, the weight does not. */
+    const nD = convertStoredDistances(distFactor('km', 'mi'));
+    S.profile.distUnit = 'mi';
+    const afterDist = read();
+    /* And weight to pounds: the weight moves, the distance does not. */
+    const nW = convertStoredWeights(unitFactor('kg', 'lb'));
+    S.profile.units = 'lb';
+    const afterW = read();
+
+    /* An old save with no distUnit key at all. */
+    S = blank(); delete S.profile.distUnit; S.profile.units = 'lb';
+    const legacyLb = distUnit();
+    S.profile.units = 'kg';
+    const legacyKg = distUnit();
+    /* Once chosen it is its own setting — kilos and miles must stay possible. */
+    S.profile.distUnit = 'mi';
+    const kgAndMiles = distUnit();
+    return { before, afterDist, afterW, nD, nW, legacyLb, legacyKg, kgAndMiles };
+  });
+  check('switching distance units converts the distances',
+    Math.abs(dUnits.afterDist.d - 6.21) < 0.01 && dUnits.nD === 1, JSON.stringify(dUnits.afterDist));
+  check('...and leaves the weights alone', dUnits.afterDist.w === 100, String(dUnits.afterDist.w));
+  check('switching weight units converts the weights',
+    Math.abs(dUnits.afterW.w - 220.46) < 0.01 && dUnits.nW === 1, JSON.stringify(dUnits.afterW));
+  check('...and leaves the distances alone',
+    dUnits.afterW.d === dUnits.afterDist.d, JSON.stringify(dUnits.afterW));
+  check('an old save in pounds reads miles', dUnits.legacyLb === 'mi', dUnits.legacyLb);
+  check('...and one in kilos reads kilometres', dUnits.legacyKg === 'km', dUnits.legacyKg);
+  check('...but kilos with miles is a pairing the app allows',
+    dUnits.kgAndMiles === 'mi', dUnits.kgAndMiles);
+
+  /* The regression this feature nearly shipped: putting `d` into the Enter
+     order between `w` and `r` sent every barbell row looking for a field it
+     does not have, found nothing, and dropped the keyboard instead of going
+     to reps. */
+  const enterOrder = await page.evaluate(() => {
+    const walk = (id, from) => {
+      const ex = EX[id];
+      S = blank(); S.onboarded = true; save(true);
+      S.active = { date: today(), started: Date.now(), type: 'x', exercises: [{
+        exId: id, name: ex.name, load: ex.load, targetR: ex.rl, targetW: '',
+        sets: [{ w:'', r:'', d:'', rpe:'', done:false }] }] };
+      go('train'); renderTrain();
+      const row = document.querySelector('#train-body .set-row');
+      const el = row.querySelector('[data-set="' + from + '"]');
+      if (!el) return '(no field ' + from + ')';
+      el.focus();
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      const a = document.activeElement;
+      return (a && a.dataset && a.dataset.set) ? a.dataset.set : (a ? a.tagName : 'none');
+    };
+    return { squat: walk('bb-back-squat', 'w'), run: walk('car-run', 'd') };
+  });
+  check('Enter still steps weight → reps on a barbell row', enterOrder.squat === 'r', enterOrder.squat);
+  check('...and distance → minutes on a run', enterOrder.run === 'r', enterOrder.run);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

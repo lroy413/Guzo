@@ -298,6 +298,18 @@ button.recall:active{transform:scale(.99)}
 .recall.plates .recall-k{color:var(--ember-2)}
 .recall.plates .recall-v{color:var(--ember-2);font-weight:650}
 
+/* ---------- distance & pace ----------
+   Empty until a set is ticked, so it must collapse to nothing rather than to
+   a padded box: :empty carries no border, no padding and no margin. */
+.pace-row{display:flex;align-items:center;gap:9px;width:100%;padding:8px 12px;margin:8px 0 0;
+  background:var(--ember-dim);border:1px solid var(--ember-line);border-radius:11px}
+.pace-row:empty{display:none}
+.pace-k{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ember-2);flex:none}
+.pace-v{font-size:13px;font-weight:650;color:var(--ember-2);flex:1;min-width:0;
+  font-variant-numeric:tabular-nums}
+.pace-p{font-size:13px;color:var(--text-dim);flex:none;font-variant-numeric:tabular-nums}
+
 /* ---------- plate calculator ---------- */
 .plate-total{font-size:46px;font-weight:700;letter-spacing:-.04em;line-height:1.05;color:var(--text)}
 .plate-unit{font-size:19px;font-weight:600;color:var(--muted);margin-left:3px;letter-spacing:0}

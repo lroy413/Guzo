@@ -7,7 +7,9 @@ function blank() {
   return {
     v: VERSION,
     onboarded: false,
-    profile: { name:'', units:'kg', goals:['strength','muscle'], level:'some',
+    /* distUnit is its own key, not derived from `units`. Kilos and miles is
+       the normal pairing across most of Britain — see distUnit(). */
+    profile: { name:'', units:'kg', distUnit:'km', goals:['strength','muscle'], level:'some',
                envs:['full'], programId:'anchor3', bodyweight:[],
                injuries:[], priorities:[], sleepNorm:7.5, sessionMins:60, dayStart:0,
                cardio:{ amount:'light', modes:['car-walk'] },
@@ -289,6 +291,139 @@ function roundW(w) {
 function fmtW(w) {
   if (w == null || w === '' || isNaN(w)) return '—';
   return (Math.round(w * 10) / 10) + '';
+}
+
+/* ============================================================
+   DISTANCE AND PACE
+   ------------------------------------------------------------
+   Reported as: "A run should not be calculated as weight, not sure how to
+   track it." The set row painted a weight field on every movement, so a
+   treadmill run asked how heavy it was — and whatever you typed became a
+   working weight the progression engine tried to add to.
+
+   A run has a distance, and a distance plus the minutes you already log is a
+   pace, which is the number a runner actually cares about. So on anything
+   that covers ground the weight column becomes a distance column: not a
+   fourth field crammed into a row that is already tight, but the right
+   question replacing one that was never meaningful there.
+
+   Which movements those are is an explicit list rather than a rule, because
+   no rule gets it right. Every cardio movement is timed; only some of them
+   travel. A stair climber measures floors, a skipping rope measures nothing,
+   battle ropes and a sled are cardio that stays where it is — offering those
+   a distance field would be as wrong as offering a run a weight.
+   ============================================================ */
+
+const KM_PER_MI = 1.609344;
+
+/* Movements that cover ground. Deliberately by id: see above. */
+const DIST_MOVES = new Set([
+  'car-treadmill-run', 'car-treadmill-walk', 'car-incline-walk',
+  'car-run', 'car-walk', 'car-hike', 'car-ruck',
+  'car-bike', 'car-assault-bike', 'car-elliptical',
+  'car-rower', 'car-ski-erg', 'car-swim'
+]);
+
+/* Wheels and ergs read in speed; everything on foot or in water reads in
+   pace. Both are the same division — this only decides which way up, and
+   which one a person would recognise. */
+const SPEED_MOVES = new Set(['car-bike', 'car-assault-bike', 'car-elliptical']);
+
+function tracksDistance(item, exIn) {
+  const id = (item && item.exId) || (exIn && exIn.id);
+  if (!id || !DIST_MOVES.has(id)) return false;
+  /* A routine can retime a movement, and a distance without minutes behind it
+     has no pace in it. Everything in DIST_MOVES is minute-based in the
+     catalogue; this keeps that true if one is ever set some other way. */
+  const load = (item && item.load) || (exIn && exIn.load);
+  return load === 'min';
+}
+
+/* km or miles, and its own setting rather than the weight unit. Weighing in
+   kilos and running in miles is the normal case across most of Britain, and
+   deriving one from the other would tell those people their run was 8.05. */
+function distUnit() {
+  const u = S.profile && S.profile.distUnit;
+  if (u === 'km' || u === 'mi') return u;
+  /* No key at all: an old save, or one written before this existed. Pounds
+     imply miles, which is right far more often than it is wrong. */
+  return (S.profile && S.profile.units === 'lb') ? 'mi' : 'km';
+}
+
+function distFactor(from, to) {
+  if (from === to) return 1;
+  return to === 'km' ? KM_PER_MI : 1 / KM_PER_MI;
+}
+
+/* The same shape as convertStoredWeights, and deliberately not the same
+   function: flipping kg to lb must not touch a distance, and flipping km to
+   miles must not touch a weight. One pass over both would eventually be
+   called with the wrong factor and silently rewrite every number in the app. */
+function convertStoredDistances(f) {
+  if (!(f > 0) || f === 1) return 0;
+  let n = 0;
+  const cv = st => {
+    if (!st || st.d === '' || st.d == null) return;
+    const v = +st.d;
+    if (isNaN(v) || v === 0) return;
+    st.d = Math.round(v * f * 100) / 100;
+    n++;
+  };
+  const sess = s => (s && s.exercises || []).forEach(x => (x.sets || []).forEach(cv));
+  (S.sessions || []).forEach(sess);
+  sess(S.active);
+  return n;
+}
+
+function storedDistanceCount() {
+  let n = 0;
+  const sess = s => (s && s.exercises || []).forEach(x => (x.sets || []).forEach(st => {
+    if (st && st.d !== '' && st.d != null && +st.d) n++;
+  }));
+  (S.sessions || []).forEach(sess);
+  sess(S.active);
+  return n;
+}
+
+/* Two decimals down, one up: 5.25 km is a real thing to have run and "5.3"
+   loses a length of the track, but 0.5 km should not paint as "0.50". */
+function fmtDist(d) {
+  if (d == null || d === '' || isNaN(d)) return '—';
+  const v = Math.round(+d * 100) / 100;
+  return String(v);
+}
+
+/* Minutes and distance into the number a person recognises. Returns null
+   rather than a dash when there is nothing to divide — the caller decides
+   whether an absent pace is worth a row of its own. */
+function paceOf(mins, dist, exId) {
+  const m = +mins, d = +dist;
+  if (!(m > 0) || !(d > 0)) return null;
+  const u = distUnit();
+  if (SPEED_MOVES.has(exId)) {
+    return { text: (Math.round((d / (m / 60)) * 10) / 10) + ' ' + u + '/h', style: 'speed' };
+  }
+  const per = m / d;
+  const mm = Math.floor(per);
+  /* Rounding seconds can carry into the minute. 5.999 min/km is 6:00, not
+     5:60, and a pace that prints :60 looks like a bug to anybody who runs. */
+  let ss = Math.round((per - mm) * 60);
+  let out = mm;
+  if (ss === 60) { out += 1; ss = 0; }
+  return { text: out + ':' + String(ss).padStart(2, '0') + ' /' + u, style: 'pace' };
+}
+
+/* What a whole exercise came to: the distance added up, the minutes added up,
+   and the pace those two make together. Only ticked sets count — a row you
+   typed into and abandoned is not something you did. */
+function distTotals(item) {
+  if (!tracksDistance(item, EX[item.exId])) return null;
+  const done = (item.sets || []).filter(s => s.done);
+  if (!done.length) return null;
+  const dist = done.reduce((a, s) => a + (+s.d || 0), 0);
+  const mins = done.reduce((a, s) => a + (+s.r || 0), 0);
+  if (!(dist > 0)) return null;
+  return { dist, mins, pace: paceOf(mins, dist, item.exId) };
 }
 
 /* ============================================================

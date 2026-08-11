@@ -920,6 +920,16 @@ function setSummary(item) {
   const reps = done.map(s => +s.r || 0);
   const ws = done.map(s => +s.w || 0).filter(w => w > 0);
   const repTxt = reps.every(r => r === reps[0]) ? reps[0] : Math.min(...reps) + '–' + Math.max(...reps);
+
+  /* A run collapses to what it was: minutes, ground covered, pace. The weight
+     branch below would print "· 0kg" on it, which is the reported bug in its
+     smallest form. */
+  const dt = distTotals(item);
+  if (dt) {
+    return done.length + ' × ' + repTxt + 'min · ' + fmtDist(dt.dist) + ' ' + distUnit()
+         + (dt.pace ? ' · ' + dt.pace.text : '');
+  }
+
   let wTxt = '';
   if (ws.length) {
     const uniq = ws.every(w => w === ws[0]);
@@ -1315,6 +1325,10 @@ function exCardHTML(item, ei) {
      history four times inside the render path. */
   const prev = prevSets(item.exId);
   const rpeOn = rpeShown();
+  /* On a run the first column asks for distance instead of weight. Not an
+     extra field — the weight one was never answerable here. See
+     tracksDistance(). */
+  const dist = tracksDistance(item, ex);
 
   return `<div class="ex-card" data-ei="${ei}">
     <div class="ex-head">
@@ -1359,10 +1373,13 @@ function exCardHTML(item, ei) {
           ${st.pr
             ? `<div class="sn" role="img" aria-label="Personal best, set ${si+1}">${PR_STAR}</div>`
             : `<div class="sn">${si+1}</div>`}
-          <label class="set-f">
+          ${dist ? `<label class="set-f">
+            <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Distance, set ${si+1}" placeholder="${h(g.d === '' ? '–' : fmtDist(g.d))}" value="${st.d==null||st.d===''?'':h(st.d)}" data-set="d" data-i="${ei}" data-s="${si}">
+            <span class="set-u">${distUnit()}</span>
+          </label>` : `<label class="set-f">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${h(ghostW(item, g))}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
             <span class="set-u">${item.load==='bw' ? '+' + unit() : unit()}</span>
-          </label>
+          </label>`}
           <label class="set-f">
             <input class="set-in" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" aria-label="${unitLbl==='REPS'?'Reps':unitLbl==='SECS'?'Seconds':'Minutes'}, set ${si+1}" placeholder="${h(g.r === '' ? '' : String(g.r))}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
             <span class="set-u">${unitLbl==='REPS'?'reps':unitLbl==='SECS'?'sec':'min'}</span>
@@ -1375,6 +1392,7 @@ function exCardHTML(item, ei) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
           </button>
         </div>`; }).join('')}
+      ${dist ? `<div class="pace-row" data-pace="${ei}">${paceLineHTML(item)}</div>` : ''}
       <div class="row gap-s" style="padding:8px 6px 0">
         <button class="btn xs ghost grow" data-act="add-set" data-i="${ei}">+ Set</button>
         ${item.sets.length>1?`<button class="btn xs quiet" data-act="del-set" data-i="${ei}">− Set</button>`:''}
@@ -1417,6 +1435,28 @@ function refreshPlateRow(ei) {
 /* The rows under set 1 show what set 1 says, as soon as it says it. Updated
    in place for the same reason the plate row is: the keyboard is open and the
    caret is sitting in the field you are typing into. */
+/* The pace of what has actually been ticked, which is the number a run is
+   for. Empty until there is something to divide — a pace row reading "—:——"
+   the whole way through a warm-up is noise, and a pace computed from sets you
+   have not done yet would be a guess wearing a mono font. */
+function paceLineHTML(item) {
+  const t = distTotals(item);
+  if (!t) return '';
+  return `<span class="pace-k">Covered</span>
+    <span class="pace-v mono">${fmtDist(t.dist)} ${h(distUnit())}</span>
+    ${t.pace ? `<span class="pace-p mono">${h(t.pace.text)}</span>` : ''}`;
+}
+
+/* In place, for the same reason the plate row is: a re-render mid-set closes
+   the keyboard and loses the caret. */
+function refreshPace(ei) {
+  if (!S.active) return;
+  const item = S.active.exercises[ei];
+  const node = document.querySelector('.pace-row[data-pace="' + ei + '"]');
+  if (!item || !node) return;
+  node.innerHTML = paceLineHTML(item);
+}
+
 function refreshGhosts(ei) {
   if (!S.active) return;
   const item = S.active.exercises[ei];
@@ -1428,8 +1468,10 @@ function refreshGhosts(ei) {
     const g = ghostFor(item, si, prev);
     const wi = row.querySelector('[data-set="w"]');
     const ri = row.querySelector('[data-set="r"]');
+    const di = row.querySelector('[data-set="d"]');
     if (wi) wi.placeholder = ghostW(item, g);
     if (ri) ri.placeholder = g.r === '' ? '' : String(g.r);
+    if (di) di.placeholder = g.d === '' ? '–' : fmtDist(g.d);
   });
 }
 

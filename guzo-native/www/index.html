@@ -298,6 +298,18 @@ button.recall:active{transform:scale(.99)}
 .recall.plates .recall-k{color:var(--ember-2)}
 .recall.plates .recall-v{color:var(--ember-2);font-weight:650}
 
+/* ---------- distance & pace ----------
+   Empty until a set is ticked, so it must collapse to nothing rather than to
+   a padded box: :empty carries no border, no padding and no margin. */
+.pace-row{display:flex;align-items:center;gap:9px;width:100%;padding:8px 12px;margin:8px 0 0;
+  background:var(--ember-dim);border:1px solid var(--ember-line);border-radius:11px}
+.pace-row:empty{display:none}
+.pace-k{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ember-2);flex:none}
+.pace-v{font-size:13px;font-weight:650;color:var(--ember-2);flex:1;min-width:0;
+  font-variant-numeric:tabular-nums}
+.pace-p{font-size:13px;color:var(--text-dim);flex:none;font-variant-numeric:tabular-nums}
+
 /* ---------- plate calculator ---------- */
 .plate-total{font-size:46px;font-weight:700;letter-spacing:-.04em;line-height:1.05;color:var(--text)}
 .plate-unit{font-size:19px;font-weight:600;color:var(--muted);margin-left:3px;letter-spacing:0}
@@ -3301,7 +3313,9 @@ function blank() {
   return {
     v: VERSION,
     onboarded: false,
-    profile: { name:'', units:'kg', goals:['strength','muscle'], level:'some',
+    /* distUnit is its own key, not derived from `units`. Kilos and miles is
+       the normal pairing across most of Britain — see distUnit(). */
+    profile: { name:'', units:'kg', distUnit:'km', goals:['strength','muscle'], level:'some',
                envs:['full'], programId:'anchor3', bodyweight:[],
                injuries:[], priorities:[], sleepNorm:7.5, sessionMins:60, dayStart:0,
                cardio:{ amount:'light', modes:['car-walk'] },
@@ -3583,6 +3597,139 @@ function roundW(w) {
 function fmtW(w) {
   if (w == null || w === '' || isNaN(w)) return '—';
   return (Math.round(w * 10) / 10) + '';
+}
+
+/* ============================================================
+   DISTANCE AND PACE
+   ------------------------------------------------------------
+   Reported as: "A run should not be calculated as weight, not sure how to
+   track it." The set row painted a weight field on every movement, so a
+   treadmill run asked how heavy it was — and whatever you typed became a
+   working weight the progression engine tried to add to.
+
+   A run has a distance, and a distance plus the minutes you already log is a
+   pace, which is the number a runner actually cares about. So on anything
+   that covers ground the weight column becomes a distance column: not a
+   fourth field crammed into a row that is already tight, but the right
+   question replacing one that was never meaningful there.
+
+   Which movements those are is an explicit list rather than a rule, because
+   no rule gets it right. Every cardio movement is timed; only some of them
+   travel. A stair climber measures floors, a skipping rope measures nothing,
+   battle ropes and a sled are cardio that stays where it is — offering those
+   a distance field would be as wrong as offering a run a weight.
+   ============================================================ */
+
+const KM_PER_MI = 1.609344;
+
+/* Movements that cover ground. Deliberately by id: see above. */
+const DIST_MOVES = new Set([
+  'car-treadmill-run', 'car-treadmill-walk', 'car-incline-walk',
+  'car-run', 'car-walk', 'car-hike', 'car-ruck',
+  'car-bike', 'car-assault-bike', 'car-elliptical',
+  'car-rower', 'car-ski-erg', 'car-swim'
+]);
+
+/* Wheels and ergs read in speed; everything on foot or in water reads in
+   pace. Both are the same division — this only decides which way up, and
+   which one a person would recognise. */
+const SPEED_MOVES = new Set(['car-bike', 'car-assault-bike', 'car-elliptical']);
+
+function tracksDistance(item, exIn) {
+  const id = (item && item.exId) || (exIn && exIn.id);
+  if (!id || !DIST_MOVES.has(id)) return false;
+  /* A routine can retime a movement, and a distance without minutes behind it
+     has no pace in it. Everything in DIST_MOVES is minute-based in the
+     catalogue; this keeps that true if one is ever set some other way. */
+  const load = (item && item.load) || (exIn && exIn.load);
+  return load === 'min';
+}
+
+/* km or miles, and its own setting rather than the weight unit. Weighing in
+   kilos and running in miles is the normal case across most of Britain, and
+   deriving one from the other would tell those people their run was 8.05. */
+function distUnit() {
+  const u = S.profile && S.profile.distUnit;
+  if (u === 'km' || u === 'mi') return u;
+  /* No key at all: an old save, or one written before this existed. Pounds
+     imply miles, which is right far more often than it is wrong. */
+  return (S.profile && S.profile.units === 'lb') ? 'mi' : 'km';
+}
+
+function distFactor(from, to) {
+  if (from === to) return 1;
+  return to === 'km' ? KM_PER_MI : 1 / KM_PER_MI;
+}
+
+/* The same shape as convertStoredWeights, and deliberately not the same
+   function: flipping kg to lb must not touch a distance, and flipping km to
+   miles must not touch a weight. One pass over both would eventually be
+   called with the wrong factor and silently rewrite every number in the app. */
+function convertStoredDistances(f) {
+  if (!(f > 0) || f === 1) return 0;
+  let n = 0;
+  const cv = st => {
+    if (!st || st.d === '' || st.d == null) return;
+    const v = +st.d;
+    if (isNaN(v) || v === 0) return;
+    st.d = Math.round(v * f * 100) / 100;
+    n++;
+  };
+  const sess = s => (s && s.exercises || []).forEach(x => (x.sets || []).forEach(cv));
+  (S.sessions || []).forEach(sess);
+  sess(S.active);
+  return n;
+}
+
+function storedDistanceCount() {
+  let n = 0;
+  const sess = s => (s && s.exercises || []).forEach(x => (x.sets || []).forEach(st => {
+    if (st && st.d !== '' && st.d != null && +st.d) n++;
+  }));
+  (S.sessions || []).forEach(sess);
+  sess(S.active);
+  return n;
+}
+
+/* Two decimals down, one up: 5.25 km is a real thing to have run and "5.3"
+   loses a length of the track, but 0.5 km should not paint as "0.50". */
+function fmtDist(d) {
+  if (d == null || d === '' || isNaN(d)) return '—';
+  const v = Math.round(+d * 100) / 100;
+  return String(v);
+}
+
+/* Minutes and distance into the number a person recognises. Returns null
+   rather than a dash when there is nothing to divide — the caller decides
+   whether an absent pace is worth a row of its own. */
+function paceOf(mins, dist, exId) {
+  const m = +mins, d = +dist;
+  if (!(m > 0) || !(d > 0)) return null;
+  const u = distUnit();
+  if (SPEED_MOVES.has(exId)) {
+    return { text: (Math.round((d / (m / 60)) * 10) / 10) + ' ' + u + '/h', style: 'speed' };
+  }
+  const per = m / d;
+  const mm = Math.floor(per);
+  /* Rounding seconds can carry into the minute. 5.999 min/km is 6:00, not
+     5:60, and a pace that prints :60 looks like a bug to anybody who runs. */
+  let ss = Math.round((per - mm) * 60);
+  let out = mm;
+  if (ss === 60) { out += 1; ss = 0; }
+  return { text: out + ':' + String(ss).padStart(2, '0') + ' /' + u, style: 'pace' };
+}
+
+/* What a whole exercise came to: the distance added up, the minutes added up,
+   and the pace those two make together. Only ticked sets count — a row you
+   typed into and abandoned is not something you did. */
+function distTotals(item) {
+  if (!tracksDistance(item, EX[item.exId])) return null;
+  const done = (item.sets || []).filter(s => s.done);
+  if (!done.length) return null;
+  const dist = done.reduce((a, s) => a + (+s.d || 0), 0);
+  const mins = done.reduce((a, s) => a + (+s.r || 0), 0);
+  if (!(dist > 0)) return null;
+  return { dist, mins, pace: paceOf(mins, dist, item.exId) };
 }
 
 /* ============================================================
@@ -5159,7 +5306,7 @@ function lastSetAt(exId, idx) {
    the caller that stores them must not round 1.25 into 1.3. */
 function ghostFor(item, si, prev) {
   prev = prev || prevSets(item.exId);
-  const out = { w:'', r:'', src:'' };
+  const out = { w:'', r:'', d:'', src:'' };
   const first = item.sets && item.sets[0];
 
   /* Carry-down. Once set 1 is filled in, the sets under it are almost always
@@ -5167,11 +5314,15 @@ function ghostFor(item, si, prev) {
   if (si > 0 && first) {
     if (first.w !== '' && first.w != null) { out.w = first.w; out.src = 'carry'; }
     if (first.r !== '' && first.r != null) { out.r = first.r; out.src = 'carry'; }
+    /* Distance carries the same way — interval sets are repeats of one another
+       far more often than they are not. */
+    if (first.d !== '' && first.d != null) { out.d = first.d; out.src = 'carry'; }
   }
 
   const p = prev[si];
   if (out.w === '' && p && +p.w > 0) { out.w = +p.w; out.src = out.src || 'last'; }
   if (out.r === '' && p && p.r !== '' && p.r != null) { out.r = p.r; out.src = out.src || 'last'; }
+  if (out.d === '' && p && +p.d > 0) { out.d = +p.d; out.src = out.src || 'last'; }
 
   if (out.w === '' && item.targetW != null && item.targetW !== '') {
     out.w = item.targetW; out.src = out.src || 'target';
@@ -9972,6 +10123,16 @@ function setSummary(item) {
   const reps = done.map(s => +s.r || 0);
   const ws = done.map(s => +s.w || 0).filter(w => w > 0);
   const repTxt = reps.every(r => r === reps[0]) ? reps[0] : Math.min(...reps) + '–' + Math.max(...reps);
+
+  /* A run collapses to what it was: minutes, ground covered, pace. The weight
+     branch below would print "· 0kg" on it, which is the reported bug in its
+     smallest form. */
+  const dt = distTotals(item);
+  if (dt) {
+    return done.length + ' × ' + repTxt + 'min · ' + fmtDist(dt.dist) + ' ' + distUnit()
+         + (dt.pace ? ' · ' + dt.pace.text : '');
+  }
+
   let wTxt = '';
   if (ws.length) {
     const uniq = ws.every(w => w === ws[0]);
@@ -10367,6 +10528,10 @@ function exCardHTML(item, ei) {
      history four times inside the render path. */
   const prev = prevSets(item.exId);
   const rpeOn = rpeShown();
+  /* On a run the first column asks for distance instead of weight. Not an
+     extra field — the weight one was never answerable here. See
+     tracksDistance(). */
+  const dist = tracksDistance(item, ex);
 
   return `<div class="ex-card" data-ei="${ei}">
     <div class="ex-head">
@@ -10411,10 +10576,13 @@ function exCardHTML(item, ei) {
           ${st.pr
             ? `<div class="sn" role="img" aria-label="Personal best, set ${si+1}">${PR_STAR}</div>`
             : `<div class="sn">${si+1}</div>`}
-          <label class="set-f">
+          ${dist ? `<label class="set-f">
+            <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Distance, set ${si+1}" placeholder="${h(g.d === '' ? '–' : fmtDist(g.d))}" value="${st.d==null||st.d===''?'':h(st.d)}" data-set="d" data-i="${ei}" data-s="${si}">
+            <span class="set-u">${distUnit()}</span>
+          </label>` : `<label class="set-f">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${h(ghostW(item, g))}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
             <span class="set-u">${item.load==='bw' ? '+' + unit() : unit()}</span>
-          </label>
+          </label>`}
           <label class="set-f">
             <input class="set-in" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" aria-label="${unitLbl==='REPS'?'Reps':unitLbl==='SECS'?'Seconds':'Minutes'}, set ${si+1}" placeholder="${h(g.r === '' ? '' : String(g.r))}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
             <span class="set-u">${unitLbl==='REPS'?'reps':unitLbl==='SECS'?'sec':'min'}</span>
@@ -10427,6 +10595,7 @@ function exCardHTML(item, ei) {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
           </button>
         </div>`; }).join('')}
+      ${dist ? `<div class="pace-row" data-pace="${ei}">${paceLineHTML(item)}</div>` : ''}
       <div class="row gap-s" style="padding:8px 6px 0">
         <button class="btn xs ghost grow" data-act="add-set" data-i="${ei}">+ Set</button>
         ${item.sets.length>1?`<button class="btn xs quiet" data-act="del-set" data-i="${ei}">− Set</button>`:''}
@@ -10469,6 +10638,28 @@ function refreshPlateRow(ei) {
 /* The rows under set 1 show what set 1 says, as soon as it says it. Updated
    in place for the same reason the plate row is: the keyboard is open and the
    caret is sitting in the field you are typing into. */
+/* The pace of what has actually been ticked, which is the number a run is
+   for. Empty until there is something to divide — a pace row reading "—:——"
+   the whole way through a warm-up is noise, and a pace computed from sets you
+   have not done yet would be a guess wearing a mono font. */
+function paceLineHTML(item) {
+  const t = distTotals(item);
+  if (!t) return '';
+  return `<span class="pace-k">Covered</span>
+    <span class="pace-v mono">${fmtDist(t.dist)} ${h(distUnit())}</span>
+    ${t.pace ? `<span class="pace-p mono">${h(t.pace.text)}</span>` : ''}`;
+}
+
+/* In place, for the same reason the plate row is: a re-render mid-set closes
+   the keyboard and loses the caret. */
+function refreshPace(ei) {
+  if (!S.active) return;
+  const item = S.active.exercises[ei];
+  const node = document.querySelector('.pace-row[data-pace="' + ei + '"]');
+  if (!item || !node) return;
+  node.innerHTML = paceLineHTML(item);
+}
+
 function refreshGhosts(ei) {
   if (!S.active) return;
   const item = S.active.exercises[ei];
@@ -10480,8 +10671,10 @@ function refreshGhosts(ei) {
     const g = ghostFor(item, si, prev);
     const wi = row.querySelector('[data-set="w"]');
     const ri = row.querySelector('[data-set="r"]');
+    const di = row.querySelector('[data-set="d"]');
     if (wi) wi.placeholder = ghostW(item, g);
     if (ri) ri.placeholder = g.r === '' ? '' : String(g.r);
+    if (di) di.placeholder = g.d === '' ? '–' : fmtDist(g.d);
   });
 }
 
@@ -12673,6 +12866,20 @@ function sheetProfile() {
         <button class="lnk" data-act="units-repair">Numbers look wrong?</button></p>
       <div class="hide">
       </div>
+    </div>
+
+    ${/* Its own setting, not derived from the one above. Weighing in kilos and
+          running in miles is the ordinary case across most of Britain, and
+          deriving one from the other would tell those people their 5-mile run
+          was 8.05. */''}
+    <div class="field mb">
+      <div class="label">Distance</div>
+      <div class="chip-grid c2">
+        <div class="chip ${distUnit()==='km'?'on':''}" data-act="set-dist-units" data-v="km">Kilometres</div>
+        <div class="chip ${distUnit()==='mi'?'on':''}" data-act="set-dist-units" data-v="mi">Miles</div>
+      </div>
+      <p class="tiny mt-s">Runs, walks, rides and rows. Separate from weight &mdash; kilos and miles
+        is a normal pairing. Switching converts every distance you have logged.</p>
     </div>
     <button class="btn primary block lg" data-act="save-profile">Save</button>
   `, { key: 'profile' });
@@ -15032,7 +15239,12 @@ document.addEventListener('click', ev => {
            82.5 quietly logging the 80 in the prescription — see ghostFor(). */
         const g = ghostFor(item, si);
         if (st.r === '' || st.r == null) st.r = g.r;
-        if (st.w === '' || st.w == null) st.w = g.w;
+        if (tracksDistance(item, EX[item.exId])) {
+          /* A distance row never offered a weight, so it must not record one:
+             writing g.w here would put the prescription's kilos onto a run and
+             give the reported bug a second way in. */
+          if (st.d === '' || st.d == null) st.d = g.d;
+        } else if (st.w === '' || st.w == null) st.w = g.w;
         st.pr = isPR(item, st);
         /* A record gets its own shape of buzz. It is the one thing that
            happens in a session you did not already know was coming. */
@@ -15059,8 +15271,10 @@ document.addEventListener('click', ev => {
           setTimeout(() => t.classList.remove('pop'), 400); }
         const wi = row.querySelector('[data-set="w"]');
         const ri = row.querySelector('[data-set="r"]');
+        const di = row.querySelector('[data-set="d"]');
         if (wi) wi.value = st.w === '' || st.w == null ? '' : st.w;
         if (ri) ri.value = st.r === '' || st.r == null ? '' : st.r;
+        if (di) di.value = st.d === '' || st.d == null ? '' : st.d;
         /* The set number becomes the star and back again. Swapped in place
            rather than by rebuilding the card, which would close the keyboard
            on the row below. */
@@ -15070,6 +15284,8 @@ document.addEventListener('click', ev => {
          be offering. In place, because the point of all of this is that the
          screen never rebuilds under your thumb. */
       refreshGhosts(i);
+      /* A tick is what moves the pace line — it counts ticked sets only. */
+      refreshPace(i);
       /* Announced from out here, not from inside the fold-away below: a record
          set on set 2 of 4 is still a record, and that branch only runs on the
          last one. */
@@ -15247,6 +15463,19 @@ document.addEventListener('click', ev => {
       save(true); render(); sheetProfile();
       toast(n ? `Now in ${v} — ${n} stored weight${n === 1 ? '' : 's'} converted`
               : `Now in ${v}`, true);
+      break;
+    }
+    case 'set-dist-units': {
+      const from = distUnit();
+      if (v === from || (v !== 'km' && v !== 'mi')) break;
+      /* Converted before the setting moves, same as weights: the factor is
+         built from where the numbers were written, not from where they are
+         going. */
+      const n = convertStoredDistances(distFactor(from, v));
+      S.profile.distUnit = v;
+      save(true); render(); sheetProfile();
+      toast(n ? `Now in ${v === 'km' ? 'kilometres' : 'miles'} — ${n} distance${n === 1 ? '' : 's'} converted`
+              : `Now in ${v === 'km' ? 'kilometres' : 'miles'}`, true);
       break;
     }
     case 'units-repair': sheetUnitsRepair(); break;
@@ -15936,8 +16165,11 @@ document.addEventListener('input', ev => {
     if (f === 'w') refreshPlateRow(i);
     /* Carry-down, live. Typing the day's weight into set 1 is the moment the
        sets below it stop being last week's guess. */
-    if (f === 'w' || f === 'r') refreshGhosts(i);
+    if (f === 'w' || f === 'r' || f === 'd') refreshGhosts(i);
   }
+  /* Correcting the distance or the minutes of a set you already ticked moves
+     the pace, so it is recomputed from any row rather than only from set 1. */
+  if (f === 'd' || f === 'r') refreshPace(i);
   /* Correcting a set you already ticked has to re-decide whether it is still
      a record — see refreshPR. */
   if (f === 'w' || f === 'r') refreshPR(i, si);
@@ -15953,10 +16185,17 @@ document.addEventListener('keydown', ev => {
   const el = ev.target;
   if (!el.dataset || !el.dataset.set) return;
   ev.preventDefault();
-  const order = ['w', 'r', 'rpe'];
-  const next = order[order.indexOf(el.dataset.set) + 1];
+  /* Distance sits in the weight column and never alongside it, and RPE can be
+     switched off — so this walks forward to the next field the row actually
+     has rather than stepping exactly one place. Stepping one place put `d`
+     after `w` on every barbell row, found nothing, and dropped the keyboard
+     instead of going to reps. */
+  const order = ['w', 'd', 'r', 'rpe'];
   const row = el.closest('.set-row');
-  const nel = next && row ? row.querySelector('[data-set="' + next + '"]') : null;
+  let nel = null;
+  for (let n = order.indexOf(el.dataset.set) + 1; row && n < order.length && !nel; n++) {
+    nel = row.querySelector('[data-set="' + order[n] + '"]');
+  }
   if (nel) { nel.focus(); nel.select(); }
   else el.blur();
 });

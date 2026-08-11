@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **801,853 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (362) + `engine` (213) + `fuel` (78) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **813,442 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (362) + `engine` (239) + `fuel` (78) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -24,6 +24,7 @@ Last sweep: `dupes` + `blanks` (362) + `engine` (213) + `fuel` (78) + `sw` (17) 
 | Personal bests | Complete. Called on the tick rather than at finish, marked in the row it happened in, taken back with the set. |
 | Import a plan | Complete. Offered from Structure, from the routines list, and from inside the builder. A PDF or text file becomes one routine per day — or, from the builder, movements appended to the routine you already have open: text extracted on-device with no library, movements matched to the catalogue by name, supersets read off the plan's own 4A/4B notation, and everything shown for review before anything is built. |
 | Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
+| Distance and pace | Complete. Thirteen movements that cover ground ask for a distance where everything else asks for a weight, and the pace falls out of the minutes already logged. Wheels read in speed. Distance has its own unit, because kilos and miles is a normal pairing. |
 | When a day ends | Complete. `profile.dayStart` moves the boundary off midnight, up to 6am. Applied inside `today()`, so the whole app moves with it. Default 0. |
 | Two sessions a day | Complete. Both are kept and both are shown; the session that discharged the day names it. |
 | The week strip | Complete. Arrows and swipe move it between weeks — back as far as your first session, forward to next week. A day opens on a summary; the editors are one tap in. |
@@ -566,6 +567,59 @@ than a viewport unit. Putting `100dvh` back prints `100dvh`; zeroing the
 clearance prints `pad 0 vs nav 60` on four screens.
 
 ---
+
+### A run has a distance, and never had a weight
+
+Reported as: "A run should not be calculated as weight, not sure how to track
+it." The set row painted a weight field on every movement without asking what
+the movement was, so a treadmill run asked how heavy it was — and whatever went
+in there became a working weight the progression engine tried to add to. That
+is the same root as the 323 lb one-rep max fixed a change earlier; this is the
+data-entry half of it.
+
+**The weight column becomes a distance column on anything that covers ground.**
+Not a fourth field crammed into a row that is already tight on a phone — the
+right question replacing one that was never answerable there. Distance plus the
+minutes already logged is a pace, which is the number a runner actually wants,
+and it is derived rather than stored.
+
+Which movements travel is an **explicit list of ids**, because no rule gets it
+right. Every cardio movement is timed; only some of them go anywhere. A stair
+climber measures floors, a skipping rope measures nothing, and battle ropes and
+a sled are cardio that stays where it is — offering those a distance would be
+the same category error as offering a run a weight. Thirteen ids are in;
+everything else keeps its weight field.
+
+Wheels read in **speed** and everything on foot or in water reads in **pace** —
+the same division, and this only decides which way up. "2:00 /km" is not a
+number a cyclist has ever used.
+
+**Distance is its own unit setting, not derived from the weight one.** Weighing
+in kilos and running in miles is the ordinary case across most of Britain, and
+deriving one from the other would tell those people their five-mile run was
+8.05. `convertStoredDistances` is deliberately a separate function from
+`convertStoredWeights` for the same reason: one pass over both would eventually
+be called with the wrong factor and silently rewrite every number in the app.
+
+**27 checks, seven subjects proven red.** The row is read off the real Train
+screen and the distance is typed into the real field and ticked with the real
+button, so what is proven is what a person would see. Two things went wrong on
+the way and both were worth having:
+
+- Putting `d` into the Enter order between `w` and `r` sent every barbell row
+  looking for a field it does not have, found nothing, and **dropped the
+  keyboard instead of going to reps** — a regression in the most-used path in
+  the app, caught before it shipped only because a check walks that order.
+  It steps to the next field the row actually has now.
+- The pace-line check read the card *after* the app had correctly folded it
+  away, because ticking the only set completes the exercise. A one-set fixture
+  was testing the wrong moment, not a broken pace line.
+
+And a third, found by the revert rather than by the run: with the subject
+reverted there is no distance field, and the probe did `el.value =` on null —
+killing the instrument before it printed anything, so the red looked like a
+hang. It returns a shaped object on every miss now. **A probe that throws has
+not run**, which this file has already had to learn three times.
 
 ### The food search ate every space you typed
 

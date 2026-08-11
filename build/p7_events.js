@@ -616,7 +616,12 @@ document.addEventListener('click', ev => {
            82.5 quietly logging the 80 in the prescription — see ghostFor(). */
         const g = ghostFor(item, si);
         if (st.r === '' || st.r == null) st.r = g.r;
-        if (st.w === '' || st.w == null) st.w = g.w;
+        if (tracksDistance(item, EX[item.exId])) {
+          /* A distance row never offered a weight, so it must not record one:
+             writing g.w here would put the prescription's kilos onto a run and
+             give the reported bug a second way in. */
+          if (st.d === '' || st.d == null) st.d = g.d;
+        } else if (st.w === '' || st.w == null) st.w = g.w;
         st.pr = isPR(item, st);
         /* A record gets its own shape of buzz. It is the one thing that
            happens in a session you did not already know was coming. */
@@ -643,8 +648,10 @@ document.addEventListener('click', ev => {
           setTimeout(() => t.classList.remove('pop'), 400); }
         const wi = row.querySelector('[data-set="w"]');
         const ri = row.querySelector('[data-set="r"]');
+        const di = row.querySelector('[data-set="d"]');
         if (wi) wi.value = st.w === '' || st.w == null ? '' : st.w;
         if (ri) ri.value = st.r === '' || st.r == null ? '' : st.r;
+        if (di) di.value = st.d === '' || st.d == null ? '' : st.d;
         /* The set number becomes the star and back again. Swapped in place
            rather than by rebuilding the card, which would close the keyboard
            on the row below. */
@@ -654,6 +661,8 @@ document.addEventListener('click', ev => {
          be offering. In place, because the point of all of this is that the
          screen never rebuilds under your thumb. */
       refreshGhosts(i);
+      /* A tick is what moves the pace line — it counts ticked sets only. */
+      refreshPace(i);
       /* Announced from out here, not from inside the fold-away below: a record
          set on set 2 of 4 is still a record, and that branch only runs on the
          last one. */
@@ -831,6 +840,19 @@ document.addEventListener('click', ev => {
       save(true); render(); sheetProfile();
       toast(n ? `Now in ${v} — ${n} stored weight${n === 1 ? '' : 's'} converted`
               : `Now in ${v}`, true);
+      break;
+    }
+    case 'set-dist-units': {
+      const from = distUnit();
+      if (v === from || (v !== 'km' && v !== 'mi')) break;
+      /* Converted before the setting moves, same as weights: the factor is
+         built from where the numbers were written, not from where they are
+         going. */
+      const n = convertStoredDistances(distFactor(from, v));
+      S.profile.distUnit = v;
+      save(true); render(); sheetProfile();
+      toast(n ? `Now in ${v === 'km' ? 'kilometres' : 'miles'} — ${n} distance${n === 1 ? '' : 's'} converted`
+              : `Now in ${v === 'km' ? 'kilometres' : 'miles'}`, true);
       break;
     }
     case 'units-repair': sheetUnitsRepair(); break;
@@ -1520,8 +1542,11 @@ document.addEventListener('input', ev => {
     if (f === 'w') refreshPlateRow(i);
     /* Carry-down, live. Typing the day's weight into set 1 is the moment the
        sets below it stop being last week's guess. */
-    if (f === 'w' || f === 'r') refreshGhosts(i);
+    if (f === 'w' || f === 'r' || f === 'd') refreshGhosts(i);
   }
+  /* Correcting the distance or the minutes of a set you already ticked moves
+     the pace, so it is recomputed from any row rather than only from set 1. */
+  if (f === 'd' || f === 'r') refreshPace(i);
   /* Correcting a set you already ticked has to re-decide whether it is still
      a record — see refreshPR. */
   if (f === 'w' || f === 'r') refreshPR(i, si);
@@ -1537,10 +1562,17 @@ document.addEventListener('keydown', ev => {
   const el = ev.target;
   if (!el.dataset || !el.dataset.set) return;
   ev.preventDefault();
-  const order = ['w', 'r', 'rpe'];
-  const next = order[order.indexOf(el.dataset.set) + 1];
+  /* Distance sits in the weight column and never alongside it, and RPE can be
+     switched off — so this walks forward to the next field the row actually
+     has rather than stepping exactly one place. Stepping one place put `d`
+     after `w` on every barbell row, found nothing, and dropped the keyboard
+     instead of going to reps. */
+  const order = ['w', 'd', 'r', 'rpe'];
   const row = el.closest('.set-row');
-  const nel = next && row ? row.querySelector('[data-set="' + next + '"]') : null;
+  let nel = null;
+  for (let n = order.indexOf(el.dataset.set) + 1; row && n < order.length && !nel; n++) {
+    nel = row.querySelector('[data-set="' + order[n] + '"]');
+  }
   if (nel) { nel.focus(); nel.select(); }
   else el.blur();
 });

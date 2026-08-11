@@ -93,6 +93,20 @@ function sheetProfile() {
       <div class="hide">
       </div>
     </div>
+
+    ${/* Its own setting, not derived from the one above. Weighing in kilos and
+          running in miles is the ordinary case across most of Britain, and
+          deriving one from the other would tell those people their 5-mile run
+          was 8.05. */''}
+    <div class="field mb">
+      <div class="label">Distance</div>
+      <div class="chip-grid c2">
+        <div class="chip ${distUnit()==='km'?'on':''}" data-act="set-dist-units" data-v="km">Kilometres</div>
+        <div class="chip ${distUnit()==='mi'?'on':''}" data-act="set-dist-units" data-v="mi">Miles</div>
+      </div>
+      <p class="tiny mt-s">Runs, walks, rides and rows. Separate from weight &mdash; kilos and miles
+        is a normal pairing. Switching converts every distance you have logged.</p>
+    </div>
     <button class="btn primary block lg" data-act="save-profile">Save</button>
   `, { key: 'profile' });
 }
