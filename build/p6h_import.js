@@ -98,6 +98,7 @@ async function runImport(file) {
         exId: it.match ? it.match.exId : null,
         score: it.match ? it.match.score : 0,
         sure: !!(it.match && it.match.confident),
+        why: (it.match && it.match.why) || '',
         sets: it.sets, reps: it.reps, unit: it.unit,
         supNext: !!it.supNext,
         /* A movement with nowhere to go starts off. Inventing a squat because
@@ -167,7 +168,7 @@ function sheetImportReview() {
               <span class="mono">${it.sets} × ${it.reps}${it.unit === 'reps' ? '' : (it.unit === 'min' ? ' min' : 's')}</span>
               ${it.supNext ? '<span class="imp-tag">runs into the next</span>' : ''}
               ${!it.exId ? '<span class="imp-tag warn">pick one</span>'
-                : (!it.sure ? '<span class="imp-tag warn">check this</span>' : '')}
+                : (!it.sure ? `<span class="imp-tag warn">${h(it.why || 'check this')}</span>` : '')}
             </span>
           </button>
         </div>`;

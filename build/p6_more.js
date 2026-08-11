@@ -447,10 +447,21 @@ function renderPicker(query, env) {
   }).join('') : `<div class="note"><p class="note-t">Nothing matches “${h(query || '')}”.</p><p class="note-b">Try a muscle — chest, back, quads — or an equipment name like dumbbell.</p></div>`;
 
   openSheet(`
-    <div class="row between mb">
-      <h2 class="h1">${pickerFor && (pickerFor.mode === 'swap' || pickerFor.mode === 'import') ? 'Swap for' : 'Add movements'}</h2>
+    ${/* A way back that is not the ✕. The picker is reached from the middle of
+          the import review, and the ✕ closes the whole stack — so someone
+          checking one flagged movement lost the other fifty-one and had to
+          start the import again. */''}
+    <div class="row gap-s mb" style="align-items:center">
+      ${pickerFor && pickerFor.mode === 'import'
+        ? `<button class="btn xs back" data-act="imp-back" aria-label="Back to the import">
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg>
+           </button>` : ''}
+      <h2 class="h1 grow">${pickerFor && (pickerFor.mode === 'swap' || pickerFor.mode === 'import') ? 'Swap for' : 'Add movements'}</h2>
       ${multi && pickerAdded.length ? `<span class="pill em">${pickerAdded.length} added</span>` : ''}
     </div>
+    ${pickerFor && pickerFor.mode === 'import' && pickerFor.written
+      ? `<div class="banner soft mb">Your plan said <strong>${h(pickerFor.written)}</strong>.
+         Pick the movement it means, or go back and leave it out.</div>` : ''}
     <input class="input mb" id="pick-q" placeholder="Search by name, muscle or kit…" value="${h(query || '')}"
            autocomplete="off" enterkeyhint="search" inputmode="search">
     <div class="chip-grid c3 mb">

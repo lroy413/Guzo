@@ -428,6 +428,57 @@ try {
     String(ring.geom[0].pct));
   check('the middle of the ring is the number', /\d/.test(ring.mid || ''), ring.mid);
 
+  // ============ the catalogue holds together ============
+  console.log('\nthe food catalogue\n');
+
+  const cat = await page.evaluate(() => {
+    const GROUPS = new Set(FOOD_GROUPS.map(g => g.k));
+    const UNITS = new Set(['g','ml','ea','scoop','slice']);
+    const bad = { cols:[], dupName:[], unit:[], group:[], per:[], neg:[], atwater:[], kcal:[] };
+    const names = new Set();
+    FOODS.forEach(f => {
+      const key = f.n.toLowerCase();
+      if (names.has(key)) bad.dupName.push(f.n);
+      names.add(key);
+      if (!f.n || !f.u) { bad.cols.push(f.n || '(no name)'); return; }
+      if (!UNITS.has(f.u)) bad.unit.push(f.n + ':' + f.u);
+      if (!GROUPS.has(f.g)) bad.group.push(f.n + ':' + f.g);
+      if (!(f.per > 0)) bad.per.push(f.n + ':' + f.per);
+      if ([f.kcal, f.p, f.c, f.f].some(v => typeof v !== 'number' || isNaN(v) || v < 0)) {
+        bad.neg.push(f.n); return;
+      }
+      /* Only per-100g rows. A whole meal counted per item is legitimately
+         900-odd calories; 900 per hundred grams is denser than pure fat. */
+      if ((f.u === 'g' || f.u === 'ml') && f.kcal > 900) bad.kcal.push(f.n + ':' + f.kcal);
+      /* Atwater: 4 kcal a gram of protein and carbohydrate, 9 of fat. Every
+         real food obeys it to within a few percent — fibre, alcohol, polyols
+         and rounding are what the tolerance is for. A row that misses by more
+         than that has a transposed digit in it, and no amount of proofreading
+         finds those. */
+      /* Alcohol carries 7 kcal a gram and is none of the three macros, so a
+         drink with any in it will always come up short here. That is chemistry,
+         not a typo, and the exemption is by name so it stays visible. */
+      if (/beer|lager|ale|cider|wine|spirit|vodka|gin|whisk|rum|tequila|prosecco|champagne/i.test(f.n)) return;
+      const est = f.p * 4 + f.c * 4 + f.f * 9;
+      const slack = Math.max(28, f.kcal * 0.22);
+      if (Math.abs(est - f.kcal) > slack) {
+        bad.atwater.push(`${f.n}: says ${f.kcal}, macros give ${Math.round(est)}`);
+      }
+    });
+    return { n: FOODS.length, bad, groups: [...GROUPS] };
+  });
+  check('every food row parsed', cat.bad.cols.length === 0, cat.bad.cols.join(', '));
+  check('no food name appears twice', cat.bad.dupName.length === 0, cat.bad.dupName.join(', '));
+  check('every unit is one the app knows', cat.bad.unit.length === 0, cat.bad.unit.join(', '));
+  check('every food is in a real group', cat.bad.group.length === 0, cat.bad.group.join(', '));
+  check('every portion is a positive number', cat.bad.per.length === 0, cat.bad.per.join(', '));
+  check('no negative or missing macros', cat.bad.neg.length === 0, cat.bad.neg.join(', '));
+  check('nothing claims more calories than pure fat', cat.bad.kcal.length === 0, cat.bad.kcal.join(', '));
+  /* The one that catches a typo nobody would spot by reading. */
+  check('every food\'s calories match its macros',
+    cat.bad.atwater.length === 0, cat.bad.atwater.slice(0, 6).join(' | '));
+  check('the catalogue is large enough to be worth checking', cat.n > 100, String(cat.n));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

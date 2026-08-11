@@ -875,11 +875,15 @@ document.addEventListener('click', ev => {
     }
     case 'imp-swap': {
       const d = IMPORT && IMPORT.days[i];
-      if (!d || !d.items[si]) break;
+      const it = d && d.items[si];
+      if (!it) break;
       sheetExercisePicker('import', null);
-      pickerFor = { mode: 'import', day: i, item: si };
+      pickerFor = { mode: 'import', day: i, item: si, written: it.written };
+      renderPicker('', window._pickEnv || 'full');
       break;
     }
+    /* Back to the review with everything else still selected. */
+    case 'imp-back': { pickerFor = null; sheetImportReview(); break; }
     case 'imp-commit': {
       const into = IMPORT_INTO;
       const r = commitImport();

@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **773,970 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (60) + `sw` (17) + `native` (23) + `import` (62) + `scan` (41) all green. Nothing known is broken.
+Verified against the build at **784,802 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (69) + `sw` (17) + `native` (23) + `import` (68) + `scan` (41) all green. Nothing known is broken.
 
 ---
 
@@ -33,7 +33,7 @@ Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (60) + `sw` (17) 
 | Plate calculator | Complete. Owned-plate aware, persists bar weight, follows the weight you type. |
 | Last-time recall | Complete. |
 | Barcode scanner | Complete for what it can honestly do: reads the code on device with no library, binds it to a food in your library the first time, one tap every time after. No product database — see below. |
-| Fuel (nutrition) | Complete. 113 foods, custom foods, portions, edit/delete, copy-a-day, recents, a correction per food, per-entry macros, quick add, meals, and a ring. |
+| Fuel (nutrition) | Complete. 363 foods, custom foods, portions, edit/delete, copy-a-day, recents, a correction per food, per-entry macros, quick add, meals, and a ring. |
 | Diet preferences | Complete. Meals and snacks a day, four dietary patterns, seven exclusions. Asked during onboarding when Fuel is on, editable forever after from Fuel. |
 | Suggested meals | Complete. Built from the same 113-food library, portioned against your targets, deterministic per day, and filtered by your restrictions. One tap logs a whole meal. |
 | Adaptive TDEE | Complete. Refuses implausible answers and names under-logging as the cause. |
@@ -476,6 +476,48 @@ That one now runs a one-second rest and counts oscillators through a spy on the
 platform's own `createOscillator`, so the subject is untouched. And the
 withdraw-on-skip check counted cancellations without resetting first — `startRest`
 cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
+### The catalogue is 363 foods, and a check that catches the typos
+
+Size was never the constraint. The pipe-delimited format costs 38 bytes a food
+raw and 16.6 gzipped, so the 250 added here cost about 10 KB raw and 4 KB over
+the wire — on a 784 KB app that installs once, nothing. Room for several
+thousand more if it is ever worth it.
+
+What it needed first was a way to catch a transposed digit, because nobody
+proofreads three hundred rows of numbers successfully. **Atwater**: protein and
+carbohydrate carry 4 kcal a gram, fat carries 9, and every real food obeys that
+to within a few percent. `fuel.mjs` now asserts it on every row, with the
+tolerance sized for fibre, polyols and rounding — and two documented
+exemptions, because alcohol is 7 kcal a gram and none of the three macros, and
+a whole meal counted per item is legitimately 900 calories where 900 per
+hundred grams is denser than pure fat.
+
+It earned itself immediately: it caught **37 foods added that already existed**,
+and reverting one digit of the almonds row prints "says 579, macros give 217".
+
+The 250 new rows are whole foods and staples — cuts of meat and fish, cheeses
+and dairy, breads and grains, pulses, vegetables, fruit, nuts and oils,
+condiments, drinks, supplements and prepared meals. Branded products are
+deliberately not here; that is what the barcode binding is for.
+
+### Checking a flagged import no longer throws away the import
+
+Reported: tapping a movement marked "check this" opens the exercise picker, and
+the ✕ closes the whole sheet stack — so checking one of fifty-two movements lost
+the other fifty-one and the import had to be started again.
+
+The picker now carries a back arrow when it is reached from an import, and
+going back returns to the review with every other selection intact. It also
+shows the line your plan actually said, so you are choosing against the source
+rather than from memory.
+
+And the flag says *why*. "Check this" on its own is an instruction to worry:
+the matcher already knows whether the doubt is "something else scored almost as
+well" or "nothing scored well", so it now says **"Could also be Bench Press"**
+or **"Only a rough match for what your plan said"**.
 
 ---
 

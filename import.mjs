@@ -433,6 +433,42 @@ try {
   check('...while a day turned off contributes nothing',
     into.names.indexOf('Bench Press') < 0, into.names.join(','));
 
+  // ================= 6. checking a flagged match, and getting back =========
+  console.log('\nwhen it is not sure\n');
+
+  const unsure = await page.evaluate(async (arr) => {
+    S = blank(); S.onboarded = true; save(true);
+    await runImport(new File([new Uint8Array(arr)], 'plan.pdf', { type: 'application/pdf' }));
+    const body = () => document.getElementById('sheet-body');
+    const flagged = [...body().querySelectorAll('.imp-item.unsure')];
+    /* "check this" on its own is an instruction to worry. It has to say what
+       the doubt actually is. */
+    const reasons = flagged.map(el => (el.querySelector('.imp-tag.warn') || {}).textContent || '');
+    const rowsBefore = body().querySelectorAll('.imp-item').length;
+
+    flagged[0].querySelector('.imp-body').click();
+    const inPicker = !!document.getElementById('pick-q');
+    const said = /your plan said/i.test(body().innerText);
+    /* The bug: the ✕ closes the whole stack, so checking one movement lost the
+       other fifty-one and the import had to be started again. */
+    const back = body().querySelector('[data-act="imp-back"]');
+    if (!back) return { reasons, rowsBefore, inPicker, said, hasBack: false, rowsAfter: -1 };
+    back.click();
+    return { reasons, rowsBefore, inPicker, said, hasBack: true,
+             rowsAfter: body().querySelectorAll('.imp-item').length };
+  }, PDF_BYTES);
+
+  check('a match it is unsure about is flagged', unsure.reasons.length > 0,
+    String(unsure.reasons.length));
+  check('...and says why, not just "check this"',
+    unsure.reasons.every(r => r && !/^check this$/i.test(r)), unsure.reasons.join(' | '));
+  check('tapping it opens the picker', unsure.inPicker === true);
+  check('...showing the line your plan actually said', unsure.said === true);
+  check('...with a way back that is not the ✕', unsure.hasBack === true);
+  check('...and going back keeps the rest of the import',
+    unsure.rowsAfter === unsure.rowsBefore && unsure.rowsBefore > 1,
+    `${unsure.rowsBefore} → ${unsure.rowsAfter}`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

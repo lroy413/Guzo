@@ -379,11 +379,13 @@ function matchExercise(written) {
   const qTokens = nameTokens(written);
   const qFlat = normName(written).replace(/ /g, '');
   if (!qTokens.length) return null;
-  let best = null, second = 0;
+  let best = null, second = 0, secondEx = null;
   for (let i = 0; i < EXLIST.length; i++) {
     const sc = nameScore(qTokens, qFlat, EXLIST[i]);
-    if (!best || sc > best.score) { second = best ? best.score : 0; best = { ex: EXLIST[i], score: sc }; }
-    else if (sc > second) second = sc;
+    if (!best || sc > best.score) {
+      if (best) { second = best.score; secondEx = best.ex; }
+      best = { ex: EXLIST[i], score: sc };
+    } else if (sc > second) { second = sc; secondEx = EXLIST[i]; }
   }
   if (!best || best.score < 0.42) return null;
   /* A clear winner is worth more than a high score. Two catalogue entries
@@ -391,8 +393,15 @@ function matchExercise(written) {
      them, whatever the number says. */
   const clear = best.score - second;
   const confident = best.score >= 0.72 && clear >= 0.06;
+  /* Why it is unsure, in the terms the doubt actually arose in: either
+     something else scored almost as well, or nothing scored well. "Check this"
+     with no reason attached is just an instruction to worry. */
+  const why = confident ? '' :
+    (clear < 0.06 && secondEx
+      ? 'Could also be ' + secondEx.name
+      : 'Only a rough match for what your plan said');
   return { exId: best.ex.id, name: best.ex.name, score: Math.round(best.score * 100) / 100,
-           confident: confident };
+           confident: confident, why: why };
 }
 
 /* ============================================================
