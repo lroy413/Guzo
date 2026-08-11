@@ -978,6 +978,34 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 
 .fuel-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
 
+/* ---------- the scanner ---------- */
+.fuel-scan-btn{flex:none;width:56px;padding:0;display:flex;align-items:center;justify-content:center}
+.fuel-scan-btn svg{width:22px;height:22px}
+.scan-stage{position:relative;border-radius:var(--r-l);overflow:hidden;background:#000;
+  aspect-ratio:4/3;display:flex;align-items:center;justify-content:center}
+.scan-stage video{width:100%;height:100%;object-fit:cover;display:block}
+/* Four corners rather than a full rectangle: a closed box invites you to fill
+   it edge to edge, and a barcode read at the very edge of the frame is the one
+   that will not decode. */
+.scan-frame{position:absolute;left:9%;right:9%;top:29%;bottom:29%;pointer-events:none}
+.scan-frame i{position:absolute;width:26px;height:26px;border:2.5px solid rgba(255,255,255,.92);
+  border-radius:3px}
+.scan-frame i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0}
+.scan-frame i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0}
+.scan-frame i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0}
+.scan-frame i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0}
+.scan-line{position:absolute;left:5px;right:5px;top:50%;height:2px;border-radius:2px;
+  background:linear-gradient(90deg,transparent,var(--ember),transparent);opacity:.9}
+@media (prefers-reduced-motion: no-preference){
+  .scan-line{animation:scanSweep 2.4s var(--ease-in-out) infinite alternate}
+}
+@keyframes scanSweep{from{transform:translateY(-44px)}to{transform:translateY(44px)}}
+.scan-hint{position:absolute;left:0;right:0;bottom:10px;text-align:center;font-size:12px;
+  font-weight:600;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.85)}
+.scan-code{font-size:20px;font-weight:700;letter-spacing:.06em;text-align:center;
+  color:var(--ember-2);background:var(--ember-dim);border:1px solid var(--ember-line);
+  border-radius:var(--r-l);padding:12px}
+
 /* ---------- import ---------- */
 .imp-drop{display:flex;flex-direction:column;align-items:center;gap:4px;
   padding:26px 18px;border-radius:var(--r-l);cursor:pointer;

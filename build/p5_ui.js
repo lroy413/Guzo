@@ -93,6 +93,9 @@ let sheetScroll = Object.create(null);
    forgotten. */
 function openSheet(html, opts) {
   opts = opts || {};
+  /* And handing off to another sheet releases it too, without going through
+     closeSheet — which is what the scanner does on every successful read. */
+  if (typeof stopScan === 'function' && !(opts && opts.keepCamera)) stopScan();
   const sh = $('#sheet');
   const nextKey = opts.key != null ? opts.key : null;
   /* Record where the outgoing sheet was before its markup is replaced —
@@ -113,6 +116,10 @@ function openSheet(html, opts) {
 }
 
 function closeSheet(fromHistory) {
+  /* A live camera is the one thing a sheet can leave running behind it. The
+     scanner has no other way of knowing it has been dismissed — the ✕, the
+     scrim, Escape, the back button and a drag all land here. */
+  if (typeof stopScan === 'function') stopScan();
   sheetKey = null;
   sheetScroll = Object.create(null);
   const sh = $('#sheet');

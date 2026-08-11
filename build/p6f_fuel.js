@@ -136,7 +136,12 @@ function renderFuel() {
 
   /* ── add ─────────────────────────────────────────────────── */
   html += `<div class="fuel-actions">
-    <button class="btn primary block lg" data-act="fuel-search">Add food</button>
+    <div class="btn-row">
+      <button class="btn primary grow lg" data-act="fuel-search">Add food</button>
+      <button class="btn primary lg fuel-scan-btn" data-act="scan" aria-label="Scan a barcode">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><path d="M7 8v8M10.5 8v8M14 8v8M17 8v8" stroke-width="1.6"/></svg>
+      </button>
+    </div>
     <div class="btn-row mt-s">
       <button class="btn ghost grow" data-act="fuel-quick-sheet">Recent</button>
       <button class="btn ghost grow" data-act="fuel-quick-add">Quick add</button>

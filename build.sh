@@ -33,6 +33,7 @@ PARTS=(
   build/p4j_meals.js
   build/p4k_native.js
   build/p4l_import.js
+  build/p4m_scan.js
   build/p5a_onboard.js
   build/p5_ui.js
   build/p6_more.js
@@ -43,6 +44,7 @@ PARTS=(
   build/p6f_fuel.js
   build/p6g_order.js
   build/p6h_import.js
+  build/p6i_scan.js
   build/p7_events.js
   build/p8_tail.html
 )

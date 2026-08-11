@@ -970,6 +970,29 @@ document.addEventListener('click', ev => {
       clearFix(v); renderFuel(); closeSheet(); toast('Back to the catalogue', true); break;
     }
     case 'fuel-quick-add': sheetQuickAdd(); break;
+
+    /* ---- barcode ---- */
+    case 'scan': sheetScan(); break;
+    case 'scan-type': sheetScanType(); break;
+    case 'scan-typed': {
+      const raw = (($('#scan-n') || {}).value || '').replace(/\D/g, '');
+      if (!validBarcode(raw)) {
+        toast(raw.length === 12 || raw.length === 13
+          ? 'That number does not check out — one digit is off'
+          : 'Twelve or thirteen digits');
+        break;
+      }
+      onScanned(normBarcode(raw));
+      break;
+    }
+    case 'scan-bind': {
+      if (!bindBarcode(v, t.dataset.f)) { toast('Could not bind that'); break; }
+      const f = foodById(t.dataset.f);
+      toast(f.n + ' — scanned next time', true);
+      sheetPortion(f.id, f.per || 1);
+      break;
+    }
+    case 'scan-new-food': { window._scanCode = v; sheetNewFood(); break; }
     case 'qa-save': {
       const val = id => (($('#' + id) || {}).value);
       if (!quickAdd({ n: val('qa-n'), kcal: val('qa-kcal'), p: val('qa-p'),
@@ -1007,7 +1030,12 @@ document.addEventListener('click', ev => {
         kcal: val('nf-kcal'), p: val('nf-p'), c: val('nf-c'), f: val('nf-f')
       });
       if (!f) { toast('It needs a name and a calorie figure'); return; }
-      closeSheet(); sheetPortion(f.id, null); toast('Saved to your foods', true);
+      /* If this food was reached by scanning something the app had never seen,
+         bind the packet to it now — that is the whole point of having asked. */
+      const code = window._scanCode; window._scanCode = null;
+      const bound = code ? bindBarcode(code, f.id) : false;
+      closeSheet(); sheetPortion(f.id, null);
+      toast(bound ? 'Saved \u2014 that packet scans from now on' : 'Saved to your foods', true);
       break;
     }
     case 'fuel-copy': sheetCopyDay(); break;
@@ -1401,6 +1429,25 @@ document.addEventListener('input', ev => {
   const tag = document.querySelector('[data-tag="' + id + '"]');
   if (row) row.classList.toggle('edited', isOwn);
   if (tag) tag.textContent = isOwn ? 'Yours' : (sug ? 'Suggested' : 'Enter one');
+});
+
+/* Searching your foods to point a new packet at one of them. Same delegated
+   pattern as the file input, and for the same reason: the field does not exist
+   until the sheet is open. */
+document.addEventListener('input', ev => {
+  const el = ev.target;
+  if (!el || !el.dataset || el.dataset.scanQ == null) return;
+  const code = el.dataset.scanQ;
+  const list = document.getElementById('scan-results');
+  if (!list) return;
+  const q = (el.value || '').trim();
+  const hits = q ? foodSearch(q).slice(0, 8) : recentFoods(6).map(r => r.food);
+  list.innerHTML = hits.length ? hits.map(f => `<button class="lrow" data-act="scan-bind"
+      data-v="${h(code)}" data-f="${h(f.id)}" style="width:100%;text-align:left">
+      <div class="grow"><div class="h3" style="font-size:14.5px">${h(f.n)}</div>
+      <div class="tiny mt-s">${f.kcal} kcal per ${h(portionLabel(f, f.per))}</div></div>
+      <span class="chev">&rsaquo;</span></button>`).join('')
+    : '<p class="tiny center">Nothing matches that.</p>';
 });
 
 /* The file input is inside a sheet, so it does not exist until the sheet is

@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **753,724 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (60) + `sw` (17) + `native` (23) + `import` (62) all green. Nothing known is broken.
+Verified against the build at **773,970 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (60) + `sw` (17) + `native` (23) + `import` (62) + `scan` (41) all green. Nothing known is broken.
 
 ---
 
@@ -32,6 +32,7 @@ Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (60) + `sw` (17) 
 | Form guides | 45 SVG diagrams, two frames each, anatomically checked. Reachable mid-session. |
 | Plate calculator | Complete. Owned-plate aware, persists bar weight, follows the weight you type. |
 | Last-time recall | Complete. |
+| Barcode scanner | Complete for what it can honestly do: reads the code on device with no library, binds it to a food in your library the first time, one tap every time after. No product database — see below. |
 | Fuel (nutrition) | Complete. 113 foods, custom foods, portions, edit/delete, copy-a-day, recents, a correction per food, per-entry macros, quick add, meals, and a ring. |
 | Diet preferences | Complete. Meals and snacks a day, four dietary patterns, seven exclusions. Asked during onboarding when Fuel is on, editable forever after from Fuel. |
 | Suggested meals | Complete. Built from the same 113-food library, portioned against your targets, deterministic per day, and filtered by your restrictions. One tap logs a whole meal. |
@@ -475,6 +476,46 @@ That one now runs a one-second rest and counts oscillators through a spy on the
 platform's own `createOscillator`, so the subject is untouched. And the
 withdraw-on-skip check counted cancellations without resetting first — `startRest`
 cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
+### A barcode scanner, and the half of it that cannot be built here
+
+A barcode scanner is two features and only one of them is a signal problem.
+
+**Reading the code** is pure pixels and is done on device. `BarcodeDetector` is
+used where the platform has it — Chromium, so Android and desktop Chrome — and
+**Safari implements it on no iPhone at all**, which is the phone this app was
+built for, so there is a decoder underneath: threshold each row against its own
+range, find the code's extent, sample the centre of all 95 modules, verify both
+guard patterns and the checksum. Twenty-one rows are tried from the middle
+outward, because the row the guide box points at is exactly the row a
+reflection lands on.
+
+**Saying what the product is** is not a signal problem. It needs a product
+database — Open Food Facts has three million and it is an HTTP request away,
+which is a promise this app has never broken. So the scanner does not pretend:
+the first time it sees a packet it says it does not know, and asks once. After
+that the code is bound to a food in your own library and every scan is a single
+tap. People eat the same twenty packaged things; the second scan of your
+protein tub is the one that matters, and that one works with the network off,
+forever.
+
+Bindings live in the same blob as everything else, so they export, back up and
+mirror to the native store for free. A UPC-A and the EAN-13 it pads to are one
+packet, or the same tub would be two products.
+
+**41 checks against generated barcodes** — real EAN-13 bitmaps built from the
+spec at four module widths, in shadow, over-lit, with sensor noise, and through
+a reflection across the middle. Every fixture is checksummed before use, so a
+wrong fixture fails as a fixture. Nine subjects proven red, and **four of them
+were green the first time**: the fixtures were too clean to exercise a fixed
+threshold, a missing guard check, a missing checksum, or single-row sampling.
+Each needed a fixture built specifically to fail — an over-lit packet that
+straddles nothing at 128, a forged frame with the start guard flipped from 101
+to 111 and everything else valid, one with a digit's pattern swapped so the
+checksum breaks and nothing else does, and one with a highlight painted across
+the middle rows.
 
 ---
 
