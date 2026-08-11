@@ -729,9 +729,53 @@ function renderTrain() {
     const rd = S.readiness[today()];
     const suggested = suggestRung(rd ? rd.score : null, availOf(c.avail).mins);
     const type = (plannedToday() || {}).type || nextType();
-    body.innerHTML = `
-      <div class="hdr"><h1 class="h1">Train</h1></div>
-      <div class="card accent">
+    /* The day's work, if it is already done.
+       ------------------------------------------------------------
+       This screen used to say "Ready when you are — Legs — Start full session"
+       whether or not you had already trained legs that morning. Coming back to
+       add fifteen minutes of arms meant being told to redo the session you had
+       just finished, with the thing you actually did nowhere on the screen.
+
+       So when the planned day is discharged the card reports it instead, and
+       anything started from here is an extra rather than a second attempt. */
+    const doneToday = sessionsOn(today()).filter(x => !x.discarded);
+    /* Discharged when there was something to discharge, and otherwise simply
+       "you trained today". A day with no planned session that you trained on
+       anyway is still a day you trained — and an extra logged on a day whose
+       planned session is still owed must NOT read as done, which is why the
+       plan is asked first where there is one. */
+    const plan = S.week.plan[today()] || null;
+    const settled = plan ? !!plan.done : doneToday.length > 0;
+    const head = (settled && doneToday.length) ? (() => {
+      const v = doneToday.reduce((a, sx) => {
+        const vv = sessionVolume(sx);
+        return { sets: a.sets + vv.sets, ton: a.ton + (vv.tonnage || 0),
+                 mins: a.mins + (sx.dur || 0), kcal: a.kcal + (sx.kcal || 0) };
+      }, { sets: 0, ton: 0, mins: 0, kcal: 0 });
+      const beat = doneToday.reduce((a, sx) => a + (sx.exercises || [])
+        .filter(x => (x.sets || []).some(st => st.pr)).length, 0);
+      return `<div class="card done-card">
+        <div class="eyebrow tealtone">Done today</div>
+        <div class="h1 mt-s">${h(doneToday.map(sessionTitle).join(' + '))}</div>
+        <div class="done-stats mt">
+          <div><div class="done-v mono">${v.sets}</div><div class="done-k">sets</div></div>
+          <div><div class="done-v mono">${v.mins}</div><div class="done-k">min</div></div>
+          ${v.ton ? `<div><div class="done-v mono">${(v.ton/1000).toFixed(1)}k</div><div class="done-k">${h(unit())}</div></div>` : ''}
+          ${v.kcal ? `<div><div class="done-v mono">${v.kcal}</div><div class="done-k">kcal</div></div>` : ''}
+        </div>
+        ${beat ? `<p class="small mt">You beat your best on ${beat} movement${beat === 1 ? '' : 's'} today.</p>` : ''}
+        <p class="small mt">That is the day's work done. Nothing below is owed &mdash;
+          it is there if you want more.</p>
+      </div>
+      <div class="divide"></div>
+      <div class="eyebrow mb-s">Want to add something?</div>
+      <div class="list mb">
+        <div class="lrow" data-act="start-session" data-type="${type}" data-rung="${suggested}">
+          <div class="ico">＋</div><div class="grow"><div class="h3">Another ${h(typeLabel(type).toLowerCase())} session</div>
+          <div class="tiny mt-s">Logged as an extra &mdash; today stays done</div></div></div>
+        <div class="lrow" data-act="open-typepick"><div class="ico">↺</div><div class="grow"><div class="h3">Something else entirely</div><div class="tiny mt-s">Pick any session type</div></div></div>
+      </div>`;
+    })() : `<div class="card accent">
         <div class="eyebrow em">Ready when you are</div>
         <div class="h1 mt-s">${typeLabel(type)}</div>
         <p class="small mt">Suggested size: <strong>${RUNGS.find(r=>r.k===suggested).label}</strong> · ${ENVS[c.env]?ENVS[c.env].label:'Full gym'}</p>
@@ -739,12 +783,16 @@ function renderTrain() {
         <button class="btn quiet block mt-s" data-act="open-ladder" data-type="${type}">Choose a different size ▾</button>
       </div>
       <div class="divide"></div>
-      <div class="eyebrow mb-s">Or</div>
+      <div class="eyebrow mb-s">Or</div>`;
+    body.innerHTML = `
+      <div class="hdr"><h1 class="h1">Train</h1></div>
+      ${head}
       <div class="list">
         <div class="lrow" data-act="open-typepick"><div class="ico">↺</div><div class="grow"><div class="h3">Different session type</div><div class="tiny mt-s">Override what's scheduled</div></div></div>
         <div class="lrow" data-act="blank-session"><div class="ico">✎</div><div class="grow"><div class="h3">Empty session</div><div class="tiny mt-s">Build it exercise by exercise</div></div></div>
         <div class="lrow" data-act="quick-rung" data-v="micro"><div class="ico">⏱</div><div class="grow"><div class="h3">Three minutes</div><div class="tiny mt-s">The floor. Anywhere, no kit.</div></div></div>
       </div>
+      ${routineStripHTML()}
       ${recentSessionsHTML(4)}`;
     return;
   }

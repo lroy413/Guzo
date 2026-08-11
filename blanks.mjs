@@ -2253,6 +2253,104 @@ try {
     fills.navBot < fills.viewH && fills.navBot > fills.viewH - 40,
     `${fills.navBot} of ${fills.viewH}`);
 
+  /* ---- Train after you have already trained ----
+     It said "Ready when you are — Legs — Start full session" whether or not
+     you had done legs that morning, with what you actually did nowhere on the
+     screen. Coming back to add fifteen minutes read as being told to start
+     over. */
+  const doneDay = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true); buildWeekPlan(true);
+    /* Pin a planned session on today, so the discharge path is the one under
+       test rather than whatever the generator happened to schedule. */
+    S.week.plan[today()] = { type: 'full', done: false };
+    save(true);
+    const before = (() => {
+      go('train');
+      const t = document.getElementById('train-body').innerText;
+      return { ready: /ready when you are/i.test(t), done: /done today/i.test(t) };
+    })();
+
+    /* Do the day's session properly, through the real handlers. */
+    const type = (plannedToday() || {}).type || nextType();
+    startSession(type, 'full');
+    S.active.exercises.forEach(x => x.sets.forEach(st => { st.done = true; st.r = x.targetR || 8; }));
+    finishSession();
+    closeSheet();
+    go('train');
+    const body = document.getElementById('train-body');
+    const t = body.innerText;
+    return { before,
+      settled: !!(S.week.plan[today()] || {}).done,
+      logged: sessionsOn(today()).length,
+      ready: /ready when you are/i.test(t),
+      done: /done today/i.test(t),
+      stats: body.querySelectorAll('.done-stats .done-v').length,
+      /* Adding on is offered, and framed as adding rather than redoing. */
+      offersAdd: !!body.querySelector('[data-act="start-session"]'),
+      saysExtra: /extra/i.test(t),
+      saysOwed: /nothing below is owed/i.test(t),
+      bad: /undefined|NaN|\[object/.test(t) };
+  });
+  check('before you train, Train says it is ready',
+    doneDay.before.ready === true && doneDay.before.done === false, JSON.stringify(doneDay.before));
+  check('the session was actually completed',
+    doneDay.settled === true && doneDay.logged === 1, `${doneDay.settled}, ${doneDay.logged} logged`);
+  /* The bug, exactly. */
+  check('afterwards it does not ask you to start it again', doneDay.ready === false);
+  check('...it says the day is done', doneDay.done === true);
+  check('...and shows what you actually did', doneDay.stats >= 2, String(doneDay.stats));
+  check('adding more is still offered', doneDay.offersAdd === true);
+  check('...framed as an extra rather than a redo',
+    doneDay.saysExtra === true && doneDay.saysOwed === true,
+    `extra ${doneDay.saysExtra}, owed ${doneDay.saysOwed}`);
+  check('no placeholder text on a finished day', doneDay.bad === false);
+
+  /* And a second session must not pretend to discharge a day that is already
+     discharged — the day is done once, and everything after it is an extra. */
+  const extra = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true); buildWeekPlan(true);
+    S.week.plan[today()] = { type: 'full', done: false }; save(true);
+    const type = (plannedToday() || {}).type || nextType();
+    startSession(type, 'full');
+    S.active.exercises.forEach(x => x.sets.forEach(st => { st.done = true; st.r = x.targetR || 8; }));
+    finishSession(); closeSheet();
+    const firstExtra = !!S.sessions[0].extra;
+    startSession(type, 'short');
+    const secondExtra = !!S.active.extra;
+    S.active.exercises.forEach(x => x.sets.forEach(st => { st.done = true; st.r = x.targetR || 8; }));
+    finishSession(); closeSheet();
+    return { firstExtra, secondExtra, logged: sessionsOn(today()).length,
+             stillDone: !!(S.week.plan[today()] || {}).done };
+  });
+  check('the session that discharged the day is not an extra', extra.firstExtra === false);
+  check('...but the one after it is', extra.secondExtra === true);
+  check('...and both are kept', extra.logged === 2, String(extra.logged));
+  check('...with the day still counted once', extra.stillDone === true);
+
+  /* An extra on a day whose planned session is still owed must not claim the
+     day is done — that is the one thing this must not get wrong in the other
+     direction. */
+  const owed = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true); buildWeekPlan(true);
+    S.week.plan[today()] = { type: 'full', done: false }; save(true);
+    const r = newRoutine('Abs before bed');
+    addToRoutine(r.id, 'bw-crunch');
+    /* asPlanned:false — an extra. Passing true means "run this routine AS the
+       session I owe today", which correctly discharges the day and is the
+       opposite of what this check is about. */
+    S.active = buildRoutineSession(r.id, false);
+    S.active.exercises.forEach(x => x.sets.forEach(st => { st.done = true; st.r = 12; }));
+    finishSession(); closeSheet();
+    go('train');
+    const t = document.getElementById('train-body').innerText;
+    return { logged: sessionsOn(today()).length, planDone: !!S.week.plan[today()].done,
+             ready: /ready when you are/i.test(t), done: /done today/i.test(t) };
+  });
+  check('an extra does not discharge the planned day',
+    owed.logged === 1 && owed.planDone === false, JSON.stringify(owed));
+  check('...so Train still offers the session you owe',
+    owed.ready === true && owed.done === false, `ready ${owed.ready}, done ${owed.done}`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

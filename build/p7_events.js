@@ -91,6 +91,11 @@ function startSession(type, rung) {
   if (rung === 'full' && c.avail === 'long') mins = Math.max(mins, 65);
   const sess = generateSession(type, env, rung, mins);
   sess.started = Date.now();
+  /* A day can only be discharged once. Anything started after the planned
+     session is already done is an extra — otherwise finishing it would mark a
+     day done that was already done, and the second session would quietly
+     overwrite what the first one meant. */
+  if ((S.week.plan[today()] || {}).done) sess.extra = true;
   const rd = S.readiness[today()];
   sess.readiness = rd ? rd.score : null;
   S.active = sess;

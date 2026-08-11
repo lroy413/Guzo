@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **794,691 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (348) + `engine` (204) + `fuel` (69) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **798,577 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (362) + `engine` (204) + `fuel` (69) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -476,6 +476,40 @@ That one now runs a one-second rest and counts oscillators through a spy on the
 platform's own `createOscillator`, so the subject is untouched. And the
 withdraw-on-skip check counted cancellations without resetting first — `startRest`
 cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
+### Train told you to redo the session you had just finished
+
+Reported: go into Train after the day's main session and it says "Ready when
+you are — Legs — Start full session", with the thing you actually did nowhere
+on the screen. Coming back to add fifteen minutes of arms read as being told to
+start over.
+
+The idle header was unconditional. It now reports the day when the day is
+discharged: what you did, the sets, the minutes, the tonnage, the calories, and
+how many movements you beat your best on. Then it offers to add something,
+framed as adding — "logged as an extra, today stays done" — rather than as a
+second attempt. Teal rather than ember, because everywhere else in the app
+ember means "this is next" and teal means "this is done", and the entire
+complaint was that a finished day looked exactly like an unstarted one.
+
+Two things it must not get wrong in the other direction, both checked:
+
+- **An extra does not discharge a planned day.** Abs at 10pm is not the Upper
+  session you owe, so Train still offers the session you owe. The plan is asked
+  first wherever there is one.
+- **A day is discharged once.** Anything started after that is marked `extra`
+  in `startSession`, so finishing a second session cannot re-mark a day that
+  was already marked, and both sessions are kept.
+
+A day with no planned session that you trained on anyway now reads as done too
+— that was a second gap, found because the first seed happened to land on an
+unplanned day and the check failed for a reason that turned out to be real.
+
+14 checks, 3 subjects proven red. One of mine was wrong first: it passed
+`buildRoutineSession(id, true)`, and that flag is `asPlanned`, not `extra` — so
+the probe was asking for the exact opposite of what it was testing.
 
 ---
 

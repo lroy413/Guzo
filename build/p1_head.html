@@ -990,6 +990,18 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 
 .fuel-4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;text-align:center}
 
+/* ---------- the day's work, already done ---------- */
+/* Teal rather than ember: everywhere else in the app ember means "this is next"
+   and teal means "this is done", and the whole complaint was that a finished
+   day looked exactly like an unstarted one. */
+.done-card{border-color:rgba(79,209,165,.28);background:linear-gradient(180deg,rgba(79,209,165,.06),transparent 60%)}
+.tealtone{color:var(--teal)}
+.done-stats{display:flex;gap:20px;flex-wrap:wrap}
+.done-v{font-size:24px;font-weight:700;letter-spacing:-.035em;line-height:1;
+  color:var(--text);font-variant-numeric:tabular-nums}
+.done-k{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--muted);margin-top:4px}
+
 /* ---------- the scanner ---------- */
 .fuel-scan-btn{flex:none;width:56px;padding:0;display:flex;align-items:center;justify-content:center}
 .fuel-scan-btn svg{width:22px;height:22px}
