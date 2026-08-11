@@ -428,6 +428,90 @@ try {
     String(ring.geom[0].pct));
   check('the middle of the ring is the number', /\d/.test(ring.mid || ''), ring.mid);
 
+  // ============ searching for a food with two words in it ============
+  console.log('\nsearching for something with a space in its name\n');
+
+  /* Typed on a real keyboard, one key at a time, because the bug only exists
+     between keystrokes: the sheet redraws on every `input` event and refills
+     the field from its own state, so a space was swallowed the instant it was
+     typed and never survived to the next letter. Setting `.value` in one go
+     and dispatching one event fires the listener once and cannot reproduce it. */
+  /* A fresh page first. The sections above open and hand between a dozen
+     sheets, and `sheetOpen` plus the history entry the sheet stack rides on
+     outlive them — so the first keystroke's redraw landed on a stale popstate
+     and the search sheet was replaced by whatever was underneath. Every other
+     section here only calls functions and reads the result; this is the one
+     that types, and typing is the thing that notices. */
+  await page.goto(origin + '/', { waitUntil: 'load' });
+
+  const opened = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true; save(true);
+    go('fuel'); renderFuel();
+    /* No closeSheet() first. It calls history.back(), which lands as a popstate
+       *after* this evaluate returns and shuts the sheet opened below — leaving
+       the field in the DOM but invisible, so Playwright waits out its timeout
+       on an element that is right there. Hand between sheets by opening. */
+    foodQ = ''; foodGroupOpen = null; sheetFoodSearch('');
+    return !!document.getElementById('food-q');
+  });
+  check('the food search sheet has a field to type in', opened === true);
+  const typed = 'turkey sandwich';
+  await page.focus('#food-q');
+
+  /* Read the field back after every single key rather than only at the end.
+     The property being checked is per-keystroke — what the field holds when
+     the next letter arrives — so checking only the final value would let a
+     space that vanished and came back count as a pass. Reading between keys
+     also stops the keystrokes outrunning the redraw: fifteen sent back to
+     back land on nodes the sheet has already replaced, focus escapes to the
+     document, and the space activates whatever button caught it. */
+  const seen = [];
+  for (const ch of typed) {
+    await page.keyboard.type(ch, { delay: 15 });
+    seen.push(await page.evaluate(() => {
+      const el = document.getElementById('food-q');
+      return el ? el.value : '(no field)';
+    }));
+  }
+  const wrong = seen.map((v, i) => [typed.slice(0, i + 1), v])
+                    .filter(([want, got]) => want !== got);
+
+  const search = await page.evaluate(() => {
+    const el = document.getElementById('food-q');
+    const rows = [...document.querySelectorAll('#sheet-body .pick-row .h3')].map(n => n.textContent);
+    return { value: el ? el.value : '(no field)', caret: el ? el.selectionStart : -1, rows };
+  });
+  check('the field holds exactly what has been typed, after every key',
+    wrong.length === 0, JSON.stringify(wrong.slice(0, 3)));
+  /* The reported bug, in the reporter's words: "it forces my words together". */
+  check('a space typed into the food search survives the redraw',
+    search.value === typed,
+    JSON.stringify({ field: search.value, state: search.state, on: search.sheetOn, head: search.head }));
+  check('...and the caret stays at the end rather than jumping home',
+    search.caret === typed.length, String(search.caret));
+  check('...and "turkey sandwich" finds a turkey sandwich',
+    search.rows.some(n => /turkey sandwich/i.test(n)), search.rows.slice(0, 4).join(' | '));
+
+  /* The other half of the same complaint: the library had no sandwiches in it
+     at all, so the search was correct and still useless. */
+  const sarnies = await page.evaluate(() => {
+    const named = n => FOODS.some(f => f.n.toLowerCase() === n);
+    return {
+      n: FOODS.filter(f => /sandwich|toastie|sub|wrap|roll|bagel|toast/i.test(f.n)).length,
+      turkey: named('turkey sandwich'),
+      beef: named('roast beef sandwich'),
+      /* Named the way a person says it, not the way a catalogue sorts it.
+         "Sandwich, turkey" is unfindable by typing what you ate. */
+      naturalOrder: FOODS.filter(f => /sandwich/i.test(f.n)).every(f => !/^sandwich[ ,]/i.test(f.n)),
+      searchable: foodSearch('roast beef').some(f => /roast beef sandwich/i.test(f.n))
+    };
+  });
+  check('the library has sandwiches in it', sarnies.n >= 15, String(sarnies.n));
+  check('...including the two that were asked for by name',
+    sarnies.turkey && sarnies.beef, JSON.stringify(sarnies));
+  check('...named the way somebody would say it out loud', sarnies.naturalOrder === true);
+  check('...and reachable by typing half the name', sarnies.searchable === true);
+
   // ============ the catalogue holds together ============
   console.log('\nthe food catalogue\n');
 

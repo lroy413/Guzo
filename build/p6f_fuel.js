@@ -394,7 +394,12 @@ function sheetFoodSearch(q) {
 
   openSheet(`
     <h2 class="h1 mb" style="padding-right:44px">Add food</h2>
-    <input class="input mb-s" id="food-q" placeholder="Search &mdash; chicken, oats, milk&hellip;" value="${h(query)}"
+    ${/* The RAW text, not the trimmed one. This sheet redraws on every
+          keystroke and refills the field from its own state — so trimming here
+          swallowed the space the moment you typed it, and "turkey sandwich"
+          came out "turkeysandwich". Trim where you search, never where you
+          echo what somebody is still typing. */''}
+    <input class="input mb-s" id="food-q" placeholder="Search &mdash; chicken, oats, milk&hellip;" value="${h(foodQ || '')}"
            autocomplete="off" enterkeyhint="search" inputmode="search">
     <button class="btn ghost block mb" data-act="food-new">Save a food of your own</button>
     ${body}

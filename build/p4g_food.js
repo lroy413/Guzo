@@ -118,7 +118,7 @@ Orange juice|ml|100|45|0.7|10|0.2|drink
 Cola|ml|100|42|0|11|0|drink
 Diet cola|ml|100|0.4|0|0|0|drink
 Sports drink|ml|100|24|0|6|0|drink
-Sandwich, shop-bought|ea|1|420|20|42|18|meal
+Shop-bought sandwich|ea|1|420|20|42|18|meal
 Meal deal, full|ea|1|700|24|80|30|meal
 Burrito|ea|1|620|28|70|24|meal
 Pizza, 2 slices|ea|1|570|24|64|22|meal
@@ -357,8 +357,8 @@ Pizza, margherita slice|ea|1|230|9|30|8|meal
 Pizza, pepperoni slice|ea|1|298|12|32|13|meal
 Burrito, chicken|ea|1|620|35|65|22|meal
 Chicken wrap|ea|1|450|30|45|16|meal
-Sandwich, chicken salad|ea|1|380|24|40|13|meal
-Sandwich, BLT|ea|1|450|18|42|23|meal
+Chicken salad sandwich|ea|1|380|24|40|13|meal
+BLT sandwich|ea|1|450|18|42|23|meal
 Jacket potato with beans|ea|1|420|15|75|6|meal
 Chilli con carne with rice|ea|1|650|35|75|22|meal
 Stir fry, chicken and veg|ea|1|480|38|45|16|meal
@@ -380,6 +380,29 @@ Scrambled eggs on toast|ea|1|400|22|30|21|meal
 Chicken and rice, meal prep|ea|1|560|45|65|12|meal
 Steak and salad|ea|1|520|48|12|31|meal
 Tuna pasta|ea|1|550|38|65|14|meal
+Turkey sandwich|ea|1|310|30|31|8|meal
+Roast beef sandwich|ea|1|370|30|32|13|meal
+Ham and cheese sandwich|ea|1|420|25|33|21|meal
+Chicken mayo sandwich|ea|1|400|28|33|17|meal
+Tuna mayo sandwich|ea|1|380|26|32|16|meal
+Prawn mayo sandwich|ea|1|340|20|33|14|meal
+Egg mayo sandwich|ea|1|390|16|32|22|meal
+Cheese and pickle sandwich|ea|1|430|19|40|22|meal
+Peanut butter and jam sandwich|ea|1|430|14|52|18|meal
+Club sandwich|ea|1|590|34|45|30|meal
+Steak sandwich|ea|1|550|38|42|25|meal
+Tuna melt|ea|1|520|30|38|27|meal
+Cheese toastie|ea|1|450|20|36|25|meal
+Bacon roll|ea|1|400|20|35|20|meal
+Sausage roll|ea|1|330|9|26|21|meal
+Meatball sub|ea|1|620|30|62|27|meal
+Falafel wrap|ea|1|480|15|55|21|meal
+Tuna pasta salad|ea|1|420|28|45|13|meal
+Bagel with cream cheese|ea|1|380|12|50|14|meal
+Toast with butter|ea|1|190|4|25|8|meal
+Toast with peanut butter|ea|1|290|10|27|16|meal
+Toast with avocado|ea|1|280|6|28|16|meal
+Beans on toast|ea|1|320|14|52|6|meal
 `.trim();
 
 const FOODS = FOODDATA.split('\n').map((line, i) => {

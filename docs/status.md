@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **800,549 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (362) + `engine` (213) + `fuel` (69) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **801,853 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (362) + `engine` (213) + `fuel` (78) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -33,7 +33,7 @@ Last sweep: `dupes` + `blanks` (362) + `engine` (213) + `fuel` (69) + `sw` (17) 
 | Plate calculator | Complete. Owned-plate aware, persists bar weight, follows the weight you type. |
 | Last-time recall | Complete. |
 | Barcode scanner | Complete for what it can honestly do: reads the code on device with no library, binds it to a food in your library the first time, one tap every time after. No product database — see below. |
-| Fuel (nutrition) | Complete. 363 foods, custom foods, portions, edit/delete, copy-a-day, recents, a correction per food, per-entry macros, quick add, meals, and a ring. |
+| Fuel (nutrition) | Complete. 386 foods, custom foods, portions, edit/delete, copy-a-day, recents, a correction per food, per-entry macros, quick add, meals, and a ring. Searching accepts a space, and foods are named the way people say them. |
 | Diet preferences | Complete. Meals and snacks a day, four dietary patterns, seven exclusions. Asked during onboarding when Fuel is on, editable forever after from Fuel. |
 | Suggested meals | Complete. Built from the same 113-food library, portioned against your targets, deterministic per day, and filtered by your restrictions. One tap logs a whole meal. |
 | Adaptive TDEE | Complete. Refuses implausible answers and names under-logging as the cause. |
@@ -567,7 +567,54 @@ clearance prints `pad 0 vs nav 60` on four screens.
 
 ---
 
-### The catalogue is 363 foods, and a check that catches the typos
+### The food search ate every space you typed
+
+Reported with a screenshot of the search field reading **"Turkeysa"**.
+
+The sheet redraws on every keystroke and refills the field from its own state,
+and the value it refilled with was the *trimmed* query — the same string used
+to run the search. So a trailing space was swallowed the instant it was typed,
+and the next letter arrived against a field that had already closed the gap.
+Two words were impossible to type. One line:
+
+```js
+value="${h(foodQ || '')}"   // the raw text, not the trimmed one
+```
+
+**Trim where you search, never where you echo what somebody is still typing.**
+
+The check types the phrase one key at a time on a real keyboard and reads the
+field back *after every key*, because the property is per-keystroke: asserting
+only the final value would pass a space that vanished and came back. Reverted,
+it prints the reporter's own string — `["turkey sa","turkeysa"]`.
+
+Two things about the instrument were wrong before it worked. Sending all
+fifteen keys back to back outran the redraw, so keys landed on nodes the sheet
+had already replaced, focus escaped, and a space activated whatever button
+caught it. And the section needed its own fresh page: the sections above hand
+between a dozen sheets, and `sheetOpen` plus the single history entry the sheet
+stack rides on outlive them, so the first redraw met a stale popstate and the
+search sheet was replaced by the one underneath. An earlier attempt to clear
+that with `closeSheet()` first made it worse for exactly the reason the handbook
+already gives — `closeSheet` calls `history.back()`, which lands *after* the
+evaluate returns and shuts the sheet just opened.
+
+### Sandwiches, named the way people ask for them
+
+The other half of the same report: "it should have sandwiches. like a turkey
+sandwhich, roast beef sandwich etc." The library had three, and all three were
+filed in catalogue order — `Sandwich, BLT` — which is unfindable by typing what
+you ate. They are `BLT sandwich`, `Chicken salad sandwich` and
+`Shop-bought sandwich` now, renamed **in place**: food ids are positional
+(`'f' + i`), so a rename is free and a reorder would silently repoint every
+logged entry, correction and barcode binding in every existing save. Appending
+is safe for the same reason.
+
+Twenty-three rows were added — sandwiches, toasties, a sub, a wrap, rolls, a
+bagel and toast — all Atwater-checked before they went in, and all named as
+speech rather than as a filing system.
+
+### The catalogue is 386 foods, and a check that catches the typos
 
 Size was never the constraint. The pipe-delimited format costs 38 bytes a food
 raw and 16.6 gzipped, so the 250 added here cost about 10 KB raw and 4 KB over
@@ -589,7 +636,8 @@ and reverting one digit of the almonds row prints "says 579, macros give 217".
 The 250 new rows are whole foods and staples — cuts of meat and fish, cheeses
 and dairy, breads and grains, pulses, vegetables, fruit, nuts and oils,
 condiments, drinks, supplements and prepared meals. Branded products are
-deliberately not here; that is what the barcode binding is for.
+deliberately not here; that is what the barcode binding is for. Twenty-three
+sandwiches and other made-up meals followed, for the reason above.
 
 ### Checking a flagged import no longer throws away the import
 
