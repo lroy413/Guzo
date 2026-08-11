@@ -2199,6 +2199,60 @@ try {
     dayStrip.noSteps.rows[0].filled === 0 && dayStrip.all.rows[0].filled === 5,
     `${dayStrip.noSteps.rows[0].filled} then ${dayStrip.all.rows[0].filled}`);
 
+  /* ---- the app fills the phone, and never overflows it ----
+     body is position:fixed; inset:0, so it IS the visible viewport. #app was
+     sized in 100dvh, which on iOS Safari grows when the address bar collapses
+     while the fixed body does not — so #app became taller than its parent and
+     body's overflow:hidden sliced the bottom off. Cards cut in half, dead
+     space under them, and padding-bottom powerless because the clipping
+     happens a level above it. */
+  const fills = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    ['Ab Night', 'Legs', 'Push'].forEach(n => {
+      const r = newRoutine(n); addToRoutine(r.id, 'bw-crunch');
+    });
+    save(true); buildWeekPlan(true); render();
+    const box = el => { const r = el.getBoundingClientRect(); return { top: r.top, bot: r.bottom }; };
+    const app = document.getElementById('app');
+    const out = {};
+    ['today', 'plan', 'progress', 'more'].forEach(name => {
+      go(name);
+      const sc = document.querySelector('.screen.on');
+      out[name] = {
+        appTop: Math.round(box(app).top), appBot: Math.round(box(app).bot),
+        scBot: Math.round(box(sc).bot),
+        /* Every screen the nav floats over has to be able to scroll past it. */
+        pad: parseInt(getComputedStyle(sc).paddingBottom, 10) || 0
+      };
+    });
+    /* The unit matters: a viewport unit re-introduces the mismatch the moment
+       a browser's idea of it diverges from the fixed body's. */
+    const declared = [...document.styleSheets].flatMap(ss => {
+      try { return [...ss.cssRules]; } catch (e) { return []; }
+    }).filter(r => r.selectorText === '#app').map(r => r.style.height);
+    return { out, declared, bodyH: Math.round(document.body.getBoundingClientRect().height),
+             viewH: window.innerHeight,
+             navBot: Math.round(document.getElementById('nav').getBoundingClientRect().bottom) };
+  });
+
+  check('the app fills the whole viewport', fills.bodyH === fills.viewH,
+    `${fills.bodyH} vs ${fills.viewH}`);
+  Object.keys(fills.out).forEach(name => {
+    const o = fills.out[name];
+    check(`${name} reaches the bottom of the screen and no further`,
+      o.appTop === 0 && o.appBot === fills.viewH && o.scBot === fills.viewH,
+      `app ${o.appTop}–${o.appBot}, screen bottom ${o.scBot}, viewport ${fills.viewH}`);
+    check(`...and can scroll clear of the floating nav`, o.pad >= 90, `${o.pad}px`);
+  });
+  /* Sized against its parent rather than against a viewport unit, so the two
+     can never disagree. */
+  check('the app is sized from the fixed body, not a viewport unit',
+    fills.declared.length > 0 && fills.declared.every(hh => hh === '100%'),
+    fills.declared.join(', '));
+  check('the nav floats clear of the bottom edge',
+    fills.navBot < fills.viewH && fills.navBot > fills.viewH - 40,
+    `${fills.navBot} of ${fills.viewH}`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

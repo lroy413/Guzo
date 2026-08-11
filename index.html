@@ -141,8 +141,20 @@ input[type=number]{-moz-appearance:textfield}
 .quote{font-size:15px;line-height:1.55;color:var(--text-dim);font-style:italic}
 
 /* ---------- layout ---------- */
-#app{height:100dvh;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-@supports (height:100dvh){#app{height:100dvh}}
+/* 100% of the body, not 100dvh.
+   ------------------------------------------------------------
+   body is position:fixed; inset:0, so it already *is* the visible viewport,
+   whatever the browser currently thinks that is, and it re-measures itself as
+   the toolbars come and go. 100% of it therefore fills the screen exactly and
+   by definition.
+
+   100dvh was subtly wrong on the one browser that matters. On iOS Safari the
+   dynamic viewport and a fixed, inset-0 box disagree the moment the address
+   bar collapses — dvh grows, the fixed body does not — so #app became taller
+   than its parent and body's overflow:hidden cut the bottom off. What you saw
+   was a row of cards sliced in half with dead space under them, and no amount
+   of padding-bottom fixes it because the clipping happens above that. */
+#app{height:100%;display:flex;flex-direction:column;overflow:hidden}
 .screen{display:none;flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;
   -webkit-overflow-scrolling:touch;overscroll-behavior:contain;
   padding:calc(var(--safe-t) + 14px) var(--sp) 28px;width:100%}

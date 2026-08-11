@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **784,802 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (337) + `engine` (204) + `fuel` (69) + `sw` (17) + `native` (23) + `import` (68) + `scan` (41) all green. Nothing known is broken.
+Verified against the build at **785,047 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (348) + `engine` (204) + `fuel` (69) + `sw` (17) + `native` (23) + `import` (68) + `scan` (41) all green. Nothing known is broken.
 
 ---
 
@@ -476,6 +476,29 @@ That one now runs a one-second rest and counts oscillators through a spy on the
 platform's own `createOscillator`, so the subject is untouched. And the
 withdraw-on-skip check counted cancellations without resetting first — `startRest`
 cancels before it schedules, so the count was already 1 before `stopRest` ran.
+
+---
+
+### The screen stopped short of the bottom of the phone
+
+Reported from a screenshot: a row of routine cards sliced in half, dead black
+space under them, and the floating nav sitting over the top of it.
+
+`#app` was `height:100dvh` inside a body that is `position:fixed; inset:0`. On
+iOS Safari those two disagree the moment the address bar collapses — the
+dynamic viewport grows, the fixed body does not — so `#app` became taller than
+its parent and `body{overflow:hidden}` cut the overflow off. Every screen's
+`padding-bottom` was correct and irrelevant, because the clipping happened a
+level above it.
+
+It is `height:100%` now. The body already *is* the visible viewport and
+re-measures itself as the toolbars come and go, so 100% of it fills the screen
+exactly and by definition, with no unit that can drift out of agreement with it.
+
+11 checks: every screen reaches the bottom edge and no further, each one can
+still scroll clear of the floating nav, and `#app` is declared in `%` rather
+than a viewport unit. Putting `100dvh` back prints `100dvh`; zeroing the
+clearance prints `pad 0 vs nav 60` on four screens.
 
 ---
 

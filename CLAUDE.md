@@ -237,6 +237,8 @@ That one entry point is also what makes `profile.dayStart` a three-line feature.
 
 **9. The nav has exactly five tabs.** Turning Fuel on hides Route and shows Fuel (`syncNav()`). Tests must navigate via `go()` or scope selectors to `#nav`, because `[data-go="plan"]` also matches a row on the More screen.
 
+**10a. `#app` is sized from the body, never in viewport units.** `html, body` are `position:fixed; inset:0`, so the body already *is* the visible viewport and re-measures itself as browser chrome comes and goes; `#app{height:100%}` fills it exactly by definition. It was `100dvh`, and on iOS Safari the dynamic viewport and a fixed inset-0 box disagree the moment the address bar collapses — dvh grows, the fixed body does not — so `#app` became taller than its parent and `body{overflow:hidden}` sliced the bottom off. Cards cut in half with dead space under them, and no `padding-bottom` can fix it because the clipping happens a level above. **Never reintroduce `vh`/`dvh` on `#app`.**
+
 **10. The nav is `position:fixed`.** It floats as a pill rather than sitting in the flex flow, so it takes no layout space — every screen it covers carries its own `padding-bottom` to scroll clear of it. Add a screen and it needs adding to that rule, or its last card sits under the nav.
 
 **11. `innerText` returns painted text, not template text.** `.sec-t` and `.eyebrow` are `text-transform:uppercase`, so a test matching `/Suggested/` against `innerText` fails while the markup plainly says "Suggested". Match case-insensitively, or read `textContent`.
