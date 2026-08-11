@@ -997,6 +997,39 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'scan-new-food': { window._scanCode = v; sheetNewFood(); break; }
+    case 'off-keep': {
+      const f = window._offFound; window._offFound = null;
+      if (!f) break;
+      const saved = saveCustomFood({ n: f.n, u: f.u, per: f.per,
+        kcal: f.kcal, p: f.p, c: f.c, f: f.f });
+      if (!saved) { toast('Could not save that'); break; }
+      bindBarcode(f.code, saved.id);
+      closeSheet(); sheetPortion(saved.id, f.per);
+      toast('Saved — that packet scans from now on', true);
+      break;
+    }
+    /* Straight into the food editor with the fetched numbers filled in, so a
+       wrong entry in a public database is corrected before it is kept rather
+       than after it has been logged all week. */
+    case 'off-edit': {
+      const f = window._offFound;
+      if (!f) break;
+      window._scanCode = f.code;
+      window._nfUnit = f.u;
+      sheetNewFood();
+      const put = (id, v) => { const el = $('#' + id); if (el) el.value = v; };
+      put('nf-n', f.n); put('nf-kcal', f.kcal); put('nf-p', f.p); put('nf-c', f.c); put('nf-f', f.f);
+      break;
+    }
+    /* The one setting in the app that turns on a network request. */
+    case 'toggle-off': {
+      S.settings.off = !S.settings.off;
+      save(true); renderMore(); sheetSettings();
+      toast(S.settings.off
+        ? 'Barcode lookup on — the first scan of a packet asks Open Food Facts'
+        : 'Barcode lookup off — nothing leaves the device', true);
+      break;
+    }
     case 'qa-save': {
       const val = id => (($('#' + id) || {}).value);
       if (!quickAdd({ n: val('qa-n'), kcal: val('qa-kcal'), p: val('qa-p'),

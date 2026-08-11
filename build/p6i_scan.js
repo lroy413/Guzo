@@ -98,23 +98,72 @@ async function startScan() {
 
 /* A code, read. What happens next depends entirely on whether you have seen
    this packet before — which is the whole design. */
-function onScanned(code) {
+async function onScanned(code) {
   stopScan();
   buzz([18, 40, 18]);
+  /* Your own library first, always. A packet you have already named never
+     causes a request, however the setting is set. */
   const food = foodForBarcode(code);
   if (food) { sheetPortion(food.id, food.per || 1); return; }
-  sheetScanNew(code);
+
+  if (!offEnabled()) { sheetScanNew(code); return; }
+
+  openSheet(`<div class="center" style="padding:44px 0">
+    <div class="h1">Looking it up</div>
+    <div class="scan-code mono mt mb">${h(code)}</div>
+    <div class="bar thin"><i style="width:45%"></i></div>
+    <p class="tiny mt">Asking Open Food Facts. If it does not answer, you can name it yourself.</p>
+  </div>`);
+  const found = await offLookup(code);
+  /* Every kind of no lands in the same place — which is exactly where you were
+     before this feature existed. */
+  if (!found) { sheetScanNew(code, true); return; }
+  sheetScanFound(found);
+}
+
+/* What came back, before any of it is saved. Shown rather than logged: this is
+   data a stranger typed into a public database, and the app has no business
+   presenting it as fact. */
+function sheetScanFound(f) {
+  const odd = !offPlausible(f);
+  openSheet(`
+    <div class="row between mb"><h2 class="h1">Found it</h2></div>
+    <div class="scan-code mono mb">${h(f.code)}</div>
+    <div class="card mb">
+      <div class="h3">${h(f.n)}</div>
+      <div class="tiny mt-s">Per 100${h(f.u)}${f.serving ? ' &middot; packet says a serving is ' + h(f.serving) : ''}</div>
+      <div class="fuel-4 mt">
+        ${[['kcal', f.kcal], ['protein', f.p + 'g'], ['carbs', f.c + 'g'], ['fat', f.f + 'g']]
+          .map(([k, v]) => `<div><div class="fuel-day-v mono">${v}</div>
+            <div class="fuel-day-k">${k}</div></div>`).join('')}
+      </div>
+    </div>
+
+    ${odd ? `<div class="banner soft mb">These numbers do not quite add up &mdash;
+      the macros come to about ${Math.round(f.p * 4 + f.c * 4 + f.f * 9)} kcal, not ${f.kcal}.
+      Open Food Facts is filled in by the public and this entry may be wrong.
+      Check it against the packet before you keep it.</div>` : ''}
+
+    <p class="small mb">Keeping it saves it as one of your foods and ties it to this barcode, so it
+      is yours from now on and this never has to be looked up again.</p>
+
+    <button class="btn primary block lg" data-act="off-keep">Keep it</button>
+    <button class="btn ghost block mt-s" data-act="off-edit">Change the numbers first</button>
+    <button class="btn quiet block mt-s" data-act="close">Not this</button>
+  `, { key: 'offfound:' + f.code });
+  window._offFound = f;
 }
 
 /* The first time. There is no product database behind this — see p4m_scan.js
    — so this asks, once, and never asks again for that packet. */
-function sheetScanNew(code) {
+function sheetScanNew(code, looked) {
   const recent = recentFoods(6);
   openSheet(`
     <div class="row between mb"><h2 class="h1">New packet</h2></div>
     <div class="scan-code mono mb">${h(code)}</div>
-    <p class="small mb">This app has no product database and never phones anywhere, so it does not
-      know what this is yet. Tell it once and every scan of this packet after today is a single tap.</p>
+    <p class="small mb">${looked
+      ? 'Open Food Facts does not have this one, or could not be reached. Tell it once and every scan of this packet after today is a single tap &mdash; no lookup needed.'
+      : 'This app has no product database and never phones anywhere, so it does not know what this is yet. Tell it once and every scan of this packet after today is a single tap.'}</p>
 
     <button class="btn primary block lg" data-act="scan-new-food" data-v="${h(code)}">Enter what is on the label</button>
 

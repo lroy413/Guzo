@@ -442,3 +442,65 @@ Because `p4d_plates.js` loads after `p4_engine.js`, its declaration won **for th
 **Resolution.** One definition, defensive about malformed input but signed. The one caller that genuinely wants a non-negative age clamps at the call site. `dupes.mjs` now fails the build on any duplicate top-level declaration across parts.
 
 **The lesson:** in a concatenated single-scope app, a local defensive fix is a global behaviour change.
+
+---
+
+## The one external request: Open Food Facts barcode lookup
+
+**Reversed.** "No third-party requests, ever" held for the entire life of this
+app and is written into `CLAUDE.md`, `docs/decisions.md` and the service
+worker's own comments. It no longer holds without qualification, and this
+records both states rather than quietly editing the old one.
+
+**Before.** The barcode scanner read the code on device and looked it up in
+your own library. A packet it had never seen asked you to name it once; every
+scan after that was one tap. That still works, unchanged, and is still what
+happens with this switched off.
+
+**The problem with that.** The *first* scan of every packet is a form. For
+somebody buying twenty new things a month that is twenty forms, and the feature
+reads as broken to anyone who has used MyFitnessPal — where the first scan is
+the whole point.
+
+**What was rejected.**
+
+- *Shipping a product database.* Open Food Facts is roughly 3 million products
+  and several gigabytes. There is no version of that inside a single HTML file.
+- *A subset of the most common branded products.* Tried on paper and abandoned:
+  "most common" is regional, brands reformulate, and a stale calorie figure
+  presented as fact is worse than no figure. The whole-foods catalogue can be
+  correct because whole foods do not change; a Snickers in 2019 is not a
+  Snickers now.
+- *A proxy of our own.* Would mean a backend, which would mean an account, a
+  bill, and a thing that can go down. The app has none of those and the absence
+  is the point.
+- *Doing nothing.* Defensible, and was the position until asked directly.
+
+**The terms it is allowed on.** These are the decision, not the implementation
+detail:
+
+1. **Off by default**, turned on by hand in Settings, with the copy saying
+   plainly that it is the only thing the app ever sends anywhere.
+2. **Nothing is sent but the barcode.** No account, no cookies
+   (`credentials: 'omit'`), no history, no identifier. One host, one number.
+3. **Never blocking.** Six seconds and it gives up.
+4. **Never fatal.** Offline, refused, rate-limited, not-found and malformed all
+   fall through to the sheet that asks you — which is exactly the behaviour
+   that existed before. The feature failing costs nothing that was previously
+   working.
+5. **Never automatic.** What comes back is shown, with its numbers, before any
+   of it is saved. It is data a stranger typed into a public database and the
+   app has no business presenting it as fact — so it is also checked against the
+   Atwater factors, and an entry whose macros do not add up says so.
+6. **Asked once per packet.** The answer is saved as *your* food and bound to
+   the code, so the same packet never causes a second request. Over time a
+   user's library converges on their actual shopping and the network stops
+   mattering again.
+7. **Never cached by the service worker**, which has always ignored
+   cross-origin requests. A stale cached answer would be worse than none.
+
+**What this does not change.** Everything else still works with the network
+off, including the scanner, and no other part of the app gained a request. The
+offline promise now reads: *the app works entirely offline; one optional
+feature asks one question of one server, and degrades to what it did before
+when it cannot.*

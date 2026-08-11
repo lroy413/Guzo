@@ -64,8 +64,10 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
 
-  /* Same-origin only. The app makes no third-party requests at all, and
-     caching one would be a surprise. */
+  /* Same-origin only. The app makes exactly one kind of third-party request —
+     the optional Open Food Facts barcode lookup — and that must never land in
+     the app-shell cache: it is per-packet, it is opt-in, and a stale cached
+     answer to it would be worse than no answer. */
   let url;
   try { url = new URL(req.url); } catch (err) { return; }
   if (url.origin !== self.location.origin) return;

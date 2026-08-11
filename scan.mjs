@@ -292,6 +292,162 @@ try {
   check('...and offers both ways to name it', ui.offersEntry && ui.offersBind);
   check('no placeholder text in the scanner', ui.bad === false);
 
+  console.log('\nlooking a packet up\n');
+
+  /* Stubbed, always. A test that reaches the real internet is a test that
+     fails when a stranger's server is slow. The payload is shaped exactly as
+     the v2 API returns it — verified against a real response — so the parser
+     under test is parsing the real thing. */
+  const OFF_OK = {
+    code: '5000159484695', status: 1, status_verbose: 'product found',
+    product: {
+      product_name: 'Snickers', brands: 'Mars,Snickers', quantity: '50 g',
+      serving_size: '50 g', nutrition_data_per: '100g',
+      nutriments: { 'energy-kcal_100g': 484, 'energy-kj_100g': 2025,
+                    proteins_100g: 8.2, carbohydrates_100g: 59.4, fat_100g: 23.6 }
+    }
+  };
+  /* Half of Europe records kilojoules and no calories at all. */
+  const OFF_KJ = { code: '4006381333931', status: 1, product: {
+    product_name: 'Kilojoule Bar', brands: 'EU',
+    nutriments: { 'energy-kj_100g': 1000, proteins_100g: 5, carbohydrates_100g: 30, fat_100g: 10 } } };
+  /* Somebody typed it in wrong, which is what a public database is. */
+  const OFF_ODD = { code: '0012000161155', status: 1, product: {
+    product_name: 'Impossible Crisps', brands: 'Nobody',
+    nutriments: { 'energy-kcal_100g': 500, proteins_100g: 1, carbohydrates_100g: 2, fat_100g: 1 } } };
+  const OFF_MISSING = { code: '9780201379624', status: 0, status_verbose: 'product not found' };
+
+  const stub = (mode, payload) => page.evaluate(([m, pl]) => {
+    window.__offCalls = [];
+    window.fetch = (url, opts) => {
+      window.__offCalls.push({ url: String(url), creds: opts && opts.credentials });
+      if (m === 'reject') return Promise.reject(new Error('offline'));
+      if (m === 'http500') return Promise.resolve({ ok: false, status: 500 });
+      if (m === 'garbage') return Promise.resolve({ ok: true, json: () => Promise.reject(new Error('not json')) });
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(pl) });
+    };
+  }, [mode, payload]);
+
+  const lookup = async (mode, payload, code, setup) => {
+    await stub(mode, payload);
+    return page.evaluate(async ([c, sc]) => {
+      S = blank(); S.onboarded = true; S.settings.nutrition = true;
+      eval(sc || '');
+      save(true);
+      /* Caught here, not left to propagate. offLookup swallowing every kind of
+         failure is the thing under test — and a version that throws instead
+         would otherwise take the whole instrument down and read as a crash
+         rather than as a red. */
+      let got = null, threw = null;
+      try { got = await offLookup(c); } catch (e) { threw = String(e && e.message || e); }
+      return { got, threw, calls: window.__offCalls };
+    }, [code, setup || '']);
+  };
+
+  /* Off by default. This is the one thing in the app that talks to anything,
+     and it does not do it until somebody says so. */
+  const offByDefault = await lookup('ok', OFF_OK, '5000159484695');
+  check('barcode lookup is off until you turn it on',
+    offByDefault.got === null && offByDefault.calls.length === 0,
+    `${offByDefault.calls.length} requests`);
+
+  const on = 'S.settings.off = true;';
+  const hit = await lookup('ok', OFF_OK, '5000159484695', on);
+  check('with it on, a packet comes back', hit.got && hit.got.n === 'Snickers, Mars',
+    JSON.stringify(hit.got && hit.got.n));
+  check('...with its macros per 100g',
+    hit.got && hit.got.kcal === 484 && hit.got.p === 8.2 && hit.got.c === 59.4 && hit.got.f === 23.6,
+    JSON.stringify(hit.got));
+  check('...and the serving the packet states', hit.got && hit.got.serving === '50 g',
+    hit.got && hit.got.serving);
+  /* One host, one barcode, and nothing else — no cookies, no account. */
+  check('the request carries the barcode and nothing else',
+    hit.calls.length === 1 && /openfoodfacts\.org\/api\/v2\/product\/5000159484695\.json/.test(hit.calls[0].url),
+    hit.calls[0] && hit.calls[0].url);
+  check('...and is sent without credentials', hit.calls[0] && hit.calls[0].creds === 'omit',
+    hit.calls[0] && String(hit.calls[0].creds));
+
+  const kj = await lookup('ok', OFF_KJ, '4006381333931', on);
+  /* 1000 kJ is 239 kcal. Dropping kilojoule-only entries would lose a large
+     part of the European database for no reason. */
+  check('a kilojoule-only entry is converted', kj.got && kj.got.kcal === 239,
+    String(kj.got && kj.got.kcal));
+
+  /* Every kind of no lands in the same place, because to the caller they mean
+     the same thing: ask the person instead. */
+  for (const [mode, label] of [['reject', 'no connection'], ['http500', 'a server error'],
+                               ['garbage', 'a reply that is not JSON']]) {
+    const r = await lookup(mode, null, '5000159484695', on);
+    check(`${label} falls through rather than failing`,
+      r.got === null && r.threw === null, r.threw ? 'threw: ' + r.threw : JSON.stringify(r.got));
+  }
+  const miss = await lookup('ok', OFF_MISSING, '9780201379624', on);
+  check('a packet the database does not have falls through too', miss.got === null,
+    JSON.stringify(miss.got));
+  const offline = await lookup('ok', OFF_OK, '5000159484695',
+    on + ' Object.defineProperty(navigator, "onLine", { value: false, configurable: true });');
+  check('and with the network off it does not even ask',
+    offline.got === null && offline.calls.length === 0, `${offline.calls.length} requests`);
+
+  /* Crowd-sourced data gets checked before it is offered. */
+  const odd = await page.evaluate(() => ({
+    good: offPlausible({ kcal: 484, p: 8.2, c: 59.4, f: 23.6 }),
+    bad: offPlausible({ kcal: 500, p: 1, c: 2, f: 1 })
+  }));
+  check('a sane entry reads as sane', odd.good === true);
+  check('...and one whose numbers do not add up is flagged', odd.bad === false);
+
+  const flow = await page.evaluate(async ([ok, bad]) => {
+    /* The offline probe above redefined navigator.onLine on this page and it
+       stays redefined — so without putting it back, every probe after it runs
+       offline and passes for the wrong reason. */
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    S = blank(); S.onboarded = true; S.settings.nutrition = true; S.settings.off = true; save(true);
+    window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve(ok) });
+    await onScanned('5000159484695');
+    const body = document.getElementById('sheet-body');
+    const shown = /Snickers/.test(body.innerText);
+    /* Nothing is saved until you keep it — this is a stranger's data. */
+    const savedEarly = customFoods().length;
+    const keep = body.querySelector('[data-act="off-keep"]');
+    /* Fail with what it actually did, rather than throwing on a null and
+       killing the instrument before it prints anything. */
+    if (!keep) return { shown, savedEarly, saved: -1, name: null, bound: null,
+                        warned: false, sheet: body.innerText.slice(0, 120) };
+    keep.click();
+    const after = customFoods();
+    const bound = foodForBarcode('5000159484695');
+
+    /* And a suspect entry says so instead of pretending. */
+    S = blank(); S.onboarded = true; S.settings.nutrition = true; S.settings.off = true; save(true);
+    window.fetch = () => Promise.resolve({ ok: true, json: () => Promise.resolve(bad) });
+    await onScanned('0012000161155');
+    const warned = /do not quite add up/i.test(document.getElementById('sheet-body').innerText);
+    closeSheet();
+    return { shown, savedEarly, saved: after.length, name: after[0] && after[0].n,
+             bound: !!bound && bound.n, warned, sheet: '' };
+  }, [OFF_OK, OFF_ODD]);
+  check('a found packet is shown before anything is saved',
+    flow.shown === true && flow.savedEarly === 0, `shown ${flow.shown}, saved ${flow.savedEarly}`);
+  check('...keeping it saves it as your own food',
+    flow.saved === 1 && flow.name === 'Snickers, Mars', flow.name + ' | ' + flow.sheet);
+  check('...and binds it to the barcode, so it never needs looking up again',
+    flow.bound === 'Snickers, Mars', String(flow.bound));
+  check('an entry whose numbers do not add up says so', flow.warned === true);
+
+  const degrade = await page.evaluate(async () => {
+    Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
+    S = blank(); S.onboarded = true; S.settings.nutrition = true; S.settings.off = true; save(true);
+    window.fetch = () => Promise.reject(new Error('offline'));
+    await onScanned('5000159484695');
+    const txt = document.getElementById('sheet-body').innerText;
+    closeSheet();
+    return { asks: /New packet/i.test(txt), explains: /Open Food Facts/i.test(txt) };
+  });
+  check('a failed lookup lands on the same sheet as having no lookup at all',
+    degrade.asks === true);
+  check('...and says why it is asking', degrade.explains === true);
+
   check('no console errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 } finally {
   await browser.close(); server.close();

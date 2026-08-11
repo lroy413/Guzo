@@ -196,3 +196,89 @@ function nativeDetector() {
     return new BarcodeDetector({ formats: ['ean_13', 'upc_a', 'ean_8', 'upc_e'] });
   } catch (e) { return null; }
 }
+
+/* ============================================================
+   OPEN FOOD FACTS — the one external request in the app
+   ------------------------------------------------------------
+   This is a deliberate reversal of "no third-party requests, ever". It is
+   written down in docs/decisions.md rather than slipped in, because the rule
+   it breaks is one the rest of this file was designed around.
+
+   What it buys: the *first* scan of a packet working, instead of the second.
+   What it costs: one request, to one host, containing one barcode.
+
+   The terms it is allowed on:
+     · off by default, and turned on by hand in Settings
+     · never blocking — six seconds and it gives up
+     · never fatal — offline, refused, rate-limited and malformed all fall
+       through to asking you, which is exactly what happened before
+     · the answer is saved as *your* food and bound to the code, so the packet
+       is yours from then on and the request never happens again
+     · nothing is sent but the barcode: no account, no cookies, no history
+
+   The service worker does not touch it — it has always ignored cross-origin
+   requests, so this cannot end up in the app-shell cache. */
+function offEnabled() { return !!(S.settings && S.settings.off); }
+
+const OFF_HOST = 'https://world.openfoodfacts.org/api/v2/product/';
+const OFF_FIELDS = 'product_name,brands,quantity,serving_size,nutrition_data_per,nutriments';
+
+/* Crowd-sourced data, so it is checked before it is offered. Atwater again:
+   protein and carbohydrate at 4 kcal a gram, fat at 9. A row that misses by a
+   wide margin is somebody's typo on the internet, and the review sheet says so
+   rather than quietly logging it. */
+function offPlausible(f) {
+  if (!f) return false;
+  const est = f.p * 4 + f.c * 4 + f.f * 9;
+  return Math.abs(est - f.kcal) <= Math.max(60, f.kcal * 0.35);
+}
+
+function offParse(json, code) {
+  if (!json || json.status !== 1 || !json.product) return null;
+  const p = json.product, n = p.nutriments || {};
+  const num = v => { const x = parseFloat(v); return (isNaN(x) || x < 0) ? null : x; };
+
+  /* kcal where it is recorded. Plenty of European entries carry only kilojoules
+     — 4.184 of them to the calorie — and dropping those would lose a good part
+     of the database for no reason. */
+  let kcal = num(n['energy-kcal_100g']);
+  if (kcal === null) {
+    const kj = num(n['energy-kj_100g']) !== null ? num(n['energy-kj_100g']) : num(n.energy_100g);
+    if (kj !== null) kcal = kj / 4.184;
+  }
+  const prot = num(n.proteins_100g), carb = num(n.carbohydrates_100g), fat = num(n.fat_100g);
+  if (kcal === null || prot === null || carb === null || fat === null) return null;
+
+  const brand = String(p.brands || '').split(',')[0].trim();
+  const label = String(p.product_name || '').trim();
+  const name = [label, brand].filter(Boolean).join(', ').slice(0, 60);
+  if (!name) return null;
+
+  const r1 = v => Math.round(v * 10) / 10;
+  return { n: name, u: 'g', per: 100, kcal: Math.round(kcal),
+           p: r1(prot), c: r1(carb), f: r1(fat), g: 'meal',
+           serving: String(p.serving_size || '').trim(), code: normBarcode(code) };
+}
+
+/* Returns the food, or null for every kind of no. The caller cannot tell the
+   difference between "not found", "no signal" and "switched off", and does not
+   need to: all three mean the same thing to it — ask the person instead. */
+async function offLookup(code) {
+  if (!offEnabled()) return null;
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return null;
+  const c = normBarcode(code);
+  if (!validBarcode(c)) return null;
+  try {
+    const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), 6000) : null;
+    const res = await fetch(OFF_HOST + encodeURIComponent(c) + '.json?fields=' + OFF_FIELDS,
+      { credentials: 'omit', cache: 'no-store', signal: ctrl ? ctrl.signal : undefined });
+    if (timer) clearTimeout(timer);
+    if (!res || !res.ok) return null;
+    return offParse(await res.json(), c);
+  } catch (e) {
+    /* A refused request, a dropped connection, a six-second wait, a body that
+       is not JSON. Every one of them means "ask instead". */
+    return null;
+  }
+}

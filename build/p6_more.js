@@ -615,6 +615,10 @@ function sheetSettings() {
         fuelOn() ? 'On — it has its own tab, and Route moves to More' : 'Protein and calorie targets, worked out from your body data',
         fuelOn())}
       ${fuelOn() ? row('open-diet-prefs', '🍽', 'How you eat', 'Meals a day, dietary pattern, what to leave out') : ''}
+      ${fuelOn() ? toggle('toggle-off', '🌐', 'Barcode lookup', S.settings.off
+        ? 'On — the first scan of an unknown packet asks Open Food Facts. The only thing this app ever sends anywhere, and it sends only the barcode.'
+        : 'Off — everything stays on the device. An unknown packet asks you to name it once.',
+        !!S.settings.off) : ''}
     </div>
 
     <div class="eyebrow mb-s">You</div>
