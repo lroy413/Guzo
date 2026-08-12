@@ -1487,6 +1487,153 @@ try {
   check('the rest state what they cost', markers.far >= 2, String(markers.far));
   check('no placeholder text in the markers card', !BAD.test(markers.text));
 
+  /* ---- the pinned header ----
+     It used to scroll away under the status bar, so a screen's own title
+     passed behind the clock on the way out. Pinned, it needs an opaque band —
+     and the band has to be invisible, because the page behind it is a radial
+     sky gradient that shifts with the time of day. It is painted with that
+     same gradient at `background-attachment:fixed`, exactly as body paints it,
+     so the two land in the same place by construction.
+
+     "By construction" is the sort of claim that is true until it isn't, so it
+     is measured in pixels: screenshot, read the band, hide the screen's
+     contents, read the page underneath at the same point, compare. */
+  const shotPx = async (x, y) => {
+    const b64 = (await page.screenshot()).toString('base64');
+    return page.evaluate(async ({ d, x, y }) => {
+      const img = new Image();
+      await new Promise(r => { img.onload = r; img.onerror = r; img.src = d; });
+      const c = document.createElement('canvas');
+      c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d');
+      g.drawImage(img, 0, 0);
+      const dpr = img.width / window.innerWidth;
+      const p = g.getImageData(Math.round(x * dpr), Math.round(y * dpr), 1, 1).data;
+      return [p[0], p[1], p[2]];
+    }, { d: 'data:image/png;base64,' + b64, x, y });
+  };
+
+  const hdr = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    const e = EX['bb-back-squat'];
+    S.sessions = Array.from({ length: 12 }, (_, i) => ({
+      id: 'h' + i, date: dk(addDays(fromKey(today()), -(12 - i) * 2)), type: 'full',
+      env: 'full', rung: 'full', dur: 45, kcal: 320, ended: Date.now(),
+      exercises: [{ exId: e.id, name: e.name, load: e.load, targetW: 60, targetR: 8,
+        sets: [{ w: 60, r: 8, rpe: 8, done: true }], note: '' }] }));
+    checkMilestones(); save(true);
+    go('progress');
+    const s = document.getElementById('s-progress');
+    const h = s.querySelector('.hdr');
+    const atRest = Math.round(h.getBoundingClientRect().top);
+    s.scrollTop = 600;
+    return { atRest, pad: Math.round(parseFloat(getComputedStyle(s).paddingTop)) };
+  });
+  /* Scroll is dispatched asynchronously and the rule fades in, so this waits
+     for the transition to settle rather than sleeping a guess at its length —
+     a fixed 120ms read it mid-fade at 0.65 and called a working header broken. */
+  await page.waitForFunction(() => {
+    const h = document.querySelector('#s-progress .hdr');
+    return h && +getComputedStyle(h, '::after').opacity === 1;
+  }, null, { timeout: 4000 }).catch(() => {});
+  const hdrScrolled = await page.evaluate(() => {
+    const s = document.getElementById('s-progress');
+    const h = s.querySelector('.hdr');
+    return { top: Math.round(h.getBoundingClientRect().top),
+             scrollTop: Math.round(s.scrollTop),
+             rule: s.classList.contains('scrolled'),
+             hairline: getComputedStyle(h, '::after').opacity };
+  });
+  check('the header is still on screen after scrolling past it',
+    hdrScrolled.scrollTop > 400 && hdrScrolled.top === hdr.atRest,
+    `top ${hdrScrolled.top} at rest ${hdr.atRest}, scrolled ${hdrScrolled.scrollTop}`);
+  /* The sticky constraint rectangle is already inset by the scroller's padding.
+     Adding the safe-area inset to `top` on top of that counts the notch twice
+     and parks the title a hundred pixels down a real phone — which is exactly
+     zero pixels down a desktop browser, where env(safe-area-inset-top) is 0.
+     So the inset is faked, and the header must not move. */
+  const notched = await page.evaluate(() => {
+    const root = document.documentElement;
+    const before = Math.round(document.querySelector('#s-progress .hdr').getBoundingClientRect().top);
+    root.style.setProperty('--safe-t', '47px');
+    const after = Math.round(document.querySelector('#s-progress .hdr').getBoundingClientRect().top);
+    root.style.removeProperty('--safe-t');
+    return { before, after };
+  });
+  check('...clearing the notch by exactly one notch, not two',
+    notched.after - notched.before === 47,
+    `${notched.before} → ${notched.after}`);
+  check('...and a rule appears under it once something has gone beneath',
+    hdrScrolled.rule === true && +hdrScrolled.hairline === 1,
+    `${hdrScrolled.rule}, opacity ${hdrScrolled.hairline}`);
+
+  /* The band, in pixels. Sampled across the width just above the cap height,
+     so no glyph is in the way — and NOT at the far-left corner, which is where
+     the first version of this looked. On a wide viewport that corner is past
+     the outer stop of the radial and has already faded to flat --bg, so a band
+     painted flat --bg matched it exactly and the check sailed through its own
+     revert. Where the sky is at its most different is the only place worth
+     sampling. */
+  const bandAt = await page.evaluate(() => {
+    const w = window.innerWidth;
+    return [Math.round(w * 0.28), Math.round(w * 0.5), Math.round(w * 0.72)];
+  });
+  const bandPx = [];
+  for (const x of bandAt) bandPx.push(await shotPx(x, 5));
+  await page.evaluate(() => {
+    [...document.querySelectorAll('#s-progress > *')].forEach(n => { n.style.visibility = 'hidden'; });
+  });
+  const pagePx = [];
+  for (const x of bandAt) pagePx.push(await shotPx(x, 5));
+  await page.evaluate(() => {
+    [...document.querySelectorAll('#s-progress > *')].forEach(n => { n.style.visibility = ''; });
+  });
+  const drift = Math.max(...bandPx.map((p, i) => Math.max(...p.map((v, c) => Math.abs(v - pagePx[i][c])))));
+  /* The guard. If the sky at every sample point happens to equal flat --bg,
+     then "the band matches the sky" is true of a band that has no sky in it and
+     the check has proven nothing. #0a0c0f is --bg. */
+  const skyLift = Math.max(...pagePx.map(p => Math.max(Math.abs(p[0] - 10), Math.abs(p[1] - 12), Math.abs(p[2] - 15))));
+  check('the sample points have some sky in them to match',
+    skyLift > 6, `brightest sample is ${skyLift} off flat bg`);
+  check('the band behind it is invisible against the sky it sits on',
+    drift <= 2, `band ${JSON.stringify(bandPx)} vs page ${JSON.stringify(pagePx)}`);
+
+  /* And it is opaque, or the title has whatever passes under it showing
+     through — the same trap the nav records. Proven by putting something bright
+     directly behind it and checking none of it arrives.
+
+     Fixed to the viewport rather than inserted into the scroller: the first
+     version put a 120px block at the top of the content and then scrolled 600px
+     past it, so the thing it was testing with was off-screen by the time the
+     screenshot was taken, and a fully transparent band would have passed. */
+  await page.evaluate(() => {
+    const probe = document.createElement('div');
+    probe.id = 'hdr-probe';
+    probe.style.cssText = 'position:fixed;left:0;right:0;top:0;height:80px;background:#fff;z-index:5';
+    document.body.appendChild(probe);
+  });
+  const overPx = [];
+  for (const x of bandAt) overPx.push(await shotPx(x, 5));
+  await page.evaluate(() => { const n = document.getElementById('hdr-probe'); if (n) n.remove(); });
+  const bleed = Math.max(...overPx.map((p, i) => Math.max(...p.map((v, c) => Math.abs(v - pagePx[i][c])))));
+  check('...and opaque, so nothing passing under it shows through',
+    bleed <= 2, `${JSON.stringify(overPx)} vs page ${JSON.stringify(pagePx)}`);
+
+  /* Back to the top, so nothing after this inherits a scrolled screen. */
+  await page.evaluate(() => { document.getElementById('s-progress').scrollTop = 0; });
+  await page.waitForFunction(() => {
+    const h = document.querySelector('#s-progress .hdr');
+    return h && +getComputedStyle(h, '::after').opacity === 0;
+  }, null, { timeout: 4000 }).catch(() => {});
+  const hdrRest = await page.evaluate(() => {
+    const s = document.getElementById('s-progress');
+    return { rule: s.classList.contains('scrolled'),
+             hairline: getComputedStyle(s.querySelector('.hdr'), '::after').opacity };
+  });
+  check('...and no rule on a screen you have not scrolled',
+    hdrRest.rule === false && +hdrRest.hairline === 0,
+    `${hdrRest.rule}, opacity ${hdrRest.hairline}`);
+
   /* ---- motion ----
      A screen should feel like it arrived, and the app has one set of curves so
      that nothing in it moves in a way nothing else does. Two things can go

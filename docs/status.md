@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **818,529 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (368) + `engine` (239) + `fuel` (78) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **821,574 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (375) + `engine` (239) + `fuel` (78) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -24,6 +24,7 @@ Last sweep: `dupes` + `blanks` (368) + `engine` (239) + `fuel` (78) + `sw` (17) 
 | Personal bests | Complete. Called on the tick rather than at finish, marked in the row it happened in, taken back with the set. |
 | Import a plan | Complete. Offered from Structure, from the routines list, and from inside the builder. A PDF or text file becomes one routine per day — or, from the builder, movements appended to the routine you already have open: text extracted on-device with no library, movements matched to the catalogue by name, supersets read off the plan's own 4A/4B notation, and everything shown for review before anything is built. |
 | Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
+| Pinned headers | Complete. Every screen title stays put instead of scrolling behind the status bar, over a band painted with the page's own sky gradient so it is invisible, and a rule that appears only once something has gone under it. |
 | The ascent (Progress) | Complete. One switchback trail from trailhead to summit whose waypoints are the rows you read — the route card and the markers list under it were the same data twice. Chronological, with "you are here" between the last marker passed and the next. |
 | Distance and pace | Complete. Thirteen movements that cover ground ask for a distance where everything else asks for a weight, and the pace falls out of the minutes already logged. Wheels read in speed. Distance has its own unit, because kilos and miles is a normal pairing. |
 | When a day ends | Complete. `profile.dayStart` moves the boundary off midnight, up to 6am. Applied inside `today()`, so the whole app moves with it. Default 0. |
@@ -573,6 +574,65 @@ than a viewport unit. Putting `100dvh` back prints `100dvh`; zeroing the
 clearance prints `pad 0 vs nav 60` on four screens.
 
 ---
+
+### The header is pinned, and the band behind it is invisible
+
+Noticed in a screenshot and then asked for: the screen's own title scrolled away
+under the status bar, so "Distance covered" passed behind the clock on its way
+out. It is `position:sticky` now, on all six screens that have one.
+
+**The hard part was the band, not the pin.** A pinned header needs something
+opaque behind it or whatever is scrolling underneath reads straight through the
+title — the lesson the nav already records: *blur is a finish, not a substance*.
+But the page behind it is a radial sky gradient that shifts through four bands
+by time of day, so any fixed colour would sit on it as a visible slab, and a
+per-band veil token is exactly what the `data-sky` rule forbids — those bands
+may never touch a colour that was measured for contrast.
+
+The answer was to stop inventing a colour. The band is painted with the page's
+own `var(--bg-grad)` at `background-attachment:fixed`, exactly as `body` paints
+it. Attached to the viewport, the gradient lands in the same place on the band
+as on the page behind it — so the band is invisible at every scroll position,
+on every width, in all four sky bands, without knowing which one is on. It is
+fully opaque and needs no blur at all.
+
+That claim is measured rather than asserted: screenshot, read the band's pixel,
+hide the screen's contents, read the page underneath at the same point, compare.
+A flat `var(--bg)` band prints `10,12,15 vs 20,28,38`.
+
+**One bug that a desktop browser cannot show you.** The sticky constraint
+rectangle is already inset by the scroll container's padding, and `.screen`'s
+padding-top is `--safe-t + 14px`. So `top:0` lands the header exactly where it
+sits at rest. `top:var(--safe-t)` — which is what it was first, and which reads
+as the obviously correct thing — counts the notch twice and parks the title a
+hundred pixels down a real iPhone. In a headless browser `env(safe-area-inset-top)`
+is `0px`, so both versions look identical and both measure identical. The check
+fakes the inset by setting `--safe-t` on the root and asserts the header moves
+by exactly one notch, not two.
+
+**The rule under it only appears once something has gone beneath.** A hairline
+across an unscrolled screen is a divider with nothing on the other side of it.
+It is driven by one capturing `scroll` listener on the document — `scroll` does
+not bubble but it does capture, so a single handler covers all six scrollers,
+the same reasoning as the one delegated click handler.
+
+**Seven checks, six subjects proven red — and four of the checks were wrong
+first.** Two read the hairline's opacity mid-transition, reported 0.65 and 0.48,
+and called a working header broken; they wait for the value to settle now
+rather than sleeping a guess at the transition's length.
+
+The other two are the more interesting failure, because they were *green*
+through their own reverts. Both pixel checks sampled the far-left corner of the
+screen — which on a wide viewport is past the radial's outer stop and has
+already faded to flat `--bg`, so a band painted flat `--bg` matched it exactly.
+And the opacity probe was a block inserted at the top of the content and then
+scrolled 600px past, so the bright thing being tested with was off-screen before
+the screenshot was taken; a completely transparent band would have passed. They
+sample across the width at three points now, the probe is fixed to the viewport
+behind the header, and there is a **guard check that the sample points contain
+any sky at all** — because "the band matches the sky" is trivially true of a
+band with no sky in it, and a check that finds nothing by looking at nothing is
+the same shape of lie as a contrast checker that sampled no pixels.
 
 ### Progress drew its milestones twice, so now it draws them once
 

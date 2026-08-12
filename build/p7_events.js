@@ -1721,6 +1721,24 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
     });
   }
 
+  /* ---- the pinned header's hairline ----
+     One listener for all six screens. `scroll` does not bubble, but it does
+     capture, so a single capturing listener on the document sees every
+     scroller in the app — the same reasoning as the one delegated click
+     handler, and the alternative is six listeners that have to be attached and
+     detached as screens come and go.
+
+     The rule is a class rather than a style write: the transition belongs in
+     the stylesheet with the rest of the motion, and a handler that sets
+     opacity directly would fight it. */
+  document.addEventListener('scroll', ev => {
+    const el = ev.target;
+    if (!el || !el.classList || !el.classList.contains('screen')) return;
+    /* A couple of pixels of slack, so a rubber-band or a sub-pixel scroll
+       position does not flicker the rule on and off at rest. */
+    el.classList.toggle('scrolled', el.scrollTop > 4);
+  }, true);
+
   window.addEventListener('beforeunload', () => save(true));
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
 })();

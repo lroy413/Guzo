@@ -656,8 +656,42 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   padding-bottom:calc(var(--safe-b) + 96px);
 }
 
-/* ---------- header ---------- */
-.hdr{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:18px}
+/* ---------- header ----------
+   Pinned. It used to scroll away under the status bar, which on a notched
+   phone means the screen's own title passes behind the clock on the way out.
+
+   The band behind it is painted with the page's own sky — `var(--bg-grad)`
+   with `background-attachment:fixed`, exactly as body does it. Attached to the
+   viewport, the gradient lands in the same place on the band as on the page
+   behind it, so the band is invisible at every scroll position, on every
+   screen width, and in all four sky bands without knowing which one is on.
+
+   It is fully opaque for the reason the nav is: a translucent strip leaves
+   whatever is scrolling underneath legible through the title, which reads fine
+   in the stylesheet and fails a pixel-sampled contrast check. Blur is a finish,
+   not a substance — and here even the finish is unnecessary, because a band
+   that matches its backdrop needs no treatment at all.
+
+   Pinned at top:0, and that is not the same as pinning at the top of the
+   screen. The sticky constraint rectangle is inset by the scroll container's
+   padding, and .screen's padding-top is already `--safe-t + 14px` — so top:0
+   lands the header exactly where it sits at rest, clear of the status bar with
+   the same 14px above it. Adding `top:var(--safe-t)` on top of that counts the
+   notch twice and parks the title a hundred pixels down a real phone, which is
+   invisible in a desktop browser where the inset is zero. */
+.hdr{position:sticky;top:0;z-index:20;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
+  margin-bottom:18px;padding-bottom:12px}
+.hdr::before{content:'';position:absolute;z-index:-1;
+  left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
+  top:calc((var(--safe-t) + 20px) * -1);bottom:0;
+  background:var(--bg);background-image:var(--bg-grad);background-attachment:fixed}
+/* Only once something has gone under it. A rule across an unscrolled screen is
+   a divider with nothing on the other side of it. */
+.hdr::after{content:'';position:absolute;left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
+  bottom:0;height:1px;background:var(--hairline);opacity:0;
+  transition:opacity var(--t) ease}
+.screen.scrolled .hdr::after{opacity:1}
 .brand{display:flex;align-items:center;gap:9px}
 .brand-mark{width:30px;height:30px;flex:none}
 .brand-name{font-size:17px;font-weight:750;letter-spacing:-.02em}
@@ -16435,6 +16469,24 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
       location.reload();
     });
   }
+
+  /* ---- the pinned header's hairline ----
+     One listener for all six screens. `scroll` does not bubble, but it does
+     capture, so a single capturing listener on the document sees every
+     scroller in the app — the same reasoning as the one delegated click
+     handler, and the alternative is six listeners that have to be attached and
+     detached as screens come and go.
+
+     The rule is a class rather than a style write: the transition belongs in
+     the stylesheet with the rest of the motion, and a handler that sets
+     opacity directly would fight it. */
+  document.addEventListener('scroll', ev => {
+    const el = ev.target;
+    if (!el || !el.classList || !el.classList.contains('screen')) return;
+    /* A couple of pixels of slack, so a rubber-band or a sub-pixel scroll
+       position does not flicker the rule on and off at rest. */
+    el.classList.toggle('scrolled', el.scrollTop > 4);
+  }, true);
 
   window.addEventListener('beforeunload', () => save(true));
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });
