@@ -1574,9 +1574,9 @@ function renderProgress() {
 
   const jst = journeyStats();
 
-  /* The route first, because it is the answer to "how is this going" and
-     everything below is the detail behind it. */
-  let html = journeyRouteHTML();
+  /* One ascent, not a route card with the same markers listed under it. See
+     journeyAscentHTML() — the trail is the list. */
+  let html = journeyAscentHTML();
 
   /* Four numbers, stated rather than boxed. The tiles were four bordered
      squares competing with each other; a single quiet row of figures reads as
@@ -1588,10 +1588,6 @@ function renderProgress() {
        [(totalKcal() / 1000).toFixed(1) + 'k', 'kcal']]
       .map(([v, k]) => `<div class="log-i"><div class="log-v">${v}</div><div class="log-k">${k}</div></div>`).join('')}
   </div>`;
-
-  html += `<div class="sec-head"><span class="sec-t">Markers</span>
-    <span class="tiny">${milestonesReached().length} reached</span></div>`;
-  html += journeyPathHTML();
 
   html += `<div class="sec-head"><span class="sec-t">The ground behind you</span></div>`;
   html += elevationHTML(weeks);
@@ -1681,112 +1677,232 @@ function smoothPath(pts, tension) {
   return d;
 }
 
-const ROUTE_W = 320, ROUTE_H = 132;
+/* ============================================================
+   THE ASCENT — one component, not two
+   ------------------------------------------------------------
+   There used to be a route card and, directly under it, a markers list. Both
+   were drawn from the same fifteen milestones and the same journeyStats(), so
+   the screen said everything twice: the pin for "Finding your pace" sat in an
+   abstract line at the top, and its name, its progress and what it costs sat
+   forty pixels below in a different visual language. Reported as, exactly,
+   "aren't these kind of the same thing?"
 
-/* The hero. A climbing trail with your markers pinned along it, the ground
-   behind you solid and the ground ahead dashed. */
-function journeyRouteHTML() {
+   They were. This is one thing: the trail IS the list. Every marker is a
+   waypoint you can read, strung on a single switchback path that climbs from
+   the trailhead to the summit, and the "you are here" that used to be a dot on
+   an abstract line is now a real row between the last marker you passed and
+   the one you are walking towards.
+
+   Read top to bottom is walked first to last — chronological, like a trail
+   guide. The old list ran newest-first, which is right for a feed and wrong
+   for a route: it drew you walking backwards.
+
+   Nothing here is invented. There are no altitudes, no distances and no
+   summit height, because this app has no way to know them and a made-up
+   number on a screen full of real ones poisons all of them. The mountain is
+   in the drawing; the quantities are yours.
+   ============================================================ */
+
+/* The rail is two stacked pieces per row, and that is deliberate.
+
+   A single SVG spanning a row of unknown height has to stretch, and a
+   stretched circle is an ellipse — so the waypoint could not live in it. The
+   top piece is a fixed 54px with an untouched aspect ratio, which is where the
+   waypoint is drawn round; the piece under it is the connector to the next
+   row and is free to stretch, because a stretched line is still a line.
+   `vector-effect="non-scaling-stroke"` keeps its weight honest while it does.
+
+   x alternates between the two rails so the path switchbacks down the page,
+   and each row leaves at the x the next row enters at — which is the whole
+   reason the joins are invisible. */
+const RAIL_W = 46, RAIL_L = 17, RAIL_R = 29, RAIL_TOP = 54;
+
+function railHTML(xIn, xOut, cls, first, last) {
+  const nodeY = 27;
+  /* The stub above the waypoint, and the one below it inside the fixed block.
+     The trailhead has nothing above it and the summit nothing below. */
+  const up = first ? '' : `<path class="asc-line ${cls}" d="M${xIn} 0 L${xIn} ${nodeY - 13}"/>`;
+  const down = last ? '' : `<path class="asc-line ${cls}" d="M${xIn} ${nodeY + 13} L${xIn} ${RAIL_TOP}"/>`;
+  const link = last ? '' :
+    `<svg class="asc-link" viewBox="0 0 ${RAIL_W} 100" preserveAspectRatio="none" aria-hidden="true">
+       <path class="asc-line ${cls}" vector-effect="non-scaling-stroke"
+             d="M${xIn} 0 C${xIn} 42, ${xOut} 58, ${xOut} 100"/>
+     </svg>`;
+  return { top: `<svg class="asc-top" viewBox="0 0 ${RAIL_W} ${RAIL_TOP}" aria-hidden="true">${up}${down}</svg>`,
+           link, nodeY };
+}
+
+/* The waypoint itself. Reached ones are filled and lit; the one you are
+   walking towards carries a ring showing how far through it you are, which is
+   the progress bar the old list drew as a separate stripe — same number, one
+   fewer thing on the screen. */
+function wayNodeHTML(m, state, pct) {
+  /* The summit is a peak, not a disc. It is the only waypoint that is a place
+     rather than a thing you did, and drawing it in the same circle as the
+     others said it was just one more of them. */
+  if (state === 'summit') {
+    return `<span class="asc-node summit">
+      <svg viewBox="0 0 40 26" aria-hidden="true">
+        <path class="asc-peak-f" d="M1 25 L13 7 L20 16 L28 2 L39 25 Z"/>
+        <path class="asc-peak-s" d="M28 2 L33 12 L28 14.5 L23.5 9 Z"/>
+      </svg>
+    </span>`;
+  }
+  const R = 15.5, C = 2 * Math.PI * R;
+  const ring = (state === 'next' && pct != null)
+    ? `<svg class="asc-ring" viewBox="0 0 40 40" aria-hidden="true">
+         <circle class="asc-ring-t" cx="20" cy="20" r="${R}"/>
+         <circle class="asc-ring-i" cx="20" cy="20" r="${R}"
+                 style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${(C * (1 - pct / 100)).toFixed(1)}"/>
+       </svg>` : '';
+  return `<span class="asc-node ${state}">${ring}<span class="asc-ico">${m.ico}</span></span>`;
+}
+
+function ascentRowHTML(o) {
+  const rail = railHTML(o.xIn, o.xOut, o.cls, o.first, o.last);
+  return `<div class="asc-row ${o.state}">
+    <div class="asc-rail">
+      ${rail.top}
+      ${rail.link}
+      <span class="asc-node-wrap" style="left:${o.xIn}px;top:${rail.nodeY}px">
+        ${wayNodeHTML(o.m, o.state, o.pct)}
+      </span>
+    </div>
+    <div class="asc-body">${o.content}</div>
+  </div>`;
+}
+
+/* The hero and the list, together. */
+function journeyAscentHTML() {
   const st = journeyStats();
   const reached = milestonesReached();
   const next = nextMilestone();
+  const upcoming = MILESTONES.filter(m => !(S.journey && S.journey.reached && S.journey.reached[m.k]));
 
-  /* At most five behind you, so the pins stay legible on a 360px screen. What
-     is cut is stated rather than silently dropped. */
-  const shown = reached.slice(-5);
-  const hidden = reached.length - shown.length;
-  let nodes = shown.map(m => ({ m, done: true })).concat(next ? [{ m: next, done: false }] : []);
+  /* Four behind and three ahead keeps the whole ascent on one screen without
+     scrolling past it. What is cut is counted at the trailhead and at the
+     summit rather than silently dropped — a route that quietly loses its
+     middle is a route you cannot trust. */
+  const behind = reached.slice(-4);
+  const hiddenBack = reached.length - behind.length;
+  const ahead = upcoming.filter(m => !next || m.k !== next.k).slice(0, 2);
+  const hiddenFwd = upcoming.length - ahead.length - (next ? 1 : 0);
 
-  /* Two points minimum so there is always a trail to look at — an empty route
-     ahead of you is the honest picture on day one, not a broken card. */
-  const n = Math.max(2, nodes.length);
-  /* Padded at the front, so the markers always end at the right. With nothing
-     reached the single pin was landing at the *start* of the trail and the
-     dashed line climbed away from it — drawing the thing you are walking
-     towards as something already behind you. */
-  while (nodes.length < n) nodes.unshift(null);
-  /* Inset by more than the pin radius, or the last pin is clipped by the
-     viewBox — which is exactly what the first version did. */
-  const x0 = 26, x1 = ROUTE_W - 26;
-  const pts = [];
-  for (let i = 0; i < n; i++) {
-    const f = n === 1 ? 0 : i / (n - 1);
-    /* Climbing left to right, with a gentle undulation so it reads as ground
-       rather than a graph line. */
-    const y = 104 - f * 62 + Math.sin(f * Math.PI * 2.1) * 9;
-    pts.push([x0 + f * (x1 - x0), y]);
+  const rows = [];
+  let x = RAIL_L;
+  const flip = () => { x = (x === RAIL_L ? RAIL_R : RAIL_L); return x; };
+
+  /* Chronological: the first marker you reached is the first one you read. */
+  behind.forEach((m, i) => {
+    const need = milestoneNeed(m.k, st);
+    /* The most recent one carries its full text. The ones before it have been
+       read already and become one line, so the route stays walkable. */
+    const isLatest = i === behind.length - 1;
+    const xIn = x, xOut = flip();
+    rows.push({
+      m, state: 'done', cls: 'walked', xIn, xOut, first: rows.length === 0 && !hiddenBack, last: false,
+      content: `<div class="row between gap-s"><div class="asc-t">${h(m.title)}</div>
+          <div class="asc-when">${h(relDate(m.on))}</div></div>
+        ${isLatest ? `<p class="asc-body-t">${h(m.body)}</p>`
+                   : `<div class="asc-d">${h((need && need.t) || 'Reached')}</div>`}`
+    });
+  });
+
+  /* Where you actually are. This was a 4px dot on an abstract line; it is the
+     one row on the screen that describes the present. */
+  if (next && reached.length) {
+    const xIn = x, xOut = flip();
+    rows.push({
+      m: { ico: '' }, state: 'here', cls: 'walked', xIn, xOut, first: false, last: false,
+      content: `<div class="asc-here-t">You are here</div>
+        <div class="asc-d">Day ${st.day} &middot; ${reached.length} of ${MILESTONES.length} markers behind you</div>`
+    });
   }
 
-  const doneN = nodes.filter(nd => nd && nd.done).length;
-  const walked = pts.slice(0, Math.max(1, doneN));
-  const ahead = pts.slice(Math.max(0, doneN - 1));
+  if (next) {
+    const need = milestoneNeed(next.k, st);
+    const xIn = x, xOut = flip();
+    rows.push({
+      m: next, state: 'next', pct: need && need.goal ? need.pct : null,
+      cls: 'ahead', xIn, xOut, first: !rows.length, last: false,
+      content: `<div class="row between gap-s"><div class="asc-t">${h(next.title)}</div>
+          ${need && need.goal ? `<div class="asc-when mono">${need.have}<span class="asc-of">/${need.goal}</span></div>` : ''}</div>
+        <div class="asc-d">${h((need && need.t) || 'Next on the route')}</div>
+        ${next.left > 0 ? `<div class="asc-away">${next.left} ${h(next.unit)} away</div>` : ''}`
+    });
+  }
 
-  /* Ground only under the part you have walked. Filling the whole width put a
-     block of gradient under the dashed section, which read as a grey panel
-     rather than terrain — and said, wrongly, that the ground ahead is already
-     yours. The left edge runs off the card so it meets the frame like a
-     hillside instead of floating. */
-  /* Both ends run off the frame — the left below the card edge, the right as a
-     slope falling away. Closing it straight down from the last marker drew a
-     wall, which is the one shape terrain never makes. */
-  const ridge = doneN > 1
-    ? smoothPath(walked) + ` L${(walked[walked.length - 1][0] + 30).toFixed(1)} ${ROUTE_H} L0 ${ROUTE_H} Z`
-    : '';
+  ahead.forEach(m => {
+    const need = milestoneNeed(m.k, st);
+    const xIn = x, xOut = flip();
+    rows.push({
+      m, state: 'far', cls: 'ahead', xIn, xOut, first: !rows.length, last: false,
+      content: `<div class="asc-oneline"><div class="asc-t">${h(m.title)}</div>
+        <div class="asc-need">${h((need && need.t) || 'Further on')}</div></div>`
+    });
+  });
 
-  /* Between the last marker and the next one, which is where you actually are.
-     Sitting it on top of the last pin hid the pin and claimed you were
-     standing still on it. */
-  const last = pts[Math.max(0, doneN - 1)];
-  const nextPt = pts[doneN];
-  const here = (doneN > 0 && nextPt)
-    ? [last[0] + (nextPt[0] - last[0]) * 0.42, last[1] + (nextPt[1] - last[1]) * 0.42 - 1]
-    : null;
+  /* The end of the route, on the route. It was a separate panel sitting beside
+     the trail, which put the one thing every waypoint is pointing at outside
+     the thing that points at it — and left the dashed line trailing off the
+     bottom of the card into nothing. It is the last waypoint now, and the
+     trail terminates on it. Not a sixteenth marker: it carries no date, no
+     progress and no test, because it is where the fifteen lead rather than one
+     of them. */
+  const allDone = !next && !ahead.length;
+  rows.push({
+    m: { ico: '' }, state: 'summit', cls: 'ahead', xIn: x, xOut: x, first: !rows.length, last: true,
+    content: `<div class="asc-summit-t">${allDone ? 'Summit reached' : 'The summit'}</div>
+      <div class="asc-d">${allDone
+        ? 'Every marker behind you. The route carries on regardless.'
+        : (hiddenFwd > 0
+            ? `${hiddenFwd} more marker${hiddenFwd === 1 ? '' : 's'} between here and it`
+            : 'The last of the fifteen')}</div>`
+  });
 
-  const pin = (p, node, i) => {
-    if (!node) return '';
-    const done = node.done;
-    return `<g class="rt-pin ${done ? 'on' : 'ahead'}">
-      <circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="12.5"></circle>
-      <text x="${p[0].toFixed(1)}" y="${(p[1] + 4.6).toFixed(1)}" text-anchor="middle" font-size="12.5">${node.m.ico}</text>
-    </g>`;
-  };
+  const body = rows.map(ascentRowHTML).join('');
 
-  return `<div class="route">
-    <div class="route-sky"></div>
-    <div class="route-head">
+  return `<div class="ascent">
+    ${/* The ridge sits behind the header text and nowhere near a set of set
+          rows. It is decoration and carries no number — see the note above on
+          why there are no altitudes on this screen. */''}
+    <div class="asc-ridge" aria-hidden="true">
+      <svg viewBox="0 0 320 104" preserveAspectRatio="none">
+        <defs>
+          ${/* Three layers, back to front, each darker and lower — aerial
+                perspective is the whole reason a range reads as distance
+                rather than as a zigzag. The far one is lit warm because the
+                light in this app comes from the top of the card. */''}
+          <linearGradient id="asc-l1" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#E9B44C" stop-opacity=".17"/>
+            <stop offset="100%" stop-color="#E9B44C" stop-opacity=".02"/>
+          </linearGradient>
+        </defs>
+        <path fill="url(#asc-l1)" d="M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58 L320 104 L0 104 Z"/>
+        <path fill="#1b222b" fill-opacity=".72" d="M0 104 L28 74 L62 90 L104 58 L138 82 L178 60 L214 86 L252 66 L292 88 L320 72 L320 104 Z"/>
+        <path fill="#12161c" fill-opacity=".92" d="M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90 L320 104 Z"/>
+      </svg>
+    </div>
+
+    <div class="asc-head">
       <div>
-        <div class="route-eyebrow">Your guzo</div>
-        <div class="route-day">Day ${st.day}</div>
+        <div class="asc-eyebrow">Your guzo</div>
+        <div class="asc-day">Day ${st.day}</div>
       </div>
-      <div class="route-count">
-        <span class="route-count-n">${reached.length}</span>
-        <span class="route-count-l">of ${MILESTONES.length}<br>markers</span>
+      <div class="asc-count">
+        <span class="asc-count-n">${reached.length}</span>
+        <span class="asc-count-l">of ${MILESTONES.length}<br>markers</span>
       </div>
     </div>
 
-    <svg class="route-svg" viewBox="0 0 ${ROUTE_W} ${ROUTE_H}" role="img"
-         aria-label="Your route: ${reached.length} of ${MILESTONES.length} markers reached${next ? ', next is ' + next.title : ''}">
-      <defs>
-        <linearGradient id="rt-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#E9B44C" stop-opacity=".20"/>
-          <stop offset="100%" stop-color="#E9B44C" stop-opacity="0"/>
-        </linearGradient>
-      </defs>
-      ${ridge ? `<path class="route-ground" d="${ridge}" fill="url(#rt-fill)"/>` : ''}
-      <path class="route-ahead" d="${smoothPath(ahead)}"/>
-      ${doneN > 1 ? `<path class="route-walked" d="${smoothPath(walked)}"/>` : ''}
-      ${here ? `<circle class="route-here" cx="${here[0].toFixed(1)}" cy="${here[1].toFixed(1)}" r="4.2"/>` : ''}
-      ${pts.map((p, i) => pin(p, nodes[i], i)).join('')}
-    </svg>
+    ${hiddenBack > 0
+      ? `<div class="asc-cap top"><span class="asc-cap-l"></span>
+           <span class="asc-cap-t">${hiddenBack} marker${hiddenBack === 1 ? '' : 's'} further back</span></div>`
+      : ''}
 
-    <div class="route-foot">
-      ${next
-        ? `<div class="route-next"><span class="route-next-k">Next</span>
-             <span class="route-next-t">${h(next.title)}</span>
-             ${next.left > 0 ? `<span class="route-next-d">${next.left} ${h(next.unit)} away</span>` : ''}</div>`
-        : `<div class="route-next"><span class="route-next-t">Every marker reached.</span>
-             <span class="route-next-d">The route carries on regardless.</span></div>`}
-      ${hidden > 0 ? `<span class="route-behind">+${hidden} behind you</span>` : ''}
-    </div>
+    ${reached.length ? '' : `<p class="asc-first">Nothing behind you yet. The first marker arrives with your first session &mdash; and it is the one most people who download a training app never reach.</p>`}
+
+    <div class="asc-path">${body}</div>
   </div>`;
 }
 
@@ -1847,66 +1963,6 @@ function elevationHTML(weeks) {
    marker costs, the ones you can measure show how far along you are, and the
    one you just passed says what it meant — the sentence was already written
    and was only ever shown once, in the sheet at the end of a session. */
-function journeyPathHTML() {
-  const st = journeyStats();
-  const reached = milestonesReached();
-  const upcoming = MILESTONES.filter(m => !(S.journey && S.journey.reached && S.journey.reached[m.k]));
-  /* Four ahead, not two. Two makes the road look like it ends just past your
-     feet; the rest are counted underneath rather than hidden. */
-  const soon = upcoming.slice(0, 4);
-  const rest = upcoming.length - soon.length;
-  const back = reached.slice().reverse();
-
-  const doneRow = (m, first) => {
-    const need = milestoneNeed(m.k, st);
-    return `<div class="jnode done">
-      <div class="jnode-ico">${m.ico}</div>
-      <div class="grow">
-        <div class="row between gap-s"><div class="jnode-t">${h(m.title)}</div>
-          <div class="jnode-when">${h(relDate(m.on))}</div></div>
-        ${first
-          ? `<p class="jnode-body">${h(m.body)}</p>`
-          : `<div class="jnode-d">${h((need && need.t) || 'Reached')}</div>`}
-      </div>
-    </div>`;
-  };
-
-  const aheadRow = (m, next) => {
-    const need = milestoneNeed(m.k, st);
-    /* Only the one you are walking towards carries a count and a bar. Four
-       rows of "1/10, 1/25, 1/50" is a scoreboard of everything you have not
-       done yet, which is the opposite of what this screen is for. The rest
-       state what they cost, on one line, and leave it there. */
-    if (!next) {
-      return `<div class="jnode far">
-        <div class="jnode-ico">${m.ico}</div>
-        <div class="grow jnode-oneline">
-          <div class="jnode-t">${h(m.title)}</div>
-          <div class="jnode-need">${h((need && need.t) || 'Further on')}</div>
-        </div>
-      </div>`;
-    }
-    return `<div class="jnode next">
-      <div class="jnode-ico">${m.ico}</div>
-      <div class="grow">
-        <div class="row between gap-s"><div class="jnode-t">${h(m.title)}</div>
-          ${need && need.goal ? `<div class="jnode-when mono">${need.have}<span class="jnode-of">/${need.goal}</span></div>` : ''}</div>
-        <div class="jnode-d">${h((need && need.t) || 'Next on the route')}</div>
-        ${need && need.goal ? `<div class="jnode-bar"><i style="width:${need.pct}%"></i></div>` : ''}
-      </div>
-    </div>`;
-  };
-
-  return `<div class="card mb">
-    ${reached.length ? '' : `<p class="small mb">Nothing behind you yet. The first marker arrives with your first session &mdash; and it is the one most people who download a training app never reach.</p>`}
-    <div class="jpath">
-      ${back.map((m, i) => doneRow(m, i === 0)).join('')}
-      ${soon.map((m, i) => aheadRow(m, i === 0)).join('')}
-    </div>
-    ${rest > 0 ? `<p class="tiny center mt-s">${rest} more marker${rest === 1 ? '' : 's'} further along the route.</p>` : ''}
-  </div>`;
-}
-
 function sparkHTML(vals) {
   if (vals.length < 2) return '';
   const min = Math.min(...vals), max = Math.max(...vals);

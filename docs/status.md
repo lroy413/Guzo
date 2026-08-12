@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **813,442 bytes**, `VERSION = '1.2.0'`.
-Last sweep: `dupes` + `blanks` (362) + `engine` (239) + `fuel` (78) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **818,529 bytes**, `VERSION = '1.2.0'`.
+Last sweep: `dupes` + `blanks` (368) + `engine` (239) + `fuel` (78) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -24,6 +24,7 @@ Last sweep: `dupes` + `blanks` (362) + `engine` (239) + `fuel` (78) + `sw` (17) 
 | Personal bests | Complete. Called on the tick rather than at finish, marked in the row it happened in, taken back with the set. |
 | Import a plan | Complete. Offered from Structure, from the routines list, and from inside the builder. A PDF or text file becomes one routine per day — or, from the builder, movements appended to the routine you already have open: text extracted on-device with no library, movements matched to the catalogue by name, supersets read off the plan's own 4A/4B notation, and everything shown for review before anything is built. |
 | Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
+| The ascent (Progress) | Complete. One switchback trail from trailhead to summit whose waypoints are the rows you read — the route card and the markers list under it were the same data twice. Chronological, with "you are here" between the last marker passed and the next. |
 | Distance and pace | Complete. Thirteen movements that cover ground ask for a distance where everything else asks for a weight, and the pace falls out of the minutes already logged. Wheels read in speed. Distance has its own unit, because kilos and miles is a normal pairing. |
 | When a day ends | Complete. `profile.dayStart` moves the boundary off midnight, up to 6am. Applied inside `today()`, so the whole app moves with it. Default 0. |
 | Two sessions a day | Complete. Both are kept and both are shown; the session that discharged the day names it. |
@@ -218,6 +219,11 @@ That last property took two attempts to test honestly. The first check asserted 
 Asked for directly: *"The progress screen feels clunky and boring. A lot of information but I feel like we should lean into the journey aspect a little more."* Eight stacked cards of accurate numbers, and the one screen where ጉዞ should be visible rather than implied was the one screen that looked like a spreadsheet.
 
 **The route is the hero now.** A trail climbing across the card with your markers pinned along it: solid ground and a solid line behind you, dashed ahead, a teal dot on the trail between the last marker you reached and the one you are walking towards. Underneath it, the next marker named and how far away it is.
+
+> **Superseded.** This card and the markers list under it were the same fifteen
+> milestones drawn twice, and were merged into one vertical ascent — see
+> "Progress drew its milestones twice" below. What follows describes the state
+> it replaced.
 
 Everything in it is real. The trail is your milestones in the order you actually reached them, capped at five shown with the remainder stated rather than dropped ("+3 behind you"). Nothing is invented to make the picture nicer — a journey you did not take is not worth drawing.
 
@@ -567,6 +573,74 @@ than a viewport unit. Putting `100dvh` back prints `100dvh`; zeroing the
 clearance prints `pad 0 vs nav 60` on four screens.
 
 ---
+
+### Progress drew its milestones twice, so now it draws them once
+
+Reported, exactly: "aren't these kind of the same thing? Can we find a way to
+merge it."
+
+They were the same thing. The screen led with a route card — an abstract line
+with pins on it and a "NEXT — Finding your pace, 1 session away" foot — and
+then, forty pixels below, a markers list with the same fifteen milestones, the
+same names, the same progress and the same next. Two visual languages, one set
+of data, and no way to tell which one you were supposed to read.
+
+**The merge is that the trail is the list.** One switchback path climbs from
+the trailhead to the summit, and every waypoint on it is a row you can read.
+The dot that used to represent "you are here" on an abstract line is now a real
+row, sitting between the last marker you passed and the one you are walking
+towards. The progress bar the list drew as a separate stripe is the ring
+around that waypoint. The summit is the last waypoint rather than a panel
+beside the trail, so the dashed line terminates on it instead of running off
+the bottom of the card.
+
+**It reads in the order you walked it.** The old list ran newest-first, which
+is right for a feed and draws you walking backwards on a route.
+
+**There are no altitudes on it, and that is deliberate.** A metre count would
+have made the mountain far easier to sell and every real number on the screen
+harder to trust — this app has no way to know an elevation, and one invented
+figure among fourteen honest ones poisons all of them. The mountain is in the
+drawing: three ridge layers with aerial perspective behind the header, a
+switchback that actually bends, and a peak at the end. The quantities stay
+yours.
+
+**Two real bugs, both found by looking at it rather than by reading it.**
+
+- **Every connector was exactly 100px tall, whatever its row did.** The trail
+  segment between waypoints is an `<svg>` positioned with `top` and `bottom`
+  and `height:auto` — but an `<svg>` is a *replaced element*, so `height:auto`
+  resolves from its own viewBox aspect ratio and `bottom` is dropped as
+  over-constrained. Long rows got a gap, short rows got an overshoot, and the
+  trail visibly broke. It states `height:calc(100% - 54px)` now. The check
+  measures the rendered delta rather than reading the stylesheet.
+- **The ridge painted over the words.** The silhouette is absolutely
+  positioned at the top of the card and only the header had been given a
+  stacking context — so on a fresh profile, the one state with a paragraph up
+  that high, the first line of it was drawn over. Every piece of content in the
+  card is `position:relative` now. The check asks `elementFromPoint` what is
+  actually on top of that paragraph, because a stylesheet reading would have
+  said it was fine.
+
+A third thing had to be fixed before any of it could be proven: the row was
+54px tall at minimum, which is exactly the height of the waypoint block, so a
+short row left the connector **zero pixels to drift across** and the switchback
+happened instantaneously as a kink. Rows carry a minimum that leaves the turn
+somewhere to happen.
+
+**28 checks, six subjects proven red** — including the merge itself, which is
+an assertion of *absence* and so was proven by putting a second markers list
+back under the ascent and watching it go red.
+
+One of the six went green through its own revert, which is how the check got
+fixed rather than trusted. The ridge check asked `elementFromPoint` what was on
+top of the paragraph — but the ridge is `pointer-events:none`, so
+`elementFromPoint` can never return it, and the probe reported the paragraph
+whether or not it was being painted over. Hit-testing order is paint order when
+both are hittable, so the check now makes the ridge hittable for the length of
+the measurement and puts it back. **A check you have not watched fail is not a
+passing check, it is an untested one** — the fifth time this file has had to
+say so, and the first where the vacuous version survived a full revert.
 
 ### A run has a distance, and never had a weight
 

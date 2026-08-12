@@ -1239,29 +1239,45 @@ try {
   check('a gesture that scrolled the screen never re-renders it',
     swipeGuard.afterScrolled === 'This week', swipeGuard.afterScrolled);
 
-  /* ---- the route on Progress ----
-     The screen was eight stacked cards of correct numbers and no feeling. The
-     risk in redrawing it as a journey is that the picture stops matching the
-     data — a trail that always looks like progress is worse than a bar chart
-     that sometimes looks flat. So what is asserted here is that the drawing
-     tracks the state: markers behind you are solid, the one ahead is not, and
-     an empty history draws an empty route rather than a broken one. */
+  /* ---- the ascent on Progress ----
+     This screen used to draw its fifteen milestones twice: a route card with
+     abstract pins, and a markers list under it with the same names, the same
+     progress and the same "next". Reported as "aren't these kind of the same
+     thing?" — they were. The merge is one switchback trail whose waypoints are
+     the rows you read, so what is asserted here is both that the drawing still
+     tracks the state and that there is exactly ONE of it. */
   const route = await page.evaluate(() => {
     const read = () => {
       go('progress');
       const b = document.getElementById('progress-body');
-      const svg = b.querySelector('.route-svg');
+      const rows = [...b.querySelectorAll('.asc-row')];
+      const ring = b.querySelector('.asc-ring-i');
+      /* The connector under each waypoint must fill the room between that row's
+         waypoint block and the next row's. An <svg> is a replaced element, so
+         `height:auto` with top/bottom resolves from its own viewBox instead —
+         which locked every connector to 100px whatever the row did, and left a
+         visible gap under a long row. Measured, not read off the stylesheet. */
+      const links = [...b.querySelectorAll('.asc-row')].map(r => {
+        const l = r.querySelector('.asc-link');
+        if (!l) return null;
+        return Math.round(l.getBoundingClientRect().height - (r.getBoundingClientRect().height - 54));
+      }).filter(v => v !== null);
       return {
-        hero: !!b.querySelector('.route'),
-        day: (b.querySelector('.route-day') || {}).textContent || '',
-        count: (b.querySelector('.route-count-n') || {}).textContent || '',
-        pinsOn: svg ? svg.querySelectorAll('.rt-pin.on').length : -1,
-        pinsAhead: svg ? svg.querySelectorAll('.rt-pin.ahead').length : -1,
-        walked: svg ? svg.querySelectorAll('.route-walked').length : -1,
-        ground: svg ? svg.querySelectorAll('.route-ground').length : -1,
-        here: svg ? svg.querySelectorAll('.route-here').length : -1,
-        next: (b.querySelector('.route-next-t') || {}).textContent || '',
-        /* No leftover from the old screen. */
+        hero: !!b.querySelector('.ascent'),
+        /* The merge: no second list of the same markers anywhere on the screen. */
+        oldList: b.querySelectorAll('.jpath, .jnode, .route, .route-svg').length,
+        day: (b.querySelector('.asc-day') || {}).textContent || '',
+        count: (b.querySelector('.asc-count-n') || {}).textContent || '',
+        titles: rows.map(r => (r.querySelector('.asc-t, .asc-here-t, .asc-summit-t') || {}).textContent || ''),
+        states: rows.map(r => r.className.replace('asc-row', '').trim()),
+        done: rows.filter(r => r.classList.contains('done')).length,
+        here: rows.filter(r => r.classList.contains('here')).length,
+        summit: rows.filter(r => r.classList.contains('summit')).length,
+        walkedLines: b.querySelectorAll('.asc-line.walked').length,
+        aheadLines: b.querySelectorAll('.asc-line.ahead').length,
+        ringOffset: ring ? +ring.style.strokeDashoffset : null,
+        ringArray: ring ? +ring.style.strokeDasharray : null,
+        linkErrors: links.filter(d => Math.abs(d) > 1),
         oldTiles: b.querySelectorAll('.tiles .tile').length,
         text: b.innerText || ''
       };
@@ -1269,6 +1285,36 @@ try {
 
     S = blank(); S.onboarded = true; save(true);
     const fresh = read();
+    /* The ridge is decoration and sits absolutely at the top of the card. On a
+       fresh profile — the one state where a paragraph sits that high — it
+       painted straight over the first line of it. Asked of the renderer, not
+       of the stylesheet: what is actually on top at that pixel? */
+    const p = document.querySelector('.asc-first');
+    const ridge = document.querySelector('.asc-ridge');
+    let onTop = '(no paragraph)';
+    if (p && ridge) {
+      const r = p.getBoundingClientRect();
+      const rr = ridge.getBoundingClientRect();
+      /* They have to actually overlap, or this proves nothing about stacking. */
+      if (r.top >= rr.bottom) { onTop = '(no overlap to test)'; }
+      else {
+        /* The ridge is pointer-events:none, so elementFromPoint can never
+           return it — the first version of this check could not fail and did
+           not, straight through the revert. Hit-testing order is paint order
+           when both are hittable, so make it hittable for the measurement.
+           This changes what the probe can see, not what the app does. */
+        const prev = ridge.style.pointerEvents;
+        ridge.style.pointerEvents = 'auto';
+        const el = document.elementFromPoint(r.left + 12, r.top + 8);
+        ridge.style.pointerEvents = prev;
+        /* getAttribute, not .className — on an SVG element that is an
+           SVGAnimatedString and prints as [object SVGAnimatedString], which
+           tells whoever is reading the failure nothing at all. */
+        onTop = el ? ((el.getAttribute && el.getAttribute('class')) || el.tagName) : 'none';
+        if (el && el.closest && el.closest('.asc-ridge')) onTop = 'asc-ridge > ' + onTop;
+      }
+    }
+    fresh.overParagraph = String(onTop);
 
     /* A real history: enough sessions to have passed several markers. */
     S = blank(); S.onboarded = true;
@@ -1281,68 +1327,112 @@ try {
           sets: Array.from({ length: 3 }, () => ({ w: 60, r: 8, rpe: 8, done: true })), note: '' }] }));
     checkMilestones(); save(true);
     const rich = read();
-    return { fresh, rich };
+    /* What the trail should be able to say about itself, independently. */
+    const order = milestonesReached().map(m => m.title);
+    return { fresh, rich, order };
   });
-  check('Progress leads with the route', route.rich.hero === true);
-  check('...and the old tile grid is gone', route.rich.oldTiles === 0, String(route.rich.oldTiles));
+  check('Progress leads with the ascent', route.rich.hero === true);
+  /* The reported complaint, as a check: one component, not two. */
+  check('...and the markers are not drawn a second time under it',
+    route.rich.oldList === 0, String(route.rich.oldList));
+  check('...and the old tile grid is still gone', route.rich.oldTiles === 0, String(route.rich.oldTiles));
   check('...it names the day', /^Day \d+$/.test(route.rich.day), route.rich.day);
   check('...and how many markers are behind you', +route.rich.count > 0, route.rich.count);
+
   /* The drawing has to match the state, not decorate it. */
-  check('markers reached are drawn solid on the trail', route.rich.pinsOn > 0, String(route.rich.pinsOn));
-  check('...the one ahead is drawn as ahead', route.rich.pinsAhead === 1, String(route.rich.pinsAhead));
-  check('...the ground you covered is filled in', route.rich.ground === 1, String(route.rich.ground));
-  check('...and there is a you-are-here on the trail', route.rich.here === 1, String(route.rich.here));
-  check('...with the next marker named', route.rich.next.length > 3, route.rich.next);
+  check('markers reached are waypoints on the walked trail',
+    route.rich.done > 0 && route.rich.walkedLines > 0,
+    `${route.rich.done} done, ${route.rich.walkedLines} walked`);
+  check('...the trail ahead of you is drawn as ahead', route.rich.aheadLines > 0,
+    String(route.rich.aheadLines));
+  check('...you are here sits on it exactly once', route.rich.here === 1, String(route.rich.here));
+  check('...and the route ends on a summit', route.rich.summit === 1, String(route.rich.summit));
+
+  /* Chronological. The old list ran newest-first, which is right for a feed and
+     draws you walking backwards on a trail. */
+  const walkedTitles = route.rich.titles.slice(0, route.rich.done);
+  const expected = route.order.slice(-walkedTitles.length);
+  check('the trail reads in the order you walked it',
+    walkedTitles.length > 1 && walkedTitles.join('|') === expected.join('|'),
+    walkedTitles.join(' → '));
+  check('...with you-are-here after the last one you passed',
+    route.rich.states.indexOf('here') === route.rich.done,
+    route.rich.states.join(','));
+  check('...and the summit last', route.rich.states[route.rich.states.length - 1] === 'summit',
+    route.rich.states.join(','));
+
+  /* The progress bar the old list drew as a separate stripe is the ring around
+     the waypoint now. Same number: a partial one must be partly drawn. */
+  check('the marker you are walking towards carries its progress as a ring',
+    route.rich.ringArray > 0 && route.rich.ringOffset > 0
+      && route.rich.ringOffset < route.rich.ringArray,
+    `${route.rich.ringOffset} of ${route.rich.ringArray}`);
+
+  /* The two bugs this redraw actually had. */
+  check('every connector fills the row it spans',
+    route.rich.linkErrors.length === 0, JSON.stringify(route.rich.linkErrors));
+  check('...on a fresh profile too', route.fresh.linkErrors.length === 0,
+    JSON.stringify(route.fresh.linkErrors));
+  check('the ridge never paints over the words',
+    /asc-first/.test(route.fresh.overParagraph), route.fresh.overParagraph);
+
   check('no placeholder text on Progress', !BAD.test(route.rich.text));
 
   /* Day one has to draw an honest empty route, not a broken card. */
   check('a fresh profile still gets a route', route.fresh.hero === true);
-  check('...with nothing behind you', route.fresh.pinsOn === 0 && route.fresh.count === '0',
-    `${route.fresh.pinsOn} pins, count ${route.fresh.count}`);
-  check('...no walked line and no ground', route.fresh.walked === 0 && route.fresh.ground === 0,
-    `${route.fresh.walked}/${route.fresh.ground}`);
+  check('...with nothing behind you', route.fresh.done === 0 && route.fresh.count === '0',
+    `${route.fresh.done} walked, count ${route.fresh.count}`);
+  check('...and no walked trail', route.fresh.walkedLines === 0, String(route.fresh.walkedLines));
   check('...no you-are-here before you have started', route.fresh.here === 0, String(route.fresh.here));
-  check('...but the first marker is drawn ahead', route.fresh.pinsAhead === 1, String(route.fresh.pinsAhead));
+  check('...but the route and its summit are still drawn',
+    route.fresh.aheadLines > 0 && route.fresh.summit === 1,
+    `${route.fresh.aheadLines} ahead, ${route.fresh.summit} summit`);
   check('no placeholder text on an empty Progress', !BAD.test(route.fresh.text));
 
-  /* The pins are drawn at coordinates the trail passes through. A curve that
-     approximates its points floats them off the line, which is the difference
-     between a route and a decoration. */
+  /* Every waypoint has to sit ON the trail, not beside it. The node is an HTML
+     element and the trail is an SVG path, so nothing enforces this — the two
+     agree only because both are placed from the same number, and the day
+     somebody changes the rail width in the stylesheet without changing it in
+     the renderer they will part company silently. Measured in page pixels, so
+     it is the drawn positions being compared and not the two constants. */
   const onTrail = await page.evaluate(() => {
     go('progress');
-    const svg = document.querySelector('#progress-body .route-svg');
-    if (!svg) return { checked: 0, off: ['no svg'] };
-    /* Both segments: the walked line stops at the last marker reached, so a pin
-       for the marker ahead sits on the dashed one. Measuring against only one
-       of them reported a correctly-placed pin as 53 units adrift. */
-    const lines = [...svg.querySelectorAll('.route-walked, .route-ahead')];
-    if (!lines.length) return { checked: 0, off: ['no line'] };
+    const rows = [...document.querySelectorAll('#progress-body .asc-row')];
+    if (!rows.length) return { checked: 0, off: ['no rows'] };
     const off = [];
     let checked = 0;
-    svg.querySelectorAll('.rt-pin circle').forEach(c => {
-      const cx = +c.getAttribute('cx'), cy = +c.getAttribute('cy');
+    rows.forEach((r, i) => {
+      const node = r.querySelector('.asc-node-wrap');
+      const top = r.querySelector('.asc-top');
+      if (!node || !top) return;
+      const paths = [...top.querySelectorAll('path')];
+      if (!paths.length) return;   // trailhead and summit legitimately have one side only
+      const nb = node.getBoundingClientRect();
+      const cx = nb.left + nb.width / 2;
+      const tb = top.getBoundingClientRect();
+      /* The top block is rendered at its intrinsic size, so one SVG unit is one
+         CSS pixel and a path's x maps straight onto the page. */
       let best = 1e9;
-      lines.forEach(line => {
-        const len = line.getTotalLength();
-        for (let i = 0; i <= 200; i++) {
-          const p = line.getPointAtLength(len * i / 200);
-          const d = Math.hypot(p.x - cx, p.y - cy);
-          if (d < best) best = d;
+      paths.forEach(p => {
+        const len = p.getTotalLength();
+        for (let s = 0; s <= 20; s++) {
+          const pt = p.getPointAtLength(len * s / 20);
+          best = Math.min(best, Math.abs(tb.left + pt.x - cx));
         }
       });
       checked++;
-      if (best > 1.5) off.push(`${cx.toFixed(0)},${cy.toFixed(0)} is ${best.toFixed(1)} off`);
+      if (best > 1.5) off.push(`row ${i} node is ${best.toFixed(1)}px off its trail`);
     });
     return { checked, off: off.slice(0, 4) };
   });
-  check('the trail actually passes through its markers', onTrail.off.length === 0,
-    onTrail.off.join(', '));
-  check('...and there were markers to check', onTrail.checked >= 2, String(onTrail.checked));
+  check('every waypoint sits on the trail rather than beside it',
+    onTrail.off.length === 0, onTrail.off.join(', '));
+  check('...and there were waypoints to check', onTrail.checked >= 2, String(onTrail.checked));
 
-  /* ---- the markers card ----
+  /* ---- what each waypoint says ----
      One session in, this was three thin rows with the word "Ahead" on two of
-     them — the absence of information dressed as information. Every row has to
-     say what its marker costs, and the one you are walking towards has to show
+     them — the absence of information dressed as information. Every waypoint
+     has to say what it costs, and the one you are walking towards has to show
      how far along you actually are. */
   const markers = await page.evaluate(() => {
     S = blank(); S.onboarded = true;
@@ -1353,45 +1443,48 @@ try {
         sets: [{ w: 60, r: 8, rpe: 8, done: true }], note: '' }] }];
     checkMilestones(); save(true);
     go('progress');
-    const card = [...document.querySelectorAll('#progress-body .jpath')][0];
-    if (!card) return { found: false, rows: 0, bare: 1, text: '' };
-    const rows = [...card.querySelectorAll('.jnode')];
-    const next = card.querySelector('.jnode.next');
-    const bar = next && next.querySelector('.jnode-bar i');
+    /* Shaped return on the miss. The version of this that reached through
+       `(x || {}).parentElement.querySelector(...)` threw the moment the card
+       was not found, killing the instrument before it printed a single line. */
+    const miss = { found: false, rows: 0, bare: 1, done: -1, far: -1, body: '',
+                   nextTitle: '', nextCount: '', ringPct: -1, summit: -1, text: '' };
+    const card = document.querySelector('#progress-body .asc-path');
+    if (!card) return miss;
+    const rows = [...card.querySelectorAll('.asc-row')];
+    const next = card.querySelector('.asc-row.next');
+    const ring = next && next.querySelector('.asc-ring-i');
+    const arr = ring ? +ring.style.strokeDasharray : 0;
+    const offv = ring ? +ring.style.strokeDashoffset : 0;
     return {
       found: true,
       rows: rows.length,
-      done: card.querySelectorAll('.jnode.done').length,
-      far: card.querySelectorAll('.jnode.far').length,
+      done: card.querySelectorAll('.asc-row.done').length,
+      far: card.querySelectorAll('.asc-row.far').length,
+      summit: card.querySelectorAll('.asc-row.summit').length,
       /* No row may be left saying only "Ahead". */
       bare: rows.filter(r => /^\s*ahead\s*$/i.test(
-        ((r.querySelector('.jnode-d') || r.querySelector('.jnode-need') || {}).textContent || '').trim())).length,
-      body: (card.querySelector('.jnode-body') || {}).textContent || '',
-      nextTitle: next ? (next.querySelector('.jnode-t') || {}).textContent : '',
-      nextCount: next ? (next.querySelector('.jnode-when') || {}).textContent.replace(/\s/g, '') : '',
-      barWidth: bar ? bar.style.width : 'none',
-      bars: card.querySelectorAll('.jnode-bar').length,
-      remainder: (document.querySelector('#progress-body .jpath') || {}).parentElement.querySelector('.tiny.center')
-        ? document.querySelector('#progress-body .jpath').parentElement.querySelector('.tiny.center').textContent : '',
+        ((r.querySelector('.asc-d') || r.querySelector('.asc-need') || {}).textContent || '').trim())).length,
+      body: (card.querySelector('.asc-body-t') || {}).textContent || '',
+      nextTitle: next ? (next.querySelector('.asc-t') || {}).textContent : '',
+      nextCount: next ? ((next.querySelector('.asc-when') || {}).textContent || '').replace(/\s/g, '') : '',
+      ringPct: arr > 0 ? Math.round((1 - offv / arr) * 100) : -1,
       text: card.innerText || ''
     };
   });
-  check('the markers card renders', markers.found === true);
+  check('the ascent renders one session in', markers.found === true);
   /* Two ahead made the road look like it ended just past your feet. */
   check('...showing more than a couple of steps ahead', markers.rows >= 5, String(markers.rows));
   check('...one of them reached', markers.done === 1, String(markers.done));
-  check('no row is left saying only "Ahead"', markers.bare === 0, String(markers.bare));
+  check('...and the summit still at the end', markers.summit === 1, String(markers.summit));
+  check('no waypoint is left saying only "Ahead"', markers.bare === 0, String(markers.bare));
   check('the marker you just passed says what it meant', markers.body.length > 40,
     markers.body.slice(0, 50));
   check('the next marker is named', markers.nextTitle === 'Finding your pace', markers.nextTitle);
   check('...with your real count against it', markers.nextCount === '1/5', markers.nextCount);
-  /* One session of five: the bar has to be a fifth, not a decoration. */
-  check('...and a bar that matches it', markers.barWidth === '20%', markers.barWidth);
-  /* A road of progress bars is a to-do list. */
-  check('only the next one carries a bar', markers.bars === 1, String(markers.bars));
-  check('the rest state what they cost', markers.far >= 3, String(markers.far));
-  check('...and what is beyond them is counted, not hidden',
-    /\d+ more marker/.test(markers.remainder), markers.remainder);
+  /* One session of five: the ring has to be a fifth of the way round, not a
+     decoration. It is the bar the old list drew as a separate stripe. */
+  check('...and a ring that matches it', markers.ringPct === 20, String(markers.ringPct));
+  check('the rest state what they cost', markers.far >= 2, String(markers.far));
   check('no placeholder text in the markers card', !BAD.test(markers.text));
 
   /* ---- motion ----
