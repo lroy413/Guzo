@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **821,574 bytes**, `VERSION = '1.3.0'`.
-Last sweep: `dupes` + `blanks` (375) + `engine` (239) + `fuel` (78) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **879,373 bytes**, `VERSION = '1.3.0'`.
+Last sweep: `dupes` + `blanks` (375) + `engine` (239) + `fuel` (100) + `stretch` (41) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -24,6 +24,8 @@ Last sweep: `dupes` + `blanks` (375) + `engine` (239) + `fuel` (78) + `sw` (17) 
 | Personal bests | Complete. Called on the tick rather than at finish, marked in the row it happened in, taken back with the set. |
 | Import a plan | Complete. Offered from Structure, from the routines list, and from inside the builder. A PDF or text file becomes one routine per day — or, from the builder, movements appended to the routine you already have open: text extracted on-device with no library, movements matched to the catalogue by name, supersets read off the plan's own 4A/4B notation, and everything shown for review before anything is built. |
 | Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
+| Water | Complete. A target from bodyweight and what you trained, a flask that fills, quick pours in real vessel sizes, and a streak an unfinished day can never break. Stored in millilitres, shown in whichever unit follows your weight. |
+| Stretch | Complete. A daily stretch scored from what you trained, what you flagged as sore and what your working day does to you — with its own three-question setup, a time budget rather than a movement count, and your own routines built on the existing builder. |
 | Pinned headers | Complete. Every screen title stays put instead of scrolling behind the status bar, over a band painted with the page's own sky gradient so it is invisible, and a rule that appears only once something has gone under it. |
 | The ascent (Progress) | Complete. One switchback trail from trailhead to summit whose waypoints are the rows you read — the route card and the markers list under it were the same data twice. Chronological, with "you are here" between the last marker passed and the next. |
 | Distance and pace | Complete. Thirteen movements that cover ground ask for a distance where everything else asks for a weight, and the pace falls out of the minutes already logged. Wheels read in speed. Distance has its own unit, because kilos and miles is a normal pairing. |
@@ -574,6 +576,110 @@ than a viewport unit. Putting `100dvh` back prints `100dvh`; zeroing the
 clearance prints `pad 0 vs nav 60` on four screens.
 
 ---
+
+### Water, and a bottle that fills
+
+Asked for by name: a water tracker in Fuel, a recommended intake, a hiking
+bottle that fills as you log, and its own daily streak.
+
+**The number.** There is no single right answer and anyone quoting one to three
+significant figures is selling something, so two defensible things are used and
+both are stated on screen: roughly **33 ml of drinks per kilo of bodyweight** —
+the midpoint of the 30–35 that gets quoted, clamped at 1.5 L and 4 L because
+the linear form stops making sense at the extremes — plus about **500 ml per
+hour trained**, the middle of the ACSM range for sweat replacement, taken from
+the sessions you actually logged. Food carries a fifth to a third of your total
+water and this does not try to model it, so it is deliberately a *drinks*
+target sitting at the low end rather than a number pretending to be your whole
+intake. With no bodyweight on file it falls back to a flat figure instead of
+inventing a weight. You can override it, and training is still added on top,
+because you do not sweat less because you typed a number.
+
+**Millilitres underneath, always.** Switching between kg and lb changes the
+formatter and never the data — the shape weights should have used. Water
+follows the weight unit rather than getting a setting of its own, unlike
+distance: the US fluid ounce is essentially US-only and the US weighs in
+pounds, where kilos-and-miles is an ordinary British pairing and
+kilos-and-fluid-ounces is nobody's. The quick pours are the sizes those vessels
+are actually sold in (8/16/32 oz), not conversions of the metric ones — 8.5 oz
+is not a cup.
+
+**The bottle.** A flask with the liquid clipped to its own inside path, so it
+takes the shoulder taper instead of being a rectangle behind a drawing, with
+graduations that are real quarters of today's goal. Only the level's
+`translateY` changes, so the fill is composited and the wave rides the surface
+rather than being redrawn.
+
+**And it updates in place, which is the whole reason the animation exists.** A
+`renderFuel()` on every glass replaces the liquid with a *new* element, and a
+new element has no previous transform to transition from — the level snaps.
+Same rule as the Train rail, found the same way: the check clicked the pour
+button twice and logged one glass, because the first click had already
+destroyed the node the second was aimed at.
+
+**The streak, and why this app is allowed one.** There is no streak counter
+anywhere else and that is on purpose — nothing goes red, a missed day is free.
+This one was asked for, so it obeys a rule instead: **today cannot break it.**
+The count runs back from yesterday and today is only ever added once it is met,
+so an afternoon with three glasses in it is a day in progress and never a
+broken chain. A break is not an event either — no "you lost it", the number
+starts again and your best sits beside it, because what you did last month does
+not stop being true.
+
+### A stretch tool that says why
+
+Asked for: recommended stretches based on your workouts and your occupation,
+with its own onboarding for injuries and problem areas, or build your own.
+
+**Nothing was added to the catalogue.** The thirty mobility movements were
+always there; what is new is the choosing. A stretch tool with its own library
+would be two copies of Child's Pose with two ids.
+
+**Three inputs, weighted, and the screen names which one won.** What you
+actually trained in the last two days, read from the session records and
+weighted by sets — the only signal that is not a self-report. Areas you flagged
+as sore, weighted highest, because you are the only one who knows. And your
+working day, weighted lowest and deliberately: it nudges the order and never
+overrides anything. Eight occupations, each with the regions that go short
+rather than the ones that get strong — a driver's hip flexors shorten whether
+or not their legs did anything.
+
+**Its own onboarding, three questions, each of which changes the output** — the
+bar the main intake already holds itself to. Tapping the chosen occupation
+again clears it, because "none of these" is a real answer and a form that will
+not take one gets a wrong one instead.
+
+**Filled to a time budget, not a movement count.** Asking for eight minutes
+first produced ten and a half, because minutes were turned into a count with a
+flat 45-seconds-each guess and the real cost measured 56. One number decides the
+length now and it is the one being asked for.
+
+**Spread across regions before ranked within them.** Eight movements that are
+all hip openers is a hip opener done eight times.
+
+**Your own is a routine.** The builder, the reorder, the timed items and the
+Train runner already exist and already work; the tool adds a routine seeded
+from mobility movements and flagged so the stretch screen finds it again.
+
+**Three real bugs, all found by the checks rather than by reading.**
+
+- **A dead hang was being offered as a daily stretch.** The pool filtered on
+  `eq`, which reads "Bodyweight" for a dead hang because *you* are the load —
+  but its `env` is full-gym and hotel, because you still need something to hang
+  from. `env` is the field that means "a floor and nothing else".
+- **Band dislocates were offered to people who own no bands.** The band branch
+  was unreachable: a dislocate is tagged `fhb`, so the environment test passed
+  it before the equipment test could run. Equipment is checked first now.
+- **An injury excluded nothing here.** `INJURIES` listed only loaded work, so a
+  shoulder the app had just been told to protect was handed band dislocates and
+  a doorway chest stretch — end-range positions for that exact joint. Mobility
+  ids are in those lists now, each for a mechanical reason.
+
+And one in the checking: the three "why" chips fired on nine rows out of nine,
+which is not an explanation, it is wallpaper. The score is tallied per reason
+now and the row names the one that contributed most — which needed the
+area-to-muscle map weighted, because a flat list said a sore low back was as
+much about hamstrings as about the back.
 
 ### The header is pinned, and the band behind it is invisible
 

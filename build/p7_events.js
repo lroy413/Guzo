@@ -1002,6 +1002,39 @@ document.addEventListener('click', ev => {
     }
     case 'fuel-quick-add': sheetQuickAdd(); break;
 
+    /* ---- water ---- */
+    /* refreshWater(), never renderFuel(): a re-render replaces the liquid with
+       a new element, and a new element has no previous transform to transition
+       from — the level would snap rather than rise. See refreshWater(). */
+    case 'water-add': {
+      logWater(+v || 0);
+      noteWaterBest();
+      refreshWater();
+      break;
+    }
+    case 'water-clear': { setWater(0); noteWaterBest(); refreshWater(); break; }
+    case 'water-custom': sheetWaterCustom(); break;
+    case 'water-settings': sheetWaterGoal(); break;
+    case 'water-custom-go': {
+      const el = $('#wtr-amt');
+      const n = el ? parseFloat(String(el.value).replace(',', '.')) : NaN;
+      if (!(n > 0)) { toast('Enter an amount'); break; }
+      logWater(unitToMl(n));
+      noteWaterBest();
+      closeSheet(); refreshWater();
+      break;
+    }
+    case 'water-goal-go': {
+      const el = $('#wtr-goal');
+      const n = el ? parseFloat(String(el.value).replace(',', '.')) : NaN;
+      /* Blank clears it back to the estimate rather than refusing — "I don't
+         want to pick one" is a real answer and the field is how you say it. */
+      setWaterGoal(!(n > 0) ? 0 : unitToMl(n));
+      closeSheet(); renderFuel();
+      toast(!(n > 0) ? 'Back to the estimate' : 'Target set', true);
+      break;
+    }
+
     /* ---- barcode ---- */
     case 'scan': sheetScan(); break;
     case 'scan-type': sheetScanType(); break;
@@ -1307,6 +1340,66 @@ document.addEventListener('click', ev => {
 
     /* ---- routines ---- */
     case 'routines': sheetRoutines(); break;
+
+    /* ---- stretch ---- */
+    case 'stretch': sheetStretch(); break;
+    case 'stretch-setup': stretchDraft = null; sheetStretchSetup(); break;
+    case 'stretch-occ': {
+      /* Tapping the one already chosen clears it. "None of these" is a real
+         answer and a form that will not take it gets a wrong answer instead. */
+      stretchDraft.occupation = (stretchDraft.occupation === v) ? null : v;
+      sheetStretchSetup(); break;
+    }
+    case 'stretch-area': {
+      const ix = stretchDraft.areas.indexOf(v);
+      if (ix >= 0) stretchDraft.areas.splice(ix, 1); else stretchDraft.areas.push(v);
+      sheetStretchSetup(); break;
+    }
+    case 'stretch-mins': { stretchDraft.mins = +v || 8; sheetStretchSetup(); break; }
+    case 'stretch-save-setup': {
+      const st = stretchStore();
+      st.occupation = stretchDraft.occupation;
+      st.areas = stretchDraft.areas.slice();
+      st.mins = stretchDraft.mins;
+      st.onboarded = true;
+      stretchDraft = null;
+      save(true);
+      /* Handed to, not closed and reopened — closing pops the one history entry
+         the whole sheet stack rides on. */
+      sheetStretch();
+      break;
+    }
+    case 'stretch-tick': {
+      toggleStretchDone(v);
+      buzz(12);
+      sheetStretch();
+      break;
+    }
+    case 'stretch-info': sheetStretchInfo(v); break;
+    case 'stretch-back': sheetStretch(); break;
+    case 'stretch-reroll': {
+      /* Not a shuffle. The daily list is deterministic, so "something else"
+         has to change the input rather than the dice: it stamps the movements
+         you were offered as seen, which moves them down the least-recent
+         tiebreak and brings the next ones up. Reroll twice and you get the
+         third-best set, not the same one again. */
+      dailyStretch().forEach(s => { liftOf(s.ex.id).lastDate = today(); });
+      save(true);
+      sheetStretch();
+      break;
+    }
+    case 'stretch-save': {
+      const r = saveDailyAsRoutine();
+      toast('Saved as a routine', true);
+      sheetRoutineEdit(r.id);
+      break;
+    }
+    case 'stretch-new': {
+      const r = newStretchRoutine('My stretch');
+      sheetRoutineEdit(r.id);
+      break;
+    }
+    case 'stretch-open-rt': sheetRoutineEdit(v); break;
     case 'routine-new': {
       const r = newRoutine('New routine');
       sheetRoutineEdit(r.id);

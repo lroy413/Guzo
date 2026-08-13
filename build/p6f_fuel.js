@@ -134,6 +134,9 @@ function renderFuel() {
     </div>` : `<p class="tiny mt center">Calories are switched off. Protein is the number with the strongest evidence behind it for building muscle &mdash; everything else is being logged, just not shown.</p>`}
   </div>`;
 
+  /* ── water ───────────────────────────────────────────────── */
+  html += bottleHTML(k);
+
   /* ── add ─────────────────────────────────────────────────── */
   html += `<div class="fuel-actions">
     <div class="btn-row">
@@ -776,4 +779,269 @@ function sheetDietPrefs() {
 
     <p class="tiny">${allowedFoods(p).length} of ${FOODS.length} foods pass these. Guzo is not an allergen database — these are generic reference foods, not products with labels. If something matters medically, read the packet.</p>
   `, { key: 'diet-prefs' });
+}
+/* ============================================================
+   THE BOTTLE
+   ------------------------------------------------------------
+   A hiking flask that fills as you drink, because a progress bar for water is
+   a progress bar and a bottle is a thing you recognise from across a room.
+
+   Everything in it is drawn from one number — millilitres logged against the
+   day's goal. The waterline sits at that fraction of the inside of the
+   bottle, so a half-full bottle is genuinely half, and the graduations down
+   the side are real fractions of the goal rather than decoration.
+   ============================================================ */
+
+/* The inside of the flask, in the SVG's own units. The fill is clipped to
+   this, so the liquid takes the bottle's shape at the shoulders instead of
+   being a rectangle behind it. */
+const BOTTLE_TOP = 30, BOTTLE_BOT = 172;
+
+function bottleHTML(k) {
+  const ml = waterOn(k);
+  const g = waterGoal(k);
+  const frac = g.total > 0 ? Math.max(0, Math.min(1, ml / g.total)) : 0;
+  const over = g.total > 0 && ml > g.total;
+  /* The waterline, in SVG units. Two wave crests ride on it — the same y, so
+     the surface stays level and only its edge moves. */
+  const y = BOTTLE_BOT - frac * (BOTTLE_BOT - BOTTLE_TOP);
+
+  return `<div class="wtr-card">
+    <div class="wtr-head">
+      <div>
+        <div class="eyebrow">Water</div>
+        <div class="wtr-v mono">${fmtWater(ml)}<span class="wtr-of">of ${fmtWater(g.total)}</span></div>
+      </div>
+      <button class="wtr-set" data-act="water-settings" aria-label="Water target and units">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.56V21a2 2 0 11-4 0v-.09A1.7 1.7 0 008 19.4a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 003.6 15a1.7 1.7 0 00-1.56-1H2a2 2 0 110-4h.09A1.7 1.7 0 004.6 8a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 009 3.6a1.7 1.7 0 001-1.56V2a2 2 0 114 0v.09a1.7 1.7 0 001 1.56 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019.4 9v0a1.7 1.7 0 001.56 1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.56 1z"/></svg>
+      </button>
+    </div>
+
+    <div class="wtr-body">
+      <div class="wtr-bottle ${over ? 'over' : ''}">
+        <svg viewBox="0 0 120 200" role="img"
+             aria-label="${fmtWater(ml)} of ${fmtWater(g.total)} logged today">
+          <defs>
+            ${/* The liquid is clipped to the flask's inside, so it takes the
+                  shoulder taper rather than sitting behind a rectangle. */''}
+            <clipPath id="wtr-clip">
+              <path d="M40 30 h40 a6 6 0 016 6 v6 c0 8 8 12 8 26 v92 a12 12 0 01-12 12 h-44 a12 12 0 01-12-12 v-92 c0-14 8-18 8-26 v-6 a6 6 0 016-6 z"/>
+            </clipPath>
+            <linearGradient id="wtr-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#7ec8f2" stop-opacity=".95"/>
+              <stop offset="100%" stop-color="#3f8fd0" stop-opacity=".95"/>
+            </linearGradient>
+          </defs>
+
+          ${/* Cap and collar, above the fill so nothing ever paints over them. */''}
+          <rect class="wtr-cap" x="42" y="6" width="36" height="16" rx="5"/>
+          <rect class="wtr-collar" x="46" y="21" width="28" height="8" rx="3"/>
+
+          <g clip-path="url(#wtr-clip)">
+            <rect class="wtr-inside" x="20" y="24" width="80" height="180"/>
+            <g class="wtr-liquid" style="transform:translateY(${y.toFixed(1)}px)">
+              ${/* Drawn from y=0 downward and then translated, so the whole
+                    body of liquid moves as one and the transition animates the
+                    level rather than redrawing a path. */''}
+              <path class="wtr-wave" d="M-60 0 q15 -6 30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 v210 h-240 z" fill="url(#wtr-fill)"/>
+            </g>
+          </g>
+
+          ${/* Graduations: real fractions of today's goal, not tick marks. */''}
+          ${[0.25, 0.5, 0.75].map(f => {
+            const gy = BOTTLE_BOT - f * (BOTTLE_BOT - BOTTLE_TOP);
+            return `<line class="wtr-grad" x1="72" y1="${gy.toFixed(1)}" x2="88" y2="${gy.toFixed(1)}"/>`;
+          }).join('')}
+
+          <path class="wtr-glass" d="M40 30 h40 a6 6 0 016 6 v6 c0 8 8 12 8 26 v92 a12 12 0 01-12 12 h-44 a12 12 0 01-12-12 v-92 c0-14 8-18 8-26 v-6 a6 6 0 016-6 z"/>
+          ${/* The strap loop. It is what makes it a flask you take somewhere
+                rather than a glass on a desk. */''}
+          <path class="wtr-strap" d="M86 40 q16 4 16 16 q0 12 -12 16"/>
+        </svg>
+      </div>
+
+      <div class="wtr-side">
+        <div class="wtr-pct mono">${waterPct(k)}<span class="wtr-pct-s">%</span></div>
+        <div class="wtr-note">${h(waterNote(k, g))}</div>
+        ${waterStreakHTML()}
+      </div>
+    </div>
+
+    <div class="wtr-pours">
+      ${waterPours().map(p => `<button class="wtr-pour" data-act="water-add" data-v="${Math.round(p.ml)}">
+        <span class="wtr-pour-i" aria-hidden="true">${p.label === 'Glass' ? glassIcon() : p.label === 'Bottle' ? bottleIcon() : flaskIcon()}</span>
+        <span class="wtr-pour-l">${h(p.label)}</span>
+        <span class="wtr-pour-s">${h(p.sub)}</span>
+      </button>`).join('')}
+      <button class="wtr-pour custom" data-act="water-custom">
+        <span class="wtr-pour-i" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg>
+        </span>
+        <span class="wtr-pour-l">Other</span>
+        <span class="wtr-pour-s">amount</span>
+      </button>
+    </div>
+
+    ${ml > 0 ? `<button class="wtr-undo" data-act="water-clear">Clear today</button>` : ''}
+
+    <div class="wtr-week">
+      ${waterWeek().map(d => `<div class="wtr-wk ${d.met ? 'met' : ''} ${d.d === today() ? 'today' : ''}">
+        <div class="wtr-wk-t"><i style="height:${d.goal ? Math.min(100, Math.round(d.ml / d.goal * 100)) : 0}%"></i></div>
+        <div class="wtr-wk-d">${DAYNAMES[fromKey(d.d).getDay()].slice(0, 1)}</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* Why the number is what it is, in one line, and what it is not. */
+function waterNote(k, g) {
+  const bw = (S.profile.bodyweight || []).slice(-1)[0];
+  const parts = [];
+  if (S.nutrition.water && +S.nutrition.water.goal > 0) parts.push('Your target');
+  else if (bw && +bw.w > 0) parts.push('About 33 ml per kg');
+  else parts.push('A flat estimate — log a bodyweight and it scales');
+  if (g.bonus > 0) parts.push(`+${fmtWater(g.bonus)} for ${g.mins} min trained`);
+  return parts.join(' · ');
+}
+
+/* The streak, in the app's voice. See waterStreak(): today cannot break it,
+   and a break is not announced. */
+function waterStreakHTML() {
+  const n = waterStreak();
+  const best = noteWaterBest();
+  if (!n && !best) {
+    return `<div class="wtr-streak none">Hit the target and a run starts here.</div>`;
+  }
+  if (!n) {
+    /* Broken, and said without a word of blame. The best is still yours. */
+    return `<div class="wtr-streak"><span class="wtr-streak-n mono">0</span>
+      <span class="wtr-streak-l">days &mdash; your best is ${best}</span></div>`;
+  }
+  return `<div class="wtr-streak on"><span class="wtr-streak-n mono">${n}</span>
+    <span class="wtr-streak-l">day${n === 1 ? '' : 's'} running${best > n ? ` &mdash; best ${best}` : ''}</span></div>`;
+}
+
+function glassIcon() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10l-1.3 15.2A2 2 0 0113.7 21h-3.4a2 2 0 01-2-1.8z"/><path d="M7.6 11h8.8" stroke-width="1.4"/></svg>`;
+}
+function bottleIcon() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4v3c0 1.6 2 2.4 2 5v11a2 2 0 01-2 2h-4a2 2 0 01-2-2V10c0-2.6 2-3.4 2-5z"/><path d="M8 13h8" stroke-width="1.4"/></svg>`;
+}
+function flaskIcon() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="6" width="10" height="16" rx="3"/><path d="M9.5 2h5v4h-5z"/><path d="M17 9q3 1 3 4t-3 4" stroke-width="1.4"/></svg>`;
+}
+
+/* An amount that is not a glass, a bottle or a flask. */
+function sheetWaterCustom() {
+  openSheet(`
+    <h2 class="h1 mb" style="padding-right:44px">Add water</h2>
+    <div class="field mb">
+      <div class="label">How much (${h(waterUnitLabel())})</div>
+      <input class="input" id="wtr-amt" type="text" inputmode="decimal" enterkeyhint="done"
+             autocomplete="off" placeholder="${waterUnit() === 'oz' ? '12' : '400'}">
+    </div>
+    <button class="btn primary block lg" data-act="water-custom-go">Add</button>
+  `);
+  const el = $('#wtr-amt'); if (el) el.focus();
+}
+
+/* The target, and what it is made of. The estimate is explained rather than
+   asserted — it is a rule of thumb, and a number you cannot argue with is a
+   number you cannot trust. */
+function sheetWaterGoal() {
+  const g = waterGoal(today());
+  const set = +((S.nutrition.water || {}).goal) > 0;
+  const shown = waterUnit() === 'oz'
+    ? Math.round(mlToUnit(g.base))
+    : Math.round(g.base);
+  openSheet(`
+    <h2 class="h1 mb" style="padding-right:44px">Water target</h2>
+
+    <div class="note mb">
+      <p class="note-t">Where the number comes from</p>
+      <p class="note-b">About 33 ml of drinks per kilo of bodyweight a day &mdash; the middle of the
+        30&ndash;35 range that gets quoted &mdash; plus roughly ${fmtWater(WATER_ML_PER_TRAINING_HOUR)} for every hour you
+        train. Food carries a fifth to a third of your total water and this target does not try to
+        count it, so it is a drinks figure and sits deliberately at the low end. It is a rule of
+        thumb, not a prescription. Thirst and the colour of your urine are better signals than any
+        formula, and if you have a kidney or heart condition your doctor's number beats this one.</p>
+    </div>
+
+    <div class="field mb">
+      <div class="label">Daily base (${h(waterUnitLabel())})</div>
+      <input class="input" id="wtr-goal" type="text" inputmode="decimal" enterkeyhint="done"
+             autocomplete="off" value="${set ? shown : ''}" placeholder="${shown}">
+      <p class="tiny mt-s">${set
+        ? 'Yours. Clear the field to go back to the estimate.'
+        : 'Empty means the estimate above, which moves with your bodyweight.'}
+        Training is added on top either way &mdash; today that is
+        ${g.bonus > 0 ? fmtWater(g.bonus) + ' for ' + g.mins + ' minutes' : 'nothing yet'}.</p>
+    </div>
+
+    <div class="field mb">
+      <div class="label">Units</div>
+      <p class="tiny">Shown in ${waterUnit() === 'oz' ? 'US fluid ounces' : 'millilitres and litres'},
+        following your weight unit &mdash; change that in your profile and this follows.
+        Everything is stored in millilitres underneath, so switching never alters a logged day.</p>
+    </div>
+
+    <button class="btn primary block lg" data-act="water-goal-go">Save</button>
+  `);
+}
+
+/* ------------------------------------------------------------
+   Updated in place, never by re-rendering.
+
+   Two reasons, and the second is the one that bites. A renderFuel() on every
+   glass rebuilds the whole screen under your thumb — but worse, it replaces
+   the liquid with a *new* element, and a new element has no previous transform
+   to transition from, so the level jumps instead of rising. The animation that
+   is the entire point of drawing a bottle only exists if the same node is
+   still there to move. Same rule as the Train rail.
+   ------------------------------------------------------------ */
+function refreshWater() {
+  const card = document.querySelector('.wtr-card');
+  if (!card) return;
+  const k = fuelDay();
+  const ml = waterOn(k);
+  const g = waterGoal(k);
+  const frac = g.total > 0 ? Math.max(0, Math.min(1, ml / g.total)) : 0;
+
+  const v = card.querySelector('.wtr-v');
+  if (v) v.innerHTML = `${fmtWater(ml)}<span class="wtr-of">of ${fmtWater(g.total)}</span>`;
+
+  const liq = card.querySelector('.wtr-liquid');
+  if (liq) liq.style.transform = `translateY(${(BOTTLE_BOT - frac * (BOTTLE_BOT - BOTTLE_TOP)).toFixed(1)}px)`;
+
+  const bottle = card.querySelector('.wtr-bottle');
+  if (bottle) bottle.classList.toggle('over', g.total > 0 && ml > g.total);
+
+  const pct = card.querySelector('.wtr-pct');
+  if (pct) pct.innerHTML = `${waterPct(k)}<span class="wtr-pct-s">%</span>`;
+
+  const streak = card.querySelector('.wtr-streak');
+  if (streak) streak.outerHTML = waterStreakHTML();
+
+  /* Today's column in the strip, and whether it has been met. */
+  const week = waterWeek();
+  card.querySelectorAll('.wtr-wk').forEach((node, i) => {
+    const d = week[i];
+    if (!d) return;
+    const fill = node.querySelector('.wtr-wk-t i');
+    if (fill) fill.style.height = (d.goal ? Math.min(100, Math.round(d.ml / d.goal * 100)) : 0) + '%';
+    node.classList.toggle('met', d.met);
+  });
+
+  /* The clear button exists only when there is something to clear. */
+  const clr = card.querySelector('.wtr-undo');
+  if (ml > 0 && !clr) {
+    const btn = document.createElement('button');
+    btn.className = 'wtr-undo';
+    btn.setAttribute('data-act', 'water-clear');
+    btn.textContent = 'Clear today';
+    const pours = card.querySelector('.wtr-pours');
+    if (pours) pours.insertAdjacentElement('afterend', btn);
+  } else if (ml === 0 && clr) {
+    clr.remove();
+  }
 }

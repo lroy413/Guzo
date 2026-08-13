@@ -69,6 +69,8 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 │   ├── p4k_native.js         ← Capacitor bridge: storage mirror, haptics, rest alerts. Inert on the web.
 │   ├── p4l_import.js         ← PDF/text extraction, plan parsing, catalogue matching
 │   ├── p4m_scan.js           ← EAN-13/UPC-A decoder, barcode→food bindings, camera support
+│   ├── p4n_water.js          ← water target, logging, units, the daily streak
+│   ├── p4o_stretch.js        ← occupations, stretch scoring, the daily list
 │   ├── p5a_onboard.js        ← onboarding flow
 │   ├── p5_ui.js              ← render(), Today, Plan, Train, Progress + shared helpers
 │   ├── p6_more.js            ← More screen, Settings sheet, week sheet, exercise picker
@@ -80,6 +82,7 @@ There is no framework, no bundler and no server. `package.json` exists only to p
 │   ├── p6g_order.js          ← week-order sheets
 │   ├── p6h_import.js         ← import review; the only thing that writes routines from a file
 │   ├── p6i_scan.js           ← the scanner sheet and the camera loop
+│   ├── p6j_stretch.js        ← the stretch sheets and its own three-question setup
 │   ├── p7_events.js          ← ONE delegated click listener, input listeners, SW registration
 │   ├── p8_tail.html          ← closing tags
 │   └── sw.js                 ← service worker source; build.sh copies it to the root
@@ -130,12 +133,13 @@ What exists instead is one JSON blob in `localStorage`.
 | `sessions` | array | completed sessions, append-only |
 | `active` | object\|null | the in-progress session |
 | `lifts` | map | exercise id → learned working weight / progression state |
-| `nutrition` | object | `{ targets:{kcal,p,c,f}, days:{ dateKey:{items:[]} }, custom:[], prefs:{meals,snacks,pattern,exclude[]} }` |
+| `nutrition` | object | `{ targets:{kcal,p,c,f}, days:{ dateKey:{items:[]} }, custom:[], prefs:{...}, water:{days:{dateKey:ml}, goal, best} }` — water is always millilitres; the unit is a formatter |
 | `billing` | object | `{pro, plan, trialStart}` — scaffolding only, nothing enforces it |
 | `journey` | object | `{ reached:{} }` milestone flags |
 | `daily` | map | date key → `{steps, sleepH, weight, src}` |
 | `videos` | map | exercise id → user-supplied form video URL |
 | `routines` | array | user-built session templates |
+| `stretch` | object | `{onboarded, occupation, areas[], mins, done:{dateKey:[exId]}}` |
 | `meta` | object | `{created, lastOpen}` |
 
 ### The two maps inside `week`
@@ -286,6 +290,7 @@ Run from the repo root, against the built file. Each spins up its own server and
 | `node blanks.mjs` | no `undefined` / `NaN` / `[object Object]` reaches any screen; the nav is a floating pill that content can scroll clear of; a sheet that redraws itself keeps your scroll position; the week strip moves by arrow and by swipe, a day opens on what it is rather than on an editor, two sessions in one day are both counted, a movement can be counted in reps or in seconds, no two pieces of painted text share a box, the day strip's three columns share a baseline whatever is filled in, the ascent on Progress is drawn from the markers you actually reached and draws them exactly once, its waypoints sit on the trail rather than beside it, every connector fills the row it spans and the ridge never paints over the words, the screen header stays put when you scroll past it — clearing the notch by exactly one notch, over a band that is opaque to what passes under it and invisible against the sky it sits on, motion arrives once rather than on every render, the session rail moves in place rather than by re-rendering, the rail breaks where the block changes and fills the movement after a break rather than the break, rest names the set on the other side of it, a record is taken back when the set that set it is corrected downward, the finish sheet lists what you beat, a rest running out is audible and the bar puts itself away, the builder offers a superset in every gap but not after the last movement, ticking the first half of a pair starts no rest and the second half does, a set row offers what you did in that slot last time and records the unrounded weight behind the rounded one it painted, typing into set 1 carries down without rebuilding the card, a personal best marks the row it happened in and is taken back with the set, and the RPE column can be turned off for the width |
 | `node fuel.mjs` | meal suggestions are deterministic, hit the target, and never break a stated dietary restriction; a preset food can be corrected to match your packet without rewriting what you already ate, one entry can be corrected on its own, bare macros can be logged with no food behind them, a day is grouped into meals, the ring's three arcs each carry their own circumference, a two-word food can actually be typed into the search, foods are named the way people say them, and every food's calories match its macros by the Atwater factors |
 | `node engine.mjs` | the week spreads across all seven days, references never dangle, one clock drives everything, a Fuel bar means what it looks like, a recovery day is mobility spread across the body with nothing to beat, a routine warm-up matches what the routine trains, a session logged after the fact lands on the day it happened, a day can end at 4am instead of midnight, a circuit runs across the list before it repeats, the sky follows the wall clock rather than your day boundary, the exercise catalogue has no duplicate or malformed rows, editing around a superset breaks the pair rather than re-forming it, every badge the catalogue can produce has a tone and no movement earns more than three, a record needs something to beat, changing units converts every stored weight rather than relabelling it, only a loaded lift can have an estimated one-rep max, and a movement that covers ground asks for a distance instead of a weight — with its own unit, a pace derived from the minutes, speed rather than pace on wheels, and the Enter key still stepping weight → reps on everything else |
+| `node stretch.mjs` | the daily stretch is doable where you are, an injury still excludes work here, a band movement needs bands, it is the length you asked for, spread across the body rather than piled on one region, it says which of your answers put each movement there, ticking it logs no session and sets no weight, an unfinished day never breaks the run, and today's list can be saved as an ordinary routine |
 | `node scan.mjs` | an EAN-13 is read off generated pixels at four module widths, in shadow, over-lit, noisy and through a reflection; a wrong guard or a failed checksum is refused; a UPC-A and its EAN-13 are one packet; closing the sheet turns the camera off; and the Open Food Facts lookup is off by default, sends nothing but the barcode, falls through on every kind of failure, and shows what it found before saving it |
 | `node import.mjs` | a PDF decodes without a library, a rep range survives WinAnsi, a plan splits into days, a written name finds the right movement in the catalogue, and nothing is built until you say so |
 | `node native.mjs` | the Capacitor bridge is inert on the web, mirrors saves on device, never restores over live data, and schedules one rest alert per rest — asked for once, withdrawn when the rest is skipped |

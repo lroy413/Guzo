@@ -310,6 +310,105 @@ button.recall:active{transform:scale(.99)}
   font-variant-numeric:tabular-nums}
 .pace-p{font-size:13px;color:var(--text-dim);flex:none;font-variant-numeric:tabular-nums}
 
+/* ---------- water ----------
+   A flask that fills, not a progress bar. The liquid is clipped to the
+   bottle's inside path so it takes the shoulder taper, and only its
+   translateY changes — the wave rides on the surface rather than being
+   redrawn at each level. */
+.wtr-card{border:1px solid var(--line);background:var(--surface);border-radius:var(--r-lg);
+  box-shadow:var(--shadow),var(--inset);padding:16px 16px 14px;margin-bottom:20px}
+.wtr-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.wtr-v{font-size:24px;font-weight:700;letter-spacing:-.03em;line-height:1.1;margin-top:4px;
+  font-variant-numeric:tabular-nums}
+.wtr-of{font-size:12px;font-weight:600;color:var(--muted);margin-left:8px;letter-spacing:0}
+.wtr-set{width:38px;height:38px;flex:none;display:flex;align-items:center;justify-content:center;
+  border-radius:11px;border:1px solid var(--line);background:var(--surface-2);color:var(--muted)}
+.wtr-set svg{width:17px;height:17px}
+.wtr-set:active{transform:scale(.95)}
+
+.wtr-body{display:flex;align-items:center;gap:16px;margin-top:10px}
+.wtr-bottle{width:104px;flex:none}
+.wtr-bottle svg{display:block;width:100%;height:auto}
+.wtr-inside{fill:#0e1319}
+.wtr-glass{fill:none;stroke:rgba(255,255,255,.16);stroke-width:2.2}
+.wtr-cap{fill:var(--surface-3);stroke:rgba(255,255,255,.12);stroke-width:1.4}
+.wtr-collar{fill:var(--surface-3);stroke:rgba(255,255,255,.10);stroke-width:1.2}
+.wtr-strap{fill:none;stroke:rgba(255,255,255,.14);stroke-width:2.4;stroke-linecap:round}
+.wtr-grad{stroke:rgba(255,255,255,.16);stroke-width:1.6;stroke-linecap:round}
+/* The level. A transform rather than a y attribute, so it is composited and
+   the transition is free. */
+.wtr-liquid{transition:transform 620ms var(--ease-spring)}
+.wtr-bottle.over .wtr-wave{filter:saturate(1.25) brightness(1.08)}
+@media (prefers-reduced-motion:reduce){.wtr-liquid{transition:none}}
+@media (prefers-reduced-motion:no-preference){
+  /* Drift, not sloshing. The path is drawn wide enough that one wavelength of
+     travel loops seamlessly. */
+  .wtr-wave{animation:wtrDrift 5.5s linear infinite}
+  @keyframes wtrDrift{from{transform:translateX(0)}to{transform:translateX(60px)}}
+}
+
+.wtr-side{flex:1;min-width:0}
+.wtr-pct{font-size:32px;font-weight:700;letter-spacing:-.04em;line-height:1;
+  color:var(--sky);font-variant-numeric:tabular-nums}
+.wtr-pct-s{font-size:15px;font-weight:650;margin-left:2px}
+.wtr-note{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.45}
+.wtr-streak{display:flex;align-items:baseline;gap:7px;margin-top:10px;padding-top:10px;
+  border-top:1px solid var(--line-soft)}
+.wtr-streak-n{font-size:19px;font-weight:700;color:var(--muted);letter-spacing:-.02em}
+.wtr-streak.on .wtr-streak-n{color:var(--ember)}
+.wtr-streak-l{font-size:11.5px;color:var(--muted);line-height:1.35}
+.wtr-streak.none{display:block;font-size:11.5px;color:var(--faint)}
+
+.wtr-pours{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-top:14px}
+.wtr-pour{display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:10px 3px;min-height:64px;border-radius:12px;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--text-dim)}
+.wtr-pour:active{transform:scale(.96)}
+.wtr-pour-i svg{width:20px;height:20px;display:block;color:var(--sky)}
+.wtr-pour.custom .wtr-pour-i svg{color:var(--muted)}
+.wtr-pour-l{font-size:11.5px;font-weight:650;margin-top:2px}
+.wtr-pour-s{font-size:10px;color:var(--faint)}
+.wtr-undo{display:block;margin:10px auto 0;font-size:11.5px;color:var(--faint);
+  min-height:44px;padding:0 12px}
+
+.wtr-week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:12px;
+  padding-top:12px;border-top:1px solid var(--line-soft)}
+.wtr-wk{text-align:center;min-width:0}
+.wtr-wk-t{height:34px;border-radius:5px;background:var(--surface-3);position:relative;
+  overflow:hidden;display:flex;align-items:flex-end}
+.wtr-wk-t i{display:block;width:100%;background:var(--sky);opacity:.55;border-radius:5px}
+.wtr-wk.met .wtr-wk-t i{opacity:1}
+.wtr-wk-d{font-size:10px;color:var(--faint);margin-top:4px}
+.wtr-wk.today .wtr-wk-d{color:var(--ember);font-weight:700}
+
+/* ---------- stretch ---------- */
+.str-why{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.str-why-k{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--faint);margin-right:2px}
+.str-chip{font-size:10.5px;font-weight:650;letter-spacing:.02em;padding:4px 8px;border-radius:999px;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--muted);white-space:nowrap}
+.str-chip.sore{border-color:var(--rose);background:var(--rose-dim);color:#f6a09e}
+.str-chip.trained{border-color:var(--ember-line);background:var(--ember-dim);color:var(--ember-2)}
+.str-chip.work{border-color:var(--sky);background:var(--sky-dim);color:#a8cbf9}
+
+.str-row{display:flex;align-items:center;gap:11px;padding:9px 2px;
+  border-bottom:1px solid var(--line-soft)}
+.str-row:last-child{border-bottom:0}
+.str-tick{width:38px;height:38px;flex:none;border-radius:50%;
+  border:1.5px solid var(--line);background:var(--surface-2);
+  display:flex;align-items:center;justify-content:center;color:transparent}
+.str-tick svg{width:17px;height:17px;stroke-width:2.6}
+.str-tick.on{background:var(--ember-dim);border-color:var(--ember);color:var(--ember)}
+.str-tick:active{transform:scale(.94)}
+.str-main{flex:1;min-width:0;text-align:left;min-height:44px}
+.str-n{font-size:14px;font-weight:650;letter-spacing:-.01em}
+.str-sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+.str-row.done .str-n{color:var(--muted)}
+.str-tags{display:flex;flex-direction:column;gap:3px;flex:none;align-items:flex-end}
+
+.str-strip{margin-bottom:12px}
+.str-strip-ok{color:var(--ember);font-size:19px;font-weight:700;line-height:1}
+
 /* ---------- plate calculator ---------- */
 .plate-total{font-size:46px;font-weight:700;letter-spacing:-.04em;line-height:1.05;color:var(--text)}
 .plate-unit{font-size:19px;font-weight:600;color:var(--muted);margin-left:3px;letter-spacing:0}
@@ -2467,32 +2566,43 @@ function detrainingNote(days) {
    collected for the sake of a longer form.
    ============================================================ */
 
-/* ---------- injuries → exercises removed from the library ---------- */
+/* ---------- injuries → exercises removed from the library ----------
+   The mobility entries were added when the stretch tool went in. Until then
+   this list held only loaded work, so a shoulder injury excluded overhead
+   pressing and then the daily stretch offered band dislocates and a doorway
+   chest stretch — end-range positions for the joint the app had just been
+   told to protect. Each mobility id here is excluded for a mechanical reason:
+   the movement puts load or end range through the named part. */
 const INJURIES = {
   shoulder: { k:'shoulder', label:'Shoulder', ico:'🫱',
     note:'Overhead pressing, dips and deep flyes come out. Neutral-grip and landmine work stays.',
-    ex:['bb-ohp','bb-push-press','bw-hspu','bw-dip','db-fly','mach-pec-deck','db-front-raise','bb-shrug','db-shrug','db-arnold','bw-decline-pushup'] },
+    ex:['bb-ohp','bb-push-press','bw-hspu','bw-dip','db-fly','mach-pec-deck','db-front-raise','bb-shrug','db-shrug','db-arnold','bw-decline-pushup',
+         'mob-band-dislocate','mob-doorway-chest'] },
   lowback: { k:'lowback', label:'Lower back', ico:'🩹',
     note:'Loaded spinal work goes — deadlifts, bent-over rows, good mornings, barbell squats. Supported and machine versions replace them.',
     ex:['bb-deadlift','bb-sumo-dl','bb-good-morning','bb-row','bb-pendlay','bb-rack-pull','bb-back-squat','bb-front-squat','bb-rdl','bnd-good-morning','db-renegade-row','bb-lunge'] },
   knee: { k:'knee', label:'Knee', ico:'🦵',
     note:'Jumping and deep single-leg work comes out. Leg press, goblet squats and hinges stay.',
-    ex:['bw-jump-squat','bw-broad-jump','bw-pistol','bb-lunge','bw-lunge','db-lunge','bw-split-squat','db-bulgarian','bw-squat-thrust','bw-burpee','bw-mountain-climber','bw-high-knees'] },
+    ex:['bw-jump-squat','bw-broad-jump','bw-pistol','bb-lunge','bw-lunge','db-lunge','bw-split-squat','db-bulgarian','bw-squat-thrust','bw-burpee','bw-mountain-climber','bw-high-knees',
+         'mob-couch'] },
   elbow: { k:'elbow', label:'Elbow', ico:'💢',
     note:'Straight-bar curls, skullcrushers and dips come out. Hammer curls and cable work replace them.',
     ex:['bw-diamond-pushup','bb-cgbp','db-skull','bb-curl','bw-dip','bw-bench-dip','db-oh-tricep','mach-preacher'] },
   wrist: { k:'wrist', label:'Wrist', ico:'🤚',
     note:'Anything loading a bent wrist comes out — push-ups, front squats, planks on hands.',
-    ex:['bb-front-squat','bw-pushup','bw-diamond-pushup','bw-decline-pushup','bw-pike-pushup','bw-hspu','bw-bear-crawl','bw-mountain-climber','bb-curl','db-renegade-row','bw-l-sit','bw-incline-pushup'] },
+    ex:['bb-front-squat','bw-pushup','bw-diamond-pushup','bw-decline-pushup','bw-pike-pushup','bw-hspu','bw-bear-crawl','bw-mountain-climber','bb-curl','db-renegade-row','bw-l-sit','bw-incline-pushup',
+         'mob-cat-cow','mob-scap-pushup','mob-cobra'] },
   neck: { k:'neck', label:'Neck', ico:'🧣',
     note:'Shrugs and bar-on-traps squatting come out. Worth flagging if you carry a camera on one shoulder.',
     ex:['bb-shrug','db-shrug','bw-situp','bw-russian-twist','bb-back-squat','bw-l-sit'] },
   hip: { k:'hip', label:'Hip', ico:'🦴',
     note:'Wide stances and deep split positions come out.',
-    ex:['bb-sumo-dl','db-bulgarian','bw-pistol','mach-hip-abduction','bb-lunge','bw-split-squat'] },
+    ex:['bb-sumo-dl','db-bulgarian','bw-pistol','mach-hip-abduction','bb-lunge','bw-split-squat',
+         'mob-pigeon'] },
   ankle: { k:'ankle', label:'Ankle or foot', ico:'🦶',
     note:'Impact work comes out. Cycling and rowing replace running for conditioning.',
-    ex:['bw-jump-squat','bw-broad-jump','car-jump-rope','bw-high-knees','bw-burpee','bb-front-squat','car-run','car-treadmill-run'] }
+    ex:['bw-jump-squat','bw-broad-jump','car-jump-rope','bw-high-knees','bw-burpee','bb-front-squat','car-run','car-treadmill-run',
+         'mob-ankle-rock'] }
 };
 
 function injuryExclusions() {
@@ -8632,6 +8742,533 @@ async function offLookup(code) {
   }
 }
 /* ============================================================
+   WATER
+   ------------------------------------------------------------
+   Logged in millilitres, always, whatever the screen shows. A store that
+   changes units is a store that needs migrating every time somebody flips a
+   setting, and the app already has one of those in weights — this one is a
+   fixed unit with a formatter in front of it, which is the shape that should
+   have been used there.
+   ============================================================ */
+
+const ML_PER_OZ = 29.5735;
+
+/* Water reads in fluid ounces or millilitres, and unlike distance this is
+   derived from the weight unit rather than given a setting of its own. The US
+   fluid ounce is essentially US-only and the US weighs in pounds, so the two
+   travel together — where kilos-and-miles is an ordinary pairing across
+   Britain, kilos-and-fluid-ounces is nobody's. */
+function waterUnit() { return (S.profile && S.profile.units === 'lb') ? 'oz' : 'ml'; }
+
+function waterStore() {
+  if (!S.nutrition) S.nutrition = {};
+  if (!S.nutrition.water) S.nutrition.water = { days: {}, goal: null, best: 0 };
+  if (!S.nutrition.water.days) S.nutrition.water.days = {};
+  return S.nutrition.water;
+}
+
+function waterOn(k) { return +(waterStore().days[key(k || today())] || 0); }
+
+/* ------------------------------------------------------------
+   What to aim for.
+
+   There is no single right number and anyone who quotes one to three
+   significant figures is selling something. Two things are defensible and
+   both are used here:
+
+   - Roughly 30–35 ml per kilo of bodyweight a day, total water. The midpoint
+     is taken, and it is clamped at both ends because the linear form stops
+     being sensible at the extremes.
+   - Around 500 ml per hour of training on top, which is the middle of the
+     range ACSM gives for sweat replacement.
+
+   Food carries a fifth to a third of your total water and this target does
+   not try to model that, so it is deliberately a *drinks* target that sits at
+   the low end of the total-water figures rather than a number pretending to
+   be your whole intake. The screen says so rather than hiding it.
+
+   With no bodyweight logged there is nothing to scale from, so it falls back
+   to a flat figure rather than inventing a weight.
+   ------------------------------------------------------------ */
+const WATER_ML_PER_KG = 33;
+const WATER_ML_PER_TRAINING_HOUR = 500;
+const WATER_FLOOR = 1500, WATER_CEIL = 4000;
+
+function waterBaseGoal() {
+  const bw = (S.profile.bodyweight || []).slice(-1)[0];
+  if (!bw || !(+bw.w > 0)) return 2000;
+  /* Stored weights are in whatever unit was showing when they were written,
+     so this converts rather than assuming kilos — the same trap the one-rep
+     max estimate fell into. */
+  const kg = S.profile.units === 'lb' ? +bw.w / LB_PER_KG : +bw.w;
+  return Math.max(WATER_FLOOR, Math.min(WATER_CEIL, Math.round(kg * WATER_ML_PER_KG / 50) * 50));
+}
+
+/* Minutes trained on a given day, from what was actually logged. */
+function trainedMinutes(k) {
+  const kk = key(k || today());
+  return (S.sessions || []).filter(s => s.ended && s.date === kk)
+    .reduce((a, s) => a + (+s.dur || 0), 0);
+}
+
+function waterGoal(k) {
+  const w = waterStore();
+  /* An explicit goal is yours and the training top-up still applies to it —
+     you do not sweat less because you typed a number. */
+  const base = (+w.goal > 0) ? +w.goal : waterBaseGoal();
+  const mins = trainedMinutes(k);
+  const bonus = Math.round(mins / 60 * WATER_ML_PER_TRAINING_HOUR / 50) * 50;
+  return { base, bonus, total: base + bonus, mins };
+}
+
+function waterPct(k) {
+  const g = waterGoal(k).total;
+  if (!(g > 0)) return 0;
+  return Math.max(0, Math.round(waterOn(k) / g * 100));
+}
+
+function logWater(ml, k) {
+  const kk = key(k || today());
+  const w = waterStore();
+  const next = Math.max(0, Math.round((+w.days[kk] || 0) + (+ml || 0)));
+  if (next === 0) delete w.days[kk]; else w.days[kk] = next;
+  save();
+  return next;
+}
+
+function setWater(ml, k) {
+  const kk = key(k || today());
+  const w = waterStore();
+  const v = Math.max(0, Math.round(+ml || 0));
+  if (v === 0) delete w.days[kk]; else w.days[kk] = v;
+  save();
+  return v;
+}
+
+function setWaterGoal(ml) {
+  const w = waterStore();
+  const v = Math.round(+ml || 0);
+  w.goal = v > 0 ? Math.max(500, Math.min(6000, v)) : null;
+  save(true);
+}
+
+/* ------------------------------------------------------------
+   The streak.
+
+   The app has no streak counter anywhere else and says so on purpose: nothing
+   goes red, a missed day is free. This one was asked for by name, so the rule
+   it has to obey instead is that it may never be a stick.
+
+   Two things make that true. **Today cannot break it** — the count runs back
+   from yesterday and today is only ever added once it is met, so an afternoon
+   with three glasses in it is never a broken chain, it is a day in progress.
+   And a break is not an event: there is no "you lost it", the number simply
+   starts again and your best is kept beside it, so the good run still
+   happened. What you did last month does not stop being true.
+   ------------------------------------------------------------ */
+function waterMet(k) {
+  const kk = key(k);
+  const g = waterGoal(kk).total;
+  return g > 0 && waterOn(kk) >= g;
+}
+
+function waterStreak() {
+  let n = 0;
+  const t = fromKey(today());
+  if (waterMet(today())) n++;
+  /* From yesterday backwards. A day that has not finished cannot have been
+     missed, so the walk starts behind today whether or not today counted. */
+  for (let i = 1; i <= 400; i++) {
+    if (!waterMet(dk(addDays(t, -i)))) break;
+    n++;
+  }
+  return n;
+}
+
+/* Kept rather than recomputed: the goal moves with your bodyweight and with
+   what you trained, so a run met against last year's target would stop being
+   a run the moment either changed. A best you have already earned should not
+   be taken back by arithmetic. */
+function noteWaterBest() {
+  const w = waterStore();
+  const n = waterStreak();
+  if (n > (+w.best || 0)) { w.best = n; save(); }
+  return +w.best || 0;
+}
+
+/* ------------------------------------------------------------
+   Units, in and out.
+   ------------------------------------------------------------ */
+function mlToUnit(ml) {
+  return waterUnit() === 'oz' ? +ml / ML_PER_OZ : +ml;
+}
+function unitToMl(v) {
+  return waterUnit() === 'oz' ? +v * ML_PER_OZ : +v;
+}
+
+/* Litres once it is worth reading as litres. "1750 ml" is a number you have to
+   parse; "1.75 L" is a quantity you can picture. Ounces stay whole — nobody
+   pours 12.4 fl oz. */
+function fmtWater(ml) {
+  const v = +ml || 0;
+  if (waterUnit() === 'oz') return Math.round(v / ML_PER_OZ) + ' oz';
+  if (v >= 1000) return (Math.round(v / 100) / 10).toFixed(1).replace(/\.0$/, '') + ' L';
+  return Math.round(v) + ' ml';
+}
+function waterUnitLabel() { return waterUnit() === 'oz' ? 'oz' : 'ml'; }
+
+/* The quick pours. Real vessels rather than round numbers: a glass, a bottle,
+   a big bottle. In ounces they are the sizes those things are actually sold
+   in, not a conversion of the millilitre ones — 8.5 oz is not a cup. */
+function waterPours() {
+  return waterUnit() === 'oz'
+    ? [{ ml: 8 * ML_PER_OZ, label: 'Glass', sub: '8 oz' },
+       { ml: 16 * ML_PER_OZ, label: 'Bottle', sub: '16 oz' },
+       { ml: 32 * ML_PER_OZ, label: 'Flask', sub: '32 oz' }]
+    : [{ ml: 250, label: 'Glass', sub: '250 ml' },
+       { ml: 500, label: 'Bottle', sub: '500 ml' },
+       { ml: 1000, label: 'Flask', sub: '1 L' }];
+}
+
+/* The last seven days ending today, for the strip under the bottle. Trailing,
+   not the calendar week — the same shape the Fuel chart uses, and for the same
+   reason: a Monday should not show you five empty columns. */
+function waterWeek() {
+  const t = fromKey(today());
+  const out = [];
+  for (let i = 6; i >= 0; i--) {
+    const kk = dk(addDays(t, -i));
+    const g = waterGoal(kk).total;
+    out.push({ d: kk, ml: waterOn(kk), goal: g, met: g > 0 && waterOn(kk) >= g });
+  }
+  return out;
+}
+/* ============================================================
+   STRETCH
+   ------------------------------------------------------------
+   A daily stretch built from three things the app already knows or can ask
+   for once: what you trained, what your day does to you, and what already
+   hurts.
+
+   The catalogue is not extended for this — the mobility movements were always
+   there, and a stretch tool that invents its own library would have two sets
+   of the same exercise with two sets of ids. What is new is the *choosing*.
+
+   The occupation half is the part with the least evidence behind it, and it
+   is treated accordingly: it nudges the ranking, it never overrides an injury
+   exclusion, and the screen says which of your answers put a movement in the
+   list. A recommendation you cannot interrogate is a horoscope.
+   ============================================================ */
+
+/* What a working day loads, by the region that takes it. These are the areas
+   that go short or stiff, not the ones that get strong — a driver's hip
+   flexors shorten whether or not their legs are doing anything.
+
+   `areas` are MUSCLES entries so they can be matched against the catalogue's
+   own primary/secondary fields; nothing here needs a second taxonomy. */
+const OCCUPATIONS = {
+  desk:    { k:'desk',    label:'Desk / screen work',      ico:'💻',
+             areas:['Chest','Shoulders','Back','Glutes','Quads'],
+             note:'Hours in flexion: the front closes up and the hips stay short. The work is opening the chest and hips and getting the upper back to move again.' },
+  camera:  { k:'camera',  label:'Camera / AV crew',        ico:'🎥',
+             areas:['Shoulders','Back','Core','Calves','Glutes'],
+             note:'Weight on one shoulder for hours, then standing on it. Asymmetric load through the neck and upper back, with calves and low back taking the standing.' },
+  driving: { k:'driving', label:'Driving',                 ico:'🚚',
+             areas:['Glutes','Quads','Back','Chest'],
+             note:'Seated with the hips flexed and the arms forward. Hip flexors and glutes take most of it.' },
+  standing:{ k:'standing',label:'On your feet all day',    ico:'🧍',
+             areas:['Calves','Glutes','Hamstrings','Back'],
+             note:'Static standing loads calves and low back more than walking does. Ankles and hips first.' },
+  lifting: { k:'lifting', label:'Manual / trades',         ico:'🧰',
+             areas:['Back','Hamstrings','Shoulders','Glutes'],
+             note:'Repeated bending and carrying. Posterior chain and shoulders.' },
+  care:    { k:'care',    label:'Healthcare / caring',     ico:'🩺',
+             areas:['Back','Shoulders','Calves','Hamstrings'],
+             note:'Long shifts on your feet with awkward lifts in them. Low back and shoulders.' },
+  hands:   { k:'hands',   label:'Hands and wrists all day',ico:'🖐',
+             areas:['Triceps','Shoulders','Chest'],
+             note:'Fine motor work with the forearms loaded and the shoulders forward.' },
+  mixed:   { k:'mixed',   label:'A bit of everything',     ico:'🔀',
+             areas:['Back','Shoulders','Glutes','Hamstrings'],
+             note:'The general case: hips, upper back and shoulders.' }
+};
+
+/* The regions a stretch session should spread across, so eight movements are
+   not eight versions of the same one. Derived from the catalogue's own primary
+   field rather than a second list that would drift out of sync. */
+const STRETCH_REGIONS = {
+  Back:'spine', Core:'spine',
+  Shoulders:'shoulders', Chest:'shoulders', Triceps:'shoulders', Biceps:'shoulders',
+  Glutes:'hips', Quads:'hips',
+  Hamstrings:'legs', Calves:'legs'
+};
+function stretchRegion(ex) { return STRETCH_REGIONS[ex && ex.primary] || 'other'; }
+
+function stretchStore() {
+  if (!S.stretch) S.stretch = { onboarded:false, occupation:null, sit:null, areas:[], done:{}, mins:8 };
+  if (!S.stretch.done) S.stretch.done = {};
+  if (!S.stretch.areas) S.stretch.areas = [];
+  return S.stretch;
+}
+function stretchOnboarded() { return !!stretchStore().onboarded; }
+
+/* Every mobility movement the catalogue has, minus anything your injuries
+   already took out of the library. An injury exclusion is a hard filter here
+   exactly as it is everywhere else — the tool that is supposed to help a sore
+   shoulder must not be the one thing in the app that ignores it. */
+function stretchPool() {
+  const banned = injuryExclusions();
+  const bands = !!(S.profile && S.profile.gear && S.profile.gear.bands);
+  return EXLIST.filter(x => {
+    if (x.pattern !== 'mobility' || banned.has(x.id)) return false;
+    /* It has to be doable where you are. This is the one thing in the app
+       offered as a *daily* habit, so a movement that needs a pull-up bar or a
+       foam roller is the wrong answer even when it is the right stretch —
+       Dead Hang scored its way to the top of a hotel-room list before this.
+
+       The test is `env`, not `eq`. A dead hang's equipment reads "Bodyweight"
+       because you are the load, but its environments are full-gym and hotel:
+       it still needs something to hang from. `b` is the flag that actually
+       means "a floor and nothing else". Bands are the one exception, and only
+       if you said you own some. */
+    /* Equipment is checked before environment, not after. A band dislocate is
+       tagged `fhb` — you can do it anywhere — which let it through the
+       environment test and made the band branch below unreachable, so it was
+       offered to people who own no bands. */
+    if (x.eq === 'Band') return bands;
+    return x.env.indexOf('b') >= 0;
+  });
+}
+
+/* ------------------------------------------------------------
+   Scoring.
+
+   Three inputs, each worth stating out loud because the screen shows which
+   one fired:
+
+   - **Trained** — what you actually loaded in the last two days, from the
+     session records. The strongest signal and the only one that is not a
+     self-report.
+   - **Sore or stiff** — the areas you named. Weighted highest, because you
+     are the only one who knows.
+   - **Work** — what your occupation does to you. The weakest, deliberately.
+
+   Ties are broken by how long it has been since the movement came up, so the
+   daily stretch rotates instead of serving the same six forever. That is the
+   same least-recent rule the recovery day uses.
+   ------------------------------------------------------------ */
+const STRETCH_W = { sore: 5, trained: 3, work: 2, secondary: 0.5 };
+
+/* Muscles loaded in the last N days, weighted by how many sets went into them.
+   Reuses the session store rather than a parallel tally. */
+function recentlyTrained(days) {
+  const cutoff = dk(addDays(fromKey(today()), -(days || 2)));
+  const tally = {};
+  (S.sessions || []).forEach(s => {
+    if (!s.ended || s.date < cutoff) return;
+    (s.exercises || []).forEach(it => {
+      const ex = EX[it.exId];
+      if (!ex || ex.pattern === 'mobility') return;
+      const done = (it.sets || []).filter(st => st.done).length;
+      if (!done) return;
+      tally[ex.primary] = (tally[ex.primary] || 0) + done;
+      (ex.sec || []).forEach(m => { tally[m] = (tally[m] || 0) + done * 0.5; });
+    });
+  });
+  return tally;
+}
+
+function stretchScores() {
+  const st = stretchStore();
+  const trained = recentlyTrained(2);
+  const occ = OCCUPATIONS[st.occupation];
+  const workAreas = new Set(occ ? occ.areas : []);
+  /* The named sore areas are INJURIES keys; they have to become muscles to be
+     matched against the catalogue. */
+  const sore = {};
+  (st.areas || []).forEach(k => {
+    const map = STRETCH_AREA_MUSCLES[k] || {};
+    /* The strongest association wins rather than accumulating: flagging both
+       hip and knee should not make quads twice as urgent as either did. */
+    Object.keys(map).forEach(m => { sore[m] = Math.max(sore[m] || 0, map[m]); });
+  });
+
+  return stretchPool().map(ex => {
+    const all = [[ex.primary, 1]].concat((ex.sec || []).map(m => [m, STRETCH_W.secondary]));
+    /* Tallied per reason rather than into one total, because the row shows
+       *why* a movement is there and the honest answer is whichever of the
+       three contributed most. Listing all three that fired was the first
+       version and it labelled nine rows out of eleven "flagged / trained /
+       work", which is three chips that say nothing. */
+    const by = { sore: 0, trained: 0, work: 0 };
+    all.forEach(([m, w]) => {
+      if (sore[m]) by.sore += STRETCH_W.sore * w * sore[m];
+      if (trained[m]) by.trained += STRETCH_W.trained * w * Math.min(1, trained[m] / 6);
+      if (workAreas.has(m)) by.work += STRETCH_W.work * w;
+    });
+    const score = by.sore + by.trained + by.work;
+    const top = Object.keys(by).sort((a, b) => by[b] - by[a])[0];
+    const L = S.lifts && S.lifts[ex.id];
+    return { ex, score, by, why: by[top] > 0 ? top : null, last: (L && L.lastDate) || '' };
+  });
+}
+
+/* Which muscles each named problem area actually covers. The keys are the
+   INJURIES keys, so the stretch tool asks the same question the rest of the
+   app already asked rather than inventing a second vocabulary for the same
+   eight body parts. */
+/* Weighted, not a flat list. A low back that hurts is genuinely related to hip
+   and hamstring mobility, but it is not related to them as strongly as it is
+   to the back itself — and a flat list said it was, which made "flagged" the
+   top reason on nine rows out of nine and turned the explanation back into
+   wallpaper. The numbers are a ranking, not a clinical claim. */
+const STRETCH_AREA_MUSCLES = {
+  shoulder: { Shoulders:1, Chest:0.6, Back:0.4 },
+  lowback:  { Back:1, Core:0.6, Glutes:0.5, Hamstrings:0.4 },
+  knee:     { Quads:1, Hamstrings:0.7, Calves:0.5 },
+  elbow:    { Triceps:1, Biceps:0.8, Shoulders:0.3 },
+  wrist:    { Triceps:0.6, Biceps:0.6 },
+  neck:     { Shoulders:1, Back:0.5, Chest:0.5 },
+  hip:      { Glutes:1, Quads:0.8, Hamstrings:0.5 },
+  ankle:    { Calves:1, Hamstrings:0.4 }
+};
+
+/* ------------------------------------------------------------
+   The daily stretch.
+
+   Spread across regions before rank within them, the same way a recovery day
+   is built — eight movements that are all hip openers is not a session, it is
+   a hip opener done eight times. Deterministic for a given day and a given
+   state, so opening the screen twice does not shuffle it.
+   ------------------------------------------------------------ */
+function dailyStretch(n) {
+  /* Filled to a time budget, not to a count. The first version turned minutes
+     into a movement count with a flat 45-seconds-each guess and then measured
+     the result at 56 — so asking for eight minutes produced ten and a half.
+     One number decides the length now, and it is the one being asked for. */
+  const budget = n ? null : Math.max(3, +stretchStore().mins || 8) * 60;
+  const want = n ? Math.max(1, Math.min(14, n)) : 14;
+  const scored = stretchScores().sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    if (a.last !== b.last) return (a.last || '').localeCompare(b.last || '');
+    return a.ex.name.localeCompare(b.ex.name);
+  });
+
+  const byRegion = {};
+  scored.forEach(s => {
+    const r = stretchRegion(s.ex);
+    (byRegion[r] = byRegion[r] || []).push(s);
+  });
+  /* Regions in the order their best movement scored, so the area that most
+     needs it leads — but every region still gets a turn before any gets a
+     second. */
+  const regions = Object.keys(byRegion).sort((a, b) => byRegion[b][0].score - byRegion[a][0].score);
+
+  const out = [];
+  let round = 0, secs = 0;
+  const full = () => budget ? secs >= budget : out.length >= want;
+  while (!full() && round < 12 && out.length < want) {
+    let added = false;
+    for (const r of regions) {
+      if (full() || out.length >= want) break;
+      const pick = byRegion[r][round];
+      if (!pick) continue;
+      out.push(pick);
+      secs += movementSeconds(pick.ex);
+      added = true;
+    }
+    if (!added) break;
+    round++;
+  }
+  /* One over the line is closer to the ask than one under it whenever the last
+     movement straddles the budget — but only if it is actually closer. */
+  if (budget && out.length > 3) {
+    const without = secs - movementSeconds(out[out.length - 1].ex);
+    if (Math.abs(without - budget) < Math.abs(secs - budget)) out.pop();
+  }
+  return out;
+}
+
+/* What one movement costs, including getting into and out of it. A 60-second
+   hold is not 60 seconds of your time. */
+function movementSeconds(ex) {
+  return (ex.load === 'time' ? ex.rh : ex.rh * 3) + 10;
+}
+
+/* How long today's stretch should be, from the minutes you asked for. Timed
+   movements carry their own seconds; rep-counted ones are estimated the same
+   way the session-length maths does it elsewhere. */
+function stretchSeconds(list) {
+  return (list || []).reduce((a, s) => a + movementSeconds(s.ex || s), 0);
+}
+
+/* ------------------------------------------------------------
+   Doing it.
+
+   A stretch is marked done on the day, not logged as a session. It carries no
+   load, sets no record and must never reach applyProgression — the mobility
+   guard there exists because the unloaded branch would otherwise ratchet a
+   stretch's rep target every time you held it longer.
+   ------------------------------------------------------------ */
+function stretchDone(k) {
+  return (stretchStore().done[key(k || today())] || []).slice();
+}
+function toggleStretchDone(exId, k) {
+  const kk = key(k || today());
+  const st = stretchStore();
+  const list = st.done[kk] || [];
+  const i = list.indexOf(exId);
+  if (i >= 0) list.splice(i, 1); else list.push(exId);
+  if (list.length) st.done[kk] = list; else delete st.done[kk];
+  save();
+  return list.slice();
+}
+function stretchAllDone(list, k) {
+  const done = stretchDone(k);
+  return list.length > 0 && list.every(s => done.indexOf((s.ex || s).id) >= 0);
+}
+
+/* Days in a row with at least one stretch in them. Same rule as water: today
+   cannot break it, and a break is never announced. */
+function stretchStreak() {
+  let n = 0;
+  const t = fromKey(today());
+  if (stretchDone(today()).length) n++;
+  for (let i = 1; i <= 400; i++) {
+    if (!stretchDone(dk(addDays(t, -i))).length) break;
+    n++;
+  }
+  return n;
+}
+
+/* ------------------------------------------------------------
+   Your own.
+
+   A stretch routine is a routine — the builder, the reorder, the timed items
+   and the Train runner all already exist and all already work. Building a
+   second one here would be two of everything with one of them worse. What
+   this adds is a routine seeded from mobility movements and marked so the
+   stretch screen can find it again.
+   ------------------------------------------------------------ */
+function stretchRoutines() {
+  return (S.routines || []).filter(r => r.stretch);
+}
+function newStretchRoutine(name) {
+  const r = newRoutine(name || 'My stretch');
+  r.stretch = true;
+  r.warmup = false;
+  save(true);
+  return r;
+}
+/* Today's recommendation, saved so it can be edited and kept. */
+function saveDailyAsRoutine() {
+  const list = dailyStretch();
+  const r = newStretchRoutine('Daily stretch');
+  list.forEach(s => addToRoutine(r.id, s.ex.id));
+  save(true);
+  return r;
+}
+/* ============================================================
    ONBOARDING
    One decision per screen, grouped into four short chapters.
    Every question changes generated sessions — nothing is asked
@@ -9674,7 +10311,10 @@ function renderToday() {
   /* ── 4. the week ──────────────────────────────────────────── */
   html += weekStripHTML('<button class="sec-a" data-act="open-week">Shape it</button>');
 
-  /* ── 5. your own routines ─────────────────────────────────── */
+  /* ── 5. the stretch ───────────────────────────────────────── */
+  html += stretchStripHTML();
+
+  /* ── 6. your own routines ─────────────────────────────────── */
   html += routineStripHTML();
   html += todaySessionsHTML();
 
@@ -9683,6 +10323,34 @@ function renderToday() {
      with no height or age on file it rendered "0 / undefined kcal". */
 
   $('#today-body').innerHTML = html;
+}
+
+/* The daily stretch, on Today rather than only under More — a habit nobody
+   can find is not a habit. Shown before it has been set up too, because a
+   feature that only appears once you have used it never gets used. */
+function stretchStripHTML() {
+  const set = stretchOnboarded();
+  const doneToday = set ? stretchDone(today()).length : 0;
+  const list = set ? dailyStretch() : [];
+  const all = set && list.length && stretchAllDone(list);
+  const streak = set ? stretchStreak() : 0;
+
+  const sub = !set
+    ? 'Daily mobility built from your training and your working day'
+    : all
+      ? 'Done today' + (streak ? ` · ${streak} day${streak === 1 ? '' : 's'} running` : '')
+      : doneToday
+        ? `${doneToday} of ${list.length} done`
+        : `${list.length} movements · ${Math.round(stretchSeconds(list) / 60)} min`;
+
+  return `<button class="lrow str-strip" data-act="stretch" style="width:100%;text-align:left">
+    <div class="ico">${all ? '<span class="str-strip-ok">✓</span>' : '🧘'}</div>
+    <div class="grow">
+      <div class="h3">${set ? "Today's stretch" : 'Stretch'}</div>
+      <div class="tiny mt-s">${h(sub)}</div>
+    </div>
+    <span class="chev">›</span>
+  </button>`;
 }
 
 /* How the week is actually going: sessions done against sessions planned.
@@ -11344,6 +12012,7 @@ function renderMore() {
      and Plan already offer it in five places. */
   html += `<div class="sec-head"><span class="sec-t">Your journey</span></div><div class="list mb">
     <div class="lrow" data-act="open-journey"><div class="ico">🧭</div><div class="grow"><div class="h3">Day ${jst.day} of your guzo</div><div class="tiny mt-s">${milestonesReached().length} of ${MILESTONES.length} markers reached · ${(jst.kcal/1000).toFixed(1)}k kcal estimated</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="stretch"><div class="ico">🧘</div><div class="grow"><div class="h3">Stretch</div><div class="tiny mt-s">${stretchOnboarded() ? (stretchStreak() ? stretchStreak() + ' day' + (stretchStreak() === 1 ? '' : 's') + ' running · built from what you trained' : 'A daily stretch, built from what you trained') : 'Daily stretches for your training and your working day'}</div></div><span class="chev">›</span></div>
     <div class="lrow" data-act="routines"><div class="ico">🧩</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="chev">›</span></div>
     ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">🗺</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="chev">›</span></div>` : ''}
     ${fuelOn() ? `<div class="lrow" data-act="open-nutrition"><div class="ico">📊</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">›</span></div>` : ''}
@@ -13267,6 +13936,9 @@ function renderFuel() {
     </div>` : `<p class="tiny mt center">Calories are switched off. Protein is the number with the strongest evidence behind it for building muscle &mdash; everything else is being logged, just not shown.</p>`}
   </div>`;
 
+  /* ── water ───────────────────────────────────────────────── */
+  html += bottleHTML(k);
+
   /* ── add ─────────────────────────────────────────────────── */
   html += `<div class="fuel-actions">
     <div class="btn-row">
@@ -13909,6 +14581,271 @@ function sheetDietPrefs() {
 
     <p class="tiny">${allowedFoods(p).length} of ${FOODS.length} foods pass these. Guzo is not an allergen database — these are generic reference foods, not products with labels. If something matters medically, read the packet.</p>
   `, { key: 'diet-prefs' });
+}
+/* ============================================================
+   THE BOTTLE
+   ------------------------------------------------------------
+   A hiking flask that fills as you drink, because a progress bar for water is
+   a progress bar and a bottle is a thing you recognise from across a room.
+
+   Everything in it is drawn from one number — millilitres logged against the
+   day's goal. The waterline sits at that fraction of the inside of the
+   bottle, so a half-full bottle is genuinely half, and the graduations down
+   the side are real fractions of the goal rather than decoration.
+   ============================================================ */
+
+/* The inside of the flask, in the SVG's own units. The fill is clipped to
+   this, so the liquid takes the bottle's shape at the shoulders instead of
+   being a rectangle behind it. */
+const BOTTLE_TOP = 30, BOTTLE_BOT = 172;
+
+function bottleHTML(k) {
+  const ml = waterOn(k);
+  const g = waterGoal(k);
+  const frac = g.total > 0 ? Math.max(0, Math.min(1, ml / g.total)) : 0;
+  const over = g.total > 0 && ml > g.total;
+  /* The waterline, in SVG units. Two wave crests ride on it — the same y, so
+     the surface stays level and only its edge moves. */
+  const y = BOTTLE_BOT - frac * (BOTTLE_BOT - BOTTLE_TOP);
+
+  return `<div class="wtr-card">
+    <div class="wtr-head">
+      <div>
+        <div class="eyebrow">Water</div>
+        <div class="wtr-v mono">${fmtWater(ml)}<span class="wtr-of">of ${fmtWater(g.total)}</span></div>
+      </div>
+      <button class="wtr-set" data-act="water-settings" aria-label="Water target and units">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.56V21a2 2 0 11-4 0v-.09A1.7 1.7 0 008 19.4a1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.7 1.7 0 003.6 15a1.7 1.7 0 00-1.56-1H2a2 2 0 110-4h.09A1.7 1.7 0 004.6 8a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06A1.7 1.7 0 009 3.6a1.7 1.7 0 001-1.56V2a2 2 0 114 0v.09a1.7 1.7 0 001 1.56 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06A1.7 1.7 0 0019.4 9v0a1.7 1.7 0 001.56 1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.56 1z"/></svg>
+      </button>
+    </div>
+
+    <div class="wtr-body">
+      <div class="wtr-bottle ${over ? 'over' : ''}">
+        <svg viewBox="0 0 120 200" role="img"
+             aria-label="${fmtWater(ml)} of ${fmtWater(g.total)} logged today">
+          <defs>
+            ${/* The liquid is clipped to the flask's inside, so it takes the
+                  shoulder taper rather than sitting behind a rectangle. */''}
+            <clipPath id="wtr-clip">
+              <path d="M40 30 h40 a6 6 0 016 6 v6 c0 8 8 12 8 26 v92 a12 12 0 01-12 12 h-44 a12 12 0 01-12-12 v-92 c0-14 8-18 8-26 v-6 a6 6 0 016-6 z"/>
+            </clipPath>
+            <linearGradient id="wtr-fill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#7ec8f2" stop-opacity=".95"/>
+              <stop offset="100%" stop-color="#3f8fd0" stop-opacity=".95"/>
+            </linearGradient>
+          </defs>
+
+          ${/* Cap and collar, above the fill so nothing ever paints over them. */''}
+          <rect class="wtr-cap" x="42" y="6" width="36" height="16" rx="5"/>
+          <rect class="wtr-collar" x="46" y="21" width="28" height="8" rx="3"/>
+
+          <g clip-path="url(#wtr-clip)">
+            <rect class="wtr-inside" x="20" y="24" width="80" height="180"/>
+            <g class="wtr-liquid" style="transform:translateY(${y.toFixed(1)}px)">
+              ${/* Drawn from y=0 downward and then translated, so the whole
+                    body of liquid moves as one and the transition animates the
+                    level rather than redrawing a path. */''}
+              <path class="wtr-wave" d="M-60 0 q15 -6 30 0 t30 0 t30 0 t30 0 t30 0 t30 0 t30 0 v210 h-240 z" fill="url(#wtr-fill)"/>
+            </g>
+          </g>
+
+          ${/* Graduations: real fractions of today's goal, not tick marks. */''}
+          ${[0.25, 0.5, 0.75].map(f => {
+            const gy = BOTTLE_BOT - f * (BOTTLE_BOT - BOTTLE_TOP);
+            return `<line class="wtr-grad" x1="72" y1="${gy.toFixed(1)}" x2="88" y2="${gy.toFixed(1)}"/>`;
+          }).join('')}
+
+          <path class="wtr-glass" d="M40 30 h40 a6 6 0 016 6 v6 c0 8 8 12 8 26 v92 a12 12 0 01-12 12 h-44 a12 12 0 01-12-12 v-92 c0-14 8-18 8-26 v-6 a6 6 0 016-6 z"/>
+          ${/* The strap loop. It is what makes it a flask you take somewhere
+                rather than a glass on a desk. */''}
+          <path class="wtr-strap" d="M86 40 q16 4 16 16 q0 12 -12 16"/>
+        </svg>
+      </div>
+
+      <div class="wtr-side">
+        <div class="wtr-pct mono">${waterPct(k)}<span class="wtr-pct-s">%</span></div>
+        <div class="wtr-note">${h(waterNote(k, g))}</div>
+        ${waterStreakHTML()}
+      </div>
+    </div>
+
+    <div class="wtr-pours">
+      ${waterPours().map(p => `<button class="wtr-pour" data-act="water-add" data-v="${Math.round(p.ml)}">
+        <span class="wtr-pour-i" aria-hidden="true">${p.label === 'Glass' ? glassIcon() : p.label === 'Bottle' ? bottleIcon() : flaskIcon()}</span>
+        <span class="wtr-pour-l">${h(p.label)}</span>
+        <span class="wtr-pour-s">${h(p.sub)}</span>
+      </button>`).join('')}
+      <button class="wtr-pour custom" data-act="water-custom">
+        <span class="wtr-pour-i" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 6v12M6 12h12"/></svg>
+        </span>
+        <span class="wtr-pour-l">Other</span>
+        <span class="wtr-pour-s">amount</span>
+      </button>
+    </div>
+
+    ${ml > 0 ? `<button class="wtr-undo" data-act="water-clear">Clear today</button>` : ''}
+
+    <div class="wtr-week">
+      ${waterWeek().map(d => `<div class="wtr-wk ${d.met ? 'met' : ''} ${d.d === today() ? 'today' : ''}">
+        <div class="wtr-wk-t"><i style="height:${d.goal ? Math.min(100, Math.round(d.ml / d.goal * 100)) : 0}%"></i></div>
+        <div class="wtr-wk-d">${DAYNAMES[fromKey(d.d).getDay()].slice(0, 1)}</div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+/* Why the number is what it is, in one line, and what it is not. */
+function waterNote(k, g) {
+  const bw = (S.profile.bodyweight || []).slice(-1)[0];
+  const parts = [];
+  if (S.nutrition.water && +S.nutrition.water.goal > 0) parts.push('Your target');
+  else if (bw && +bw.w > 0) parts.push('About 33 ml per kg');
+  else parts.push('A flat estimate — log a bodyweight and it scales');
+  if (g.bonus > 0) parts.push(`+${fmtWater(g.bonus)} for ${g.mins} min trained`);
+  return parts.join(' · ');
+}
+
+/* The streak, in the app's voice. See waterStreak(): today cannot break it,
+   and a break is not announced. */
+function waterStreakHTML() {
+  const n = waterStreak();
+  const best = noteWaterBest();
+  if (!n && !best) {
+    return `<div class="wtr-streak none">Hit the target and a run starts here.</div>`;
+  }
+  if (!n) {
+    /* Broken, and said without a word of blame. The best is still yours. */
+    return `<div class="wtr-streak"><span class="wtr-streak-n mono">0</span>
+      <span class="wtr-streak-l">days &mdash; your best is ${best}</span></div>`;
+  }
+  return `<div class="wtr-streak on"><span class="wtr-streak-n mono">${n}</span>
+    <span class="wtr-streak-l">day${n === 1 ? '' : 's'} running${best > n ? ` &mdash; best ${best}` : ''}</span></div>`;
+}
+
+function glassIcon() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10l-1.3 15.2A2 2 0 0113.7 21h-3.4a2 2 0 01-2-1.8z"/><path d="M7.6 11h8.8" stroke-width="1.4"/></svg>`;
+}
+function bottleIcon() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4v3c0 1.6 2 2.4 2 5v11a2 2 0 01-2 2h-4a2 2 0 01-2-2V10c0-2.6 2-3.4 2-5z"/><path d="M8 13h8" stroke-width="1.4"/></svg>`;
+}
+function flaskIcon() {
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="6" width="10" height="16" rx="3"/><path d="M9.5 2h5v4h-5z"/><path d="M17 9q3 1 3 4t-3 4" stroke-width="1.4"/></svg>`;
+}
+
+/* An amount that is not a glass, a bottle or a flask. */
+function sheetWaterCustom() {
+  openSheet(`
+    <h2 class="h1 mb" style="padding-right:44px">Add water</h2>
+    <div class="field mb">
+      <div class="label">How much (${h(waterUnitLabel())})</div>
+      <input class="input" id="wtr-amt" type="text" inputmode="decimal" enterkeyhint="done"
+             autocomplete="off" placeholder="${waterUnit() === 'oz' ? '12' : '400'}">
+    </div>
+    <button class="btn primary block lg" data-act="water-custom-go">Add</button>
+  `);
+  const el = $('#wtr-amt'); if (el) el.focus();
+}
+
+/* The target, and what it is made of. The estimate is explained rather than
+   asserted — it is a rule of thumb, and a number you cannot argue with is a
+   number you cannot trust. */
+function sheetWaterGoal() {
+  const g = waterGoal(today());
+  const set = +((S.nutrition.water || {}).goal) > 0;
+  const shown = waterUnit() === 'oz'
+    ? Math.round(mlToUnit(g.base))
+    : Math.round(g.base);
+  openSheet(`
+    <h2 class="h1 mb" style="padding-right:44px">Water target</h2>
+
+    <div class="note mb">
+      <p class="note-t">Where the number comes from</p>
+      <p class="note-b">About 33 ml of drinks per kilo of bodyweight a day &mdash; the middle of the
+        30&ndash;35 range that gets quoted &mdash; plus roughly ${fmtWater(WATER_ML_PER_TRAINING_HOUR)} for every hour you
+        train. Food carries a fifth to a third of your total water and this target does not try to
+        count it, so it is a drinks figure and sits deliberately at the low end. It is a rule of
+        thumb, not a prescription. Thirst and the colour of your urine are better signals than any
+        formula, and if you have a kidney or heart condition your doctor's number beats this one.</p>
+    </div>
+
+    <div class="field mb">
+      <div class="label">Daily base (${h(waterUnitLabel())})</div>
+      <input class="input" id="wtr-goal" type="text" inputmode="decimal" enterkeyhint="done"
+             autocomplete="off" value="${set ? shown : ''}" placeholder="${shown}">
+      <p class="tiny mt-s">${set
+        ? 'Yours. Clear the field to go back to the estimate.'
+        : 'Empty means the estimate above, which moves with your bodyweight.'}
+        Training is added on top either way &mdash; today that is
+        ${g.bonus > 0 ? fmtWater(g.bonus) + ' for ' + g.mins + ' minutes' : 'nothing yet'}.</p>
+    </div>
+
+    <div class="field mb">
+      <div class="label">Units</div>
+      <p class="tiny">Shown in ${waterUnit() === 'oz' ? 'US fluid ounces' : 'millilitres and litres'},
+        following your weight unit &mdash; change that in your profile and this follows.
+        Everything is stored in millilitres underneath, so switching never alters a logged day.</p>
+    </div>
+
+    <button class="btn primary block lg" data-act="water-goal-go">Save</button>
+  `);
+}
+
+/* ------------------------------------------------------------
+   Updated in place, never by re-rendering.
+
+   Two reasons, and the second is the one that bites. A renderFuel() on every
+   glass rebuilds the whole screen under your thumb — but worse, it replaces
+   the liquid with a *new* element, and a new element has no previous transform
+   to transition from, so the level jumps instead of rising. The animation that
+   is the entire point of drawing a bottle only exists if the same node is
+   still there to move. Same rule as the Train rail.
+   ------------------------------------------------------------ */
+function refreshWater() {
+  const card = document.querySelector('.wtr-card');
+  if (!card) return;
+  const k = fuelDay();
+  const ml = waterOn(k);
+  const g = waterGoal(k);
+  const frac = g.total > 0 ? Math.max(0, Math.min(1, ml / g.total)) : 0;
+
+  const v = card.querySelector('.wtr-v');
+  if (v) v.innerHTML = `${fmtWater(ml)}<span class="wtr-of">of ${fmtWater(g.total)}</span>`;
+
+  const liq = card.querySelector('.wtr-liquid');
+  if (liq) liq.style.transform = `translateY(${(BOTTLE_BOT - frac * (BOTTLE_BOT - BOTTLE_TOP)).toFixed(1)}px)`;
+
+  const bottle = card.querySelector('.wtr-bottle');
+  if (bottle) bottle.classList.toggle('over', g.total > 0 && ml > g.total);
+
+  const pct = card.querySelector('.wtr-pct');
+  if (pct) pct.innerHTML = `${waterPct(k)}<span class="wtr-pct-s">%</span>`;
+
+  const streak = card.querySelector('.wtr-streak');
+  if (streak) streak.outerHTML = waterStreakHTML();
+
+  /* Today's column in the strip, and whether it has been met. */
+  const week = waterWeek();
+  card.querySelectorAll('.wtr-wk').forEach((node, i) => {
+    const d = week[i];
+    if (!d) return;
+    const fill = node.querySelector('.wtr-wk-t i');
+    if (fill) fill.style.height = (d.goal ? Math.min(100, Math.round(d.ml / d.goal * 100)) : 0) + '%';
+    node.classList.toggle('met', d.met);
+  });
+
+  /* The clear button exists only when there is something to clear. */
+  const clr = card.querySelector('.wtr-undo');
+  if (ml > 0 && !clr) {
+    const btn = document.createElement('button');
+    btn.className = 'wtr-undo';
+    btn.setAttribute('data-act', 'water-clear');
+    btn.textContent = 'Clear today';
+    const pours = card.querySelector('.wtr-pours');
+    if (pours) pours.insertAdjacentElement('afterend', btn);
+  } else if (ml === 0 && clr) {
+    clr.remove();
+  }
 }
 /* ============================================================
    THE ORDER — screens for rearranging the week
@@ -14746,6 +15683,183 @@ function sheetScanType() {
     <button class="btn primary block lg" data-act="scan-typed">Look it up</button>
     <button class="btn quiet block mt-s" data-act="scan">Back to the camera</button>
   `, { key: 'scantype' });
+}
+/* ============================================================
+   THE STRETCH SHEETS
+   ------------------------------------------------------------
+   Reached from More and from Today. Not a nav tab: the nav has exactly five
+   and turning Fuel on already costs Route one of them.
+   ============================================================ */
+
+function sheetStretch() {
+  if (!stretchOnboarded()) return sheetStretchIntro();
+
+  const st = stretchStore();
+  const list = dailyStretch();
+  const done = stretchDone(today());
+  const secs = stretchSeconds(list);
+  const occ = OCCUPATIONS[st.occupation];
+  const allDone = stretchAllDone(list);
+  const streak = stretchStreak();
+  const mine = stretchRoutines();
+
+  openSheet(`
+    <div class="row between mb-s" style="padding-right:44px">
+      <h2 class="h1">Today's stretch</h2>
+    </div>
+    <p class="small mb">${Math.round(secs / 60)} minutes &middot; ${list.length} movements${
+      streak ? ` &middot; <span class="em">${streak} day${streak === 1 ? '' : 's'} running</span>` : ''}</p>
+
+    ${allDone ? `<div class="note mb ok">
+      <p class="note-t">Done for today.</p>
+      <p class="note-b">Tomorrow's will be built from tomorrow's training. Nothing here needs doing twice.</p>
+    </div>` : ''}
+
+    ${/* Why these, in one line, before the list rather than buried under it.
+          A recommendation you cannot interrogate is a horoscope. */''}
+    <div class="str-why mb">
+      <span class="str-why-k">Built from</span>
+      ${st.areas.length ? `<span class="str-chip sore">${st.areas.length} area${st.areas.length === 1 ? '' : 's'} you flagged</span>` : ''}
+      ${occ ? `<span class="str-chip work">${h(occ.label)}</span>` : ''}
+      <span class="str-chip trained">what you trained</span>
+    </div>
+
+    <div class="list mb">
+      ${list.map(s => {
+        const on = done.indexOf(s.ex.id) >= 0;
+        /* "each side" was claimed on everything rep-counted, which is right for
+           a hip switch and wrong for an inchworm. The catalogue does not record
+           laterality, so it is not asserted. */
+        const amount = s.ex.load === 'time' ? s.ex.rh + 's' : '×' + s.ex.rh;
+        return `<div class="str-row ${on ? 'done' : ''}">
+          <button class="str-tick ${on ? 'on' : ''}" data-act="stretch-tick" data-v="${h(s.ex.id)}"
+                  aria-label="${on ? 'Undo' : 'Mark'} ${h(s.ex.name)}" aria-pressed="${on ? 'true' : 'false'}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
+          </button>
+          <button class="grow str-main" data-act="stretch-info" data-v="${h(s.ex.id)}">
+            <div class="str-n">${h(s.ex.name)}</div>
+            <div class="str-sub">${h(amount)} &middot; ${h(s.ex.primary)}</div>
+          </button>
+          ${/* One chip: whichever of the three contributed most. Three chips on
+                every row is not an explanation, it is wallpaper. */''}
+          <div class="str-tags">${s.why
+            ? `<span class="str-chip ${s.why}">${s.why === 'sore' ? 'flagged' : s.why === 'work' ? 'work' : 'trained'}</span>`
+            : ''}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="btn-row mb">
+      <button class="btn ghost grow" data-act="stretch-reroll">Something else</button>
+      <button class="btn ghost grow" data-act="stretch-save">Save as routine</button>
+    </div>
+
+    ${mine.length ? `<div class="sec-head"><span class="sec-t">Your stretch routines</span></div>
+      <div class="list mb">
+        ${mine.map(r => `<button class="lrow" data-act="stretch-open-rt" data-v="${h(r.id)}">
+          <div class="ico">${h(r.emoji || '🧘')}</div>
+          <div class="grow"><div class="h3">${h(r.name)}</div>
+            <div class="tiny mt-s">${r.items.length} movement${r.items.length === 1 ? '' : 's'}</div></div>
+          <span class="chev">›</span>
+        </button>`).join('')}
+      </div>` : ''}
+
+    <div class="btn-row">
+      <button class="btn ghost grow" data-act="stretch-new">Build your own</button>
+      <button class="btn ghost grow" data-act="stretch-setup">Change your answers</button>
+    </div>
+  `, { key: 'stretch' });
+}
+
+/* ------------------------------------------------------------
+   Its own onboarding.
+
+   Three questions, asked once, and each of them changes what comes out — the
+   same bar the main intake holds itself to. Occupation is optional and says
+   so, because "none of these" is a real answer and a form that will not take
+   it gets a wrong answer instead.
+   ------------------------------------------------------------ */
+function sheetStretchIntro() {
+  openSheet(`
+    <h2 class="h1 mb" style="padding-right:44px">Stretch</h2>
+    <p class="small mb">A short daily stretch built from three things: what you trained in the last
+      couple of days, what your working day does to you, and anything that is already sore.</p>
+    <div class="note mb">
+      <p class="note-t">Three questions, asked once</p>
+      <p class="note-b">Nothing here is collected for the sake of a longer form &mdash; every answer
+        changes which movements come out. You can change them whenever you like, and skip the ones
+        you would rather not answer.</p>
+    </div>
+    <p class="small mb">This is general mobility work, not treatment. If something is painful rather
+      than tight, or a problem has been there for weeks, that is a physio's job and not an app's.</p>
+    <button class="btn primary block lg" data-act="stretch-setup">Set it up</button>
+  `, { key: 'stretch-intro' });
+}
+
+let stretchDraft = null;
+
+function sheetStretchSetup() {
+  const st = stretchStore();
+  if (!stretchDraft) {
+    stretchDraft = { occupation: st.occupation, areas: (st.areas || []).slice(), mins: st.mins || 8 };
+  }
+  const d = stretchDraft;
+
+  openSheet(`
+    <h2 class="h1 mb" style="padding-right:44px">Set up your stretch</h2>
+
+    <div class="field mb">
+      <div class="label">What does your working day look like?</div>
+      <p class="tiny mb-s">The weakest of the three signals, and treated that way &mdash; it nudges the
+        order, it never overrides something you have flagged.</p>
+      <div class="chip-grid c2">
+        ${Object.values(OCCUPATIONS).map(o => `<div class="chip ${d.occupation === o.k ? 'on' : ''}"
+          data-act="stretch-occ" data-v="${h(o.k)}">${o.ico} ${h(o.label)}</div>`).join('')}
+      </div>
+      ${d.occupation && OCCUPATIONS[d.occupation]
+        ? `<p class="tiny mt-s">${h(OCCUPATIONS[d.occupation].note)}</p>` : ''}
+    </div>
+
+    <div class="field mb">
+      <div class="label">Anything sore or stiff?</div>
+      <p class="tiny mb-s">Weighted highest of the three. You are the only one who knows.</p>
+      <div class="chip-grid c2">
+        ${Object.values(INJURIES).map(i => `<div class="chip ${d.areas.indexOf(i.k) >= 0 ? 'on' : ''}"
+          data-act="stretch-area" data-v="${h(i.k)}">${i.ico} ${h(i.label)}</div>`).join('')}
+      </div>
+      <p class="tiny mt-s">Separate from the injuries in your profile, which remove exercises from
+        your training. This one only changes what you are offered to stretch &mdash; but anything you
+        have listed there is still excluded here, because the tool for a sore shoulder should not be
+        the one thing in the app that ignores it.</p>
+    </div>
+
+    <div class="field mb">
+      <div class="label">How long, most days?</div>
+      <div class="chip-grid c4">
+        ${[5, 8, 12, 15].map(m => `<div class="chip ${d.mins === m ? 'on' : ''}"
+          data-act="stretch-mins" data-v="${m}">${m} min</div>`).join('')}
+      </div>
+    </div>
+
+    <button class="btn primary block lg" data-act="stretch-save-setup">Save</button>
+  `, { key: 'stretch-setup' });
+}
+
+/* What the movement is and how to do it. Where the catalogue has a form
+   diagram this hands straight to the app's own form sheet rather than writing a
+   second set of instructions that would drift out of step with the first. */
+function sheetStretchInfo(exId) {
+  const ex = EX[exId];
+  if (!ex) return;
+  if (hasForm(exId)) { sheetForm(exId); return; }
+  const amount = ex.load === 'time' ? `${ex.rl}–${ex.rh} seconds` : `${ex.rl}–${ex.rh} each side`;
+  openSheet(`
+    <h2 class="h1 mb" style="padding-right:44px">${h(ex.name)}</h2>
+    <p class="small mb">${h(amount)} &middot; ${h(ex.primary)}${ex.sec && ex.sec.length ? ' · ' + h(ex.sec.join(', ')) : ''}</p>
+    <div class="note mb"><p class="note-b">No diagram for this one yet. Take it to the point of
+      tension rather than pain, breathe out into it, and stop if it is sharp.</p></div>
+    <button class="btn ghost block" data-act="stretch-back">Back to today's stretch</button>
+  `, { key: 'stretch-info' });
 }
 /* ============================================================
    REST TIMER
@@ -15751,6 +16865,39 @@ document.addEventListener('click', ev => {
     }
     case 'fuel-quick-add': sheetQuickAdd(); break;
 
+    /* ---- water ---- */
+    /* refreshWater(), never renderFuel(): a re-render replaces the liquid with
+       a new element, and a new element has no previous transform to transition
+       from — the level would snap rather than rise. See refreshWater(). */
+    case 'water-add': {
+      logWater(+v || 0);
+      noteWaterBest();
+      refreshWater();
+      break;
+    }
+    case 'water-clear': { setWater(0); noteWaterBest(); refreshWater(); break; }
+    case 'water-custom': sheetWaterCustom(); break;
+    case 'water-settings': sheetWaterGoal(); break;
+    case 'water-custom-go': {
+      const el = $('#wtr-amt');
+      const n = el ? parseFloat(String(el.value).replace(',', '.')) : NaN;
+      if (!(n > 0)) { toast('Enter an amount'); break; }
+      logWater(unitToMl(n));
+      noteWaterBest();
+      closeSheet(); refreshWater();
+      break;
+    }
+    case 'water-goal-go': {
+      const el = $('#wtr-goal');
+      const n = el ? parseFloat(String(el.value).replace(',', '.')) : NaN;
+      /* Blank clears it back to the estimate rather than refusing — "I don't
+         want to pick one" is a real answer and the field is how you say it. */
+      setWaterGoal(!(n > 0) ? 0 : unitToMl(n));
+      closeSheet(); renderFuel();
+      toast(!(n > 0) ? 'Back to the estimate' : 'Target set', true);
+      break;
+    }
+
     /* ---- barcode ---- */
     case 'scan': sheetScan(); break;
     case 'scan-type': sheetScanType(); break;
@@ -16056,6 +17203,66 @@ document.addEventListener('click', ev => {
 
     /* ---- routines ---- */
     case 'routines': sheetRoutines(); break;
+
+    /* ---- stretch ---- */
+    case 'stretch': sheetStretch(); break;
+    case 'stretch-setup': stretchDraft = null; sheetStretchSetup(); break;
+    case 'stretch-occ': {
+      /* Tapping the one already chosen clears it. "None of these" is a real
+         answer and a form that will not take it gets a wrong answer instead. */
+      stretchDraft.occupation = (stretchDraft.occupation === v) ? null : v;
+      sheetStretchSetup(); break;
+    }
+    case 'stretch-area': {
+      const ix = stretchDraft.areas.indexOf(v);
+      if (ix >= 0) stretchDraft.areas.splice(ix, 1); else stretchDraft.areas.push(v);
+      sheetStretchSetup(); break;
+    }
+    case 'stretch-mins': { stretchDraft.mins = +v || 8; sheetStretchSetup(); break; }
+    case 'stretch-save-setup': {
+      const st = stretchStore();
+      st.occupation = stretchDraft.occupation;
+      st.areas = stretchDraft.areas.slice();
+      st.mins = stretchDraft.mins;
+      st.onboarded = true;
+      stretchDraft = null;
+      save(true);
+      /* Handed to, not closed and reopened — closing pops the one history entry
+         the whole sheet stack rides on. */
+      sheetStretch();
+      break;
+    }
+    case 'stretch-tick': {
+      toggleStretchDone(v);
+      buzz(12);
+      sheetStretch();
+      break;
+    }
+    case 'stretch-info': sheetStretchInfo(v); break;
+    case 'stretch-back': sheetStretch(); break;
+    case 'stretch-reroll': {
+      /* Not a shuffle. The daily list is deterministic, so "something else"
+         has to change the input rather than the dice: it stamps the movements
+         you were offered as seen, which moves them down the least-recent
+         tiebreak and brings the next ones up. Reroll twice and you get the
+         third-best set, not the same one again. */
+      dailyStretch().forEach(s => { liftOf(s.ex.id).lastDate = today(); });
+      save(true);
+      sheetStretch();
+      break;
+    }
+    case 'stretch-save': {
+      const r = saveDailyAsRoutine();
+      toast('Saved as a routine', true);
+      sheetRoutineEdit(r.id);
+      break;
+    }
+    case 'stretch-new': {
+      const r = newStretchRoutine('My stretch');
+      sheetRoutineEdit(r.id);
+      break;
+    }
+    case 'stretch-open-rt': sheetRoutineEdit(v); break;
     case 'routine-new': {
       const r = newRoutine('New routine');
       sheetRoutineEdit(r.id);

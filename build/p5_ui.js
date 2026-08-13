@@ -401,7 +401,10 @@ function renderToday() {
   /* ── 4. the week ──────────────────────────────────────────── */
   html += weekStripHTML('<button class="sec-a" data-act="open-week">Shape it</button>');
 
-  /* ── 5. your own routines ─────────────────────────────────── */
+  /* ── 5. the stretch ───────────────────────────────────────── */
+  html += stretchStripHTML();
+
+  /* ── 6. your own routines ─────────────────────────────────── */
   html += routineStripHTML();
   html += todaySessionsHTML();
 
@@ -410,6 +413,34 @@ function renderToday() {
      with no height or age on file it rendered "0 / undefined kcal". */
 
   $('#today-body').innerHTML = html;
+}
+
+/* The daily stretch, on Today rather than only under More — a habit nobody
+   can find is not a habit. Shown before it has been set up too, because a
+   feature that only appears once you have used it never gets used. */
+function stretchStripHTML() {
+  const set = stretchOnboarded();
+  const doneToday = set ? stretchDone(today()).length : 0;
+  const list = set ? dailyStretch() : [];
+  const all = set && list.length && stretchAllDone(list);
+  const streak = set ? stretchStreak() : 0;
+
+  const sub = !set
+    ? 'Daily mobility built from your training and your working day'
+    : all
+      ? 'Done today' + (streak ? ` · ${streak} day${streak === 1 ? '' : 's'} running` : '')
+      : doneToday
+        ? `${doneToday} of ${list.length} done`
+        : `${list.length} movements · ${Math.round(stretchSeconds(list) / 60)} min`;
+
+  return `<button class="lrow str-strip" data-act="stretch" style="width:100%;text-align:left">
+    <div class="ico">${all ? '<span class="str-strip-ok">✓</span>' : '🧘'}</div>
+    <div class="grow">
+      <div class="h3">${set ? "Today's stretch" : 'Stretch'}</div>
+      <div class="tiny mt-s">${h(sub)}</div>
+    </div>
+    <span class="chev">›</span>
+  </button>`;
 }
 
 /* How the week is actually going: sessions done against sessions planned.

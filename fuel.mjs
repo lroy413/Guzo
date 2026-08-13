@@ -512,6 +512,158 @@ try {
   check('...named the way somebody would say it out loud', sarnies.naturalOrder === true);
   check('...and reachable by typing half the name', sarnies.searchable === true);
 
+  // ============ water ============
+  console.log('\nwater\n');
+
+  const wtr = await page.evaluate(() => {
+    const fresh = () => {
+      S = blank(); S.onboarded = true; S.settings.nutrition = true;
+      S.profile.units = 'kg';
+      S.profile.bodyweight = [{ d: today(), w: 82 }];
+      save(true);
+    };
+    fresh();
+    const noTrain = waterGoal(today());
+
+    /* An hour logged today, and the target moves. Sweat is the one input here
+       the app genuinely knows about. */
+    S.sessions = [{ id: 'w1', date: today(), ended: Date.now(), dur: 60, kcal: 400,
+                    type: 'full', exercises: [] }];
+    const trained = waterGoal(today());
+    S.sessions = [];
+
+    /* No bodyweight to scale from: a flat figure, not an invented weight. */
+    S.profile.bodyweight = [];
+    const flat = waterGoal(today());
+    S.profile.bodyweight = [{ d: today(), w: 82 }];
+
+    /* Clamped at both ends — the linear form stops making sense out there. */
+    S.profile.bodyweight = [{ d: today(), w: 30 }];
+    const tiny = waterGoal(today()).base;
+    S.profile.bodyweight = [{ d: today(), w: 200 }];
+    const huge = waterGoal(today()).base;
+    S.profile.bodyweight = [{ d: today(), w: 82 }];
+
+    /* Yours beats the estimate, and training is still added on top of it. */
+    setWaterGoal(2000);
+    S.sessions = [{ id: 'w1', date: today(), ended: Date.now(), dur: 30, kcal: 200,
+                    type: 'full', exercises: [] }];
+    const mine = waterGoal(today());
+    setWaterGoal(0);
+    S.sessions = [];
+    const back = waterGoal(today()).base;
+
+    return { noTrain, trained, flat, tiny, huge, mine, back };
+  });
+  check('the target scales with bodyweight', wtr.noTrain.base === 2700, String(wtr.noTrain.base));
+  check('...and an hour trained adds to it',
+    wtr.trained.total === wtr.noTrain.base + 500 && wtr.trained.bonus === 500,
+    JSON.stringify(wtr.trained));
+  check('...with a flat figure when there is no weight to scale from',
+    wtr.flat.base === 2000, String(wtr.flat.base));
+  check('...clamped at both ends', wtr.tiny === 1500 && wtr.huge === 4000,
+    `${wtr.tiny} / ${wtr.huge}`);
+  check('a target you set beats the estimate', wtr.mine.base === 2000, String(wtr.mine.base));
+  check('...and training is still added to yours', wtr.mine.bonus === 250, String(wtr.mine.bonus));
+  check('...and clearing it goes back to the estimate', wtr.back === 2700, String(wtr.back));
+
+  const wUnits = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.units = 'kg'; save(true);
+    logWater(1400);
+    const kgSide = { unit: waterUnit(), stored: waterOn(today()), shown: fmtWater(waterOn(today())) };
+    /* The whole point of storing millilitres: flipping the unit is a formatter
+       change, never a data change. */
+    S.profile.units = 'lb';
+    const lbSide = { unit: waterUnit(), stored: waterOn(today()), shown: fmtWater(waterOn(today())) };
+    const pours = waterPours().map(p => p.sub);
+    S.profile.units = 'kg';
+    return { kgSide, lbSide, pours,
+             fmt: [fmtWater(250), fmtWater(1000), fmtWater(1750)] };
+  });
+  check('water reads in millilitres alongside kilos', wUnits.kgSide.unit === 'ml', wUnits.kgSide.unit);
+  check('...and in fluid ounces alongside pounds', wUnits.lbSide.unit === 'oz', wUnits.lbSide.unit);
+  check('...but the stored number never moves',
+    wUnits.kgSide.stored === 1400 && wUnits.lbSide.stored === 1400,
+    `${wUnits.kgSide.stored} / ${wUnits.lbSide.stored}`);
+  check('...only what it is painted as',
+    wUnits.kgSide.shown === '1.4 L' && /oz$/.test(wUnits.lbSide.shown),
+    `${wUnits.kgSide.shown} / ${wUnits.lbSide.shown}`);
+  /* Litres once it is worth reading as litres. */
+  check('a small amount stays in millilitres and a large one becomes litres',
+    wUnits.fmt[0] === '250 ml' && wUnits.fmt[1] === '1 L' && wUnits.fmt[2] === '1.8 L',
+    wUnits.fmt.join(' | '));
+  /* Real vessels, not conversions of the metric ones. 8.5 oz is not a cup. */
+  check('the quick pours are sizes those things are actually sold in',
+    wUnits.pours.join(',') === '8 oz,16 oz,32 oz', wUnits.pours.join(','));
+
+  /* The streak, and the one rule it has to obey. */
+  const wStreak = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.units = 'kg'; S.profile.bodyweight = [{ d: today(), w: 60 }];
+    setWaterGoal(2000); save(true);
+    const t = fromKey(today());
+    const W = () => waterStore().days;
+    /* Three full days behind today, and today barely started. */
+    for (let i = 1; i <= 3; i++) W()[dk(addDays(t, -i))] = 2000;
+    W()[today()] = 300;
+    const midDay = waterStreak();
+    /* Finish today and it counts. */
+    W()[today()] = 2000;
+    const done = waterStreak();
+    noteWaterBest();
+    const best = waterStore().best;
+    /* A miss two days back ends the run there — and nothing announces it. */
+    W()[dk(addDays(t, -2))] = 100;
+    const broken = waterStreak();
+    noteWaterBest();
+    return { midDay, done, best, broken, bestAfter: waterStore().best };
+  });
+  /* The kindness that makes this streak allowed to exist at all: an afternoon
+     with three glasses in it is a day in progress, not a broken chain. */
+  check('an unfinished today never breaks the run', wStreak.midDay === 3, String(wStreak.midDay));
+  check('...and finishing it adds to the run', wStreak.done === 4, String(wStreak.done));
+  check('a miss shortens the run', wStreak.broken === 2, String(wStreak.broken));
+  check('...but your best is kept rather than taken back',
+    wStreak.bestAfter === 4, String(wStreak.bestAfter));
+
+  /* Logged and cleared through the real buttons on the real screen, and the
+     bottle's level has to be the number — a flask that fills to a decorative
+     fraction is worse than a bar. */
+  const bottle = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.units = 'kg'; S.profile.bodyweight = [{ d: today(), w: 60 }];
+    setWaterGoal(1000); save(true);
+    go('fuel'); renderFuel();
+    const miss = { found: false, after: -1, level: -1, cleared: -1 };
+    const card = document.querySelector('.wtr-card');
+    if (!card) return miss;
+    const pour = card.querySelector('[data-act="water-add"]');
+    if (!pour) return miss;
+    /* Two glasses on the same node. It has to still be the same node — the
+       card updates in place precisely so the fill can animate, and a handler
+       that re-rendered would leave this reference dangling and silently log
+       one glass instead of two. */
+    pour.click(); pour.click();
+    const sameNode = document.body.contains(pour);
+    const after = waterOn(today());
+    const liq = document.querySelector('.wtr-liquid');
+    const m = liq ? /translateY\(([-\d.]+)px\)/.exec(liq.getAttribute('style') || '') : null;
+    /* The waterline, back out as a fraction of the flask's inside. */
+    const y = m ? +m[1] : NaN;
+    const frac = isNaN(y) ? -1 : (172 - y) / (172 - 30);
+    const clr = document.querySelector('[data-act="water-clear"]');
+    if (clr) clr.click();
+    return { found: true, after, frac: Math.round(frac * 100) / 100,
+             sameNode, cleared: waterOn(today()),
+             gone: !document.querySelector('[data-act="water-clear"]') };
+  });
+  check('the quick pour logs what it says it does', bottle.after === 500, String(bottle.after));
+  check('...without rebuilding the card under your thumb', bottle.sameNode === true);
+  check('...and the bottle fills to exactly that fraction', bottle.frac === 0.5, String(bottle.frac));
+  check('...and clearing empties the day', bottle.cleared === 0, String(bottle.cleared));
+  check('...and takes its own button away with it', bottle.gone === true);
+
   // ============ the catalogue holds together ============
   console.log('\nthe food catalogue\n');
 
