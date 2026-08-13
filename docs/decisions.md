@@ -901,3 +901,48 @@ The stretch setup still picks sore areas from eight chips rather than by
 pointing at the figure, and the onboarding sex question is untouched — see the
 note above on why a BMR coefficient with a "rather not say" option is the
 weakest place for a body-picker, not the strongest.
+
+### Pointing at what hurts
+
+The stretch setup asked "anything sore or stiff?" with eight chips. It asks the
+same question with a figure now, and the chips stayed underneath as the record
+of what you picked and the way to take one back.
+
+That is not a nicer way of reading a list, it is a different act: you do not
+have to translate "the outside of my knee" into a word first, and the eight
+words were the whole reason the question felt like paperwork.
+
+**The joints are a different layer, not more muscles.** The eight things
+`INJURIES` names — shoulder, elbow, wrist, neck, lower back, hip, knee, ankle —
+are joints, and a joint is a *place* rather than a shape. Drawn as muscle
+regions, "wrist" would have covered the forearm and "lower back" the glutes,
+which is not where either of them hurts. So the muscles stay drawn underneath,
+dimmed, as the anatomy the joint sits in, and they are not hittable in this
+mode.
+
+**One function flags an area**, whether the tap came from the figure, from a
+chip, or from the nearest-marker fallback. Three call sites writing to the same
+array would drift, and the one that drifted would be the figure — the only one
+of the three with no visible list to check itself against.
+
+**`mode` decides the vocabulary.** The same pixel means a muscle on one screen
+and a joint on another, and a fallback answering in the wrong one would quietly
+flag your shoulder when you asked to stretch your chest. The check asserts the
+answer comes back in the vocabulary the figure is showing, and the revert that
+drops the mode argument goes red with `Shoulders / Shoulders`.
+
+### What the checks caught this round
+
+**A joint target 9px under the floor.** The marker ring is 4.4 units and its
+target was 13, which rendered at 35px — a marker big enough to tap accurately
+would be too big to place accurately, so the two are separated, and the
+separation has to be measured rather than assumed. Sixteen units is the
+smallest radius that clears 44px at the width the sheet gives the figure.
+
+**Two calf points outside the leg**, after the shins were widened to stop being
+the dimmest thing on the screen.
+
+And two reverts passed that should not have, both the same shape: removing a
+target from *one* view leaves it on the other, so the union still covers it.
+Proving either needed a target that appears on one view only — which is now
+twice this exact miss has happened, once for `Calves` and once for `lowback`.

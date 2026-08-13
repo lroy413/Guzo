@@ -768,6 +768,96 @@ try {
   check('...with everything else in proportion to it',
     heat.quads > 0 && heat.quads < 1, String(heat.quads));
 
+  /* ---- pointing at what hurts ----
+     The same figure, a different vocabulary. Eight chips became eight places on
+     a body, and the thing that can go quietly wrong is the vocabulary: the same
+     pixel means a muscle on one screen and a joint on another, and a fallback
+     answering in the wrong one would flag your shoulder when you asked to
+     stretch your chest. */
+  const joints = await page.evaluate(() => {
+    const drawn = new Set();
+    ['front', 'back'].forEach(v => (BODY_JOINTS[v] || []).forEach(j => drawn.add(j.k)));
+    const missing = Object.keys(INJURIES).filter(k => !drawn.has(k));
+    /* Every marker inside the body it is placed on, the same test the muscles
+       get — a "knee" floating beside the leg is the same defect. */
+    const edgeAt = (y) => {
+      let best = null;
+      for (let i = 0; i < BODY_OUTLINE.length - 1; i++) {
+        const a = BODY_OUTLINE[i], b = BODY_OUTLINE[i + 1];
+        if ((y >= a[1] && y <= b[1]) || (y >= b[1] && y <= a[1])) {
+          const t = b[1] === a[1] ? 0 : (y - a[1]) / (b[1] - a[1]);
+          const x = a[0] + (b[0] - a[0]) * t;
+          if (best === null || x > best) best = x;
+        }
+      }
+      return best;
+    };
+    const outside = [];
+    ['front', 'back'].forEach(v => (BODY_JOINTS[v] || []).forEach(j => {
+      const e = edgeAt(j.y);
+      if (e !== null && j.x > e + 0.6) outside.push(`${v}/${j.k}`);
+    }));
+    /* And the fallback answers joints when the figure is showing joints. */
+    const asJoint = bodyPick('front', 'm', 91, 61, 'joints');
+    const asMuscle = bodyPick('front', 'm', 91, 61);
+    return { missing, outside, asJoint, asMuscle,
+             sameWord: asJoint === asMuscle,
+             jointVocab: Object.keys(INJURIES).indexOf(asJoint) >= 0,
+             muscleVocab: bodyMuscles('front').indexOf(asMuscle) >= 0 };
+  });
+  check('every area the setup asks about is a place on the body',
+    joints.missing.length === 0, joints.missing.join(', '));
+  check('...and every marker is inside the body it is placed on',
+    joints.outside.length === 0, joints.outside.join(', '));
+  check('a tap answers in the vocabulary the figure is showing',
+    joints.jointVocab && joints.muscleVocab && !joints.sameWord,
+    `${joints.asJoint} / ${joints.asMuscle}`);
+
+  /* Driven through the real handler, because the claim is that pointing at the
+     figure and tapping the chip below it write to the same place. Two call
+     sites that can disagree eventually will, and the one that would drift is
+     the figure — the only one of them with no visible list to check against. */
+  const flag = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    stretchDraft = null;
+    sheetStretchSetup();
+    const tap = k => {
+      const g = [...document.querySelectorAll('#sheet-body .bd-j')].find(x => x.dataset.v === k);
+      if (!g) return false;
+      g.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      return true;
+    };
+    const found = tap('knee');
+    const on = stretchDraft.areas.slice();
+    const chipsOn = [...document.querySelectorAll('#sheet-body .chip.on')]
+      .filter(c => c.dataset.act === 'stretch-area').map(c => c.dataset.v);
+    const lit = document.querySelectorAll('#sheet-body .bd-j.on').length;
+    tap('knee');                                   // and back off again
+    const off = stretchDraft.areas.slice();
+    /* The chip writes to the same array. */
+    const chip = document.querySelector('#sheet-body .chip[data-act="stretch-area"][data-v="hip"]');
+    if (chip) chip.click();
+    const viaChip = stretchDraft.areas.slice();
+    const litAfterChip = [...document.querySelectorAll('#sheet-body .bd-j.on')].map(g => g.dataset.v);
+    /* The marker you see and the target you hit are different sizes on
+       purpose — one big enough to tap accurately would be too big to place
+       accurately. What matters is that the target clears 44px on a phone. */
+    const fig = document.querySelector('#sheet-body .bmap-fig');
+    const box = fig ? fig.getBoundingClientRect() : { width: 0 };
+    const hit = document.querySelector('#sheet-body .bd-j-t');
+    const px = hit ? hit.getBoundingClientRect().width : 0;
+    return { found, on, off, viaChip, chipsOn, lit, litAfterChip, figW: box.width, px };
+  });
+  check('the joint probe found a marker to tap', flag.found === true);
+  check('tapping a joint flags it', flag.on.join(',') === 'knee', flag.on.join(','));
+  check('...and tapping it again takes it back', flag.off.length === 0, flag.off.join(','));
+  check('...and the chip below writes to the same place',
+    flag.viaChip.join(',') === 'hip' && flag.litAfterChip.indexOf('hip') >= 0,
+    `${flag.viaChip.join(',')} / lit ${flag.litAfterChip.join(',')}`);
+  check('both sides of a paired joint light together', flag.lit === 2, String(flag.lit));
+  check('a joint target clears a 44px tap', flag.px >= 44,
+    `${Math.round(flag.px)}px in a ${Math.round(flag.figW)}px figure`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

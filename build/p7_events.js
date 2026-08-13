@@ -804,6 +804,7 @@ document.addEventListener('click', ev => {
        the nearest region rather than to nothing, because a body map that
        sometimes ignores you reads as broken rather than as precise. */
     case 'body-pick': sheetBodyMap(v); break;
+    case 'body-joint': toggleStretchArea(v); break;
     case 'body-clear': sheetBodyMap(null); break;
     case 'body-turn': {
       bodyMapView = bodyMapView === 'front' ? 'back' : 'front';
@@ -1448,9 +1449,11 @@ document.addEventListener('click', ev => {
       stretchDraft.occupation = (stretchDraft.occupation === v) ? null : v;
       sheetStretchSetup(); break;
     }
-    case 'stretch-area': {
-      const ix = stretchDraft.areas.indexOf(v);
-      if (ix >= 0) stretchDraft.areas.splice(ix, 1); else stretchDraft.areas.push(v);
+    /* Through the one function, so the chip and the figure cannot disagree
+       about what is flagged — see toggleStretchArea(). */
+    case 'stretch-area': toggleStretchArea(v); break;
+    case 'stretch-turn': {
+      stretchSetView = stretchSetView === 'front' ? 'back' : 'front';
       sheetStretchSetup(); break;
     }
     case 'stretch-mins': { stretchDraft.mins = +v || 15; sheetStretchSetup(); break; }
@@ -1840,6 +1843,36 @@ $('#scrim').addEventListener('click', () => closeSheet());
 $('#sheet-x').addEventListener('click', () => closeSheet());
 $('#rest-skip').addEventListener('click', stopRest);
 $('#rest-add').addEventListener('click', () => { restEnd += 30000; restTotal += 30; tickRest(); });
+
+/* ---- the tap the body's own paths missed ----
+   Those paths answer most taps. What they cannot answer is one between two
+   regions or on the bare silhouette, and on a figure the size of a phone
+   screen that is a lot of the surface. A body map that sometimes ignores you
+   reads as broken rather than as precise, so a miss resolves to the nearest
+   target instead of to nothing.
+
+   The coordinate maths is the letterboxing: the figure is 132 x 240 inside a
+   box of whatever shape the sheet gives it, and preserveAspectRatio defaults
+   to meet — so it is centred with bars on two sides, and a client point means
+   nothing in figure space until those bars are taken off it.
+
+   `mode` decides the vocabulary. The same pixel means a muscle on one screen
+   and a joint on another, and a fallback answering in the wrong one would
+   quietly flag your shoulder when you asked to stretch your chest. */
+document.addEventListener('click', ev => {
+  const t = ev.target;
+  if (!t || !t.closest) return;
+  const svg = t.closest('.bd');
+  if (!svg || t.closest('.bd-hit') || t.closest('.bd-j')) return;
+  const r = svg.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const k = Math.min(r.width / BODY_W, r.height / BODY_H);
+  const x = (ev.clientX - r.left - (r.width - BODY_W * k) / 2) / k;
+  const y = (ev.clientY - r.top - (r.height - BODY_H * k) / 2) / k;
+  const m = bodyPick(svg.dataset.view, (S.profile && S.profile.sex) || 'na', x, y, svg.dataset.mode);
+  if (!m) return;
+  if (svg.dataset.mode === 'joints') toggleStretchArea(m); else sheetBodyMap(m);
+});
 
 /* ---- the sweep of light across a solid button ----
    On pointerdown rather than on :active, because :active only holds while the

@@ -163,6 +163,23 @@ function sheetStretchIntro() {
 }
 
 let stretchDraft = null;
+/* Which way the setup figure is facing. Draft state, like stretchDraft itself:
+   it is a question about this visit to the sheet, not about you. */
+let stretchSetView = 'front';
+
+/* One place that flags an area, whether it was tapped on the figure, on a chip
+   below it, or resolved from a near-miss on bare silhouette. Three call sites
+   writing to the same array would drift, and the one that drifted would be the
+   figure — the only one of the three with no visible list to check itself
+   against. */
+function toggleStretchArea(k) {
+  if (!INJURIES[k] || !stretchDraft) return;
+  const a = stretchDraft.areas;
+  const i = a.indexOf(k);
+  if (i >= 0) a.splice(i, 1); else a.push(k);
+  buzz(10);
+  sheetStretchSetup();
+}
 
 function sheetStretchSetup() {
   const st = stretchStore();
@@ -188,7 +205,23 @@ function sheetStretchSetup() {
 
     <div class="field mb">
       <div class="label">Anything sore or stiff?</div>
-      <p class="tiny mb-s">Weighted highest of the three. You are the only one who knows.</p>
+      <p class="tiny mb-s">Weighted highest of the three. You are the only one who knows &mdash;
+        so point at it.</p>
+      ${/* Eight chips became eight places on a body. Pointing at what hurts is
+            not a nicer way of reading a list, it is a different act: you do not
+            have to translate "the outside of my knee" into a word first, and
+            the eight words were the whole reason this question felt like
+            paperwork. The chips are still below, as the record of what you
+            picked and the way to take one back. */''}
+      <div class="bmap bmap-set mb-s">
+        <div class="bmap-fig">${bodyFigureHTML({
+          sex: (S.profile && S.profile.sex) || 'na', view: stretchSetView,
+          mode: 'joints', picked: d.areas })}</div>
+        <button class="bmap-turn" data-act="stretch-turn"
+                aria-label="Turn the figure to show the ${stretchSetView === 'front' ? 'back' : 'front'}">
+          ${ICO.repeat}<span>${stretchSetView === 'front' ? 'Back' : 'Front'}</span>
+        </button>
+      </div>
       <div class="chip-grid c2">
         ${Object.values(INJURIES).map(i => `<div class="chip ${d.areas.indexOf(i.k) >= 0 ? 'on' : ''}"
           data-act="stretch-area" data-v="${h(i.k)}">${ico(i.ico)}<span>${h(i.label)}</span></div>`).join('')}

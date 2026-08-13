@@ -53,8 +53,8 @@ const BODY_W = 132, BODY_H = 240, BODY_CX = 66;
    answer the energy equation gives that choice. */
 const BODY_SHAPE = {
   m:  { shoulder: 1,    waist: 1,    hip: 1,    thigh: 1    },
-  f:  { shoulder: 0.90, waist: 0.95, hip: 1.10, thigh: 1.05 },
-  na: { shoulder: 0.95, waist: 0.97, hip: 1.05, thigh: 1.02 }
+  f:  { shoulder: 0.88, waist: 0.90, hip: 1.15, thigh: 1.07 },
+  na: { shoulder: 0.95, waist: 0.96, hip: 1.06, thigh: 1.03 }
 };
 
 /* Where those numbers apply, and how they blend between. A point at the waist
@@ -125,7 +125,7 @@ const BODY_OUTLINE = [
   [66, 0.4], [73.4, 2.6], [78, 11.4], [77, 22.4], [73.4, 29.4],       // skull
   [71, 33.4],                                                         // under the jaw
   [71.4, 38.4], [71.8, 44.4],                                         // neck
-  [76.4, 45.6], [83.4, 48.4], [90.4, 52.6],                           // trapezius slope
+  [74.4, 45.6], [79.4, 47.4], [85.4, 50.4], [91, 53.8],                // trapezius slope
   [95.4, 57.4], [97.6, 65.4], [97.8, 76.4],                           // deltoid cap
   [99, 88.4], [99.6, 100.4],                                          // upper arm to elbow
   [100.4, 114.4], [100.8, 128.4],                                     // forearm
@@ -183,8 +183,8 @@ const BODY_REGIONS = {
        could not be tapped for a calf stretch would be pedantry with a hit box
        on it. */
     { m: 'Calves', both: true, pts: [
-      [70.8, 182.4], [76.4, 183.4], [78.6, 193.4], [77.2, 207.4], [74.2, 215.4],
-      [71, 209.4], [69.8, 194.4] ] }
+      [70.2, 180.4], [77, 182.4], [79.2, 192.4], [76.4, 207.4], [73.8, 216.4],
+      [70.6, 210.4], [69.4, 193.4] ] }
   ],
   back: [
     { m: 'Shoulders', both: true, pts: [
@@ -206,8 +206,8 @@ const BODY_REGIONS = {
       [68.4, 150.4], [77, 149.4], [85, 152.4], [83.2, 162.4], [80.6, 172.4],
       [77, 176.4], [72, 173.4], [69.2, 162.4] ] },
     { m: 'Calves', both: true, pts: [
-      [69.6, 181.4], [76.4, 182.4], [79, 192.4], [77.2, 206.4], [73.6, 215.4],
-      [70, 208.4], [69, 193.4] ] }
+      [69.4, 179.4], [77.2, 181.4], [79.4, 191.4], [76.6, 206.4], [73.6, 216.4],
+      [70.2, 209.4], [68.8, 192.4] ] }
   ]
 };
 
@@ -229,6 +229,43 @@ const BODY_DETAIL = {
     { pts: [[68.4, 63.4], [83.4, 56.4]], mirror: true },
     { pts: [[68.4, 78.4], [84.6, 70.4]], mirror: true },
     { pts: [[70.6, 177.4], [78.6, 177.4]], mirror: true }
+  ]
+};
+
+/* ------------------------------------------------------------
+   THE JOINTS
+
+   A different layer on the same figure, because the eight things the stretch
+   setup asks about — shoulder, elbow, wrist, neck, lower back, hip, knee,
+   ankle — are *joints*, and a joint is a place rather than a shape. Drawing
+   them as muscle regions would have put "wrist" over the forearm and "lower
+   back" over the glutes, which is not where either of them hurts.
+
+   They are the keys of INJURIES, so what you point at here is the same
+   vocabulary the profile, the exclusions and STRETCH_AREA_MUSCLES already
+   speak. `mid` marks the two that sit on the centre line and are therefore
+   drawn once rather than mirrored.
+   ------------------------------------------------------------ */
+const BODY_JOINTS = {
+  front: [
+    { k: 'neck',     x: 66,   y: 40.4, mid: true },
+    { k: 'shoulder', x: 91.4, y: 61.4 },
+    { k: 'elbow',    x: 94.8, y: 100.4 },
+    { k: 'wrist',    x: 96.4, y: 138.4 },
+    { k: 'lowback',  x: 66,   y: 108.4, mid: true },
+    { k: 'hip',      x: 82.4, y: 122.4 },
+    { k: 'knee',     x: 74.6, y: 177.4 },
+    { k: 'ankle',    x: 72,   y: 221.4 }
+  ],
+  back: [
+    { k: 'neck',     x: 66,   y: 40.4, mid: true },
+    { k: 'shoulder', x: 91.4, y: 61.4 },
+    { k: 'elbow',    x: 94.8, y: 100.4 },
+    { k: 'wrist',    x: 96.4, y: 138.4 },
+    { k: 'lowback',  x: 66,   y: 106.4, mid: true },
+    { k: 'hip',      x: 82.4, y: 122.4 },
+    { k: 'knee',     x: 74.6, y: 177.4 },
+    { k: 'ankle',    x: 72,   y: 221.4 }
   ]
 };
 
@@ -270,18 +307,48 @@ function bodyFigureHTML(opts) {
     });
   });
 
+  /* The joint layer, when the figure is being used to point at what hurts
+     rather than at what to stretch. The muscles stay drawn underneath and
+     stay dimmed — they are the anatomy the joint sits in, not a second set of
+     targets, so they are not hittable in this mode. */
+  let joints = '';
+  if (o.mode === 'joints') {
+    const picked = o.picked || [];
+    (BODY_JOINTS[view] || []).forEach(j => {
+      (j.mid ? [false] : [false, true]).forEach(flip => {
+        const q = bodyPt([j.x, j.y], shape, flip);
+        const on = picked.indexOf(j.k) >= 0;
+        const lab = (typeof INJURIES !== 'undefined' && INJURIES[j.k] ? INJURIES[j.k].label : j.k);
+        joints += `<g class="bd-j${on ? ' on' : ''}" data-act="body-joint" data-v="${h(j.k)}"
+            role="button" tabindex="0" aria-pressed="${on ? 'true' : 'false'}"
+            aria-label="${h(lab)}${on ? ', flagged' : ''}">
+          ${/* The ring is 4.4 units and the target is 16 — a joint marker big
+                enough to tap accurately would be a marker too big to place
+                accurately, so the two are separated the same way the session
+                rail separates its 5px band from its 44px button. Sixteen is
+                the smallest radius that clears 44px at the width the sheet
+                gives the figure, and it is measured rather than assumed: the
+                first attempt was 13 and came out at 35. */''}
+          <circle class="bd-j-t" cx="${q[0].toFixed(2)}" cy="${q[1].toFixed(2)}" r="16"/>
+          <circle class="bd-j-r" cx="${q[0].toFixed(2)}" cy="${q[1].toFixed(2)}" r="4.4"/>
+        </g>`;
+      });
+    });
+  }
+
   let detail = '';
   BODY_DETAIL[view].forEach(l => {
     detail += `<path class="bd-d" d="${bodyPath(l.pts, shape, false, true)}"/>`;
     if (l.mirror) detail += `<path class="bd-d" d="${bodyPath(l.pts, shape, true, true)}"/>`;
   });
 
-  return `<svg class="bd" viewBox="0 0 ${BODY_W} ${BODY_H}"
-      data-view="${view}" role="group" aria-label="Body map, ${view} view">
+  return `<svg class="bd${o.mode === 'joints' ? ' joints' : ''}" viewBox="0 0 ${BODY_W} ${BODY_H}"
+      data-view="${view}" data-mode="${o.mode === 'joints' ? 'joints' : 'muscles'}"
+      role="group" aria-label="Body map, ${view} view">
     <path class="bd-body" d="${outline}"/>
     ${shapes}
     <g class="bd-det" aria-hidden="true">${detail}</g>
-    ${hits}
+    ${o.mode === 'joints' ? joints : hits}
   </svg>`;
 }
 
@@ -308,8 +375,24 @@ function bodyCentroids(view, sex) {
   return out;
 }
 
-function bodyPick(view, sex, x, y) {
-  const c = bodyCentroids(view, sex);
+function bodyJointPoints(view, sex) {
+  const shape = BODY_SHAPE[sex] || BODY_SHAPE.na;
+  const out = [];
+  (BODY_JOINTS[view] || []).forEach(j => {
+    (j.mid ? [false] : [false, true]).forEach(flip => {
+      const q = bodyPt([j.x, j.y], shape, flip);
+      out.push({ m: j.k, x: q[0], y: q[1] });
+    });
+  });
+  return out;
+}
+
+/* `mode` decides the vocabulary, because the same tap on the same pixel means
+   a muscle on one screen and a joint on another — and a fallback that answered
+   in the wrong one would quietly flag your shoulder when you asked to stretch
+   your chest. */
+function bodyPick(view, sex, x, y, mode) {
+  const c = mode === 'joints' ? bodyJointPoints(view, sex) : bodyCentroids(view, sex);
   if (!c.length) return null;
   let best = null, bd = Infinity;
   c.forEach(p => {

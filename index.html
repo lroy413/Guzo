@@ -2090,6 +2090,19 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
 .bmap-turn:active{transform:translateY(1px) scale(.985);background:var(--surface-3)}
 .bmap-turn .ico-svg{width:15px;height:15px;color:var(--ember)}
+/* The joint layer. The ring is what you see and the disc is what you hit —
+   a marker big enough to tap accurately would be a marker too big to place
+   accurately, so the two are separated the same way the session rail separates
+   its 5px band from its 44px button. */
+.bd.joints .bd-m{opacity:.45}
+.bd-j{cursor:pointer}
+.bd-j-t{fill:transparent;pointer-events:all}
+.bd-j-r{fill:rgba(10,13,18,.86);stroke:var(--muted);stroke-width:1.7;
+  transition:fill var(--t) ease,stroke var(--t) ease,r var(--t) var(--ease-spring)}
+.bd-j.on .bd-j-r{fill:var(--ember);stroke:var(--ember-2);r:6}
+.bd-j:active .bd-j-r{stroke:var(--ember-2)}
+.bmap-set .bmap-fig{max-width:252px}
+
 .bmap-head{display:flex;align-items:center;gap:10px;padding:11px 13px;margin-bottom:11px;
   border-radius:var(--r);background:var(--ember-dim);border:1px solid var(--ember-line)}
 .bmap-head .h3{color:var(--ember-2)}
@@ -4547,8 +4560,8 @@ const BODY_W = 132, BODY_H = 240, BODY_CX = 66;
    answer the energy equation gives that choice. */
 const BODY_SHAPE = {
   m:  { shoulder: 1,    waist: 1,    hip: 1,    thigh: 1    },
-  f:  { shoulder: 0.90, waist: 0.95, hip: 1.10, thigh: 1.05 },
-  na: { shoulder: 0.95, waist: 0.97, hip: 1.05, thigh: 1.02 }
+  f:  { shoulder: 0.88, waist: 0.90, hip: 1.15, thigh: 1.07 },
+  na: { shoulder: 0.95, waist: 0.96, hip: 1.06, thigh: 1.03 }
 };
 
 /* Where those numbers apply, and how they blend between. A point at the waist
@@ -4619,7 +4632,7 @@ const BODY_OUTLINE = [
   [66, 0.4], [73.4, 2.6], [78, 11.4], [77, 22.4], [73.4, 29.4],       // skull
   [71, 33.4],                                                         // under the jaw
   [71.4, 38.4], [71.8, 44.4],                                         // neck
-  [76.4, 45.6], [83.4, 48.4], [90.4, 52.6],                           // trapezius slope
+  [74.4, 45.6], [79.4, 47.4], [85.4, 50.4], [91, 53.8],                // trapezius slope
   [95.4, 57.4], [97.6, 65.4], [97.8, 76.4],                           // deltoid cap
   [99, 88.4], [99.6, 100.4],                                          // upper arm to elbow
   [100.4, 114.4], [100.8, 128.4],                                     // forearm
@@ -4677,8 +4690,8 @@ const BODY_REGIONS = {
        could not be tapped for a calf stretch would be pedantry with a hit box
        on it. */
     { m: 'Calves', both: true, pts: [
-      [70.8, 182.4], [76.4, 183.4], [78.6, 193.4], [77.2, 207.4], [74.2, 215.4],
-      [71, 209.4], [69.8, 194.4] ] }
+      [70.2, 180.4], [77, 182.4], [79.2, 192.4], [76.4, 207.4], [73.8, 216.4],
+      [70.6, 210.4], [69.4, 193.4] ] }
   ],
   back: [
     { m: 'Shoulders', both: true, pts: [
@@ -4700,8 +4713,8 @@ const BODY_REGIONS = {
       [68.4, 150.4], [77, 149.4], [85, 152.4], [83.2, 162.4], [80.6, 172.4],
       [77, 176.4], [72, 173.4], [69.2, 162.4] ] },
     { m: 'Calves', both: true, pts: [
-      [69.6, 181.4], [76.4, 182.4], [79, 192.4], [77.2, 206.4], [73.6, 215.4],
-      [70, 208.4], [69, 193.4] ] }
+      [69.4, 179.4], [77.2, 181.4], [79.4, 191.4], [76.6, 206.4], [73.6, 216.4],
+      [70.2, 209.4], [68.8, 192.4] ] }
   ]
 };
 
@@ -4723,6 +4736,43 @@ const BODY_DETAIL = {
     { pts: [[68.4, 63.4], [83.4, 56.4]], mirror: true },
     { pts: [[68.4, 78.4], [84.6, 70.4]], mirror: true },
     { pts: [[70.6, 177.4], [78.6, 177.4]], mirror: true }
+  ]
+};
+
+/* ------------------------------------------------------------
+   THE JOINTS
+
+   A different layer on the same figure, because the eight things the stretch
+   setup asks about — shoulder, elbow, wrist, neck, lower back, hip, knee,
+   ankle — are *joints*, and a joint is a place rather than a shape. Drawing
+   them as muscle regions would have put "wrist" over the forearm and "lower
+   back" over the glutes, which is not where either of them hurts.
+
+   They are the keys of INJURIES, so what you point at here is the same
+   vocabulary the profile, the exclusions and STRETCH_AREA_MUSCLES already
+   speak. `mid` marks the two that sit on the centre line and are therefore
+   drawn once rather than mirrored.
+   ------------------------------------------------------------ */
+const BODY_JOINTS = {
+  front: [
+    { k: 'neck',     x: 66,   y: 40.4, mid: true },
+    { k: 'shoulder', x: 91.4, y: 61.4 },
+    { k: 'elbow',    x: 94.8, y: 100.4 },
+    { k: 'wrist',    x: 96.4, y: 138.4 },
+    { k: 'lowback',  x: 66,   y: 108.4, mid: true },
+    { k: 'hip',      x: 82.4, y: 122.4 },
+    { k: 'knee',     x: 74.6, y: 177.4 },
+    { k: 'ankle',    x: 72,   y: 221.4 }
+  ],
+  back: [
+    { k: 'neck',     x: 66,   y: 40.4, mid: true },
+    { k: 'shoulder', x: 91.4, y: 61.4 },
+    { k: 'elbow',    x: 94.8, y: 100.4 },
+    { k: 'wrist',    x: 96.4, y: 138.4 },
+    { k: 'lowback',  x: 66,   y: 106.4, mid: true },
+    { k: 'hip',      x: 82.4, y: 122.4 },
+    { k: 'knee',     x: 74.6, y: 177.4 },
+    { k: 'ankle',    x: 72,   y: 221.4 }
   ]
 };
 
@@ -4764,18 +4814,48 @@ function bodyFigureHTML(opts) {
     });
   });
 
+  /* The joint layer, when the figure is being used to point at what hurts
+     rather than at what to stretch. The muscles stay drawn underneath and
+     stay dimmed — they are the anatomy the joint sits in, not a second set of
+     targets, so they are not hittable in this mode. */
+  let joints = '';
+  if (o.mode === 'joints') {
+    const picked = o.picked || [];
+    (BODY_JOINTS[view] || []).forEach(j => {
+      (j.mid ? [false] : [false, true]).forEach(flip => {
+        const q = bodyPt([j.x, j.y], shape, flip);
+        const on = picked.indexOf(j.k) >= 0;
+        const lab = (typeof INJURIES !== 'undefined' && INJURIES[j.k] ? INJURIES[j.k].label : j.k);
+        joints += `<g class="bd-j${on ? ' on' : ''}" data-act="body-joint" data-v="${h(j.k)}"
+            role="button" tabindex="0" aria-pressed="${on ? 'true' : 'false'}"
+            aria-label="${h(lab)}${on ? ', flagged' : ''}">
+          ${/* The ring is 4.4 units and the target is 16 — a joint marker big
+                enough to tap accurately would be a marker too big to place
+                accurately, so the two are separated the same way the session
+                rail separates its 5px band from its 44px button. Sixteen is
+                the smallest radius that clears 44px at the width the sheet
+                gives the figure, and it is measured rather than assumed: the
+                first attempt was 13 and came out at 35. */''}
+          <circle class="bd-j-t" cx="${q[0].toFixed(2)}" cy="${q[1].toFixed(2)}" r="16"/>
+          <circle class="bd-j-r" cx="${q[0].toFixed(2)}" cy="${q[1].toFixed(2)}" r="4.4"/>
+        </g>`;
+      });
+    });
+  }
+
   let detail = '';
   BODY_DETAIL[view].forEach(l => {
     detail += `<path class="bd-d" d="${bodyPath(l.pts, shape, false, true)}"/>`;
     if (l.mirror) detail += `<path class="bd-d" d="${bodyPath(l.pts, shape, true, true)}"/>`;
   });
 
-  return `<svg class="bd" viewBox="0 0 ${BODY_W} ${BODY_H}"
-      data-view="${view}" role="group" aria-label="Body map, ${view} view">
+  return `<svg class="bd${o.mode === 'joints' ? ' joints' : ''}" viewBox="0 0 ${BODY_W} ${BODY_H}"
+      data-view="${view}" data-mode="${o.mode === 'joints' ? 'joints' : 'muscles'}"
+      role="group" aria-label="Body map, ${view} view">
     <path class="bd-body" d="${outline}"/>
     ${shapes}
     <g class="bd-det" aria-hidden="true">${detail}</g>
-    ${hits}
+    ${o.mode === 'joints' ? joints : hits}
   </svg>`;
 }
 
@@ -4802,8 +4882,24 @@ function bodyCentroids(view, sex) {
   return out;
 }
 
-function bodyPick(view, sex, x, y) {
-  const c = bodyCentroids(view, sex);
+function bodyJointPoints(view, sex) {
+  const shape = BODY_SHAPE[sex] || BODY_SHAPE.na;
+  const out = [];
+  (BODY_JOINTS[view] || []).forEach(j => {
+    (j.mid ? [false] : [false, true]).forEach(flip => {
+      const q = bodyPt([j.x, j.y], shape, flip);
+      out.push({ m: j.k, x: q[0], y: q[1] });
+    });
+  });
+  return out;
+}
+
+/* `mode` decides the vocabulary, because the same tap on the same pixel means
+   a muscle on one screen and a joint on another — and a fallback that answered
+   in the wrong one would quietly flag your shoulder when you asked to stretch
+   your chest. */
+function bodyPick(view, sex, x, y, mode) {
+  const c = mode === 'joints' ? bodyJointPoints(view, sex) : bodyCentroids(view, sex);
   if (!c.length) return null;
   let best = null, bd = Infinity;
   c.forEach(p => {
@@ -18123,6 +18219,23 @@ function sheetStretchIntro() {
 }
 
 let stretchDraft = null;
+/* Which way the setup figure is facing. Draft state, like stretchDraft itself:
+   it is a question about this visit to the sheet, not about you. */
+let stretchSetView = 'front';
+
+/* One place that flags an area, whether it was tapped on the figure, on a chip
+   below it, or resolved from a near-miss on bare silhouette. Three call sites
+   writing to the same array would drift, and the one that drifted would be the
+   figure — the only one of the three with no visible list to check itself
+   against. */
+function toggleStretchArea(k) {
+  if (!INJURIES[k] || !stretchDraft) return;
+  const a = stretchDraft.areas;
+  const i = a.indexOf(k);
+  if (i >= 0) a.splice(i, 1); else a.push(k);
+  buzz(10);
+  sheetStretchSetup();
+}
 
 function sheetStretchSetup() {
   const st = stretchStore();
@@ -18148,7 +18261,23 @@ function sheetStretchSetup() {
 
     <div class="field mb">
       <div class="label">Anything sore or stiff?</div>
-      <p class="tiny mb-s">Weighted highest of the three. You are the only one who knows.</p>
+      <p class="tiny mb-s">Weighted highest of the three. You are the only one who knows &mdash;
+        so point at it.</p>
+      ${/* Eight chips became eight places on a body. Pointing at what hurts is
+            not a nicer way of reading a list, it is a different act: you do not
+            have to translate "the outside of my knee" into a word first, and
+            the eight words were the whole reason this question felt like
+            paperwork. The chips are still below, as the record of what you
+            picked and the way to take one back. */''}
+      <div class="bmap bmap-set mb-s">
+        <div class="bmap-fig">${bodyFigureHTML({
+          sex: (S.profile && S.profile.sex) || 'na', view: stretchSetView,
+          mode: 'joints', picked: d.areas })}</div>
+        <button class="bmap-turn" data-act="stretch-turn"
+                aria-label="Turn the figure to show the ${stretchSetView === 'front' ? 'back' : 'front'}">
+          ${ICO.repeat}<span>${stretchSetView === 'front' ? 'Back' : 'Front'}</span>
+        </button>
+      </div>
       <div class="chip-grid c2">
         ${Object.values(INJURIES).map(i => `<div class="chip ${d.areas.indexOf(i.k) >= 0 ? 'on' : ''}"
           data-act="stretch-area" data-v="${h(i.k)}">${ico(i.ico)}<span>${h(i.label)}</span></div>`).join('')}
@@ -19110,6 +19239,7 @@ document.addEventListener('click', ev => {
        the nearest region rather than to nothing, because a body map that
        sometimes ignores you reads as broken rather than as precise. */
     case 'body-pick': sheetBodyMap(v); break;
+    case 'body-joint': toggleStretchArea(v); break;
     case 'body-clear': sheetBodyMap(null); break;
     case 'body-turn': {
       bodyMapView = bodyMapView === 'front' ? 'back' : 'front';
@@ -19754,9 +19884,11 @@ document.addEventListener('click', ev => {
       stretchDraft.occupation = (stretchDraft.occupation === v) ? null : v;
       sheetStretchSetup(); break;
     }
-    case 'stretch-area': {
-      const ix = stretchDraft.areas.indexOf(v);
-      if (ix >= 0) stretchDraft.areas.splice(ix, 1); else stretchDraft.areas.push(v);
+    /* Through the one function, so the chip and the figure cannot disagree
+       about what is flagged — see toggleStretchArea(). */
+    case 'stretch-area': toggleStretchArea(v); break;
+    case 'stretch-turn': {
+      stretchSetView = stretchSetView === 'front' ? 'back' : 'front';
       sheetStretchSetup(); break;
     }
     case 'stretch-mins': { stretchDraft.mins = +v || 15; sheetStretchSetup(); break; }
@@ -20146,6 +20278,36 @@ $('#scrim').addEventListener('click', () => closeSheet());
 $('#sheet-x').addEventListener('click', () => closeSheet());
 $('#rest-skip').addEventListener('click', stopRest);
 $('#rest-add').addEventListener('click', () => { restEnd += 30000; restTotal += 30; tickRest(); });
+
+/* ---- the tap the body's own paths missed ----
+   Those paths answer most taps. What they cannot answer is one between two
+   regions or on the bare silhouette, and on a figure the size of a phone
+   screen that is a lot of the surface. A body map that sometimes ignores you
+   reads as broken rather than as precise, so a miss resolves to the nearest
+   target instead of to nothing.
+
+   The coordinate maths is the letterboxing: the figure is 132 x 240 inside a
+   box of whatever shape the sheet gives it, and preserveAspectRatio defaults
+   to meet — so it is centred with bars on two sides, and a client point means
+   nothing in figure space until those bars are taken off it.
+
+   `mode` decides the vocabulary. The same pixel means a muscle on one screen
+   and a joint on another, and a fallback answering in the wrong one would
+   quietly flag your shoulder when you asked to stretch your chest. */
+document.addEventListener('click', ev => {
+  const t = ev.target;
+  if (!t || !t.closest) return;
+  const svg = t.closest('.bd');
+  if (!svg || t.closest('.bd-hit') || t.closest('.bd-j')) return;
+  const r = svg.getBoundingClientRect();
+  if (!r.width || !r.height) return;
+  const k = Math.min(r.width / BODY_W, r.height / BODY_H);
+  const x = (ev.clientX - r.left - (r.width - BODY_W * k) / 2) / k;
+  const y = (ev.clientY - r.top - (r.height - BODY_H * k) / 2) / k;
+  const m = bodyPick(svg.dataset.view, (S.profile && S.profile.sex) || 'na', x, y, svg.dataset.mode);
+  if (!m) return;
+  if (svg.dataset.mode === 'joints') toggleStretchArea(m); else sheetBodyMap(m);
+});
 
 /* ---- the sweep of light across a solid button ----
    On pointerdown rather than on :active, because :active only holds while the
