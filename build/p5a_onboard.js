@@ -382,7 +382,7 @@ OB_RENDER.injuries = () => {
     <p class="ob-sub">Old injuries and current niggles both count. Whatever you flag gets removed from the exercise library permanently — it will never appear in a generated session.</p>
     <div class="opts">
       ${Object.values(INJURIES).map(j => opt({
-        act:'ob-injury', v:j.k, on:obDraft.injuries.includes(j.k), ico:j.ico, title:j.label, desc:j.note })).join('')}
+        act:'ob-injury', v:j.k, on:obDraft.injuries.includes(j.k), ico:ico(j.ico), title:j.label, desc:j.note })).join('')}
     </div>
     ${n ? `<div class="card accent" style="margin-top:20px">
       <div class="row between"><div class="eyebrow em">What this changes</div><div class="pill em">${n} removed</div></div>

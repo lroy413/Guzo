@@ -300,7 +300,7 @@ try {
     };
     const gotOcc = pick('stretch-occ', 'driving');
     const gotArea = pick('stretch-area', 'hip');
-    const gotMins = pick('stretch-mins', '12');
+    const gotMins = pick('stretch-mins', '30');
     /* Tapping the chosen occupation again clears it — "none of these" is a
        real answer. */
     pick('stretch-occ', 'driving');
@@ -323,7 +323,7 @@ try {
     setup.gotOcc && setup.gotArea && setup.gotMins,
     JSON.stringify([setup.gotOcc, setup.gotArea, setup.gotMins]));
   check('...and every answer is kept',
-    setup.occupation === 'driving' && setup.areas.join() === 'hip' && setup.mins === 12,
+    setup.occupation === 'driving' && setup.areas.join() === 'hip' && setup.mins === 30,
     JSON.stringify([setup.occupation, setup.areas, setup.mins]));
   check('...an occupation can be unpicked again', setup.clearedOcc === true);
   check('...and saving lands on the stretch, not back on the form',
@@ -418,6 +418,129 @@ try {
     JSON.stringify([cat.dupes, cat.malformed]));
   check('the longest stretch never has to repeat a movement',
     cat.noRepeats === true && cat.longest >= 10, `${cat.longest} movements`);
+
+
+  // ================= 8. how long, and how long each ====================
+  console.log('\nlength and holds\n');
+
+  /* Asked for: sessions up to an hour, and holds long enough to be worth
+     doing. The second half is the one with evidence behind it — ACSM's
+     flexibility guidance is about 60 seconds *accumulated* per muscle group,
+     reached as one long hold or two to four shorter ones. A single 30-second
+     pull is half a dose. */
+  const lengths = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const out = {};
+    [5, 15, 30, 45, 60].forEach(m => {
+      S.stretch = { onboarded: true, occupation: 'desk', areas: [], done: {}, mins: m };
+      const l = dailyStretch();
+      const ids = l.map(s => s.ex.id);
+      out[m] = { n: l.length, mins: stretchSeconds(l) / 60,
+                 unique: new Set(ids).size === ids.length };
+    });
+    /* Every movement accumulates about the minute, whichever way it gets there. */
+    const dose = stretchPool().filter(x => x.load === 'time')
+      .map(x => ({ id: x.id, hold: x.rh, sets: stretchSets(x), total: x.rh * stretchSets(x) }));
+    const short = dose.filter(d => d.total < 45).map(d => d.id + ':' + d.total);
+    const long = dose.filter(d => d.total > 90).map(d => d.id + ':' + d.total);
+    /* And a rep-counted movement is a range being moved through, not a tissue
+       being held — two passes, the low end of the 2-4 the guidance gives. */
+    const reps = stretchPool().filter(x => x.load !== 'time').map(x => stretchSets(x));
+    return { out, short, long, repSets: [...new Set(reps)],
+             holds: dose.filter(d => d.sets > 1).length };
+  });
+  [5, 15, 30, 45, 60].forEach(m => {
+    check(`${m} minutes comes out at about ${m} minutes`,
+      Math.abs(lengths.out[m].mins - m) <= Math.max(1.5, m * 0.08),
+      `${Math.round(lengths.out[m].mins * 10) / 10} min, ${lengths.out[m].n} movements`);
+  });
+  check('an hour is still all distinct movements', lengths.out[60].unique === true,
+    `${lengths.out[60].n} movements`);
+  check('...and a longer session is a longer session',
+    lengths.out[60].n > lengths.out[30].n && lengths.out[30].n > lengths.out[5].n,
+    [5, 30, 60].map(m => lengths.out[m].n).join(' → '));
+
+  /* The dose, which is the part with a citation behind it. */
+  check('every hold accumulates about a minute on its area',
+    lengths.short.length === 0 && lengths.long.length === 0,
+    `short ${lengths.short.join(',')} | long ${lengths.long.join(',')}`);
+  check('...so a short stretch is repeated rather than left at one pass',
+    lengths.holds > 0, String(lengths.holds));
+  check('...and a rep-counted movement gets two passes',
+    lengths.repSets.join() === '2', lengths.repSets.join());
+
+  /* A session built from it carries those holds as real sets. */
+  const built = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.stretch = { onboarded: true, occupation: 'desk', areas: [], done: {}, mins: 15 };
+    save(true);
+    const sess = buildStretchSession();
+    const perEx = sess.exercises.map(x => ({ id: x.exId, sets: x.sets.length,
+                                             want: stretchSets(EX[x.exId]) }));
+    return { wrong: perEx.filter(p => p.sets !== p.want),
+             any: perEx.filter(p => p.sets > 1).length, n: perEx.length };
+  });
+  check('a built stretch session carries every hold as a set',
+    built.wrong.length === 0, JSON.stringify(built.wrong.slice(0, 3)));
+  check('...and more than one of them is a repeat', built.any > 0, String(built.any));
+
+  // ================= 9. drawn icons, not emoji ==========================
+  console.log('\nicons\n');
+
+  const icons = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    stretchDraft = null; sheetStretchSetup();
+    const body = document.getElementById('sheet-body');
+    const chips = [...body.querySelectorAll('.chip')];
+    /* Every code point above the BMP that is not plain text. An emoji is a
+       glyph the *platform* supplies — Apple Color Emoji here, Noto Color Emoji
+       on Android — so a set of them cannot be designed around. */
+    const emojiRe = /[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/u;
+    /* Only the chips that name a thing. The five duration chips are numbers and
+       an icon on "30 min" would be decoration — the first version of this
+       counted them and reported 16 of 21 on a working screen. */
+    const opts = chips.filter(c => c.dataset.act === 'stretch-occ' || c.dataset.act === 'stretch-area');
+    const mins = chips.filter(c => c.dataset.act === 'stretch-mins');
+    return {
+      chips: opts.length,
+      minsChips: mins.length,
+      minsHaveNoIcon: mins.every(c => !c.querySelector('svg.ico-svg')),
+      withIcon: opts.filter(c => c.querySelector('svg.ico-svg')).length,
+      withEmoji: chips.filter(c => emojiRe.test(c.textContent)).map(c => c.textContent.trim()),
+      /* They take the chip's own colour, which an emoji never did. */
+      currentColor: chips.every(c => {
+        const sv = c.querySelector('svg.ico-svg');
+        return !sv || sv.getAttribute('stroke') === 'currentColor';
+      }),
+      /* An unknown key must not print "undefined" into the markup. */
+      fallback: /svg/.test(ico('not-a-real-key')),
+      /* And the data itself has to name icons that exist. The fallback above
+         is deliberate and it also *masks* a bad key — put an emoji back in
+         OCCUPATIONS and every chip still renders an SVG, just the placeholder
+         one. So this is asked of the table rather than of the markup, which is
+         where the mistake would actually live. */
+      unknown: Object.values(OCCUPATIONS).filter(o => !ICO[o.ico]).map(o => o.k)
+        .concat(Object.values(INJURIES).filter(i => !ICO[i.ico]).map(i => i.k)),
+      /* Distinct, or eight rows share one mark and the icons stop being the
+         thing that tells them apart. */
+      distinct: new Set(Object.values(OCCUPATIONS).map(o => o.ico)
+        .concat(Object.values(INJURIES).map(i => i.ico))).size
+    };
+  });
+  check('every option chip carries a drawn icon',
+    icons.chips === 16 && icons.withIcon === icons.chips,
+    `${icons.withIcon} of ${icons.chips}`);
+  check('...and the duration chips, which are numbers, carry none',
+    icons.minsChips === 5 && icons.minsHaveNoIcon,
+    `${icons.minsChips} chips`);
+  check('...and none of them is an emoji', icons.withEmoji.length === 0,
+    icons.withEmoji.join(' | '));
+  check('...they take the colour of whatever they sit in', icons.currentColor === true);
+  check('an icon that does not exist still draws something', icons.fallback === true);
+  /* The one that actually catches an emoji going back into the data. */
+  check('...and every occupation and body area names one that does exist',
+    icons.unknown.length === 0, icons.unknown.join(', '));
+  check('...all sixteen of them different', icons.distinct === 16, String(icons.distinct));
 
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 

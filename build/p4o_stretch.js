@@ -22,28 +22,28 @@
    `areas` are MUSCLES entries so they can be matched against the catalogue's
    own primary/secondary fields; nothing here needs a second taxonomy. */
 const OCCUPATIONS = {
-  desk:    { k:'desk',    label:'Desk / screen work',      ico:'💻',
+  desk:    { k:'desk',    label:'Desk / screen work',      ico:'desk',
              areas:['Chest','Shoulders','Back','Glutes','Quads'],
              note:'Hours in flexion: the front closes up and the hips stay short. The work is opening the chest and hips and getting the upper back to move again.' },
-  camera:  { k:'camera',  label:'Camera / AV crew',        ico:'🎥',
+  camera:  { k:'camera',  label:'Camera / AV crew',        ico:'camera',
              areas:['Shoulders','Back','Core','Calves','Glutes'],
              note:'Weight on one shoulder for hours, then standing on it. Asymmetric load through the neck and upper back, with calves and low back taking the standing.' },
-  driving: { k:'driving', label:'Driving',                 ico:'🚚',
+  driving: { k:'driving', label:'Driving',                 ico:'driving',
              areas:['Glutes','Quads','Back','Chest'],
              note:'Seated with the hips flexed and the arms forward. Hip flexors and glutes take most of it.' },
-  standing:{ k:'standing',label:'On your feet all day',    ico:'🧍',
+  standing:{ k:'standing',label:'On your feet all day',    ico:'standing',
              areas:['Calves','Glutes','Hamstrings','Back'],
              note:'Static standing loads calves and low back more than walking does. Ankles and hips first.' },
-  lifting: { k:'lifting', label:'Manual / trades',         ico:'🧰',
+  lifting: { k:'lifting', label:'Manual / trades',         ico:'lifting',
              areas:['Back','Hamstrings','Shoulders','Glutes'],
              note:'Repeated bending and carrying. Posterior chain and shoulders.' },
-  care:    { k:'care',    label:'Healthcare / caring',     ico:'🩺',
+  care:    { k:'care',    label:'Healthcare / caring',     ico:'care',
              areas:['Back','Shoulders','Calves','Hamstrings'],
              note:'Long shifts on your feet with awkward lifts in them. Low back and shoulders.' },
-  hands:   { k:'hands',   label:'Hands and wrists all day',ico:'🖐',
+  hands:   { k:'hands',   label:'Hands and wrists all day',ico:'hands',
              areas:['Triceps','Shoulders','Chest'],
              note:'Fine motor work with the forearms loaded and the shoulders forward.' },
-  mixed:   { k:'mixed',   label:'A bit of everything',     ico:'🔀',
+  mixed:   { k:'mixed',   label:'A bit of everything',     ico:'mixed',
              areas:['Back','Shoulders','Glutes','Hamstrings'],
              note:'The general case: hips, upper back and shoulders.' }
 };
@@ -60,7 +60,7 @@ const STRETCH_REGIONS = {
 function stretchRegion(ex) { return STRETCH_REGIONS[ex && ex.primary] || 'other'; }
 
 function stretchStore() {
-  if (!S.stretch) S.stretch = { onboarded:false, occupation:null, sit:null, areas:[], done:{}, mins:8 };
+  if (!S.stretch) S.stretch = { onboarded:false, occupation:null, sit:null, areas:[], done:{}, mins:15 };
   if (!S.stretch.done) S.stretch.done = {};
   if (!S.stretch.areas) S.stretch.areas = [];
   return S.stretch;
@@ -201,8 +201,11 @@ function dailyStretch(n) {
      into a movement count with a flat 45-seconds-each guess and then measured
      the result at 56 — so asking for eight minutes produced ten and a half.
      One number decides the length now, and it is the one being asked for. */
-  const budget = n ? null : Math.max(3, +stretchStore().mins || 8) * 60;
-  const want = n ? Math.max(1, Math.min(14, n)) : 14;
+  const budget = n ? null : Math.max(3, +stretchStore().mins || 15) * 60;
+  /* An hour of stretching is sixty-odd minutes of *distinct* movements at two
+     or three holds each, so the ceiling has to clear the pool rather than sit
+     at fourteen. It is capped at the pool size below either way. */
+  const want = n ? Math.max(1, Math.min(40, n)) : 40;
   const scored = stretchScores().sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     if (a.last !== b.last) return (a.last || '').localeCompare(b.last || '');
@@ -229,7 +232,7 @@ function dailyStretch(n) {
       const pick = byRegion[r][round];
       if (!pick) continue;
       out.push(pick);
-      secs += movementSeconds(pick.ex);
+      secs += movementSeconds(pick.ex) * stretchSets(pick.ex);
       added = true;
     }
     if (!added) break;
@@ -238,7 +241,8 @@ function dailyStretch(n) {
   /* One over the line is closer to the ask than one under it whenever the last
      movement straddles the budget — but only if it is actually closer. */
   if (budget && out.length > 3) {
-    const without = secs - movementSeconds(out[out.length - 1].ex);
+    const last = out[out.length - 1].ex;
+    const without = secs - movementSeconds(last) * stretchSets(last);
     if (Math.abs(without - budget) < Math.abs(secs - budget)) out.pop();
   }
   return out;
@@ -254,7 +258,34 @@ function movementSeconds(ex) {
    movements carry their own seconds; rep-counted ones are estimated the same
    way the session-length maths does it elsewhere. */
 function stretchSeconds(list) {
-  return (list || []).reduce((a, s) => a + movementSeconds(s.ex || s), 0);
+  return (list || []).reduce((a, s) => a + movementSeconds(s.ex || s) * stretchSets(s.ex || s), 0);
+}
+
+/* ------------------------------------------------------------
+   How long to hold, and how many times.
+
+   ACSM's flexibility guidance is not "hold it for a while": it is roughly
+   **60 seconds accumulated per muscle group**, reached either as two holds of
+   thirty or four of fifteen, with any single hold in the 10–30 second band for
+   most adults and 30–60 for older ones. A single 30-second hold — which is
+   what this did — is half a dose.
+
+   So a movement is prescribed in *sets*: enough repeats of its own hold to
+   accumulate a minute. A 60-second hold is already there and gets one; a
+   20-second one gets three. Rep-counted mobility work is a different animal —
+   it is a range being moved through rather than a tissue being held — and
+   takes two passes, which is the low end of the 2–4 the same guidance gives.
+
+   The ceiling of three exists because the marginal value of a fourth identical
+   hold is small and the cost in session length is not.
+   ------------------------------------------------------------ */
+const STRETCH_ACCUMULATE_SECS = 60;
+
+function stretchSets(ex) {
+  if (!ex) return 1;
+  if (ex.load !== 'time') return 2;
+  const hold = +ex.rh || 30;
+  return Math.max(1, Math.min(3, Math.round(STRETCH_ACCUMULATE_SECS / hold)));
 }
 
 /* ------------------------------------------------------------
@@ -355,7 +386,8 @@ function buildStretchSession(list) {
          the Train screen counts it down. */
       load: ex.load,
       targetW: null, targetR: ex.rh,
-      sets: [{ w: '', r: '', rpe: '', done: false }],
+      /* Enough holds to accumulate the minute — see stretchSets(). */
+      sets: Array.from({ length: stretchSets(ex) }, () => ({ w: '', r: '', rpe: '', done: false })),
       note: ''
     })),
     started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false

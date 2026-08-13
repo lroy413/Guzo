@@ -21,6 +21,7 @@ PARTS=(
   build/p3_data.js
   build/p3b_intake.js
   build/p3c_form.js
+  build/p3d_icons.js
   build/p4_engine.js
   build/p4b_journey.js
   build/p4c_daily.js

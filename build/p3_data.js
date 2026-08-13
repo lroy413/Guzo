@@ -40,7 +40,7 @@ function bootFail(err) {
 }
 window.addEventListener('error', e => { if (!window.__guzoBooted) bootFail(e.error || e.message); });
 
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 const KEY = 'guzo.v1';
 const LEGACY_KEYS = ['fittrek.v1'];
 

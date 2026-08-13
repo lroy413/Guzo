@@ -23,6 +23,12 @@ function sheetStretch() {
     </div>
     <p class="small mb">${Math.round(secs / 60)} minutes &middot; ${list.length} movements${
       streak ? ` &middot; <span class="em">${streak} day${streak === 1 ? '' : 's'} running</span>` : ''}</p>
+    ${/* Only where it can actually bite: this is a minute per area, which is the
+          far side of the threshold where a static hold measurably costs you
+          strength. Said once, on the screen, not buried in a help page. */''}
+    ${!S.active && !sessionsOn(today()).length && plannedToday() && !((S.week.plan[today()] || {}).done)
+      ? `<p class="tiny mb str-warn">You have a session owed today. Held stretching costs a few
+         percent of your strength for a while afterwards &mdash; this is better placed after it.</p>` : ''}
 
     ${allDone ? `<div class="note mb ok">
       <p class="note-t">Done for today.</p>
@@ -44,7 +50,9 @@ function sheetStretch() {
         /* "each side" was claimed on everything rep-counted, which is right for
            a hip switch and wrong for an inchworm. The catalogue does not record
            laterality, so it is not asserted. */
-        const amount = s.ex.load === 'time' ? s.ex.rh + 's' : '×' + s.ex.rh;
+        const sets = stretchSets(s.ex);
+        const one = s.ex.load === 'time' ? s.ex.rh + 's' : '×' + s.ex.rh;
+        const amount = sets > 1 ? sets + ' × ' + one : one;
         return `<div class="str-row ${on ? 'done' : ''}">
           <button class="str-tick ${on ? 'on' : ''}" data-act="stretch-tick" data-v="${h(s.ex.id)}"
                   aria-label="${on ? 'Undo' : 'Mark'} ${h(s.ex.name)}" aria-pressed="${on ? 'true' : 'false'}">
@@ -107,6 +115,20 @@ function sheetStretchIntro() {
         changes which movements come out. You can change them whenever you like, and skip the ones
         you would rather not answer.</p>
     </div>
+    <div class="note mb">
+      <p class="note-t">How long to hold</p>
+      <p class="note-b">The target is about a minute on each area, which is what the flexibility
+        guidance actually says &mdash; reached as one long hold or two or three shorter ones rather
+        than a single quick pull. Each movement here is prescribed accordingly, so a 20-second
+        stretch comes up three times and a 60-second one comes up once.</p>
+    </div>
+    <div class="note mb">
+      <p class="note-t">Not immediately before lifting</p>
+      <p class="note-b">Held static stretching costs you strength for a while afterwards &mdash; past
+        about a minute per muscle it is a real 4&ndash;7%, and this session is a minute per area by
+        design. Put it after training, or on a day of its own. A few minutes of the rep-counted
+        movements is a fine warm-up; a long hold is not.</p>
+    </div>
     <p class="small mb">This is general mobility work, not treatment. If something is painful rather
       than tight, or a problem has been there for weeks, that is a physio's job and not an app's.</p>
     <button class="btn primary block lg" data-act="stretch-setup">Set it up</button>
@@ -118,7 +140,7 @@ let stretchDraft = null;
 function sheetStretchSetup() {
   const st = stretchStore();
   if (!stretchDraft) {
-    stretchDraft = { occupation: st.occupation, areas: (st.areas || []).slice(), mins: st.mins || 8 };
+    stretchDraft = { occupation: st.occupation, areas: (st.areas || []).slice(), mins: st.mins || 15 };
   }
   const d = stretchDraft;
 
@@ -131,7 +153,7 @@ function sheetStretchSetup() {
         order, it never overrides something you have flagged.</p>
       <div class="chip-grid c2">
         ${Object.values(OCCUPATIONS).map(o => `<div class="chip ${d.occupation === o.k ? 'on' : ''}"
-          data-act="stretch-occ" data-v="${h(o.k)}">${o.ico} ${h(o.label)}</div>`).join('')}
+          data-act="stretch-occ" data-v="${h(o.k)}">${ico(o.ico)}<span>${h(o.label)}</span></div>`).join('')}
       </div>
       ${d.occupation && OCCUPATIONS[d.occupation]
         ? `<p class="tiny mt-s">${h(OCCUPATIONS[d.occupation].note)}</p>` : ''}
@@ -142,7 +164,7 @@ function sheetStretchSetup() {
       <p class="tiny mb-s">Weighted highest of the three. You are the only one who knows.</p>
       <div class="chip-grid c2">
         ${Object.values(INJURIES).map(i => `<div class="chip ${d.areas.indexOf(i.k) >= 0 ? 'on' : ''}"
-          data-act="stretch-area" data-v="${h(i.k)}">${i.ico} ${h(i.label)}</div>`).join('')}
+          data-act="stretch-area" data-v="${h(i.k)}">${ico(i.ico)}<span>${h(i.label)}</span></div>`).join('')}
       </div>
       <p class="tiny mt-s">Separate from the injuries in your profile, which remove exercises from
         your training. This one only changes what you are offered to stretch &mdash; but anything you
@@ -152,8 +174,8 @@ function sheetStretchSetup() {
 
     <div class="field mb">
       <div class="label">How long, most days?</div>
-      <div class="chip-grid c4">
-        ${[5, 8, 12, 15].map(m => `<div class="chip ${d.mins === m ? 'on' : ''}"
+      <div class="chip-grid c3">
+        ${[5, 15, 30, 45, 60].map(m => `<div class="chip ${d.mins === m ? 'on' : ''}"
           data-act="stretch-mins" data-v="${m}">${m} min</div>`).join('')}
       </div>
     </div>

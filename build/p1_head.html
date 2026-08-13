@@ -310,6 +310,29 @@ button.recall:active{transform:scale(.99)}
   font-variant-numeric:tabular-nums}
 .pace-p{font-size:13px;color:var(--text-dim);flex:none;font-variant-numeric:tabular-nums}
 
+/* Drawn icons rather than emoji — see p3d_icons.js. They take the colour of
+   whatever they sit in, which an emoji never did. */
+.ico-svg{width:1.15em;height:1.15em;display:inline-block;vertical-align:-.18em;flex:none}
+.opt-ico .ico-svg,.ico .ico-svg{width:22px;height:22px;vertical-align:middle}
+.chip .ico-svg{width:24px;height:24px;margin-right:9px}
+/* Only the chips that carry one. An icon column reads as a list you can scan;
+   centring each icon against its own label puts them all in different places
+   and gives the eye nothing to run down. Chips without icons keep the centred
+   layout the rest of the app uses. */
+.chip:has(.ico-svg){display:flex;align-items:center;justify-content:flex-start;text-align:left}
+
+/* Start a hold. A button that runs the movement, not a box to type seconds
+   into afterwards. */
+.set-run{display:flex;align-items:center;gap:5px;flex:none;min-height:44px;padding:0 11px;
+  border-radius:11px;border:1px solid var(--ember-line);background:var(--ember-dim);
+  color:var(--ember-2)}
+.set-run .ico-svg{width:13px;height:13px}
+.set-run-t{font-size:12.5px;font-weight:650;letter-spacing:-.01em}
+.set-run:active{transform:scale(.95)}
+
+.str-warn{color:var(--amber);line-height:1.5;padding:9px 11px;border-radius:10px;
+  background:var(--amber-dim);border:1px solid rgba(245,196,81,.28)}
+
 /* ---------- the fuel deck ----------
    Food and water as two faces of one card rather than two cards stacked. Both
    faces stay mounted so the bottle keeps the node its fill transition needs;

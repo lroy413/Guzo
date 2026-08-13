@@ -310,6 +310,29 @@ button.recall:active{transform:scale(.99)}
   font-variant-numeric:tabular-nums}
 .pace-p{font-size:13px;color:var(--text-dim);flex:none;font-variant-numeric:tabular-nums}
 
+/* Drawn icons rather than emoji — see p3d_icons.js. They take the colour of
+   whatever they sit in, which an emoji never did. */
+.ico-svg{width:1.15em;height:1.15em;display:inline-block;vertical-align:-.18em;flex:none}
+.opt-ico .ico-svg,.ico .ico-svg{width:22px;height:22px;vertical-align:middle}
+.chip .ico-svg{width:24px;height:24px;margin-right:9px}
+/* Only the chips that carry one. An icon column reads as a list you can scan;
+   centring each icon against its own label puts them all in different places
+   and gives the eye nothing to run down. Chips without icons keep the centred
+   layout the rest of the app uses. */
+.chip:has(.ico-svg){display:flex;align-items:center;justify-content:flex-start;text-align:left}
+
+/* Start a hold. A button that runs the movement, not a box to type seconds
+   into afterwards. */
+.set-run{display:flex;align-items:center;gap:5px;flex:none;min-height:44px;padding:0 11px;
+  border-radius:11px;border:1px solid var(--ember-line);background:var(--ember-dim);
+  color:var(--ember-2)}
+.set-run .ico-svg{width:13px;height:13px}
+.set-run-t{font-size:12.5px;font-weight:650;letter-spacing:-.01em}
+.set-run:active{transform:scale(.95)}
+
+.str-warn{color:var(--amber);line-height:1.5;padding:9px 11px;border-radius:10px;
+  background:var(--amber-dim);border:1px solid rgba(245,196,81,.28)}
+
 /* ---------- the fuel deck ----------
    Food and water as two faces of one card rather than two cards stacked. Both
    faces stay mounted so the bottle keeps the node its fill transition needs;
@@ -1894,7 +1917,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.5.0</div>
+      <div class="boot-note" id="boot-build">build 1.6.0</div>
     </div>
   </section>
 
@@ -2039,7 +2062,7 @@ function bootFail(err) {
 }
 window.addEventListener('error', e => { if (!window.__guzoBooted) bootFail(e.error || e.message); });
 
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 const KEY = 'guzo.v1';
 const LEGACY_KEYS = ['fittrek.v1'];
 
@@ -2640,32 +2663,32 @@ function detrainingNote(days) {
    told to protect. Each mobility id here is excluded for a mechanical reason:
    the movement puts load or end range through the named part. */
 const INJURIES = {
-  shoulder: { k:'shoulder', label:'Shoulder', ico:'🫱',
+  shoulder: { k:'shoulder', label:'Shoulder', ico:'shoulder',
     note:'Overhead pressing, dips and deep flyes come out. Neutral-grip and landmine work stays.',
     ex:['bb-ohp','bb-push-press','bw-hspu','bw-dip','db-fly','mach-pec-deck','db-front-raise','bb-shrug','db-shrug','db-arnold','bw-decline-pushup',
          'mob-band-dislocate','mob-doorway-chest'] },
-  lowback: { k:'lowback', label:'Lower back', ico:'🩹',
+  lowback: { k:'lowback', label:'Lower back', ico:'lowback',
     note:'Loaded spinal work goes — deadlifts, bent-over rows, good mornings, barbell squats. Supported and machine versions replace them.',
     ex:['bb-deadlift','bb-sumo-dl','bb-good-morning','bb-row','bb-pendlay','bb-rack-pull','bb-back-squat','bb-front-squat','bb-rdl','bnd-good-morning','db-renegade-row','bb-lunge'] },
-  knee: { k:'knee', label:'Knee', ico:'🦵',
+  knee: { k:'knee', label:'Knee', ico:'knee',
     note:'Jumping and deep single-leg work comes out. Leg press, goblet squats and hinges stay.',
     ex:['bw-jump-squat','bw-broad-jump','bw-pistol','bb-lunge','bw-lunge','db-lunge','bw-split-squat','db-bulgarian','bw-squat-thrust','bw-burpee','bw-mountain-climber','bw-high-knees',
          'mob-couch'] },
-  elbow: { k:'elbow', label:'Elbow', ico:'💢',
+  elbow: { k:'elbow', label:'Elbow', ico:'elbow',
     note:'Straight-bar curls, skullcrushers and dips come out. Hammer curls and cable work replace them.',
     ex:['bw-diamond-pushup','bb-cgbp','db-skull','bb-curl','bw-dip','bw-bench-dip','db-oh-tricep','mach-preacher'] },
-  wrist: { k:'wrist', label:'Wrist', ico:'🤚',
+  wrist: { k:'wrist', label:'Wrist', ico:'wrist',
     note:'Anything loading a bent wrist comes out — push-ups, front squats, planks on hands.',
     ex:['bb-front-squat','bw-pushup','bw-diamond-pushup','bw-decline-pushup','bw-pike-pushup','bw-hspu','bw-bear-crawl','bw-mountain-climber','bb-curl','db-renegade-row','bw-l-sit','bw-incline-pushup',
          'mob-cat-cow','mob-scap-pushup','mob-cobra'] },
-  neck: { k:'neck', label:'Neck', ico:'🧣',
+  neck: { k:'neck', label:'Neck', ico:'neck',
     note:'Shrugs and bar-on-traps squatting come out. Worth flagging if you carry a camera on one shoulder.',
     ex:['bb-shrug','db-shrug','bw-situp','bw-russian-twist','bb-back-squat','bw-l-sit'] },
-  hip: { k:'hip', label:'Hip', ico:'🦴',
+  hip: { k:'hip', label:'Hip', ico:'hip',
     note:'Wide stances and deep split positions come out.',
     ex:['bb-sumo-dl','db-bulgarian','bw-pistol','mach-hip-abduction','bb-lunge','bw-split-squat',
          'mob-pigeon'] },
-  ankle: { k:'ankle', label:'Ankle or foot', ico:'🦶',
+  ankle: { k:'ankle', label:'Ankle or foot', ico:'ankle',
     note:'Impact work comes out. Cycling and rowing replace running for conditioning.',
     ex:['bw-jump-squat','bw-broad-jump','car-jump-rope','bw-high-knees','bw-burpee','bb-front-squat','car-run','car-treadmill-run',
          'mob-ankle-rock'] }
@@ -3550,6 +3573,100 @@ function guideFor(exId) {
   if (!ex) return null;
   return PATTERN_GUIDE[ex.pattern] || null;
 }
+/* ============================================================
+   ICONS
+   ------------------------------------------------------------
+   Drawn, not typed.
+
+   The app used emoji for its occupation chips, its body-area chips and a
+   handful of list rows, and an emoji is a *font glyph the platform supplies*.
+   On an iPhone that is Apple Color Emoji and it looks like the screenshots.
+   On Android it is Noto Color Emoji, which draws the same code points in a
+   different style, at a different weight, with different colours — 🎥 is a
+   grey film camera on one and a black one on the other, 🩹 is a beige plaster
+   here and a pink one there. Some of them are not in every font at all, and a
+   missing glyph is a tofu box.
+
+   None of that is a rendering nicety on these particular chips: they are the
+   only thing distinguishing eight otherwise identical rows, and a set of icons
+   that changes weight and palette between platforms cannot be designed around.
+   So they are inline SVG on a 24-unit grid, single-stroke, `currentColor`, and
+   they inherit the chip's own text colour — which also means they finally get
+   darker when a chip is off and lighter when it is on, which an emoji never
+   did.
+
+   Stroked paths rather than glyphs for the arrows and marks too, for the
+   reason the handbook already gives: `↑ ↓ ← ✓ ›` antialias to about half the
+   contrast their colour promises at this size, pass a CSS reading and fail a
+   pixel check.
+   ============================================================ */
+
+/* One helper so every icon is the same grid, the same stroke weight and the
+   same join style. `extra` carries anything that has to differ — a fill, a
+   second stroke width — rather than each icon re-declaring the lot. */
+function svgIco(paths, extra) {
+  return `<svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
+    aria-hidden="true" focusable="false"${extra ? ' ' + extra : ''}>${paths}</svg>`;
+}
+
+/* The figure every body-area icon is drawn on. Faint enough to read as a
+   backdrop, present enough to say which way up a person is. */
+const BODY_BASE =
+  '<circle cx="12" cy="3.7" r="1.9"/>' +
+  '<path d="M12 5.6v1.7"/>' +
+  '<path d="M8.2 8.3h7.6"/>' +
+  '<path d="M12 7.3v7"/>' +
+  '<path d="M8.2 8.5L6 13l.3 3.7M15.8 8.5L18 13l-.3 3.7"/>' +
+  '<path d="M9.4 14.2h5.2"/>' +
+  '<path d="M9.6 14.4L9 18.4l.2 2.7M14.4 14.4L15 18.4l-.2 2.7"/>';
+
+function bodyIco(highlight) {
+  return `<svg class="ico-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    <g stroke-width="1.3" opacity=".5">${BODY_BASE}</g>
+    <g stroke-width="2.4">${highlight}</g>
+  </svg>`;
+}
+
+const ICO = {
+  /* ---- occupations ---- */
+  desk:     svgIco('<rect x="3" y="4.5" width="18" height="11" rx="1.6"/><path d="M2 19h20"/><path d="M9.5 15.5v3.5M14.5 15.5v3.5"/>'),
+  camera:   svgIco('<rect x="2.5" y="7.5" width="12" height="9" rx="1.8"/><path d="M14.5 11l6-3.2v8.4l-6-3.2z"/><circle cx="6" cy="5" r="1.6"/><circle cx="10.5" cy="5" r="1.6"/>'),
+  driving:  svgIco('<path d="M3 15V9.5a1.5 1.5 0 011.5-1.5H14v7"/><path d="M14 10.5h3.6l2.9 3.1V15"/><circle cx="7.2" cy="16.5" r="1.9"/><circle cx="16.8" cy="16.5" r="1.9"/><path d="M9.1 16.5h5.8M3 16.5h2.3M18.7 16.5H21"/>'),
+  standing: svgIco('<circle cx="12" cy="4.4" r="2"/><path d="M12 6.6v7"/><path d="M8.6 9h6.8"/><path d="M12 13.6l-2.4 6M12 13.6l2.4 6"/>'),
+  lifting:  svgIco('<rect x="3" y="8.5" width="18" height="10" rx="1.8"/><path d="M9 8.5V6.6A1.6 1.6 0 0110.6 5h2.8A1.6 1.6 0 0115 6.6v1.9"/><path d="M3 13h18"/>'),
+  care:     svgIco('<path d="M7 3.5v4.2a4.3 4.3 0 008.6 0V3.5"/><path d="M5.6 3.5h2.8M14.2 3.5H17"/><path d="M11.3 12v2.2a4 4 0 004 4 3.5 3.5 0 003.5-3.5v-1.4"/><circle cx="18.8" cy="11.1" r="2.1"/>'),
+  hands:    svgIco('<path d="M9 11V4.8a1.4 1.4 0 012.8 0V11"/><path d="M11.8 10.4V6a1.4 1.4 0 012.8 0v5"/><path d="M14.6 10.6V7.6a1.4 1.4 0 012.8 0v7.2a6 6 0 01-6 6h-.6a5.2 5.2 0 01-4.1-2L4 15.4a1.5 1.5 0 012.3-1.9L9 16"/>'),
+  mixed:    svgIco('<path d="M3 6.5h3.6l3.2 5"/><path d="M14.2 12.5l3.2 5H21"/><path d="M3 17.5h3.6l10.8-11H21"/><path d="M18.6 4.2L21 6.5l-2.4 2.3M18.6 15.2L21 17.5l-2.4 2.3"/>'),
+
+  /* ---- body areas ----
+     One figure, eight highlights, rather than eight abstract marks. A shoulder
+     drawn on its own is a squiggle; a shoulder drawn on a body is a shoulder.
+     The figure is faint and identical every time, so the only thing the eye
+     has to resolve is which joint is lit — which is the whole job of these. */
+  shoulder: bodyIco('<circle cx="15.8" cy="8.5" r="1.9"/><path d="M15.8 8.5L18 13"/>'),
+  lowback:  bodyIco('<path d="M12 10.6v3.6"/><path d="M9.4 14.2h5.2"/>'),
+  knee:     bodyIco('<circle cx="15" cy="18.4" r="1.9"/>'),
+  elbow:    bodyIco('<circle cx="18" cy="13" r="1.9"/>'),
+  wrist:    bodyIco('<circle cx="17.7" cy="16.8" r="1.9"/>'),
+  neck:     bodyIco('<path d="M12 5.7v1.6"/><path d="M9.6 7.6h4.8"/>'),
+  hip:      bodyIco('<circle cx="14.4" cy="14.3" r="1.9"/>'),
+  ankle:    bodyIco('<circle cx="14.8" cy="21.1" r="1.7"/>'),
+
+  /* ---- general ---- */
+  stretch:  svgIco('<circle cx="12" cy="4.2" r="1.9"/><path d="M12 6.2v4.6"/><path d="M12 8.2L6.4 6M12 8.2l5.6-2.2"/><path d="M12 10.8l-3.4 4.4L6 21M12 10.8l3.4 4.4L18 21"/>'),
+  water:    svgIco('<path d="M12 3.2s6 6.2 6 10.1a6 6 0 01-12 0C6 9.4 12 3.2 12 3.2z"/>'),
+  swap:     svgIco('<path d="M4 8.5h13l-3.2-3.3M20 15.5H7l3.2 3.3"/>'),
+  pencil:   svgIco('<path d="M4 20.2l.9-3.7L15.4 6a2.1 2.1 0 013 3L7.7 19.3z"/><path d="M13.6 7.8l2.6 2.6"/>'),
+  stopwatch: svgIco('<circle cx="12" cy="13.4" r="7.2"/><path d="M12 9.8v3.6l2.4 1.6"/><path d="M9.6 2.8h4.8M12 2.8v3.4"/>'),
+  plus:     svgIco('<path d="M12 5.5v13M5.5 12h13"/>'),
+  play:     svgIco('<path d="M8 5.4l10 6.6-10 6.6z" fill="currentColor" stroke-linejoin="round"/>')
+};
+
+/* An occupation or an area whose icon is missing must not render "undefined" —
+   the dot is a placeholder that reads as deliberate rather than broken. */
+function ico(k) { return ICO[k] || svgIco('<circle cx="12" cy="12" r="3.4"/>'); }
 /* ============================================================
    STATE
    ============================================================ */
@@ -9137,28 +9254,28 @@ function waterWeek() {
    `areas` are MUSCLES entries so they can be matched against the catalogue's
    own primary/secondary fields; nothing here needs a second taxonomy. */
 const OCCUPATIONS = {
-  desk:    { k:'desk',    label:'Desk / screen work',      ico:'💻',
+  desk:    { k:'desk',    label:'Desk / screen work',      ico:'desk',
              areas:['Chest','Shoulders','Back','Glutes','Quads'],
              note:'Hours in flexion: the front closes up and the hips stay short. The work is opening the chest and hips and getting the upper back to move again.' },
-  camera:  { k:'camera',  label:'Camera / AV crew',        ico:'🎥',
+  camera:  { k:'camera',  label:'Camera / AV crew',        ico:'camera',
              areas:['Shoulders','Back','Core','Calves','Glutes'],
              note:'Weight on one shoulder for hours, then standing on it. Asymmetric load through the neck and upper back, with calves and low back taking the standing.' },
-  driving: { k:'driving', label:'Driving',                 ico:'🚚',
+  driving: { k:'driving', label:'Driving',                 ico:'driving',
              areas:['Glutes','Quads','Back','Chest'],
              note:'Seated with the hips flexed and the arms forward. Hip flexors and glutes take most of it.' },
-  standing:{ k:'standing',label:'On your feet all day',    ico:'🧍',
+  standing:{ k:'standing',label:'On your feet all day',    ico:'standing',
              areas:['Calves','Glutes','Hamstrings','Back'],
              note:'Static standing loads calves and low back more than walking does. Ankles and hips first.' },
-  lifting: { k:'lifting', label:'Manual / trades',         ico:'🧰',
+  lifting: { k:'lifting', label:'Manual / trades',         ico:'lifting',
              areas:['Back','Hamstrings','Shoulders','Glutes'],
              note:'Repeated bending and carrying. Posterior chain and shoulders.' },
-  care:    { k:'care',    label:'Healthcare / caring',     ico:'🩺',
+  care:    { k:'care',    label:'Healthcare / caring',     ico:'care',
              areas:['Back','Shoulders','Calves','Hamstrings'],
              note:'Long shifts on your feet with awkward lifts in them. Low back and shoulders.' },
-  hands:   { k:'hands',   label:'Hands and wrists all day',ico:'🖐',
+  hands:   { k:'hands',   label:'Hands and wrists all day',ico:'hands',
              areas:['Triceps','Shoulders','Chest'],
              note:'Fine motor work with the forearms loaded and the shoulders forward.' },
-  mixed:   { k:'mixed',   label:'A bit of everything',     ico:'🔀',
+  mixed:   { k:'mixed',   label:'A bit of everything',     ico:'mixed',
              areas:['Back','Shoulders','Glutes','Hamstrings'],
              note:'The general case: hips, upper back and shoulders.' }
 };
@@ -9175,7 +9292,7 @@ const STRETCH_REGIONS = {
 function stretchRegion(ex) { return STRETCH_REGIONS[ex && ex.primary] || 'other'; }
 
 function stretchStore() {
-  if (!S.stretch) S.stretch = { onboarded:false, occupation:null, sit:null, areas:[], done:{}, mins:8 };
+  if (!S.stretch) S.stretch = { onboarded:false, occupation:null, sit:null, areas:[], done:{}, mins:15 };
   if (!S.stretch.done) S.stretch.done = {};
   if (!S.stretch.areas) S.stretch.areas = [];
   return S.stretch;
@@ -9316,8 +9433,11 @@ function dailyStretch(n) {
      into a movement count with a flat 45-seconds-each guess and then measured
      the result at 56 — so asking for eight minutes produced ten and a half.
      One number decides the length now, and it is the one being asked for. */
-  const budget = n ? null : Math.max(3, +stretchStore().mins || 8) * 60;
-  const want = n ? Math.max(1, Math.min(14, n)) : 14;
+  const budget = n ? null : Math.max(3, +stretchStore().mins || 15) * 60;
+  /* An hour of stretching is sixty-odd minutes of *distinct* movements at two
+     or three holds each, so the ceiling has to clear the pool rather than sit
+     at fourteen. It is capped at the pool size below either way. */
+  const want = n ? Math.max(1, Math.min(40, n)) : 40;
   const scored = stretchScores().sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     if (a.last !== b.last) return (a.last || '').localeCompare(b.last || '');
@@ -9344,7 +9464,7 @@ function dailyStretch(n) {
       const pick = byRegion[r][round];
       if (!pick) continue;
       out.push(pick);
-      secs += movementSeconds(pick.ex);
+      secs += movementSeconds(pick.ex) * stretchSets(pick.ex);
       added = true;
     }
     if (!added) break;
@@ -9353,7 +9473,8 @@ function dailyStretch(n) {
   /* One over the line is closer to the ask than one under it whenever the last
      movement straddles the budget — but only if it is actually closer. */
   if (budget && out.length > 3) {
-    const without = secs - movementSeconds(out[out.length - 1].ex);
+    const last = out[out.length - 1].ex;
+    const without = secs - movementSeconds(last) * stretchSets(last);
     if (Math.abs(without - budget) < Math.abs(secs - budget)) out.pop();
   }
   return out;
@@ -9369,7 +9490,34 @@ function movementSeconds(ex) {
    movements carry their own seconds; rep-counted ones are estimated the same
    way the session-length maths does it elsewhere. */
 function stretchSeconds(list) {
-  return (list || []).reduce((a, s) => a + movementSeconds(s.ex || s), 0);
+  return (list || []).reduce((a, s) => a + movementSeconds(s.ex || s) * stretchSets(s.ex || s), 0);
+}
+
+/* ------------------------------------------------------------
+   How long to hold, and how many times.
+
+   ACSM's flexibility guidance is not "hold it for a while": it is roughly
+   **60 seconds accumulated per muscle group**, reached either as two holds of
+   thirty or four of fifteen, with any single hold in the 10–30 second band for
+   most adults and 30–60 for older ones. A single 30-second hold — which is
+   what this did — is half a dose.
+
+   So a movement is prescribed in *sets*: enough repeats of its own hold to
+   accumulate a minute. A 60-second hold is already there and gets one; a
+   20-second one gets three. Rep-counted mobility work is a different animal —
+   it is a range being moved through rather than a tissue being held — and
+   takes two passes, which is the low end of the 2–4 the same guidance gives.
+
+   The ceiling of three exists because the marginal value of a fourth identical
+   hold is small and the cost in session length is not.
+   ------------------------------------------------------------ */
+const STRETCH_ACCUMULATE_SECS = 60;
+
+function stretchSets(ex) {
+  if (!ex) return 1;
+  if (ex.load !== 'time') return 2;
+  const hold = +ex.rh || 30;
+  return Math.max(1, Math.min(3, Math.round(STRETCH_ACCUMULATE_SECS / hold)));
 }
 
 /* ------------------------------------------------------------
@@ -9470,7 +9618,8 @@ function buildStretchSession(list) {
          the Train screen counts it down. */
       load: ex.load,
       targetW: null, targetR: ex.rh,
-      sets: [{ w: '', r: '', rpe: '', done: false }],
+      /* Enough holds to accumulate the minute — see stretchSets(). */
+      sets: Array.from({ length: stretchSets(ex) }, () => ({ w: '', r: '', rpe: '', done: false })),
       note: ''
     })),
     started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
@@ -9876,7 +10025,7 @@ OB_RENDER.injuries = () => {
     <p class="ob-sub">Old injuries and current niggles both count. Whatever you flag gets removed from the exercise library permanently — it will never appear in a generated session.</p>
     <div class="opts">
       ${Object.values(INJURIES).map(j => opt({
-        act:'ob-injury', v:j.k, on:obDraft.injuries.includes(j.k), ico:j.ico, title:j.label, desc:j.note })).join('')}
+        act:'ob-injury', v:j.k, on:obDraft.injuries.includes(j.k), ico:ico(j.ico), title:j.label, desc:j.note })).join('')}
     </div>
     ${n ? `<div class="card accent" style="margin-top:20px">
       <div class="row between"><div class="eyebrow em">What this changes</div><div class="pill em">${n} removed</div></div>
@@ -10933,12 +11082,16 @@ function renderTrain() {
           it is there if you want more.</p>
       </div>
       <div class="divide"></div>
+      ${/* A button, not a list row. The day being done is not a reason to hide
+            the one thing this screen is for — reported as "still no start
+            workout button", and the reason was that finishing the day turned
+            it into the first of three indistinguishable rows. */''}
       <div class="eyebrow mb-s">Want to add something?</div>
+      <button class="btn primary block lg mb-s" data-act="start-session"
+              data-type="${type}" data-rung="${suggested}">Start another session</button>
+      <p class="tiny center mb">Logged as an extra &mdash; today stays done</p>
       <div class="list mb">
-        <div class="lrow" data-act="start-session" data-type="${type}" data-rung="${suggested}">
-          <div class="ico">＋</div><div class="grow"><div class="h3">Another ${h(typeLabel(type).toLowerCase())} session</div>
-          <div class="tiny mt-s">Logged as an extra &mdash; today stays done</div></div></div>
-        <div class="lrow" data-act="open-typepick"><div class="ico">↺</div><div class="grow"><div class="h3">Something else entirely</div><div class="tiny mt-s">Pick any session type</div></div></div>
+        <div class="lrow" data-act="open-typepick"><div class="ico">${ICO.swap}</div><div class="grow"><div class="h3">Something else entirely</div><div class="tiny mt-s">Pick any session type</div></div></div>
       </div>`;
     })() : `<div class="card accent">
         <div class="eyebrow em">Ready when you are</div>
@@ -10953,9 +11106,9 @@ function renderTrain() {
       <div class="hdr"><h1 class="h1">Train</h1></div>
       ${head}
       <div class="list">
-        <div class="lrow" data-act="open-typepick"><div class="ico">↺</div><div class="grow"><div class="h3">Different session type</div><div class="tiny mt-s">Override what's scheduled</div></div></div>
-        <div class="lrow" data-act="blank-session"><div class="ico">✎</div><div class="grow"><div class="h3">Empty session</div><div class="tiny mt-s">Build it exercise by exercise</div></div></div>
-        <div class="lrow" data-act="quick-rung" data-v="micro"><div class="ico">⏱</div><div class="grow"><div class="h3">Three minutes</div><div class="tiny mt-s">The floor. Anywhere, no kit.</div></div></div>
+        <div class="lrow" data-act="open-typepick"><div class="ico">${ICO.swap}</div><div class="grow"><div class="h3">Different session type</div><div class="tiny mt-s">Override what's scheduled</div></div></div>
+        <div class="lrow" data-act="blank-session"><div class="ico">${ICO.pencil}</div><div class="grow"><div class="h3">Empty session</div><div class="tiny mt-s">Build it exercise by exercise</div></div></div>
+        <div class="lrow" data-act="quick-rung" data-v="micro"><div class="ico">${ICO.stopwatch}</div><div class="grow"><div class="h3">Three minutes</div><div class="tiny mt-s">The floor. Anywhere, no kit.</div></div></div>
       </div>
       ${routineStripHTML()}
       ${recentSessionsHTML(4)}`;
@@ -11542,6 +11695,16 @@ function exCardHTML(item, ei) {
           ${st.pr
             ? `<div class="sn" role="img" aria-label="Personal best, set ${si+1}">${PR_STAR}</div>`
             : `<div class="sn">${si+1}</div>`}
+          ${/* A timed movement gets a button that runs it, not a box to type
+                seconds into after the fact. Asked for directly, and it is the
+                difference between logging a hold and doing one — the circuit
+                runner has had this since it was built; the ordinary list did
+                not. The set is ticked by the timer *finishing*, never by
+                starting it. */''}
+          ${isTime && !st.done ? `<button class="set-run" data-act="set-timer" data-i="${ei}" data-s="${si}"
+                  aria-label="Start ${item.targetR}${item.load === 'min' ? ' minute' : ' second'} hold, set ${si+1}">
+            ${ICO.play}<span class="set-run-t mono">${item.load === 'min' ? item.targetR + 'm' : item.targetR + 's'}</span>
+          </button>` : ''}
           ${dist ? `<label class="set-f">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Distance, set ${si+1}" placeholder="${h(g.d === '' ? '–' : fmtDist(g.d))}" value="${st.d==null||st.d===''?'':h(st.d)}" data-set="d" data-i="${ei}" data-s="${si}">
             <span class="set-u">${distUnit()}</span>
@@ -16066,6 +16229,12 @@ function sheetStretch() {
     </div>
     <p class="small mb">${Math.round(secs / 60)} minutes &middot; ${list.length} movements${
       streak ? ` &middot; <span class="em">${streak} day${streak === 1 ? '' : 's'} running</span>` : ''}</p>
+    ${/* Only where it can actually bite: this is a minute per area, which is the
+          far side of the threshold where a static hold measurably costs you
+          strength. Said once, on the screen, not buried in a help page. */''}
+    ${!S.active && !sessionsOn(today()).length && plannedToday() && !((S.week.plan[today()] || {}).done)
+      ? `<p class="tiny mb str-warn">You have a session owed today. Held stretching costs a few
+         percent of your strength for a while afterwards &mdash; this is better placed after it.</p>` : ''}
 
     ${allDone ? `<div class="note mb ok">
       <p class="note-t">Done for today.</p>
@@ -16087,7 +16256,9 @@ function sheetStretch() {
         /* "each side" was claimed on everything rep-counted, which is right for
            a hip switch and wrong for an inchworm. The catalogue does not record
            laterality, so it is not asserted. */
-        const amount = s.ex.load === 'time' ? s.ex.rh + 's' : '×' + s.ex.rh;
+        const sets = stretchSets(s.ex);
+        const one = s.ex.load === 'time' ? s.ex.rh + 's' : '×' + s.ex.rh;
+        const amount = sets > 1 ? sets + ' × ' + one : one;
         return `<div class="str-row ${on ? 'done' : ''}">
           <button class="str-tick ${on ? 'on' : ''}" data-act="stretch-tick" data-v="${h(s.ex.id)}"
                   aria-label="${on ? 'Undo' : 'Mark'} ${h(s.ex.name)}" aria-pressed="${on ? 'true' : 'false'}">
@@ -16150,6 +16321,20 @@ function sheetStretchIntro() {
         changes which movements come out. You can change them whenever you like, and skip the ones
         you would rather not answer.</p>
     </div>
+    <div class="note mb">
+      <p class="note-t">How long to hold</p>
+      <p class="note-b">The target is about a minute on each area, which is what the flexibility
+        guidance actually says &mdash; reached as one long hold or two or three shorter ones rather
+        than a single quick pull. Each movement here is prescribed accordingly, so a 20-second
+        stretch comes up three times and a 60-second one comes up once.</p>
+    </div>
+    <div class="note mb">
+      <p class="note-t">Not immediately before lifting</p>
+      <p class="note-b">Held static stretching costs you strength for a while afterwards &mdash; past
+        about a minute per muscle it is a real 4&ndash;7%, and this session is a minute per area by
+        design. Put it after training, or on a day of its own. A few minutes of the rep-counted
+        movements is a fine warm-up; a long hold is not.</p>
+    </div>
     <p class="small mb">This is general mobility work, not treatment. If something is painful rather
       than tight, or a problem has been there for weeks, that is a physio's job and not an app's.</p>
     <button class="btn primary block lg" data-act="stretch-setup">Set it up</button>
@@ -16161,7 +16346,7 @@ let stretchDraft = null;
 function sheetStretchSetup() {
   const st = stretchStore();
   if (!stretchDraft) {
-    stretchDraft = { occupation: st.occupation, areas: (st.areas || []).slice(), mins: st.mins || 8 };
+    stretchDraft = { occupation: st.occupation, areas: (st.areas || []).slice(), mins: st.mins || 15 };
   }
   const d = stretchDraft;
 
@@ -16174,7 +16359,7 @@ function sheetStretchSetup() {
         order, it never overrides something you have flagged.</p>
       <div class="chip-grid c2">
         ${Object.values(OCCUPATIONS).map(o => `<div class="chip ${d.occupation === o.k ? 'on' : ''}"
-          data-act="stretch-occ" data-v="${h(o.k)}">${o.ico} ${h(o.label)}</div>`).join('')}
+          data-act="stretch-occ" data-v="${h(o.k)}">${ico(o.ico)}<span>${h(o.label)}</span></div>`).join('')}
       </div>
       ${d.occupation && OCCUPATIONS[d.occupation]
         ? `<p class="tiny mt-s">${h(OCCUPATIONS[d.occupation].note)}</p>` : ''}
@@ -16185,7 +16370,7 @@ function sheetStretchSetup() {
       <p class="tiny mb-s">Weighted highest of the three. You are the only one who knows.</p>
       <div class="chip-grid c2">
         ${Object.values(INJURIES).map(i => `<div class="chip ${d.areas.indexOf(i.k) >= 0 ? 'on' : ''}"
-          data-act="stretch-area" data-v="${h(i.k)}">${i.ico} ${h(i.label)}</div>`).join('')}
+          data-act="stretch-area" data-v="${h(i.k)}">${ico(i.ico)}<span>${h(i.label)}</span></div>`).join('')}
       </div>
       <p class="tiny mt-s">Separate from the injuries in your profile, which remove exercises from
         your training. This one only changes what you are offered to stretch &mdash; but anything you
@@ -16195,8 +16380,8 @@ function sheetStretchSetup() {
 
     <div class="field mb">
       <div class="label">How long, most days?</div>
-      <div class="chip-grid c4">
-        ${[5, 8, 12, 15].map(m => `<div class="chip ${d.mins === m ? 'on' : ''}"
+      <div class="chip-grid c3">
+        ${[5, 15, 30, 45, 60].map(m => `<div class="chip ${d.mins === m ? 'on' : ''}"
           data-act="stretch-mins" data-v="${m}">${m} min</div>`).join('')}
       </div>
     </div>
@@ -16959,6 +17144,34 @@ document.addEventListener('click', ev => {
       }});
       break;
     }
+    /* The same work timer the circuit runner uses, on an ordinary set row. One
+       mechanism, so the bar, the chime, the scheduled alert and the skip button
+       all behave identically wherever a hold is being counted. */
+    case 'set-timer': {
+      const item = S.active.exercises[i];
+      const st = item && item.sets[si];
+      if (!st || st.done) break;
+      const target = +item.targetR || 0;
+      if (!(target > 0)) { toast('No length set for this one'); break; }
+      const secs = item.load === 'min' ? target * 60 : target;
+      noteInteraction();
+      startRest(secs, item.name, { work: true, onDone: () => {
+        /* Ticked by the timer finishing. Ticking up front would record a hold
+           you have not done if you stop halfway. */
+        const it = S.active && S.active.exercises[i];
+        const s2 = it && it.sets[si];
+        if (!s2 || s2.done) return;
+        s2.r = target;
+        s2.done = true;
+        s2.pr = isPR(it, s2);
+        buzz([16, 44, 26]);
+        save();
+        replaceExCard(i);
+        updateTrainProgress();
+        if (isComplete(it)) toast('Held — next', true);
+      }});
+      break;
+    }
     case 'circ-done': { stopRest(); completeCircuitEntry(i, si); break; }
     case 'circ-undo': {
       const A = S.active;
@@ -17597,7 +17810,7 @@ document.addEventListener('click', ev => {
       if (ix >= 0) stretchDraft.areas.splice(ix, 1); else stretchDraft.areas.push(v);
       sheetStretchSetup(); break;
     }
-    case 'stretch-mins': { stretchDraft.mins = +v || 8; sheetStretchSetup(); break; }
+    case 'stretch-mins': { stretchDraft.mins = +v || 15; sheetStretchSetup(); break; }
     case 'stretch-save-setup': {
       const st = stretchStore();
       st.occupation = stretchDraft.occupation;

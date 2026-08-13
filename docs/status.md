@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **899,137 bytes**, `VERSION = '1.5.0'`.
-Last sweep: `dupes` + `blanks` (375) + `engine` (255) + `fuel` (108) + `stretch` (53) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **912,240 bytes**, `VERSION = '1.6.0'`.
+Last sweep: `dupes` + `blanks` (375) + `engine` (263) + `fuel` (108) + `stretch` (72) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -25,7 +25,7 @@ Last sweep: `dupes` + `blanks` (375) + `engine` (255) + `fuel` (108) + `stretch`
 | Import a plan | Complete. Offered from Structure, from the routines list, and from inside the builder. A PDF or text file becomes one routine per day — or, from the builder, movements appended to the routine you already have open: text extracted on-device with no library, movements matched to the catalogue by name, supersets read off the plan's own 4A/4B notation, and everything shown for review before anything is built. |
 | Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
 | Water | Complete. A target from bodyweight and what you trained, a flask that fills, quick pours in real vessel sizes, and a streak an unfinished day can never break. Stored in millilitres, shown in whichever unit follows your weight. |
-| Stretch | Complete. 65 mobility movements. A daily stretch scored from what you trained, what you flagged as sore and what your working day does to you — with its own three-question setup, a time budget rather than a movement count, your own routines built on the existing builder, and it runs on the Train screen so the holds count themselves down. |
+| Stretch | Complete. 65 mobility movements, holds built to accumulate a minute per area, 5-60 minute sessions. A daily stretch scored from what you trained, what you flagged as sore and what your working day does to you — with its own three-question setup, a time budget rather than a movement count, your own routines built on the existing builder, and it runs on the Train screen so the holds count themselves down. |
 | Pinned headers | Complete. Every screen title stays put instead of scrolling behind the status bar, over a band painted with the page's own sky gradient so it is invisible, and a rule that appears only once something has gone under it. |
 | The ascent (Progress) | Complete. One switchback trail from trailhead to summit whose waypoints are the rows you read — the route card and the markers list under it were the same data twice. Chronological, with "you are here" between the last marker passed and the next. |
 | Distance and pace | Complete. Thirteen movements that cover ground ask for a distance where everything else asks for a weight, and the pace falls out of the minutes already logged. Wheels read in speed. Distance has its own unit, because kilos and miles is a normal pairing. |
@@ -576,6 +576,85 @@ than a viewport unit. Putting `100dvh` back prints `100dvh`; zeroing the
 clearance prints `pad 0 vs nav 60` on four screens.
 
 ---
+
+### Holds long enough to count, sessions up to an hour
+
+Asked for, with the instruction to look up what the evidence actually says
+rather than guess. It changed the design.
+
+**ACSM's flexibility guidance is about sixty seconds *accumulated* per muscle
+group**, reached as one long hold or two to four shorter ones, with any single
+hold in the 10–30 second band for most adults and 30–60 for older ones. What
+this shipped was one hold per movement — a 20-second stretch got 20 seconds,
+which is a third of a dose. Movements are prescribed in **sets** now: enough
+repeats of their own hold to accumulate the minute, capped at three because the
+fourth identical hold buys little and costs a lot of session. Rep-counted
+mobility work is a different animal — a range being moved through rather than a
+tissue being held — and takes two passes, the low end of the same 2–4.
+
+**And the second finding changed what the screen says.** Static stretching
+before lifting costs you strength, but the threshold is sharp: **at or under 60
+seconds per muscle group the effect is trivial (1–2%); past it, it is a real
+4–7.5%.** This session is a minute per area by design, which puts it on the
+wrong side of that line. So when you have a session owed today the stretch
+screen says so, once, and suggests putting it afterwards. A few minutes of the
+rep-counted movements is a fine warm-up; a long hold is not.
+
+**Lengths are 5 / 15 / 30 / 45 / 60 minutes.** An hour needs forty distinct
+movements at two or three holds each, which the 65-movement catalogue now
+covers without repeating itself — checked, along with each length landing
+within a minute or so of what was asked for.
+
+### A button that runs the hold, and one that starts the session
+
+Two things reported missing, both real.
+
+**A timed movement had no way to start it.** You held the stretch, then typed
+seconds into a box afterwards. The circuit runner has had a proper work timer
+since it was built; the ordinary list did not. Every timed set now carries a
+button labelled with its length that starts the same countdown — one mechanism,
+so the bar, the chime, the scheduled alert and the skip button behave
+identically wherever a hold is being counted. **The set is ticked by the timer
+finishing, never by starting it**: stopping halfway must not record a hold you
+did not do.
+
+**"Still no start workout button in the train menu."** There was one — until
+the day was discharged, at which point it became the first of three
+indistinguishable list rows. Finishing the day is not a reason to hide the one
+thing the screen is for, so it is a primary button in both states now.
+
+### Emoji are a font the platform supplies, so they are gone
+
+Asked directly, and the answer to "what happens on Android" is the reason.
+
+An emoji is a **glyph the operating system provides**. On an iPhone that is
+Apple Color Emoji, which is what the screenshots show. On Android it is Noto
+Color Emoji, which draws the same code points in a different style, at a
+different weight, in different colours — and anything missing from the font is
+a tofu box. For the occupation and body-area chips that is not a rendering
+nicety: those icons are the only thing distinguishing eight otherwise identical
+rows, and a set that changes palette and weight between platforms cannot be
+designed around.
+
+They are inline SVG now, on a 24-unit grid, single-stroke, `currentColor` — so
+they take the chip's own colour and finally go dim when a chip is off and bright
+when it is on, which an emoji never did.
+
+**The body areas are one figure with the region lit, not eight abstract marks.**
+A shoulder drawn on its own is a squiggle; a shoulder drawn on a body is a
+shoulder. The figure is faint and identical every time, so the only thing the
+eye has to resolve is which joint is highlighted.
+
+Otherwise Android is fine: this is a PWA on any modern browser, everything is
+`localStorage` and inline SVG, and the one platform-specific gap runs the other
+way — `navigator.vibrate` works on Android and is a no-op on iOS.
+
+**Twenty-six checks across the two instruments, six subjects proven red.** One
+of the checks was wrong first and worth keeping: it counted *every* chip on the
+setup sheet and reported "16 of 21" on a working screen, because the five
+duration chips are numbers and an icon on "30 min" would be decoration. It
+asserts both halves separately now — the sixteen that name a thing carry an
+icon, and the five that name a length carry none.
 
 ### Food and water are two faces of one card
 

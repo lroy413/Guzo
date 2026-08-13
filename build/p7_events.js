@@ -736,6 +736,34 @@ document.addEventListener('click', ev => {
       }});
       break;
     }
+    /* The same work timer the circuit runner uses, on an ordinary set row. One
+       mechanism, so the bar, the chime, the scheduled alert and the skip button
+       all behave identically wherever a hold is being counted. */
+    case 'set-timer': {
+      const item = S.active.exercises[i];
+      const st = item && item.sets[si];
+      if (!st || st.done) break;
+      const target = +item.targetR || 0;
+      if (!(target > 0)) { toast('No length set for this one'); break; }
+      const secs = item.load === 'min' ? target * 60 : target;
+      noteInteraction();
+      startRest(secs, item.name, { work: true, onDone: () => {
+        /* Ticked by the timer finishing. Ticking up front would record a hold
+           you have not done if you stop halfway. */
+        const it = S.active && S.active.exercises[i];
+        const s2 = it && it.sets[si];
+        if (!s2 || s2.done) return;
+        s2.r = target;
+        s2.done = true;
+        s2.pr = isPR(it, s2);
+        buzz([16, 44, 26]);
+        save();
+        replaceExCard(i);
+        updateTrainProgress();
+        if (isComplete(it)) toast('Held — next', true);
+      }});
+      break;
+    }
     case 'circ-done': { stopRest(); completeCircuitEntry(i, si); break; }
     case 'circ-undo': {
       const A = S.active;
@@ -1374,7 +1402,7 @@ document.addEventListener('click', ev => {
       if (ix >= 0) stretchDraft.areas.splice(ix, 1); else stretchDraft.areas.push(v);
       sheetStretchSetup(); break;
     }
-    case 'stretch-mins': { stretchDraft.mins = +v || 8; sheetStretchSetup(); break; }
+    case 'stretch-mins': { stretchDraft.mins = +v || 15; sheetStretchSetup(); break; }
     case 'stretch-save-setup': {
       const st = stretchStore();
       st.occupation = stretchDraft.occupation;

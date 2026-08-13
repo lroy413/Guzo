@@ -1774,6 +1774,83 @@ try {
   check('...and it never runs twice', repaired.again === 0 && repaired.stillThere === 999,
     `${repaired.again} / ${repaired.stillThere}`);
 
+  // ================= 19. starting, and holding ==========================
+  console.log('\nstarting a session, and running a hold\n');
+
+  /* Reported as "still no start workout button in the train menu". There was
+     one — until the day was discharged, at which point it became the first of
+     three indistinguishable list rows. */
+  const startBtn = await page.evaluate(() => {
+    const look = () => {
+      go('train'); renderTrain();
+      const b = document.getElementById('train-body');
+      const btns = [...b.querySelectorAll('button.btn.primary[data-act="start-session"]')];
+      return { n: btns.length, label: btns.length ? btns[0].textContent.trim() : '' };
+    };
+    S = blank(); S.onboarded = true; save(true);
+    const ready = look();
+
+    /* Now with the day already done. */
+    const e = EX['bb-bench'] || EX['bb-back-squat'];
+    S.sessions = [{ id: 'd1', date: today(), ended: Date.now(), dur: 45, kcal: 300,
+      type: 'push', rung: 'full',
+      exercises: [{ exId: e.id, name: e.name, load: e.load,
+        sets: [{ w: 60, r: 8, done: true }] }] }];
+    S.week.plan[today()] = { type: 'push', done: true };
+    save(true);
+    const done = look();
+    return { ready, done };
+  });
+  check('Train offers a start button before you have trained',
+    startBtn.ready.n === 1, JSON.stringify(startBtn.ready));
+  /* The day being done is not a reason to hide the one thing this screen is for. */
+  check('...and still offers one after the day is done',
+    startBtn.done.n === 1 && /start/i.test(startBtn.done.label),
+    JSON.stringify(startBtn.done));
+
+  /* Asked for: a start button on a timed movement that counts down, rather
+     than a box to type seconds into afterwards. */
+  const hold = await page.evaluate(() => {
+    const ex = EX['mob-childs-pose'] || EX['bw-plank'];
+    S = blank(); S.onboarded = true;
+    S.active = { id: 'sx', date: today(), type: 'recovery', env: 'bw', rung: 'full',
+      started: Date.now(), ended: null, dur: 0, activeMs: 0, tickAt: Date.now(), paused: false,
+      exercises: [{ exId: ex.id, name: ex.name, load: 'time', targetW: null, targetR: 40,
+        sets: [{ w: '', r: '', rpe: '', done: false }, { w: '', r: '', rpe: '', done: false }] }] };
+    save(true); go('train'); renderTrain();
+
+    const runners = [...document.querySelectorAll('#train-body [data-act="set-timer"]')];
+    if (!runners.length) return { found: false };
+    const label = runners[0].textContent.trim();
+    runners[0].click();
+
+    const bar = document.getElementById('rest-bar');
+    const counting = bar.classList.contains('on') && bar.classList.contains('work');
+    const shown = (document.getElementById('rest-label') || {}).textContent || '';
+    /* Ticked by the timer *finishing*, never by starting it — stopping halfway
+       must not record a hold you did not do. */
+    const doneOnStart = S.active.exercises[0].sets[0].done;
+
+    /* Let it finish the way it really does. */
+    const st = S.active.exercises[0].sets[0];
+    st.r = 40; st.done = true;
+    renderTrain();
+    const runnersAfter = [...document.querySelectorAll('#train-body [data-act="set-timer"]')].length;
+
+    return { found: true, label, counting, shown, doneOnStart, runners: runners.length,
+             runnersAfter, recorded: st.r };
+  });
+  check('a timed movement offers a button that runs it', hold.found === true);
+  check('...one per set that is still to do', hold.runners === 2, String(hold.runners));
+  check('...labelled with the length', /40s/.test(hold.label || ''), hold.label);
+  check('...and it starts a countdown rather than a rest',
+    hold.counting === true && /child|plank/i.test(hold.shown || ''), hold.shown);
+  /* The property that matters: starting is not doing. */
+  check('...which does not tick the set just for being started',
+    hold.doneOnStart === false);
+  check('...and a set already done offers no button', hold.runnersAfter === 1,
+    String(hold.runnersAfter));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

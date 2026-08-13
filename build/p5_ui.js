@@ -799,12 +799,16 @@ function renderTrain() {
           it is there if you want more.</p>
       </div>
       <div class="divide"></div>
+      ${/* A button, not a list row. The day being done is not a reason to hide
+            the one thing this screen is for — reported as "still no start
+            workout button", and the reason was that finishing the day turned
+            it into the first of three indistinguishable rows. */''}
       <div class="eyebrow mb-s">Want to add something?</div>
+      <button class="btn primary block lg mb-s" data-act="start-session"
+              data-type="${type}" data-rung="${suggested}">Start another session</button>
+      <p class="tiny center mb">Logged as an extra &mdash; today stays done</p>
       <div class="list mb">
-        <div class="lrow" data-act="start-session" data-type="${type}" data-rung="${suggested}">
-          <div class="ico">＋</div><div class="grow"><div class="h3">Another ${h(typeLabel(type).toLowerCase())} session</div>
-          <div class="tiny mt-s">Logged as an extra &mdash; today stays done</div></div></div>
-        <div class="lrow" data-act="open-typepick"><div class="ico">↺</div><div class="grow"><div class="h3">Something else entirely</div><div class="tiny mt-s">Pick any session type</div></div></div>
+        <div class="lrow" data-act="open-typepick"><div class="ico">${ICO.swap}</div><div class="grow"><div class="h3">Something else entirely</div><div class="tiny mt-s">Pick any session type</div></div></div>
       </div>`;
     })() : `<div class="card accent">
         <div class="eyebrow em">Ready when you are</div>
@@ -819,9 +823,9 @@ function renderTrain() {
       <div class="hdr"><h1 class="h1">Train</h1></div>
       ${head}
       <div class="list">
-        <div class="lrow" data-act="open-typepick"><div class="ico">↺</div><div class="grow"><div class="h3">Different session type</div><div class="tiny mt-s">Override what's scheduled</div></div></div>
-        <div class="lrow" data-act="blank-session"><div class="ico">✎</div><div class="grow"><div class="h3">Empty session</div><div class="tiny mt-s">Build it exercise by exercise</div></div></div>
-        <div class="lrow" data-act="quick-rung" data-v="micro"><div class="ico">⏱</div><div class="grow"><div class="h3">Three minutes</div><div class="tiny mt-s">The floor. Anywhere, no kit.</div></div></div>
+        <div class="lrow" data-act="open-typepick"><div class="ico">${ICO.swap}</div><div class="grow"><div class="h3">Different session type</div><div class="tiny mt-s">Override what's scheduled</div></div></div>
+        <div class="lrow" data-act="blank-session"><div class="ico">${ICO.pencil}</div><div class="grow"><div class="h3">Empty session</div><div class="tiny mt-s">Build it exercise by exercise</div></div></div>
+        <div class="lrow" data-act="quick-rung" data-v="micro"><div class="ico">${ICO.stopwatch}</div><div class="grow"><div class="h3">Three minutes</div><div class="tiny mt-s">The floor. Anywhere, no kit.</div></div></div>
       </div>
       ${routineStripHTML()}
       ${recentSessionsHTML(4)}`;
@@ -1408,6 +1412,16 @@ function exCardHTML(item, ei) {
           ${st.pr
             ? `<div class="sn" role="img" aria-label="Personal best, set ${si+1}">${PR_STAR}</div>`
             : `<div class="sn">${si+1}</div>`}
+          ${/* A timed movement gets a button that runs it, not a box to type
+                seconds into after the fact. Asked for directly, and it is the
+                difference between logging a hold and doing one — the circuit
+                runner has had this since it was built; the ordinary list did
+                not. The set is ticked by the timer *finishing*, never by
+                starting it. */''}
+          ${isTime && !st.done ? `<button class="set-run" data-act="set-timer" data-i="${ei}" data-s="${si}"
+                  aria-label="Start ${item.targetR}${item.load === 'min' ? ' minute' : ' second'} hold, set ${si+1}">
+            ${ICO.play}<span class="set-run-t mono">${item.load === 'min' ? item.targetR + 'm' : item.targetR + 's'}</span>
+          </button>` : ''}
           ${dist ? `<label class="set-f">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Distance, set ${si+1}" placeholder="${h(g.d === '' ? '–' : fmtDist(g.d))}" value="${st.d==null||st.d===''?'':h(st.d)}" data-set="d" data-i="${ei}" data-s="${si}">
             <span class="set-u">${distUnit()}</span>
