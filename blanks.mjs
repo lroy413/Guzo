@@ -194,6 +194,95 @@ try {
   check('screens can scroll clear of it', nav.screenPadBottom >= nav.height + 10,
     `pad ${nav.screenPadBottom} vs nav ${nav.height}`);
 
+  /* ---- the home indicator is respected once, not twice ----
+     Everything above measures at a zero inset, which is all a desktop browser
+     reports — so "it sits above the bottom edge" passed at 10px and would have
+     passed at 400px. On a real iPhone the nav was 44px up: its own 10px margin
+     plus the whole 34px safe-area inset, which is the same clearance counted
+     twice. The app read as stopping short of the bottom of the screen.
+
+     The inset exists so that a bar pinned flat to the edge clears the
+     indicator. A floating pill already holds itself off, so it should grow by
+     *some* of the inset and not all of it — that is the invariant here, and it
+     is expressed as a comparison rather than a magic number so it survives
+     someone retuning the offset.
+
+     The indicator is a ~5px bar about 8px from the edge, so 13px is the real
+     obstacle. Anything past that is styling; anything under it is a control
+     fighting a system gesture. */
+  const indicator = await page.evaluate(() => {
+    go('today');
+    const at = (inset) => {
+      document.documentElement.style.setProperty('--safe-b', inset);
+      const r = document.getElementById('nav').getBoundingClientRect();
+      const sc = document.getElementById('s-today');
+      return { gap: Math.round(window.innerHeight - r.bottom),
+               h: Math.round(r.height),
+               pad: Math.round(parseFloat(getComputedStyle(sc).paddingBottom)) };
+    };
+    const flat = at('0px');
+    const phone = at('34px');
+    document.documentElement.style.removeProperty('--safe-b');
+    return { flat, phone, grew: phone.gap - flat.gap };
+  });
+  check('the nav moves up for the home indicator',
+    indicator.grew > 0, `${indicator.flat.gap}px → ${indicator.phone.gap}px`);
+  check('...without counting the inset twice',
+    indicator.grew < 34, `grew by ${indicator.grew} of a 34px inset`);
+  check('...and still clears the indicator itself',
+    indicator.phone.gap >= 18, `${indicator.phone.gap}px above the edge`);
+  /* Reserved space tracks the pill rather than being a round number with the
+     whole inset stacked on top — that was 130px of padding under 85px of nav,
+     which is the dead band at the bottom of every screen. */
+  check('...and no screen reserves more room than the nav occupies',
+    indicator.phone.pad >= indicator.phone.h + indicator.phone.gap
+    && indicator.phone.pad <= indicator.phone.h + indicator.phone.gap + 25,
+    `pad ${indicator.phone.pad} for ${indicator.phone.h} + ${indicator.phone.gap}`);
+
+  /* ---- what floats above the nav floats with it ----
+     The rest timer and the toast are both pinned a fixed distance off the
+     bottom, which means their offsets encode the nav's. Retuning the nav
+     without them leaves the timer hovering with a gap under it — and the two
+     only disagree once a real inset exists, so a desktop measurement shows
+     nothing wrong. Asserted as "the gap does not change with the inset",
+     which is the actual invariant and does not need updating when someone
+     moves the nav again.
+
+     Both have to be forced into their shown state to be measured at all: the
+     toast sits 20px lower until it gets `.on`, and `.rest` is display:none
+     until a rest is running. Measured in the hidden state they read as
+     overlapping the nav, which is a probe artefact and not a bug. */
+  const floaters = await page.evaluate(async () => {
+    S = blank(); S.onboarded = true; save(true); buildWeekPlan(true);
+    startSession('full', 'full', 60); go('train'); renderTrain();
+    const at = async (inset) => {
+      document.documentElement.style.setProperty('--safe-b', inset);
+      toast('measuring');
+      const t = document.querySelector('.toast');
+      const rest = document.querySelector('.rest');
+      if (t) t.classList.add('on');
+      if (rest) rest.classList.add('on');
+      await new Promise(r => setTimeout(r, 340));
+      const nav = document.getElementById('nav').getBoundingClientRect();
+      return {
+        toast: t ? Math.round(nav.top - t.getBoundingClientRect().bottom) : null,
+        rest: rest ? Math.round(nav.top - rest.getBoundingClientRect().bottom) : null
+      };
+    };
+    const flat = await at('0px');
+    const phone = await at('34px');
+    document.documentElement.style.removeProperty('--safe-b');
+    return { flat, phone };
+  });
+  check('the rest timer sits just above the nav, at any inset',
+    floaters.flat.rest !== null && floaters.flat.rest === floaters.phone.rest
+    && floaters.phone.rest >= 0 && floaters.phone.rest <= 20,
+    `${floaters.flat.rest}px flat, ${floaters.phone.rest}px on a phone`);
+  check('...and so does the toast',
+    floaters.flat.toast !== null && floaters.flat.toast === floaters.phone.toast
+    && floaters.phone.toast >= 0 && floaters.phone.toast <= 30,
+    `${floaters.flat.toast}px flat, ${floaters.phone.toast}px on a phone`);
+
   /* ---- the Settings sheet ----
      More is a hub of destinations now; everything you tune lives behind one
      row. The risk in a move like this is an orphaned action — a row that
@@ -3278,9 +3367,14 @@ try {
     const declared = [...document.styleSheets].flatMap(ss => {
       try { return [...ss.cssRules]; } catch (e) { return []; }
     }).filter(r => r.selectorText === '#app').map(r => r.style.height);
+    const navR = document.getElementById('nav').getBoundingClientRect();
     return { out, declared, bodyH: Math.round(document.body.getBoundingClientRect().height),
              viewH: window.innerHeight,
-             navBot: Math.round(document.getElementById('nav').getBoundingClientRect().bottom) };
+             navBot: Math.round(navR.bottom),
+             /* What the nav actually takes off the bottom of the screen, so the
+                padding assertion below can be measured against it rather than
+                against a number typed in when the nav last changed size. */
+             navOccupies: Math.round(window.innerHeight - navR.top) };
   });
 
   check('the app fills the whole viewport', fills.bodyH === fills.viewH,
@@ -3290,7 +3384,11 @@ try {
     check(`${name} reaches the bottom of the screen and no further`,
       o.appTop === 0 && o.appBot === fills.viewH && o.scBot === fills.viewH,
       `app ${o.appTop}–${o.appBot}, screen bottom ${o.scBot}, viewport ${fills.viewH}`);
-    check(`...and can scroll clear of the floating nav`, o.pad >= 90, `${o.pad}px`);
+    /* Compared against the nav's measured footprint, not a constant: this said
+       `>= 90` to match a 96px padding, so retuning the nav's offset broke a
+       check about scrolling for reasons that had nothing to do with scrolling. */
+    check(`...and can scroll clear of the floating nav`,
+      o.pad >= fills.navOccupies + 8, `${o.pad}px against a nav taking ${fills.navOccupies}px`);
   });
   /* Sized against its parent rather than against a viewport unit, so the two
      can never disagree. */

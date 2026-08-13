@@ -961,9 +961,22 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    --faint, and a genuinely transparent pill would leave that text sitting on
    whatever happened to scroll underneath — which passes a look at the CSS and
    fails a pixel-sampled contrast check. Blur is the finish, not the substance. */
+/* The bottom offset takes HALF the safe-area inset, not all of it, and that is
+   deliberate rather than sloppy.
+
+   The full inset exists so that a bar pinned flat to the screen edge clears the
+   home indicator. A floating pill already holds itself off the edge, so adding
+   the whole inset on top counts the same clearance twice: at 10px + 34px the
+   nav sat 44px up on a real iPhone, which reads as the app stopping well short
+   of the bottom of the screen. The indicator itself is a ~5px bar sitting about
+   8px from the edge, so it occupies the bottom 13px and nothing else — 25px
+   clears it by a comfortable margin and looks anchored rather than adrift.
+
+   A desktop browser reports the inset as 0px and cannot show you any of this,
+   so blanks.mjs fakes it and asserts the gap. */
 .nav{
   position:fixed;left:50%;transform:translateX(-50%);
-  bottom:calc(10px + var(--safe-b));z-index:60;
+  bottom:calc(8px + var(--safe-b) * .5);z-index:60;
   display:flex;align-items:center;justify-content:space-between;gap:2px;
   width:calc(100% - 24px);max-width:430px;
   padding:5px;border-radius:999px;
@@ -996,8 +1009,14 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 /* The nav no longer takes up flow space, so every screen it floats over has
    to be able to scroll past it. Boot and onboarding run with the nav hidden
    and keep their own spacing. */
+/* Exactly what the nav occupies plus a breath, rather than a round number with
+   the whole inset stacked on it. It was safe-b + 96px, which on a phone is
+   130px of reserved space under a nav that takes up 85 — the last card stopped
+   nearly two finger-widths early and the screen read as unfinished. The nav's
+   own offset is half the inset, so this matches it: 60px of nav, that offset,
+   and 10px of clearance. */
 #s-today,#s-plan,#s-train,#s-fuel,#s-progress,#s-more{
-  padding-bottom:calc(var(--safe-b) + 96px);
+  padding-bottom:calc(78px + var(--safe-b) * .5);
 }
 
 /* ---------- header ----------
@@ -1138,7 +1157,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 /* ---------- toast ---------- */
 .toast{
   position:fixed;left:50%;transform:translateX(-50%) translateY(20px);
-  bottom:calc(96px + var(--safe-b));z-index:200;
+  bottom:calc(86px + var(--safe-b) * .5);z-index:200;
   background:var(--surface-3);border:1px solid var(--line);
   padding:12px 18px;border-radius:100px;font-size:14px;font-weight:600;
   box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:all .3s cubic-bezier(.2,.9,.3,1);
@@ -1711,7 +1730,10 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 
 /* ---------- rest timer ---------- */
 .rest{
-  position:fixed;left:var(--sp);right:var(--sp);bottom:calc(82px + var(--safe-b));z-index:70;
+  /* Tracks the nav: 60px of pill, its own 8px + half-inset offset, and 8px
+     between the two. Written with the same half-inset as the nav, or the two
+     drift apart the moment either is retuned and the timer floats. */
+  position:fixed;left:var(--sp);right:var(--sp);bottom:calc(76px + var(--safe-b) * .5);z-index:70;
   background:rgba(22,27,34,.82);backdrop-filter:blur(24px) saturate(1.5);
   -webkit-backdrop-filter:blur(24px) saturate(1.5);
   border:1px solid rgba(233,180,76,.24);

@@ -1493,3 +1493,51 @@ untrained" is the sentence that makes the choice possible — and stripping thos
 would leave a shorter flow that is harder to answer. Screen count and word
 count are proxies; the thing worth optimising is how much of what is on the
 screen is load-bearing.
+
+---
+
+## The home indicator was being respected twice
+
+Reported from a photo of Strava next to this app: the nav should sit closer to
+the bottom, and the screen should reach it.
+
+`.nav` was `bottom: calc(10px + var(--safe-b))`. On an iPhone that is 10 plus a
+34px safe-area inset — **44px of empty screen under a floating pill**, which is
+what made the app look like it stopped short of the bottom.
+
+The inset exists so that a bar pinned flat to the screen edge clears the home
+indicator. A floating pill already holds itself off the edge, so adding the
+whole inset on top is the same clearance counted twice. The indicator itself is
+a ~5px bar about 8px up, so it occupies the bottom 13px and nothing else. Half
+the inset plus a small margin — `calc(8px + var(--safe-b) * .5)`, 25px on a
+phone — clears it by twelve pixels and reads as anchored.
+
+`.sheet` keeps the **full** inset, because it genuinely is a panel pinned flat
+to the edge and that is the case the convention is for. The distinction is not
+cosmetic: it is whether the element has a margin of its own.
+
+The screens were worse. `padding-bottom: calc(var(--safe-b) + 96px)` reserved
+130px under a nav occupying 85 — a round number with the whole inset stacked on
+it. It tracks the pill now: 60px of nav, the same half-inset offset, and 10px
+of clearance.
+
+### Everything that floats above the nav encodes the nav's offset
+
+The rest timer and the toast are both pinned a fixed distance off the bottom,
+so retuning the nav without them leaves the timer hovering with a gap
+underneath. Both now use the same half-inset arithmetic. The check asserts the
+gap **does not change with the inset**, which is the real invariant and does not
+need editing the next time the nav moves.
+
+### None of this was visible to any existing check
+
+`blanks.mjs` already asserted the nav "sits above the bottom edge" — but
+`env(safe-area-inset-bottom)` is `0px` in a desktop browser, so it measured
+10px and would have passed at 400px just as happily. This is the third time in
+this project that a bottom- or top-inset bug has been invisible until the inset
+was faked; the header sticky offset was the first.
+
+One existing check had to be rewritten rather than retuned. `o.pad >= 90` was a
+constant chosen to match a 96px padding, so changing the nav's offset broke a
+check about scrolling for reasons that had nothing to do with scrolling. It
+compares against the nav's measured footprint now.
