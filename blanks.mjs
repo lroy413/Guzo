@@ -645,7 +645,9 @@ try {
   const planSync = await page.evaluate(() => {
     S = blank(); S.onboarded = true; save(true);
     go('plan');
-    const rows = () => [...document.querySelectorAll('#plan-body .list .lrow[data-act="day-tap"]')].map(r => r.dataset.k);
+    /* The seven days are waypoints on a trail now rather than rows in a list —
+       same guarantee, same data-k, different element. */
+    const rows = () => [...document.querySelectorAll('#plan-body .wroute .wr-row[data-act="day-tap"]')].map(r => r.dataset.k);
     const strip = () => [...document.querySelectorAll('#plan-body .week .day')].map(d => d.dataset.k);
     const before = { s: strip(), r: rows() };
     document.querySelector('#plan-body [data-act="strip-week"][data-d="1"]').click();
@@ -653,6 +655,60 @@ try {
     return { before, after };
   });
   check('the Plan list matches its strip', planSync.before.s.join() === planSync.before.r.join());
+
+  /* ---- the route is a route ----
+     The screen is called The route and was a billboard over seven 180px rows,
+     each carrying a 44px tick and a pill reading "A normal day" — the default,
+     printed seven times. It is a trail now, and what is asserted is that the
+     trail *encodes* something rather than decorating a list: exactly one node
+     is where you are, everything behind it is walked and everything ahead of
+     it is not, and the constraint is printed only when it is not the default. */
+  const wkRoute = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true); buildWeekPlan(true);
+    const mk = (id, n) => ({ exId: id, name: EX[id].name, load: 'wt', targetR: 8,
+      sets: Array.from({ length: n }, () => ({ w: 60, r: 8, done: true })) });
+    /* Two days behind, logged, so there is something walked to check. */
+    for (let i = 1; i <= 2; i++) {
+      const k = dk(addDays(fromKey(today()), -i));
+      S.sessions.push({ id: 'r' + i, date: k, type: 'full', ended: Date.now(), dur: 40,
+        exercises: [mk('bb-bench', 3)] });
+      if (S.week.plan[k]) S.week.plan[k].done = true;
+    }
+    /* And one day ahead deliberately not a normal day. */
+    const far = dk(addDays(fromKey(today()), 2));
+    S.week.days[far] = { avail: 'micro', env: 'bw' };
+    save(true); go('plan');
+    const rows = [...document.querySelectorAll('#plan-body .wr-row')];
+    const cls = rows.map(r => r.className.replace('wr-row ', '').trim());
+    const todayAt = rows.findIndex(r => r.dataset.k === today());
+    const chips = rows.filter(r => r.querySelector('.wr-c')).map(r => r.dataset.k);
+    /* The line above today has to read as covered and the line below it as
+       not, or the trail is a decorated list. Read off the rendered elements,
+       because both are backgrounds and neither changes the markup. */
+    const up = rows[todayAt] && getComputedStyle(rows[todayAt].querySelector('.wr-line.up')).background;
+    const down = rows[todayAt] && getComputedStyle(rows[todayAt].querySelector('.wr-line.down')).background;
+    /* And the billboard is gone. */
+    const pitch = (document.getElementById('plan-body').innerText || '');
+    return { n: rows.length, cls, todayAt, chips, far,
+             up, down, sameLine: up === down,
+             heroH: (document.querySelector('#plan-body .wk-hero') || { getBoundingClientRect: () => ({ height: 0 }) })
+               .getBoundingClientRect().height,
+             billboard: /part that matters/i.test(pitch) };
+  });
+  check('the week is seven waypoints', wkRoute.n === 7, String(wkRoute.n));
+  check('...with exactly one of them where you are',
+    wkRoute.cls.filter(c => c === 'now').length === 1, wkRoute.cls.join(' '));
+  check('...everything behind it walked and everything ahead of it not',
+    wkRoute.cls.slice(0, wkRoute.todayAt).every(c => c === 'walked' || c === 'missed')
+    && wkRoute.cls.slice(wkRoute.todayAt + 1).every(c => c === 'ahead'),
+    wkRoute.cls.join(' '));
+  check('...and the trail is covered above you and open below',
+    wkRoute.sameLine === false, `${wkRoute.up} VS ${wkRoute.down}`);
+  check('a day only says what it is when it is not the default',
+    wkRoute.chips.length === 1 && wkRoute.chips[0] === wkRoute.far,
+    wkRoute.chips.join(', '));
+  check('the pitch is not the first thing on the screen every week',
+    wkRoute.billboard === false && wkRoute.heroH < 260, `${Math.round(wkRoute.heroH)}px`);
   check('...and follows it to the next week', planSync.after.s.join() === planSync.after.r.join() &&
     planSync.after.r[0] !== planSync.before.r[0], planSync.after.r[0]);
 
@@ -888,8 +944,8 @@ try {
     const cell = document.querySelector(`#today-body .week .day[data-k="${k}"]`);
     const stripSub = cell ? (cell.querySelector('.dt') || {}).textContent : null;
     go('plan');
-    const rowEl = document.querySelector(`#plan-body .lrow[data-act="day-tap"][data-k="${k}"]`);
-    const planSub = rowEl ? (rowEl.querySelector('.tiny') || {}).textContent : null;
+    const rowEl = document.querySelector(`#plan-body .wr-row[data-act="day-tap"][data-k="${k}"]`);
+    const planSub = rowEl ? (rowEl.querySelector('.wr-s') || {}).textContent : null;
     go('today');
     if (cell) document.querySelector(`#today-body .week .day[data-k="${k}"]`).click();
     const sheet = document.getElementById('sheet-body').innerText || '';

@@ -2112,6 +2112,68 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 @keyframes bodyTurn{from{transform:perspective(700px) rotateY(38deg);opacity:.35}
   to{transform:none;opacity:1}}
 
+/* ---------- the route, as a route ----------
+   Seven days as waypoints on one trail: teal behind you, ember where you are,
+   dashed ahead. The rail is its own column so the line runs continuously
+   between nodes rather than being drawn per row and meeting at a seam.
+
+   The row was 180px and is 66. What came out was a 44px tick that duplicated
+   the node, and a pill reading "A normal day" — the default, printed seven
+   times. */
+.wk-hero{position:relative;overflow:hidden}
+.wk-hero>*:not(.ridge){position:relative}
+/* Short enough to sit behind the number and the eyebrow and nothing else.
+   At 112 it reached the paragraph, and a range drawn through a sentence is a
+   range that has stopped being a background. */
+.wk-hero .ridge{height:88px;opacity:.5}
+.wk-hero-n{display:flex;align-items:baseline;gap:7px;margin-top:6px}
+.wk-hero-v{font-size:38px;font-weight:700;letter-spacing:-.04em;color:var(--text);line-height:1}
+.wk-hero-of{font-size:20px;font-weight:650;color:var(--muted);letter-spacing:-.02em}
+.wk-hero-k{font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--muted);margin-left:4px}
+
+.wroute{display:flex;flex-direction:column}
+.wr-row{display:flex;align-items:stretch;gap:12px;width:100%;text-align:left;
+  min-height:66px;padding:0;background:none;border:0;color:var(--text);
+  transition:opacity var(--t) ease}
+.wr-rail{position:relative;width:26px;flex:none;display:flex;flex-direction:column;
+  align-items:center}
+.wr-line{width:2px;flex:1 1 0;background:#39465a;border-radius:2px}
+.wr-row:first-child .wr-line.up,.wr-row:last-child .wr-line.down{background:transparent}
+.wr-node{position:relative;flex:none;width:18px;height:18px;border-radius:50%;
+  background:var(--surface-2);border:2px solid #39465a;
+  display:flex;align-items:center;justify-content:center;color:var(--teal);
+  transition:all var(--t) var(--ease-spring)}
+.wr-node .ico-svg{width:10px;height:10px;stroke-width:3.4}
+/* Behind you: solid teal, and the line into it is teal too. */
+.wr-row.walked .wr-node{background:var(--teal);border-color:var(--teal);color:#06251d}
+.wr-row.walked .wr-line{background:rgba(79,209,165,.55)}
+/* Where you are: the biggest node on the screen, with the trail behind it
+   already teal and the trail ahead of it still dashed. */
+.wr-row.now .wr-node{width:24px;height:24px;background:var(--ember);
+  border-color:var(--ember-2);box-shadow:0 0 0 4px rgba(233,180,76,.16)}
+.wr-row.now .wr-line.up{background:rgba(79,209,165,.55)}
+.wr-row.now .wr-line.down,.wr-row.ahead .wr-line{
+  background:repeating-linear-gradient(180deg,#39465a 0 4px,transparent 4px 9px)}
+.wr-row.ahead .wr-node{background:var(--surface);border-color:#39465a}
+.wr-row.ahead{opacity:.82}
+/* A day that went by without a session is not marked in red and does not
+   break the trail. It is simply not filled in — see the tone rule. */
+.wr-row.missed .wr-node{background:var(--surface);border-color:#2b3542}
+.wr-row.missed .wr-line{background:#2b3542}
+.wr-row.missed{opacity:.6}
+.wr-body{flex:1;min-width:0;padding:13px 0}
+.wr-d{display:block;font-size:14.5px;font-weight:650;letter-spacing:-.015em}
+.wr-d b{font-size:10px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--ember-2);background:var(--ember-dim);border:1px solid var(--ember-line);
+  padding:2px 6px;border-radius:5px;margin-left:7px;vertical-align:1px}
+.wr-s{display:block;font-size:12px;color:var(--muted);margin-top:3px}
+.wr-row.walked .wr-s{color:var(--teal-soft)}
+.wr-c{flex:none;align-self:center;font-size:10.5px;font-weight:650;letter-spacing:.03em;
+  color:var(--text-dim);background:var(--surface-2);border:1px solid var(--line);
+  padding:4px 9px;border-radius:100px}
+.wr-row:active .wr-body{opacity:.6}
+
 /* ---------- the week, as an arc ---------- */
 .wk-ring{position:relative;width:40px;height:40px;flex:none;display:flex;
   align-items:center;justify-content:center}

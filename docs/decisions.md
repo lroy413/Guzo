@@ -946,3 +946,42 @@ And two reverts passed that should not have, both the same shape: removing a
 target from *one* view leaves it on the other, so the union still covers it.
 Proving either needed a target that appears on one view only — which is now
 twice this exact miss has happened, once for `Calves` and once for `lowback`.
+
+---
+
+## The route is a route
+
+The screen called **The route** opened with a billboard. Three lines of copy
+explaining why the feature is good, under an eyebrow reading "the part that
+matters", above a primary button — 45% of the viewport, every time you opened
+the tab, pitching the tab to someone who had already opened it. A screen you
+visit weekly does not get to sell itself weekly.
+
+Under it, seven rows at 180px each. Every one carried a 44px tick that
+duplicated an icon two columns to its left, a date, a subtitle, and a pill
+reading **"A normal day"** — which is the default, so the screen printed the
+word *normal* seven times to say nothing at all. A week was 1,260px of that.
+
+**What replaced the billboard** is the week's actual shape: sessions done
+against sessions planned, and how many minutes are still ahead of you. The
+pitch survives as one sentence underneath, where it is context rather than a
+poster.
+
+**What replaced the rows** is the thing the screen is named after. Seven
+waypoints on one trail — teal behind you, ember where you are, dashed ahead —
+which is the language the ascent on Progress and the range on Train already
+speak. 180px became 66.
+
+Three details that are the difference between a trail and a decorated list:
+
+- **The rail is its own column**, so the line runs continuously between nodes
+  rather than being drawn per row and meeting at a seam every 66px.
+- **The line above today is covered and the line below it is not.** That is the
+  whole claim of the drawing, and it is read off the rendered element in the
+  check, because both are backgrounds and neither changes the markup.
+- **A day says what it is only when it is not the default.** The chip appears
+  for a micro day or a rest day and for nothing else.
+
+A day that went by without a session is not marked in red and does not break
+the trail. It is simply not filled in — see the tone rule, which has said since
+the beginning that a missed day is free.

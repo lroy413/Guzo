@@ -704,11 +704,38 @@ function renderPlan() {
   const ws = weekStart();
   let html = '';
 
-  html += `<div class="card accent mb">
-    <div class="eyebrow em">The part that matters</div>
-    <div class="h2 mt-s">Shape the week before it happens</div>
-    <p class="small mt-s">Every other app waits until you've already missed sessions and then reshuffles. Tell this one where the shoot days, the travel and the short nights are, and it cuts the route to fit before you get there.</p>
-    <button class="btn primary block mt" data-act="open-week">Shape this week</button>
+  /* This was a billboard. Three lines of copy explaining why the feature is
+     good, under an eyebrow reading "the part that matters", above a primary
+     button — 45% of the viewport, every time you opened the tab, saying the
+     same thing to someone who had already opened the tab. A screen you visit
+     weekly does not get to pitch itself.
+
+     What replaces it is the week's actual shape: what is done, what is left,
+     and how long that is. The pitch survives as one line, under the numbers,
+     where it is context rather than a poster. */
+  const wk = weekProgress();
+  const wMins = (() => {
+    let m = 0;
+    for (let i = 0; i < 7; i++) {
+      const k = dk(addDays(ws, i));
+      if (plan[k] && !plan[k].done && !plan[k].elsewhere) m += availOf(dayConstraint(k).avail).mins;
+    }
+    return m;
+  })();
+  html += `<div class="card accent wk-hero mb">
+    ${ridgeHTML('wk', true)}
+    <div class="eyebrow em">This week</div>
+    <div class="wk-hero-n">
+      <span class="wk-hero-v mono">${wk.done}</span><span class="wk-hero-of">/${wk.planned}</span>
+      <span class="wk-hero-k">sessions done</span>
+    </div>
+    <p class="small mt-s">${wMins
+      ? `About ${wMins} minutes still ahead of you.`
+      : wk.planned && wk.done >= wk.planned
+        ? 'The whole week is behind you.'
+        : 'Nothing left scheduled.'}
+      Tell it where the shoot days are and it cuts the route before you get there.</p>
+    <button class="btn ghost block mt" data-act="open-week">Shape this week</button>
   </div>`;
 
   html += weekStripHTML();
@@ -718,7 +745,14 @@ function renderPlan() {
      worse than not being able to move at all. */
   const sws = addDays(weekStart(), stripOffset * 7);
   const splan = stripOffset === 0 ? plan : {};
-  html += `<div class="list mt-l">`;
+  /* The week drawn as what the screen is called. Seven days as waypoints on one
+     trail — walked behind you, lit where you are, dashed ahead — which is the
+     language the ascent on Progress and the range on Train already speak.
+
+     It replaces seven 180px rows that each carried a 44px tick, a date, a
+     subtitle and a pill reading "A normal day", which is the default and was
+     therefore printed seven times to say nothing. */
+  html += `<div class="wroute mt-l">`;
   for (let i = 0; i < 7; i++) {
     const d = addDays(sws, i);
     const k = dk(d);
@@ -736,16 +770,23 @@ function renderPlan() {
     else if (past) sub = 'Nothing logged';
     else if (stripOffset > 0) sub = availOf(c.avail).label + ' · ' + availOf(c.avail).mins + ' min expected';
     else sub = 'Open';
-    html += `<div class="lrow" data-act="day-tap" data-k="${k}">
-      <div class="ico">${done ? ICO.tick : c.avail === 'none' ? ICO.dot : p ? ICO.peakMark : ICO.minus}</div>
-      <div class="grow">
-        <div class="row between">
-          <div class="h3">${prettyDate(k)}${k===today()?' <span class="pill em">today</span>':''}</div>
-          <div class="pill">${availOf(c.avail).label}</div>
-        </div>
-        <div class="tiny mt-s">${h(sub)}</div>
-      </div>
-    </div>`;
+    /* Where the day sits relative to now, in the ascent's own three words. */
+    const stand = done ? 'walked' : k === today() ? 'now' : past ? 'missed' : 'ahead';
+    /* The constraint is printed only when it is not the default. "A normal
+       day" on all seven rows is a column of the word "normal". */
+    const cLabel = c.avail === 'normal' ? '' : availOf(c.avail).label;
+    html += `<button class="wr-row ${stand}" data-act="day-tap" data-k="${k}">
+      <span class="wr-rail" aria-hidden="true">
+        <span class="wr-line up"></span>
+        <span class="wr-node">${done ? ICO.tick : ''}</span>
+        <span class="wr-line down"></span>
+      </span>
+      <span class="wr-body">
+        <span class="wr-d">${prettyDate(k)}${k === today() ? ' <b>today</b>' : ''}</span>
+        <span class="wr-s">${h(sub)}</span>
+      </span>
+      ${cLabel ? `<span class="wr-c">${h(cLabel)}</span>` : ''}
+    </button>`;
   }
   html += `</div>`;
 
