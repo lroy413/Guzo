@@ -387,7 +387,7 @@ function renderToday() {
         ${rd || rt ? '' : `<button class="hero-checkin" data-act="open-readiness">
           <span class="hero-checkin-d">${ICO.half}</span>
           <span class="grow">Check in first &mdash; it sizes this session</span>
-          <span class="strip-chev">›</span>
+          <span class="strip-chev">${ICO.chevR}</span>
         </button>`}
         ${rt ? `<button class="btn primary block lg mt" data-act="routine-start" data-v="${h(rt.id)}" data-planned="1">Start</button>`
              : `<button class="btn primary block lg mt" data-act="start-session" data-type="${type}" data-rung="${suggested}">Start</button>`}
@@ -408,7 +408,7 @@ function renderToday() {
         })()}
         ${note ? `<button class="hero-note" data-act="coach-note" data-v="${note.k}">
           <span class="grow">${note.short}</span>
-          <span class="hero-note-a">Why ›</span>
+          <span class="hero-note-a">Why ${ICO.chevR}</span>
         </button>` : ''}
       </div>
     </div>`;
@@ -458,7 +458,7 @@ function stretchStripHTML() {
       <div class="h3">${set ? "Today's stretch" : 'Stretch'}</div>
       <div class="tiny mt-s">${h(sub)}</div>
     </div>
-    <span class="chev">›</span>
+    <span class="chev">${ICO.chevR}</span>
   </button>`;
 }
 

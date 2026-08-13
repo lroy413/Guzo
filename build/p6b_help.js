@@ -24,7 +24,7 @@ function sheetHelp() {
             <div class="h3">${HELP_PAGES[k].title}</div>
             <div class="tiny mt-s">${HELP_PAGES[k].sub}</div>
           </div>
-          <span class="chev">›</span>
+          <span class="chev">${ICO.chevR}</span>
         </button>`).join('')}
     </div>
     <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta<br>ጉዞ · Amharic for “journey” · guzofit.app</p>
@@ -52,7 +52,7 @@ function sheetFormList(query) {
             <div class="h3" style="font-size:14.5px">${FORMS[id].name}</div>
             <div class="tiny mt-s">${EX[id] ? EX[id].primary + ' · ' + EX[id].eq : ''}</div>
           </div>
-          <span class="chev">›</span>
+          <span class="chev">${ICO.chevR}</span>
         </button>`).join('')}
     </div>
     ${ids.length ? '' : '<div class="blankstate"><div class="big">${ICO.search}</div>No diagram for that yet.<br>Every lift still has muscle targets and rep ranges in the picker.</div>'}

@@ -174,13 +174,13 @@ function sheetDay(k) {
         <div class="ico">${ICO.peakMark}</div>
         <div class="grow"><div class="h3">Change the session</div>
           <div class="tiny mt-s">Pick a different split, or one of your routines</div></div>
-        <span class="chev">›</span>
+        <span class="chev">${ICO.chevR}</span>
       </div>` : ''}
       <div class="lrow" data-act="day-edit" data-k="${k}" data-b="day">
         <div class="ico">${ico(av.ico)}</div>
         <div class="grow"><div class="h3">Time and place</div>
           <div class="tiny mt-s">${h(av.label)}${av.mins ? ' · ' + av.mins + ' min' : ''}${ENVS[c.env] ? ' · ' + ENVS[c.env].label.toLowerCase() : ''}</div></div>
-        <span class="chev">›</span>
+        <span class="chev">${ICO.chevR}</span>
       </div>
     </div>
   `, { key: 'day:' + k });
@@ -223,7 +223,7 @@ function sheetPlanDay(k) {
             <div class="h3" style="font-size:14.5px">${h(r.name)}</div>
             <div class="tiny mt-s">${r.items.length} movement${r.items.length===1?'':'s'} · about ${routineMins(r)} min</div>
           </div>
-          <span class="chev">›</span>
+          <span class="chev">${ICO.chevR}</span>
         </button>`).join('')}
       </div>
       <p class="tiny mb">A routine put on a planned day counts as that day&rsquo;s session. Run one on any other day and it stays what it has always been &mdash; an extra, on top.</p>`

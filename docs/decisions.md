@@ -1210,3 +1210,61 @@ there passes whatever you write.
 
 All four subjects were reverted individually and confirmed red. The bare-row
 one prints `0 of 7`.
+
+---
+
+## Onboarding was painting the names of its icons
+
+`opt()` interpolated whatever its `ico` parameter held. Three call sites passed
+ready-made markup; **nine passed an ICO key**. So the first screens a new user
+ever sees rendered `goal-strength`, `lvl-new`, `area-Back`, `cardio-light`,
+`car-walk`, `env-full`, `gear-barbell` and `pg-anchor3` as lowercase slugs in
+the box the icon belongs in. Sixty-three option boxes; fifty-one of them wrong.
+
+Every one of those icons had been drawn and was sitting in `ICO` under exactly
+the key being printed. Nothing was missing but the lookup. `opt()` resolves it
+now — a key never starts with `<`, so the three markup call sites fall through
+untouched, and the resolution lives in the one place rather than in twelve.
+
+**Two conventions in one parameter is what produced this**, and the fix is not
+to pick one and edit twelve call sites — it is to make the parameter accept
+both in a single function, so a thirteenth call site cannot be silently wrong.
+
+### Why nothing caught it
+
+No instrument in the project had ever rendered an onboarding screen. The blank
+sweep, the emoji sweep, the palette check and the collision sweep all walk
+`['today','plan','train','fuel','progress','more']` and a list of sheets.
+Onboarding is neither, and it is the one surface every user sees exactly when
+they are deciding whether the app is any good.
+
+The check now renders all twelve `OB_RENDER` steps and asserts three things,
+each of which fails on its own: no option box holds text, every box holds a
+drawn `<svg>`, and **no screen gives every option the same icon** — the
+session-length screen had four identical stopwatches, which is an icon that has
+stopped distinguishing, the same failure as the stretch chip that labelled six
+of nine rows. The four durations use the rising `avail-*` ladder instead: it is
+the same quantity the app already draws that way.
+
+### The emoji sweep had a hole exactly where the emoji were
+
+`blanks.mjs` asserts no emoji is painted on any screen or sheet, it does read
+the Settings sheet, and a `⏱` was sitting in that sheet the whole time. The
+pattern covered `2190–21FF`, `2600–27BF`, `2B00–2BFF` and `1F000–1FAFF` — and
+skipped **`2300–23FF`**, Miscellaneous Technical, which is where the clock, the
+stopwatch, the hourglass and the media controls live. That is precisely the
+block a training app reaches into. All four survivors (`⏱` ×3, `⏸`) were in it,
+and `ICO.stopwatch` had been drawn for months.
+
+A check that runs, reads the right surface, and reports green because its
+pattern excludes the one range that matters is worse than no check: it is a
+green light with a documented promise behind it.
+
+### The chevron glyph, finally
+
+Fragile area #8 has said since it was written that `↑ ↓ ← ✓ ›` antialias to
+about half the contrast their colour promises and must be stroked paths. There
+were still **twenty-eight `›` glyphs**, including every row of Settings, the
+picker's open/closed marker on two screens, and the hero note. `ICO.chevR` and
+`ICO.chevD` already existed. The three chevrons with their own sizing had it as
+a `font-size`, which an SVG ignores — each states a box now.

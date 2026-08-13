@@ -1095,8 +1095,15 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .ord-ctl button svg{width:15px;height:15px}
 .ord-ctl button:disabled{opacity:.3}
 .ord-ctl button:active:not(:disabled){transform:scale(.94)}
-/* The row chevron: an affordance, so drawn heavier and lighter than body grey. */
-.chev{font-size:16px;font-weight:700;color:#b6bfca;flex:none;line-height:1}
+/* The row chevron: an affordance, so drawn heavier and lighter than body grey.
+   A stroked path rather than a "›", for the reason the handbook gives about
+   hairline glyphs — it was the glyph in twenty-eight places, including every
+   row of Settings. The three chevrons that had their own sizing had it as a
+   font-size, which an SVG ignores, so each states a box. */
+.chev{font-size:16px;font-weight:700;color:#b6bfca;flex:none;line-height:1;display:flex;align-items:center}
+.strip-chev .ico-svg{width:15px;height:15px}
+.pick-chev .ico-svg{width:14px;height:14px}
+.hero-note-a .ico-svg{width:12px;height:12px;vertical-align:-.08em}
 .divide{height:1px;background:var(--line-soft);margin:16px 0}
 
 /* ---------- sheet / modal ---------- */
@@ -3332,7 +3339,7 @@ const PRIORITIES = {
 
 /* ---------- cardio ---------- */
 const CARDIO_AMOUNT = {
-  none:  { k:'none',  label:'None for now', ico:'⏸',
+  none:  { k:'none',  label:'None for now', ico:'ban',
            note:'Strength only. You can turn this on later without changing anything else.' },
   light: { k:'light', label:'A little',     ico:'cardio-light',
            note:'One short piece a week, tacked onto the end of a session. Ten to fifteen minutes.' },
@@ -3394,11 +3401,15 @@ function gearExcludes(gear) {
 }
 
 /* ---------- session length ---------- */
+/* The icons are the same rising ladder the app uses for how much time a day
+   has, because this is the same quantity asked before the fact. Four rungs for
+   four answers: an icon repeated across every option on a screen has stopped
+   telling you anything, which is what four identical stopwatches were doing. */
 const SESSION_LENGTHS = {
-  30: { label:'About 30 minutes', note:'In and out. Compounds and one or two accessories.' },
-  45: { label:'About 45 minutes', note:'Enough for a full session without dragging.' },
-  60: { label:'About an hour',    tag:'Most common', note:'Room for full accessory work and proper rests between heavy sets.' },
-  75: { label:'75 minutes or more', note:'You are not in a hurry and you like long rests between heavy work.' }
+  30: { label:'About 30 minutes', ico:'avail-micro',  note:'In and out. Compounds and one or two accessories.' },
+  45: { label:'About 45 minutes', ico:'avail-short',  note:'Enough for a full session without dragging.' },
+  60: { label:'About an hour',    ico:'avail-normal', tag:'Most common', note:'Room for full accessory work and proper rests between heavy sets.' },
+  75: { label:'75 minutes or more', ico:'avail-long', note:'You are not in a hurry and you like long rests between heavy work.' }
 };
 
 /* ---------- nutrition targets derived from bodyweight ---------- */
@@ -11366,9 +11377,21 @@ function obAdvance(dir) {
 }
 
 /* ---------- shared bits ---------- */
+/* `ico` is either an ICO key or ready-made markup, and this resolves the two.
+
+   It has to, because it did not: nine of the twelve option screens passed a
+   key, opt() interpolated it, and the first screens a new user ever sees
+   painted "goal-strength", "lvl-new", "area-Back", "env-full", "gear-barbell"
+   and "pg-anchor3" as lowercase text in the box the icon belongs in. Every one
+   of those icons had been drawn — nothing was missing but the lookup.
+
+   Resolved here rather than at the twelve call sites for the usual reason: two
+   conventions in one parameter is what produced this, and a third would be
+   another silent one. A key never starts with "<", so markup falls through. */
 function opt(o) {
+  const ico = o.ico ? (ICO[o.ico] || o.ico) : '';
   return `<div class="opt ${o.on?'on':''}" data-act="${o.act}" data-v="${o.v}">
-    ${o.ico ? `<div class="opt-ico">${o.ico}</div>` : ''}
+    ${ico ? `<div class="opt-ico">${ico}</div>` : ''}
     <div class="grow">
       <div class="opt-t">${o.title}${o.tag?`<span class="opt-tag">${o.tag}</span>`:''}</div>
       ${o.desc ? `<div class="opt-d">${o.desc}</div>` : ''}
@@ -11810,7 +11833,7 @@ OB_RENDER.length = () => {
     <div class="opts">
       ${Object.keys(SESSION_LENGTHS).map(m => opt({
         act:'ob-length', v:m, on:String(obDraft.sessionMins)===String(m),
-        ico:'⏱', title:SESSION_LENGTHS[m].label, tag:SESSION_LENGTHS[m].tag, desc:SESSION_LENGTHS[m].note })).join('')}
+        ico:SESSION_LENGTHS[m].ico, title:SESSION_LENGTHS[m].label, tag:SESSION_LENGTHS[m].tag, desc:SESSION_LENGTHS[m].note })).join('')}
     </div>
     <div class="card accent" style="margin-top:22px">
       <div class="eyebrow em">What everything else becomes</div>
@@ -12345,7 +12368,7 @@ function renderToday() {
         ${rd || rt ? '' : `<button class="hero-checkin" data-act="open-readiness">
           <span class="hero-checkin-d">${ICO.half}</span>
           <span class="grow">Check in first &mdash; it sizes this session</span>
-          <span class="strip-chev">›</span>
+          <span class="strip-chev">${ICO.chevR}</span>
         </button>`}
         ${rt ? `<button class="btn primary block lg mt" data-act="routine-start" data-v="${h(rt.id)}" data-planned="1">Start</button>`
              : `<button class="btn primary block lg mt" data-act="start-session" data-type="${type}" data-rung="${suggested}">Start</button>`}
@@ -12366,7 +12389,7 @@ function renderToday() {
         })()}
         ${note ? `<button class="hero-note" data-act="coach-note" data-v="${note.k}">
           <span class="grow">${note.short}</span>
-          <span class="hero-note-a">Why ›</span>
+          <span class="hero-note-a">Why ${ICO.chevR}</span>
         </button>` : ''}
       </div>
     </div>`;
@@ -12416,7 +12439,7 @@ function stretchStripHTML() {
       <div class="h3">${set ? "Today's stretch" : 'Stretch'}</div>
       <div class="tiny mt-s">${h(sub)}</div>
     </div>
-    <span class="chev">›</span>
+    <span class="chev">${ICO.chevR}</span>
   </button>`;
 }
 
@@ -14610,20 +14633,20 @@ function renderMore() {
      "Shape this week" is not here any more. It was never a setting, and Today
      and Plan already offer it in five places. */
   html += `<div class="sec-head"><span class="sec-t">Your journey</span></div><div class="list mb">
-    <div class="lrow" data-act="open-journey"><div class="ico">${ICO.compass}</div><div class="grow"><div class="h3">Day ${jst.day} of your guzo</div><div class="tiny mt-s">${milestonesReached().length} of ${MILESTONES.length} markers reached · ${(jst.kcal/1000).toFixed(1)}k kcal estimated</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="stretch"><div class="ico">${ICO.mobility}</div><div class="grow"><div class="h3">Stretch</div><div class="tiny mt-s">${stretchOnboarded() ? (stretchStreak() ? stretchStreak() + ' day' + (stretchStreak() === 1 ? '' : 's') + ' running · built from what you trained' : 'A daily stretch, built from what you trained') : 'Daily stretches for your training and your working day'}</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="routines"><div class="ico">${ICO.routines}</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="chev">›</span></div>
-    ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">${ICO.map}</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="chev">›</span></div>` : ''}
-    ${fuelOn() ? `<div class="lrow" data-act="open-nutrition"><div class="ico">${ICO.chart}</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">›</span></div>` : ''}
+    <div class="lrow" data-act="open-journey"><div class="ico">${ICO.compass}</div><div class="grow"><div class="h3">Day ${jst.day} of your guzo</div><div class="tiny mt-s">${milestonesReached().length} of ${MILESTONES.length} markers reached · ${(jst.kcal/1000).toFixed(1)}k kcal estimated</div></div><span class="chev">${ICO.chevR}</span></div>
+    <div class="lrow" data-act="stretch"><div class="ico">${ICO.mobility}</div><div class="grow"><div class="h3">Stretch</div><div class="tiny mt-s">${stretchOnboarded() ? (stretchStreak() ? stretchStreak() + ' day' + (stretchStreak() === 1 ? '' : 's') + ' running · built from what you trained' : 'A daily stretch, built from what you trained') : 'Daily stretches for your training and your working day'}</div></div><span class="chev">${ICO.chevR}</span></div>
+    <div class="lrow" data-act="routines"><div class="ico">${ICO.routines}</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="chev">${ICO.chevR}</span></div>
+    ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">${ICO.map}</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="chev">${ICO.chevR}</span></div>` : ''}
+    ${fuelOn() ? `<div class="lrow" data-act="open-nutrition"><div class="ico">${ICO.chart}</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">${ICO.chevR}</span></div>` : ''}
   </div>`;
 
   html += `<div class="sec-head"><span class="sec-t">Guides</span></div><div class="list mb">
-    <div class="lrow" data-act="open-help"><div class="ico">${ICO.book}</div><div class="grow"><div class="h3">Help &amp; guides</div><div class="tiny mt-s">How it works, form diagrams, terms, backups</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="help-form-list"><div class="ico">${ICO.ruler}</div><div class="grow"><div class="h3">Form guides</div><div class="tiny mt-s">${Object.keys(FORMS).length} lifts with diagrams and cues</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="open-help"><div class="ico">${ICO.book}</div><div class="grow"><div class="h3">Help &amp; guides</div><div class="tiny mt-s">How it works, form diagrams, terms, backups</div></div><span class="chev">${ICO.chevR}</span></div>
+    <div class="lrow" data-act="help-form-list"><div class="ico">${ICO.ruler}</div><div class="grow"><div class="h3">Form guides</div><div class="tiny mt-s">${Object.keys(FORMS).length} lifts with diagrams and cues</div></div><span class="chev">${ICO.chevR}</span></div>
   </div>`;
 
   html += `<div class="sec-head"><span class="sec-t">App</span></div><div class="list mb">
-    <div class="lrow" data-act="open-settings"><div class="ico">${ICO.cog}</div><div class="grow"><div class="h3">Settings</div><div class="tiny mt-s">${settingsSummary()}</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="open-settings"><div class="ico">${ICO.cog}</div><div class="grow"><div class="h3">Settings</div><div class="tiny mt-s">${settingsSummary()}</div></div><span class="chev">${ICO.chevR}</span></div>
   </div>`;
 
   html += `<div class="sec-head"><span class="sec-t">Membership</span></div>
@@ -14718,7 +14741,7 @@ function sheetWeek() {
         <div class="opt-t" style="font-size:15px">${av.label}${isToday?' <span class="pill em" style="font-size:10px;padding:2px 7px">today</span>':''}</div>
         <div class="opt-d">${av.mins > 0 ? `About ${av.mins} min · ${ENVS[c.env] ? ENVS[c.env].label.toLowerCase() : ''}` : 'No session placed here'}</div>
       </div>
-      <span style="color:var(--faint);font-size:20px">›</span>
+      <span class="chev">${ICO.chevR}</span>
     </div>`;
   }
 
@@ -14918,7 +14941,7 @@ function sheetProgram() {
           <div class="tiny mt-s">A PDF or text plan becomes a routine per day, with every movement
             shown before anything is built</div>
         </div>
-        <span class="chev">›</span>
+        <span class="chev">${ICO.chevR}</span>
       </div>
     </div>
     <p class="tiny center mt-s">An imported plan sits alongside the structure above rather than
@@ -14998,7 +15021,7 @@ function renderPicker(query, env) {
         <span class="pick-dot ${muscleTone(g)}"></span>
         <span class="grow pick-head-t">${h(g)}</span>
         <span class="pick-n">${groups[g].length}</span>
-        <span class="pick-chev">${open ? '⌄' : '›'}</span>
+        <span class="pick-chev">${open ? ICO.chevD : ICO.chevR}</span>
       </button>
       ${open ? `<div class="list pick-list">${groups[g].map(rowHTML).join('')}</div>` : ''}
     </div>`;
@@ -15137,7 +15160,7 @@ function sheetSettings() {
     <div class="lrow" data-act="${act}">
       <div class="ico">${ico}</div>
       <div class="grow"><div class="h3">${title}</div><div class="tiny mt-s">${sub}</div></div>
-      <span class="chev">›</span>
+      <span class="chev">${ICO.chevR}</span>
     </div>`;
   const toggle = (act, ico, title, sub, on) => `
     <div class="lrow" data-act="${act}">
@@ -15156,7 +15179,7 @@ function sheetSettings() {
     <div class="list mb">
       ${row('open-program', ICO.peakMark, 'Structure', `${h(programOf().name)} · ${programOf().target}×/wk`)}
       ${row('edit-envs', ICO.pin, 'Where you train', h(p.envs.map(e => ENVS[e] ? ENVS[e].label : e).join(', ')))}
-      ${row('rest-settings', '⏱', 'Rest timers', `${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest ? 'on' : 'off'}`)}
+      ${row('rest-settings', ICO.stopwatch, 'Rest timers', `${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest ? 'on' : 'off'}`)}
       ${row('plate-settings', ICO['gear-barbell'], 'Bar and plates', `${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand`)}
       ${toggle('set-toggle-warmup', ICO.mobility, 'Mobility warm-up', 'One short mobility movement at the start of full sessions', S.settings.warmup)}
       ${toggle('set-toggle-rpe', ICO.target, 'RPE column', rpeShown()
@@ -15191,7 +15214,7 @@ function sheetSettings() {
       <div class="lrow" data-act="reset">
         <div class="ico">${ICO.warn}</div>
         <div class="grow"><div class="h3" style="color:var(--rose)">Reset everything</div><div class="tiny mt-s">Cannot be undone</div></div>
-        <span class="chev">›</span>
+        <span class="chev">${ICO.chevR}</span>
       </div>
     </div>
 
@@ -15200,12 +15223,12 @@ function sheetSettings() {
       <div class="lrow" data-act="help-page" data-v="privacy">
         <div class="ico">${ICO.lock}</div>
         <div class="grow"><div class="h3">Privacy</div><div class="tiny mt-s">What is stored, where it lives, and what never leaves this device</div></div>
-        <span class="chev">›</span>
+        <span class="chev">${ICO.chevR}</span>
       </div>
       <div class="lrow" data-act="help-page" data-v="why">
         <div class="ico">${ICO.science}</div>
         <div class="grow"><div class="h3">Why this app behaves the way it does</div><div class="tiny mt-s">The research behind no streaks, a free miss, and three-minute sessions</div></div>
-        <span class="chev">›</span>
+        <span class="chev">${ICO.chevR}</span>
       </div>
     </div>
 
@@ -15238,7 +15261,7 @@ function sheetHelp() {
             <div class="h3">${HELP_PAGES[k].title}</div>
             <div class="tiny mt-s">${HELP_PAGES[k].sub}</div>
           </div>
-          <span class="chev">›</span>
+          <span class="chev">${ICO.chevR}</span>
         </button>`).join('')}
     </div>
     <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta<br>ጉዞ · Amharic for “journey” · guzofit.app</p>
@@ -15266,7 +15289,7 @@ function sheetFormList(query) {
             <div class="h3" style="font-size:14.5px">${FORMS[id].name}</div>
             <div class="tiny mt-s">${EX[id] ? EX[id].primary + ' · ' + EX[id].eq : ''}</div>
           </div>
-          <span class="chev">›</span>
+          <span class="chev">${ICO.chevR}</span>
         </button>`).join('')}
     </div>
     ${ids.length ? '' : '<div class="blankstate"><div class="big">${ICO.search}</div>No diagram for that yet.<br>Every lift still has muscle targets and rep ranges in the picker.</div>'}
@@ -16027,7 +16050,7 @@ function sheetRoutines() {
           <div class="h3">${h(r.name)}</div>
           <div class="tiny mt-s">${h(routineSummary(r))}${r.uses ? ' · used ' + r.uses + '×' : ''}</div>
         </div>
-        <span class="chev">›</span>
+        <span class="chev">${ICO.chevR}</span>
       </button>`).join('')}
     </div>` : `<div class="note mb"><p class="note-t">Nothing built yet.</p><p class="note-b">A routine is just a list of movements you want to be able to start in one tap.</p></div>`}
 
@@ -16249,13 +16272,13 @@ function sheetProfile() {
     <div class="eyebrow mt-l mb-s">Training</div>
     <div class="list mb">
       <button class="lrow" data-act="open-program" style="width:100%;text-align:left">
-        <div class="ico">${ICO.split}</div><div class="grow"><div class="h3">Split</div><div class="tiny mt-s">${h(programOf().label)}</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.split}</div><div class="grow"><div class="h3">Split</div><div class="tiny mt-s">${h(programOf().label)}</div></div><span class="chev">${ICO.chevR}</span></button>
       <button class="lrow" data-act="open-envs" style="width:100%;text-align:left">
-        <div class="ico">${ICO.pin}</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${(S.profile.envs||[]).map(k=>ENVS[k]?ENVS[k].label:k).join(', ') || 'Not set'}</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.pin}</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${(S.profile.envs||[]).map(k=>ENVS[k]?ENVS[k].label:k).join(', ') || 'Not set'}</div></div><span class="chev">${ICO.chevR}</span></button>
       <button class="lrow" data-act="pf-session" style="width:100%;text-align:left">
-        <div class="ico">⏱</div><div class="grow"><div class="h3">A normal session</div><div class="tiny mt-s">${S.profile.sessionMins || 60} minutes &mdash; everything scales from this</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.stopwatch}</div><div class="grow"><div class="h3">A normal session</div><div class="tiny mt-s">${S.profile.sessionMins || 60} minutes &mdash; everything scales from this</div></div><span class="chev">${ICO.chevR}</span></button>
       <button class="lrow" data-act="pf-sleep" style="width:100%;text-align:left">
-        <div class="ico">${ICO.moon}</div><div class="grow"><div class="h3">A normal night</div><div class="tiny mt-s">${S.profile.sleepNorm || 7.5}h &mdash; readiness is scored against this, not against eight</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.moon}</div><div class="grow"><div class="h3">A normal night</div><div class="tiny mt-s">${S.profile.sleepNorm || 7.5}h &mdash; readiness is scored against this, not against eight</div></div><span class="chev">${ICO.chevR}</span></button>
     </div>
 
     <div class="field mb">
@@ -16852,7 +16875,7 @@ function sheetFoodSearch(q) {
           <span class="pick-dot ${g.k === 'mine' ? 'push' : foodTone(g.k)}"></span>
           <span class="grow pick-head-t">${h(g.label)}</span>
           <span class="pick-n">${list.length}</span>
-          <span class="pick-chev">${open ? '⌄' : '›'}</span>
+          <span class="pick-chev">${open ? ICO.chevD : ICO.chevR}</span>
         </button>
         ${open ? `<div class="list pick-list">${list.map(f => foodRowHTML(f, null)).join('')}</div>` : ''}
       </div>`;
@@ -17145,7 +17168,7 @@ function sheetCopyDay() {
         <div class="grow">
           <div class="h3" style="font-size:14.5px">${prettyDate(c.d)}</div>
           <div class="tiny mt-s">${c.n} item${c.n === 1 ? '' : 's'} · ${c.kcal} kcal</div>
-        </div><span class="chev">›</span>
+        </div><span class="chev">${ICO.chevR}</span>
       </button>`).join('')}</div>`
     : `<div class="note"><p class="note-t">No earlier days to copy from yet.</p>
        <p class="note-b">Once a fortnight of days is on record this becomes the fastest way to log a repeat.</p></div>`}
@@ -17767,13 +17790,13 @@ function sheetDay(k) {
         <div class="ico">${ICO.peakMark}</div>
         <div class="grow"><div class="h3">Change the session</div>
           <div class="tiny mt-s">Pick a different split, or one of your routines</div></div>
-        <span class="chev">›</span>
+        <span class="chev">${ICO.chevR}</span>
       </div>` : ''}
       <div class="lrow" data-act="day-edit" data-k="${k}" data-b="day">
         <div class="ico">${ico(av.ico)}</div>
         <div class="grow"><div class="h3">Time and place</div>
           <div class="tiny mt-s">${h(av.label)}${av.mins ? ' · ' + av.mins + ' min' : ''}${ENVS[c.env] ? ' · ' + ENVS[c.env].label.toLowerCase() : ''}</div></div>
-        <span class="chev">›</span>
+        <span class="chev">${ICO.chevR}</span>
       </div>
     </div>
   `, { key: 'day:' + k });
@@ -17816,7 +17839,7 @@ function sheetPlanDay(k) {
             <div class="h3" style="font-size:14.5px">${h(r.name)}</div>
             <div class="tiny mt-s">${r.items.length} movement${r.items.length===1?'':'s'} · about ${routineMins(r)} min</div>
           </div>
-          <span class="chev">›</span>
+          <span class="chev">${ICO.chevR}</span>
         </button>`).join('')}
       </div>
       <p class="tiny mb">A routine put on a planned day counts as that day&rsquo;s session. Run one on any other day and it stays what it has always been &mdash; an extra, on top.</p>`

@@ -59,7 +59,7 @@ function sheetRoutines() {
           <div class="h3">${h(r.name)}</div>
           <div class="tiny mt-s">${h(routineSummary(r))}${r.uses ? ' · used ' + r.uses + '×' : ''}</div>
         </div>
-        <span class="chev">›</span>
+        <span class="chev">${ICO.chevR}</span>
       </button>`).join('')}
     </div>` : `<div class="note mb"><p class="note-t">Nothing built yet.</p><p class="note-b">A routine is just a list of movements you want to be able to start in one tap.</p></div>`}
 

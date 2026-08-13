@@ -88,9 +88,21 @@ function obAdvance(dir) {
 }
 
 /* ---------- shared bits ---------- */
+/* `ico` is either an ICO key or ready-made markup, and this resolves the two.
+
+   It has to, because it did not: nine of the twelve option screens passed a
+   key, opt() interpolated it, and the first screens a new user ever sees
+   painted "goal-strength", "lvl-new", "area-Back", "env-full", "gear-barbell"
+   and "pg-anchor3" as lowercase text in the box the icon belongs in. Every one
+   of those icons had been drawn — nothing was missing but the lookup.
+
+   Resolved here rather than at the twelve call sites for the usual reason: two
+   conventions in one parameter is what produced this, and a third would be
+   another silent one. A key never starts with "<", so markup falls through. */
 function opt(o) {
+  const ico = o.ico ? (ICO[o.ico] || o.ico) : '';
   return `<div class="opt ${o.on?'on':''}" data-act="${o.act}" data-v="${o.v}">
-    ${o.ico ? `<div class="opt-ico">${o.ico}</div>` : ''}
+    ${ico ? `<div class="opt-ico">${ico}</div>` : ''}
     <div class="grow">
       <div class="opt-t">${o.title}${o.tag?`<span class="opt-tag">${o.tag}</span>`:''}</div>
       ${o.desc ? `<div class="opt-d">${o.desc}</div>` : ''}
@@ -532,7 +544,7 @@ OB_RENDER.length = () => {
     <div class="opts">
       ${Object.keys(SESSION_LENGTHS).map(m => opt({
         act:'ob-length', v:m, on:String(obDraft.sessionMins)===String(m),
-        ico:'⏱', title:SESSION_LENGTHS[m].label, tag:SESSION_LENGTHS[m].tag, desc:SESSION_LENGTHS[m].note })).join('')}
+        ico:SESSION_LENGTHS[m].ico, title:SESSION_LENGTHS[m].label, tag:SESSION_LENGTHS[m].tag, desc:SESSION_LENGTHS[m].note })).join('')}
     </div>
     <div class="card accent" style="margin-top:22px">
       <div class="eyebrow em">What everything else becomes</div>

@@ -1095,8 +1095,15 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .ord-ctl button svg{width:15px;height:15px}
 .ord-ctl button:disabled{opacity:.3}
 .ord-ctl button:active:not(:disabled){transform:scale(.94)}
-/* The row chevron: an affordance, so drawn heavier and lighter than body grey. */
-.chev{font-size:16px;font-weight:700;color:#b6bfca;flex:none;line-height:1}
+/* The row chevron: an affordance, so drawn heavier and lighter than body grey.
+   A stroked path rather than a "›", for the reason the handbook gives about
+   hairline glyphs — it was the glyph in twenty-eight places, including every
+   row of Settings. The three chevrons that had their own sizing had it as a
+   font-size, which an SVG ignores, so each states a box. */
+.chev{font-size:16px;font-weight:700;color:#b6bfca;flex:none;line-height:1;display:flex;align-items:center}
+.strip-chev .ico-svg{width:15px;height:15px}
+.pick-chev .ico-svg{width:14px;height:14px}
+.hero-note-a .ico-svg{width:12px;height:12px;vertical-align:-.08em}
 .divide{height:1px;background:var(--line-soft);margin:16px 0}
 
 /* ---------- sheet / modal ---------- */

@@ -72,13 +72,13 @@ function sheetProfile() {
     <div class="eyebrow mt-l mb-s">Training</div>
     <div class="list mb">
       <button class="lrow" data-act="open-program" style="width:100%;text-align:left">
-        <div class="ico">${ICO.split}</div><div class="grow"><div class="h3">Split</div><div class="tiny mt-s">${h(programOf().label)}</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.split}</div><div class="grow"><div class="h3">Split</div><div class="tiny mt-s">${h(programOf().label)}</div></div><span class="chev">${ICO.chevR}</span></button>
       <button class="lrow" data-act="open-envs" style="width:100%;text-align:left">
-        <div class="ico">${ICO.pin}</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${(S.profile.envs||[]).map(k=>ENVS[k]?ENVS[k].label:k).join(', ') || 'Not set'}</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.pin}</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${(S.profile.envs||[]).map(k=>ENVS[k]?ENVS[k].label:k).join(', ') || 'Not set'}</div></div><span class="chev">${ICO.chevR}</span></button>
       <button class="lrow" data-act="pf-session" style="width:100%;text-align:left">
-        <div class="ico">⏱</div><div class="grow"><div class="h3">A normal session</div><div class="tiny mt-s">${S.profile.sessionMins || 60} minutes &mdash; everything scales from this</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.stopwatch}</div><div class="grow"><div class="h3">A normal session</div><div class="tiny mt-s">${S.profile.sessionMins || 60} minutes &mdash; everything scales from this</div></div><span class="chev">${ICO.chevR}</span></button>
       <button class="lrow" data-act="pf-sleep" style="width:100%;text-align:left">
-        <div class="ico">${ICO.moon}</div><div class="grow"><div class="h3">A normal night</div><div class="tiny mt-s">${S.profile.sleepNorm || 7.5}h &mdash; readiness is scored against this, not against eight</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.moon}</div><div class="grow"><div class="h3">A normal night</div><div class="tiny mt-s">${S.profile.sleepNorm || 7.5}h &mdash; readiness is scored against this, not against eight</div></div><span class="chev">${ICO.chevR}</span></button>
     </div>
 
     <div class="field mb">

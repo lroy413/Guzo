@@ -1709,8 +1709,16 @@ try {
     checkMilestones(); save(true);
 
     /* Pictographic ranges only. Plain typographic arrows and dashes in running
-       prose are text, render identically everywhere, and are not the subject. */
-    const re = /[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{2713}\u{2714}\u{2715}-\u{2718}\u{25A0}-\u{25FF}]/u;
+       prose are text, render identically everywhere, and are not the subject.
+
+       U+2300–U+23FF is Miscellaneous Technical, and it is in here because that
+       is where the clock, the stopwatch, the hourglass and the media-control
+       glyphs live — exactly the pictures a training app reaches for. Leaving
+       the block out is how this check stayed green while a "⏱" sat in the
+       Settings sheet it reads on every run: the sweep was looking, the pattern
+       was not. Kept to the emoji-capable end of the block so the drafting and
+       arithmetic characters below U+2300 stay text. */
+    const re = /[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2300}-\u{23FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{2713}\u{2714}\u{2715}-\u{2718}\u{25A0}-\u{25FF}]/u;
     const hits = [];
     const scan = (where) => {
       const t = (document.getElementById(where) || {}).innerText || '';
@@ -1737,6 +1745,54 @@ try {
   check('the sweep actually read some screens', emojiSweep.looked > 40, String(emojiSweep.looked));
   check('no emoji is painted on any screen or sheet',
     emojiSweep.n === 0, emojiSweep.hits.join(' | '));
+
+  /* ---- onboarding paints icons, not the names of icons ----
+     Nothing in this file had ever rendered an onboarding screen, and the first
+     screens a new user sees were painting "goal-strength", "lvl-new",
+     "area-Back", "env-full", "gear-barbell" and "pg-anchor3" as text in the
+     icon box: opt() interpolated whatever `ico` held, and nine of the twelve
+     screens held an ICO key rather than markup. Every one of those icons had
+     been drawn — only the lookup was missing, which is exactly the kind of
+     thing that survives being looked at and not the kind that survives being
+     rendered.
+
+     Asserted three ways, because each fails on its own: no option box holds
+     text, every box holds a drawn <svg>, and no screen repeats one icon across
+     all of its options — four identical stopwatches down the session-length
+     screen is an icon that has stopped distinguishing, the same failure as a
+     chip that labels six of nine rows. */
+  const obIcons = await page.evaluate(() => {
+    const bad = [], sameForAll = [];
+    let boxes = 0, screens = 0;
+    Object.keys(OB_RENDER).forEach(step => {
+      S = blank();
+      /* Rendered into the real host where there is one, so the option markup
+         is under the app's own stylesheet rather than a bare div. */
+      const host = document.getElementById('ob-body') || document.createElement('div');
+      try { host.innerHTML = OB_RENDER[step](); }
+      catch (e) { bad.push(step + ': threw ' + e.message); return; }
+      const icos = [...host.querySelectorAll('.opt-ico')];
+      if (!icos.length) return;
+      screens++;
+      const drawn = new Set();
+      icos.forEach(e => {
+        boxes++;
+        const t = (e.textContent || '').trim();
+        const svg = e.querySelector('svg');
+        if (t) bad.push(step + ': "' + t + '"');
+        else if (!svg) bad.push(step + ': empty box');
+        else drawn.add(svg.innerHTML);
+      });
+      if (icos.length > 1 && drawn.size === 1) sameForAll.push(step + ' ×' + icos.length);
+    });
+    return { bad: bad.slice(0, 6), n: bad.length, boxes, screens, sameForAll };
+  });
+  check('the onboarding sweep rendered its screens',
+    obIcons.screens >= 10 && obIcons.boxes >= 50, `${obIcons.screens} screens, ${obIcons.boxes} boxes`);
+  check('every onboarding option draws an icon rather than naming one',
+    obIcons.n === 0, obIcons.bad.join(' | '));
+  check('...and no screen gives all of its options the same one',
+    obIcons.sameForAll.length === 0, obIcons.sameForAll.join(', '));
 
   /* ---- the icon set has a palette, and it is a system ----
      Reported as "bland" and "not enough contrasting colours", and the cause was

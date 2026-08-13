@@ -70,7 +70,7 @@ const PRIORITIES = {
 
 /* ---------- cardio ---------- */
 const CARDIO_AMOUNT = {
-  none:  { k:'none',  label:'None for now', ico:'⏸',
+  none:  { k:'none',  label:'None for now', ico:'ban',
            note:'Strength only. You can turn this on later without changing anything else.' },
   light: { k:'light', label:'A little',     ico:'cardio-light',
            note:'One short piece a week, tacked onto the end of a session. Ten to fifteen minutes.' },
@@ -132,11 +132,15 @@ function gearExcludes(gear) {
 }
 
 /* ---------- session length ---------- */
+/* The icons are the same rising ladder the app uses for how much time a day
+   has, because this is the same quantity asked before the fact. Four rungs for
+   four answers: an icon repeated across every option on a screen has stopped
+   telling you anything, which is what four identical stopwatches were doing. */
 const SESSION_LENGTHS = {
-  30: { label:'About 30 minutes', note:'In and out. Compounds and one or two accessories.' },
-  45: { label:'About 45 minutes', note:'Enough for a full session without dragging.' },
-  60: { label:'About an hour',    tag:'Most common', note:'Room for full accessory work and proper rests between heavy sets.' },
-  75: { label:'75 minutes or more', note:'You are not in a hurry and you like long rests between heavy work.' }
+  30: { label:'About 30 minutes', ico:'avail-micro',  note:'In and out. Compounds and one or two accessories.' },
+  45: { label:'About 45 minutes', ico:'avail-short',  note:'Enough for a full session without dragging.' },
+  60: { label:'About an hour',    ico:'avail-normal', tag:'Most common', note:'Room for full accessory work and proper rests between heavy sets.' },
+  75: { label:'75 minutes or more', ico:'avail-long', note:'You are not in a hurry and you like long rests between heavy work.' }
 };
 
 /* ---------- nutrition targets derived from bodyweight ---------- */

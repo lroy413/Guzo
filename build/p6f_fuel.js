@@ -442,7 +442,7 @@ function sheetFoodSearch(q) {
           <span class="pick-dot ${g.k === 'mine' ? 'push' : foodTone(g.k)}"></span>
           <span class="grow pick-head-t">${h(g.label)}</span>
           <span class="pick-n">${list.length}</span>
-          <span class="pick-chev">${open ? '⌄' : '›'}</span>
+          <span class="pick-chev">${open ? ICO.chevD : ICO.chevR}</span>
         </button>
         ${open ? `<div class="list pick-list">${list.map(f => foodRowHTML(f, null)).join('')}</div>` : ''}
       </div>`;
@@ -735,7 +735,7 @@ function sheetCopyDay() {
         <div class="grow">
           <div class="h3" style="font-size:14.5px">${prettyDate(c.d)}</div>
           <div class="tiny mt-s">${c.n} item${c.n === 1 ? '' : 's'} · ${c.kcal} kcal</div>
-        </div><span class="chev">›</span>
+        </div><span class="chev">${ICO.chevR}</span>
       </button>`).join('')}</div>`
     : `<div class="note"><p class="note-t">No earlier days to copy from yet.</p>
        <p class="note-b">Once a fortnight of days is on record this becomes the fastest way to log a repeat.</p></div>`}
