@@ -107,6 +107,7 @@ function opt(o) {
       <div class="opt-t">${o.title}${o.tag?`<span class="opt-tag">${o.tag}</span>`:''}</div>
       ${o.desc ? `<div class="opt-d">${o.desc}</div>` : ''}
     </div>
+    ${o.meta ? `<div class="opt-meta">${o.meta}</div>` : ''}
     <div class="opt-mark">${tick}</div>
   </div>`;
 }
@@ -114,7 +115,14 @@ function opt(o) {
 function obShell(inner, opts) {
   opts = opts || {};
   const st = OB_STEPS[obStep];
-  const done = OB_STEPS.slice(0, obStep).filter(s => s.q && !obSkip(s)).length;
+  /* The ordinal of the question you are looking at, so it includes the current
+     step. Counting only the ones behind it made the first question of
+     onboarding read "0 of 16" and the last one "15 of 16" — a counter that
+     never reaches its own total and opens on zero. Both ends are asserted.
+
+     Skips are honoured in the numerator and the denominator alike, or the
+     total counts questions you will never be shown and the bar never fills. */
+  const done = OB_STEPS.slice(0, obStep + 1).filter(s => s.q && !obSkip(s)).length;
   const total = OB_STEPS.filter(s => s.q && !obSkip(s)).length;
   const pct = Math.round((obStep / (OB_STEPS.length - 1)) * 100);
   return `<div class="ob-wrap">
@@ -525,8 +533,15 @@ OB_RENDER.structure = () => {
     <p class="ob-sub">Not the number you wish you could do. The number you can hit in an ordinary month. Changeable any time, and the app re-cuts around a bad week regardless.</p>
     <div class="opts">
       ${Object.values(PROGRAMS).map(p => opt({
+        /* The day count is the answer to the question this screen asks, so it
+           gets a column of its own rather than a suffix on the name. It was
+           `name + ' — ' + target + ' days'`, which said the number twice on
+           four of the six — "Anchor 3 — 3 days", "The Five — 5 days" — and was
+           long enough to wrap the title and push the badge onto its own line.
+           Every description already opens with the count in words. */
         act:'ob-prog', v:p.id, on:obDraft.programId===p.id, ico:icos[p.id],
-        title:p.name + ' — ' + p.target + ' days', tag:tags[p.id], desc:plain[p.id] })).join('')}
+        title:p.name, tag:tags[p.id], desc:plain[p.id],
+        meta:`<span class="opt-meta-n">${p.target}</span><span class="opt-meta-u">/wk</span>` })).join('')}
     </div>
   `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>` });
 };

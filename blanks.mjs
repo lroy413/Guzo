@@ -1794,6 +1794,95 @@ try {
   check('...and no screen gives all of its options the same one',
     obIcons.sameForAll.length === 0, obIcons.sameForAll.join(', '));
 
+  /* ---- an option title is one line on the phone it will be read on ----
+     Measured at 390px, because this instrument's window is 1280 and an option
+     title has to be three times its real length before it wraps there. The
+     same mistake as the stretch headings: a wrap check in a wide window passes
+     whatever the copy says.
+
+     Height rather than a Range here, because a title can legitimately carry an
+     inline badge — "Anchor 3" plus RECOMMENDED — and the question is whether
+     the row it all sits on became two rows, not how wide the words are. That
+     is what "Anchor 3 — 3 days" did: the day count was appended to four names
+     that already contained it, the title wrapped, and the badge dropped to a
+     line of its own. The count is a column now. */
+  await page.setViewportSize({ width: 390, height: 844 });
+  const obWrap = await page.evaluate(async () => {
+    const wrapped = [];
+    let n = 0;
+    for (const st of OB_STEPS) {
+      S = blank(); S.onboarded = false; save(true);
+      obStep = OB_STEPS.findIndex(x => x.k === st.k);
+      go('onboard'); renderOnboard();
+      await new Promise(r => setTimeout(r, 40));
+      document.querySelectorAll('#ob-content .opt-t').forEach(t => {
+        n++;
+        const h = t.getBoundingClientRect().height;
+        if (h > 30) wrapped.push(st.k + ': "' + t.textContent.trim().slice(0, 34) + '"');
+      });
+    }
+    return { n, wrapped: wrapped.slice(0, 5), bad: wrapped.length };
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  check('the wrap check read every option title', obWrap.n > 70, String(obWrap.n));
+  check('...and none of them wraps at phone width',
+    obWrap.bad === 0, obWrap.wrapped.join(' | '));
+
+  /* ---- the step counter counts the question you are on ----
+     It counted the questions *behind* it and printed them as "N of M", so
+     onboarding opened on "0 of 16" and finished on "15 of 16" — a counter that
+     starts at zero and never reaches its own total.
+
+     Walked forward with obAdvance rather than by setting obStep, because
+     obSkip reads obDraft: jumping straight to a step leaves the draft from
+     whatever ran before and the skips belong to somebody else. Doing it the
+     wrong way made five screens look like they shared a number, which was the
+     probe and not the app.
+
+     Two paths, because one cannot see the denominator move: the shortest run
+     skips five questions and the full one asks them. The total has to match
+     the number of counted screens actually shown, or the bar is measuring a
+     journey nobody takes. */
+  const obCount = await page.evaluate(() => {
+    const run = (setup) => {
+      S = blank(); S.onboarded = false; save(true);
+      obDraft = { ...OB_DEFAULT, gear: { ...GEAR_ALL }, seedOverrides: {}, seedExact: {} };
+      setup(); obStep = 0;
+      const seen = [];
+      for (let i = 0; i < 40 && obStep < OB_STEPS.length - 1; i++) {
+        go('onboard'); renderOnboard();
+        const e = document.querySelector('#ob-content .ob-step');
+        if (e) {
+          const m = e.textContent.match(/(\d+)\s+of\s+(\d+)/);
+          if (m) seen.push([+m[1], +m[2]]);
+        }
+        obAdvance(1);
+      }
+      return seen;
+    };
+    const shape = (rows) => rows.length ? {
+      first: rows[0][0], last: rows[rows.length - 1][0],
+      total: rows[0][1], screens: rows.length,
+      steady: rows.every((r, i) => r[0] === i + 1)
+    } : { screens: 0 };
+    return { lean: shape(run(() => {})),
+             full: shape(run(() => { obDraft.envs = ['full']; obDraft.nutrition = true;
+                                     obDraft.cardioAmount = 'some'; obDraft.gearMode = 'home'; })) };
+  });
+  ['lean', 'full'].forEach(path => {
+    const o = obCount[path];
+    const label = path === 'lean' ? 'the shortest run through onboarding' : 'the longest run through onboarding';
+    check(`${label} counts from one`, o.first === 1, String(o.first));
+    check('...up to its own total', o.last === o.total && o.total > 0, `${o.last} of ${o.total}`);
+    check('...one screen at a time, with none of them counted twice',
+      o.steady === true && o.screens === o.total, `${o.screens} screens, total says ${o.total}`);
+  });
+  /* And the two paths must not be the same path, or the pair above is one
+     check run twice and the skipped questions are never exercised. */
+  check('the two runs are genuinely different lengths',
+    obCount.full.total > obCount.lean.total,
+    `${obCount.lean.total} vs ${obCount.full.total}`);
+
   /* ---- the icon set has a palette, and it is a system ----
      Reported as "bland" and "not enough contrasting colours", and the cause was
      that all hundred and forty were one grey stroke. What is asserted here is

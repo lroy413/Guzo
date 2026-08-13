@@ -1268,3 +1268,49 @@ were still **twenty-eight `›` glyphs**, including every row of Settings, the
 picker's open/closed marker on two screens, and the hero note. `ICO.chevR` and
 `ICO.chevD` already existed. The three chevrons with their own sizing had it as
 a `font-size`, which an SVG ignores — each states a box now.
+
+---
+
+## Onboarding, once anything was looking at it
+
+Three more, all on the same unswept surface and all found by rendering it
+rather than reading it.
+
+**The step counter opened on zero and never reached its total.** `done`
+counted the questions *behind* the current step and the label formatted it as
+"N of M", so the first question of onboarding read **"0 of 16"** and the last
+read "15 of 16". It is the ordinal of the question you are looking at now, so
+it includes the current step.
+
+The denominator was already skip-aware and stays that way: the shortest run
+asks 16 questions and the longest 21, and the total has to be the number of
+screens that particular run will actually show. The check walks both, asserts
+the first is 1, the last equals the total, the number never repeats or jumps,
+and the screen count matches the total — then asserts **the two runs are
+different lengths**, or the pair above is one check run twice and the skipped
+questions are never exercised.
+
+**"Anchor 3 — 3 days".** The structure options were titled
+`name + ' — ' + target + ' days'`, which prints the number twice on four of the
+six — "The Five — 5 days", "Body Part Five — 5 days" — and was long enough to
+wrap the title and knock the RECOMMENDED badge onto a line of its own. Every
+description already opens with the count in words. The count is now a column of
+its own on the right of the row, which is better than either: it is the answer
+to the question the screen is asking, so it should be readable straight down
+the options instead of hunted for inside each name. Same move as the stretch
+list's dose column, for the same reason.
+
+**A probe that scrolls the wrong node reports the whole app as broken.** The
+first version of the footer-overlap check drove `.ob-body`, which has
+`overflow-y:auto` and — being `flex:1` inside a `min-height:100%` wrapper —
+never actually overflows. `#s-onboard` is the scroller. Nothing moved, and nine
+of twenty-seven steps looked permanently cut off, one of them by 598px. The
+corrected probe walks up from the element and takes the first ancestor that
+both allows overflow *and* has some, reports which node it found and how far it
+moved, and every step is clear. **There was no bug.** The rewritten probe is
+kept in this note rather than in the suite, because what it proves is a
+property of flexbox, not of this app.
+
+The counter, the icons, the titles and the emoji were all on the one surface no
+instrument had ever rendered. That is not a coincidence — it is what unswept
+means.
