@@ -698,6 +698,22 @@ button.recall:active{transform:scale(.97)}
   color:var(--text);margin-top:6px}
 .fuel-of{font-size:19px;font-weight:600;color:var(--muted);margin-left:8px;letter-spacing:-.02em}
 .fuel-sub{font-size:13px;color:var(--muted);margin-top:3px}
+/* The legend, unrolled from the ring. Each macro's bar is its own share of its
+   own target in its own colour — a legend that explains the arcs by repeating
+   them in the shape text can be read in, rather than a coloured dot in front
+   of a fraction. Fat gets a colour of its own too: it was the one macro whose
+   dot was grey, which read as "not counted". */
+.fuel-leg{display:flex;flex-direction:column;gap:6px}
+.fuel-leg-h{display:flex;align-items:center;gap:9px}
+.fuel-leg-bar{display:block;height:5px;border-radius:100px;
+  background:rgba(255,255,255,.07);overflow:hidden}
+.fuel-leg-bar i{display:block;height:100%;border-radius:100px;
+  transition:width var(--t-slow) var(--ease-out)}
+.fuel-leg.prot .fuel-leg-bar i{background:var(--teal)}
+.fuel-leg.carb .fuel-leg-bar i{background:var(--sky)}
+.fuel-leg.fat  .fuel-leg-bar i{background:var(--amber)}
+.fuel-dot.fat{background:var(--amber)}
+
 .fuel-macros{display:flex;flex-direction:column;gap:13px;margin-top:18px}
 .fuel-quick{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .fuel-chip{display:flex;flex-direction:column;align-items:flex-start;gap:3px;
@@ -2081,6 +2097,14 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 
 /* The figure on the body-map sheet. Tall and narrow, because a body is, and
    the sheet gives it the height rather than the width. */
+/* The intro: the figure alongside the title rather than a wall of prose above
+   the button. It is lit with a plausible week rather than yours — you have not
+   trained anything through this feature yet, and a cold figure on the screen
+   that is selling mobility work says the wrong thing. */
+.str-intro{display:flex;align-items:center;gap:16px;margin-bottom:18px;padding-right:40px}
+.str-intro-fig{width:96px;flex:none;aspect-ratio:132/240}
+.str-intro-t{min-width:0}
+
 .bmap{position:relative;display:flex;justify-content:center}
 .bmap-fig{width:100%;max-width:280px;aspect-ratio:132/240}
 .bmap-turn{position:absolute;right:0;top:0;display:flex;align-items:center;gap:7px;
@@ -16478,13 +16502,30 @@ function renderFuel() {
 
     ${burned && !pOnly ? `<div class="fuel-burn-chip"><span class="mono">+${burned}</span> burned training</div>` : ''}
 
+    ${/* Three lines of text with a coloured dot in front of them, under a ring
+          that had just drawn the same three numbers as arcs. The dot was the
+          only thing tying them together and it carried no quantity — so the
+          ring said "you are a third of the way through your protein" and the
+          row under it said "12/170g" and neither helped you read the other.
+
+          They are the same arcs, unrolled. The bar under each name is that
+          macro's own share of its own target, in that macro's own colour, so
+          the legend is a legend: it explains the ring by repeating it in the
+          shape text can be read in. */''}
     ${!pOnly ? `<div class="fuel-legend">
       ${[['Protein', t.p, pTarget, 'prot'], ['Carbs', t.c, cTarget, 'carb'], ['Fat', t.f, fTarget, 'fat']]
-        .map(([label, v, target, tone]) => `<div class="fuel-leg">
-          <span class="fuel-dot ${tone}"></span>
-          <span class="grow">${label}</span>
-          <span class="mono">${Math.round(v)}${target ? '<span class="fuel-of-s">/' + target + '</span>' : ''}g</span>
-        </div>`).join('')}
+        .map(([label, v, target, tone]) => {
+          const pct = target ? Math.max(0, Math.min(100, Math.round(v / target * 100))) : 0;
+          return `<div class="fuel-leg ${tone}">
+            <span class="fuel-leg-h">
+              <span class="fuel-dot ${tone}"></span>
+              <span class="grow">${label}</span>
+              <span class="mono">${Math.round(v)}${target ? '<span class="fuel-of-s">/' + target + '</span>' : ''}g</span>
+            </span>
+            ${target ? `<span class="fuel-leg-bar" role="img"
+                aria-label="${label}, ${pct}% of target"><i style="width:${pct}%"></i></span>` : ''}
+          </div>`;
+        }).join('')}
     </div>` : `<p class="tiny mt center">Calories are switched off. Protein is the number with the strongest evidence behind it for building muscle &mdash; everything else is being logged, just not shown.</p>`}
   </div>`;
 
@@ -18464,34 +18505,55 @@ function sheetStretch() {
    so, because "none of these" is a real answer and a form that will not take
    it gets a wrong answer instead.
    ------------------------------------------------------------ */
+/* The first thing anyone sees when they tap Stretch.
+   -------------------------------------------------
+   It was four hundred words in three grey boxes, with the button that starts
+   the thing below the fold. Every word of it was true and load-bearing — the
+   dosing, the timing, the fact that nothing is collected for its own sake —
+   and none of that is a reason to make somebody read an essay before they are
+   allowed to try a feature.
+
+   The claims are still all here and still cited. They are three lines instead
+   of three paragraphs, the detail sits behind the one that earns it, and the
+   figure does the work the prose was doing: it says what this is about before
+   you have read anything. */
 function sheetStretchIntro() {
   openSheet(`
-    <h2 class="h1 mb" style="padding-right:44px">Stretch</h2>
-    <p class="small mb">A short daily stretch built from three things: what you trained in the last
-      couple of days, what your working day does to you, and anything that is already sore.</p>
-    <div class="note mb">
-      <p class="note-t">Three questions, asked once</p>
-      <p class="note-b">Nothing here is collected for the sake of a longer form &mdash; every answer
-        changes which movements come out. You can change them whenever you like, and skip the ones
-        you would rather not answer.</p>
+    <div class="str-intro">
+      <div class="str-intro-fig">${bodyFigureHTML({
+        sex: (S.profile && S.profile.sex) || 'na', view: 'front',
+        lit: { Back: .85, Shoulders: .6, Hamstrings: .7, Glutes: .45, Quads: .35, Core: .25 } })}</div>
+      <div class="str-intro-t">
+        <h2 class="h1">Stretch</h2>
+        <p class="small mt-s">Daily mobility, built from what you trained, what your
+          working day does to you, and anything already sore.</p>
+      </div>
     </div>
-    <div class="note mb">
-      <p class="note-t">How long to hold</p>
-      <p class="note-b">The target is about a minute on each area, which is what the flexibility
-        guidance actually says &mdash; reached as one long hold or two or three shorter ones rather
-        than a single quick pull. Each movement here is prescribed accordingly, so a 20-second
-        stretch comes up three times and a 60-second one comes up once.</p>
+
+    <div class="list mb">
+      <div class="lrow">
+        <div class="ico">${ICO.stopwatch}</div>
+        <div class="grow"><div class="h3">About a minute per area</div>
+          <div class="tiny mt-s">The dose the flexibility guidance actually gives &mdash; reached as
+            one long hold or three short ones. Every movement here is prescribed to hit it.</div></div>
+      </div>
+      <div class="lrow">
+        <div class="ico">${ICO.warn}</div>
+        <div class="grow"><div class="h3">After training, not before</div>
+          <div class="tiny mt-s">A held stretch costs 4&ndash;7% of your strength for a while
+            afterwards. Put this after the session, or on a day of its own.<span class="src">${EVIDENCE.stretchSrc || 'Behm et al. 2016, Appl Physiol Nutr Metab'}</span></div></div>
+      </div>
+      <div class="lrow">
+        <div class="ico">${ICO.person}</div>
+        <div class="grow"><div class="h3">Three questions, asked once</div>
+          <div class="tiny mt-s">Every answer changes which movements come out. Skip any of them,
+            change them whenever.</div></div>
+      </div>
     </div>
-    <div class="note mb">
-      <p class="note-t">Not immediately before lifting</p>
-      <p class="note-b">Held static stretching costs you strength for a while afterwards &mdash; past
-        about a minute per muscle it is a real 4&ndash;7%, and this session is a minute per area by
-        design. Put it after training, or on a day of its own. A few minutes of the rep-counted
-        movements is a fine warm-up; a long hold is not.</p>
-    </div>
-    <p class="small mb">This is general mobility work, not treatment. If something is painful rather
-      than tight, or a problem has been there for weeks, that is a physio's job and not an app's.</p>
+
     <button class="btn primary block lg" data-act="stretch-setup">Set it up</button>
+    <p class="tiny center mt-s">General mobility work, not treatment. If something is painful rather
+      than tight, that is a physio's job and not an app's.</p>
   `, { key: 'stretch-intro' });
 }
 

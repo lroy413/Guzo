@@ -825,6 +825,59 @@ try {
     cat.bad.atwater.length === 0, cat.bad.atwater.slice(0, 6).join(' | '));
   check('the catalogue is large enough to be worth checking', cat.n > 100, String(cat.n));
 
+  /* ---- the legend explains the ring ----
+     It was three lines of text with a coloured dot in front of them, under a
+     ring that had just drawn the same three numbers as arcs. The dot carried
+     no quantity, so neither half helped you read the other. The bars are the
+     arcs unrolled — each macro's own share of its own target, in its own
+     colour. What is asserted is that they carry the *same* fraction the ring
+     does, because two things drawing one number is exactly where they drift. */
+  const legend = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.bodyweight = [{ d: today(), w: 80 }];
+    S.profile.heightCm = 180; S.profile.birthYear = 1990; S.profile.sex = 'm';
+    save(true);
+    logFood('f1', 2); logFood('f40', 3);
+    save(true); go('fuel');
+    const bars = [...document.querySelectorAll('#fuel-body .fuel-leg')].map(el => ({
+      tone: el.className.replace('fuel-leg ', '').trim(),
+      pct: parseFloat((el.querySelector('.fuel-leg-bar i') || { style: {} }).style.width) || 0,
+      colour: getComputedStyle(el.querySelector('.fuel-leg-bar i')).backgroundColor
+    }));
+    /* Against the ring itself rather than against a recomputed target. The
+       claim is that the two drawings agree; recomputing would only prove the
+       check can do arithmetic, and it would keep passing if the ring quietly
+       started using a different target from the bars. */
+    const want = {};
+    ['prot', 'carb', 'fat'].forEach(k => {
+      const arc = document.querySelector('#fuel-body .fr-arc.' + k);
+      if (!arc) return;
+      /* The attribute, not the computed style: the arc animates its offset
+         from empty on arrival, so a computed read mid-flight is a number about
+         the animation rather than about your protein. */
+      const len = parseFloat(arc.getAttribute('stroke-dasharray')) || 1;
+      const off = parseFloat(arc.getAttribute('stroke-dashoffset')) || 0;
+      want[k] = (1 - off / len) * 100;
+    });
+    return { bars, want, arcs: Object.keys(want).length,
+             distinct: new Set(bars.map(b => b.colour)).size };
+  });
+  check('every macro has a bar', legend.bars.length === 3,
+    JSON.stringify(legend.bars.map(b => b.tone)));
+  /* Two, not three. The ring is kcal, protein and carbs — fat has no arc and
+     never had one, which is why its dot was the grey one and why the legend
+     read as though fat were not really being counted. The bar is what counts
+     it, and it is the only place fat is drawn at all. */
+  check('...and the two macros the ring draws have arcs to agree with',
+    legend.arcs === 2, String(legend.arcs));
+  check('...carrying the same share the ring draws',
+    legend.bars.filter(b => legend.want[b.tone] != null)
+      .every(b => Math.abs(b.pct - legend.want[b.tone]) < 1.5),
+    legend.bars.map(b => `${b.tone} ${b.pct} vs ${
+      legend.want[b.tone] == null ? 'no arc' : legend.want[b.tone].toFixed(1)}`).join(', '));
+  check('...and its own colour, fat included',
+    legend.distinct === 3, legend.bars.map(b => b.colour).join(' '));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

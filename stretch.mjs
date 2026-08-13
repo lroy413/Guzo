@@ -858,6 +858,36 @@ try {
   check('a joint target clears a 44px tap', flag.px >= 44,
     `${Math.round(flag.px)}px in a ${Math.round(flag.figW)}px figure`);
 
+  /* The intro is the first thing anyone sees when they tap Stretch, and it was
+     four hundred words in three grey boxes with the button below the fold.
+     What is asserted is the shape: the figure carries the explaining, every
+     claim still cites its source, and the thing that starts the feature is on
+     screen without scrolling. */
+  const intro = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    go('more'); sheetStretchIntro();
+    const b = document.getElementById('sheet-body');
+    const btn = b.querySelector('[data-act="stretch-setup"]');
+    const sheet = b.getBoundingClientRect();
+    const br = btn ? btn.getBoundingClientRect() : null;
+    return { fig: !!b.querySelector('.str-intro-fig .bd'),
+             words: (b.innerText || '').trim().split(/\s+/).length,
+             cited: b.querySelectorAll('.src').length,
+             /* On screen, not below the fold — measured against the viewport
+                rather than against the sheet's own scroll height, which is the
+                thing that was wrong. */
+             /* Inside the sheet's own scroller without scrolling it — the
+                instrument's window is 720 tall and a phone's is 844, so a
+                viewport comparison here measures the test runner. */
+             visible: !!br && (br.bottom - sheet.top) <= 720,
+             reach: br ? Math.round(br.bottom - sheet.top) : -1 };
+  });
+  check('the stretch intro leads with the body, not with prose', intro.fig === true);
+  check('...and is short enough to read', intro.words < 130, String(intro.words));
+  check('...while still citing what it claims', intro.cited >= 1, String(intro.cited));
+  check('...and the button that starts it is within a phone screen of the top',
+    intro.visible === true, intro.reach + 'px');
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

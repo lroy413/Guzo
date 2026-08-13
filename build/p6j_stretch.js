@@ -131,34 +131,55 @@ function sheetStretch() {
    so, because "none of these" is a real answer and a form that will not take
    it gets a wrong answer instead.
    ------------------------------------------------------------ */
+/* The first thing anyone sees when they tap Stretch.
+   -------------------------------------------------
+   It was four hundred words in three grey boxes, with the button that starts
+   the thing below the fold. Every word of it was true and load-bearing — the
+   dosing, the timing, the fact that nothing is collected for its own sake —
+   and none of that is a reason to make somebody read an essay before they are
+   allowed to try a feature.
+
+   The claims are still all here and still cited. They are three lines instead
+   of three paragraphs, the detail sits behind the one that earns it, and the
+   figure does the work the prose was doing: it says what this is about before
+   you have read anything. */
 function sheetStretchIntro() {
   openSheet(`
-    <h2 class="h1 mb" style="padding-right:44px">Stretch</h2>
-    <p class="small mb">A short daily stretch built from three things: what you trained in the last
-      couple of days, what your working day does to you, and anything that is already sore.</p>
-    <div class="note mb">
-      <p class="note-t">Three questions, asked once</p>
-      <p class="note-b">Nothing here is collected for the sake of a longer form &mdash; every answer
-        changes which movements come out. You can change them whenever you like, and skip the ones
-        you would rather not answer.</p>
+    <div class="str-intro">
+      <div class="str-intro-fig">${bodyFigureHTML({
+        sex: (S.profile && S.profile.sex) || 'na', view: 'front',
+        lit: { Back: .85, Shoulders: .6, Hamstrings: .7, Glutes: .45, Quads: .35, Core: .25 } })}</div>
+      <div class="str-intro-t">
+        <h2 class="h1">Stretch</h2>
+        <p class="small mt-s">Daily mobility, built from what you trained, what your
+          working day does to you, and anything already sore.</p>
+      </div>
     </div>
-    <div class="note mb">
-      <p class="note-t">How long to hold</p>
-      <p class="note-b">The target is about a minute on each area, which is what the flexibility
-        guidance actually says &mdash; reached as one long hold or two or three shorter ones rather
-        than a single quick pull. Each movement here is prescribed accordingly, so a 20-second
-        stretch comes up three times and a 60-second one comes up once.</p>
+
+    <div class="list mb">
+      <div class="lrow">
+        <div class="ico">${ICO.stopwatch}</div>
+        <div class="grow"><div class="h3">About a minute per area</div>
+          <div class="tiny mt-s">The dose the flexibility guidance actually gives &mdash; reached as
+            one long hold or three short ones. Every movement here is prescribed to hit it.</div></div>
+      </div>
+      <div class="lrow">
+        <div class="ico">${ICO.warn}</div>
+        <div class="grow"><div class="h3">After training, not before</div>
+          <div class="tiny mt-s">A held stretch costs 4&ndash;7% of your strength for a while
+            afterwards. Put this after the session, or on a day of its own.<span class="src">${EVIDENCE.stretchSrc || 'Behm et al. 2016, Appl Physiol Nutr Metab'}</span></div></div>
+      </div>
+      <div class="lrow">
+        <div class="ico">${ICO.person}</div>
+        <div class="grow"><div class="h3">Three questions, asked once</div>
+          <div class="tiny mt-s">Every answer changes which movements come out. Skip any of them,
+            change them whenever.</div></div>
+      </div>
     </div>
-    <div class="note mb">
-      <p class="note-t">Not immediately before lifting</p>
-      <p class="note-b">Held static stretching costs you strength for a while afterwards &mdash; past
-        about a minute per muscle it is a real 4&ndash;7%, and this session is a minute per area by
-        design. Put it after training, or on a day of its own. A few minutes of the rep-counted
-        movements is a fine warm-up; a long hold is not.</p>
-    </div>
-    <p class="small mb">This is general mobility work, not treatment. If something is painful rather
-      than tight, or a problem has been there for weeks, that is a physio's job and not an app's.</p>
+
     <button class="btn primary block lg" data-act="stretch-setup">Set it up</button>
+    <p class="tiny center mt-s">General mobility work, not treatment. If something is painful rather
+      than tight, that is a physio's job and not an app's.</p>
   `, { key: 'stretch-intro' });
 }
 

@@ -1080,3 +1080,53 @@ its own first session. It takes the earlier of the two now.
 
 `engine.mjs` at 277. All four go red on their reverts — including the one that
 matters most, where a marker only counts if it was recorded.
+
+---
+
+## Two screens that were explaining themselves
+
+### The stretch intro
+
+The first thing anyone sees when they tap Stretch was **four hundred words in
+three grey boxes**, with the button that starts the feature below the fold.
+Every word of it was true and load-bearing — the dosing, the timing, the fact
+that nothing is collected for its own sake — and none of that is a reason to
+make somebody read an essay before they are allowed to try something.
+
+The claims are all still there and still cited. They are three lines instead of
+three paragraphs, and **the figure does the work the prose was doing**: it says
+what this is about before you have read anything. The whole sheet now fits on
+one screen with the button on it.
+
+It is lit with a plausible week rather than yours, deliberately. You have not
+trained anything through this feature yet, and a cold figure on the screen that
+is selling mobility work says the wrong thing about mobility work.
+
+`stretch.mjs` asserts the shape rather than the words: the figure is present,
+it is under 130 words, every claim still carries a source, and the button is
+within a phone screen of the top. That last one had to be measured against 720px
+of assumed phone rather than against `window.innerHeight` — the instrument's
+window is 720 tall and a real phone is 844, so a viewport comparison there
+measures the test runner.
+
+### The Fuel legend
+
+Three lines of text with a coloured dot in front of them, sitting directly under
+a ring that had just drawn the same numbers as arcs. The dot carried no
+quantity, so the ring said *you are a third of the way through your protein* and
+the row under it said *12/170g* and neither helped you read the other.
+
+They are the same arcs, unrolled: each macro's own share of its own target, in
+its own colour. A legend that explains the ring by repeating it in the shape
+text can be read in.
+
+Writing the check found the reason fat's dot had always been the grey one:
+**the ring has no fat arc.** It draws kcal, protein and carbs, and fat was
+legend-only — so the legend read as though fat were not really being counted.
+The bar is now the only place fat is drawn at all, which is a better fix than a
+fourth ring on a ring that is already three deep.
+
+The check compares the bars to the **ring itself** rather than to a recomputed
+target. Recomputing would only prove the check can do arithmetic, and it would
+keep passing if the ring quietly started using a different target from the bars
+— which is the entire failure mode of two things drawing one number.

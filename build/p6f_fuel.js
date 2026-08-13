@@ -148,13 +148,30 @@ function renderFuel() {
 
     ${burned && !pOnly ? `<div class="fuel-burn-chip"><span class="mono">+${burned}</span> burned training</div>` : ''}
 
+    ${/* Three lines of text with a coloured dot in front of them, under a ring
+          that had just drawn the same three numbers as arcs. The dot was the
+          only thing tying them together and it carried no quantity — so the
+          ring said "you are a third of the way through your protein" and the
+          row under it said "12/170g" and neither helped you read the other.
+
+          They are the same arcs, unrolled. The bar under each name is that
+          macro's own share of its own target, in that macro's own colour, so
+          the legend is a legend: it explains the ring by repeating it in the
+          shape text can be read in. */''}
     ${!pOnly ? `<div class="fuel-legend">
       ${[['Protein', t.p, pTarget, 'prot'], ['Carbs', t.c, cTarget, 'carb'], ['Fat', t.f, fTarget, 'fat']]
-        .map(([label, v, target, tone]) => `<div class="fuel-leg">
-          <span class="fuel-dot ${tone}"></span>
-          <span class="grow">${label}</span>
-          <span class="mono">${Math.round(v)}${target ? '<span class="fuel-of-s">/' + target + '</span>' : ''}g</span>
-        </div>`).join('')}
+        .map(([label, v, target, tone]) => {
+          const pct = target ? Math.max(0, Math.min(100, Math.round(v / target * 100))) : 0;
+          return `<div class="fuel-leg ${tone}">
+            <span class="fuel-leg-h">
+              <span class="fuel-dot ${tone}"></span>
+              <span class="grow">${label}</span>
+              <span class="mono">${Math.round(v)}${target ? '<span class="fuel-of-s">/' + target + '</span>' : ''}g</span>
+            </span>
+            ${target ? `<span class="fuel-leg-bar" role="img"
+                aria-label="${label}, ${pct}% of target"><i style="width:${pct}%"></i></span>` : ''}
+          </div>`;
+        }).join('')}
     </div>` : `<p class="tiny mt center">Calories are switched off. Protein is the number with the strongest evidence behind it for building muscle &mdash; everything else is being logged, just not shown.</p>`}
   </div>`;
 

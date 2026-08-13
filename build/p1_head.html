@@ -698,6 +698,22 @@ button.recall:active{transform:scale(.97)}
   color:var(--text);margin-top:6px}
 .fuel-of{font-size:19px;font-weight:600;color:var(--muted);margin-left:8px;letter-spacing:-.02em}
 .fuel-sub{font-size:13px;color:var(--muted);margin-top:3px}
+/* The legend, unrolled from the ring. Each macro's bar is its own share of its
+   own target in its own colour — a legend that explains the arcs by repeating
+   them in the shape text can be read in, rather than a coloured dot in front
+   of a fraction. Fat gets a colour of its own too: it was the one macro whose
+   dot was grey, which read as "not counted". */
+.fuel-leg{display:flex;flex-direction:column;gap:6px}
+.fuel-leg-h{display:flex;align-items:center;gap:9px}
+.fuel-leg-bar{display:block;height:5px;border-radius:100px;
+  background:rgba(255,255,255,.07);overflow:hidden}
+.fuel-leg-bar i{display:block;height:100%;border-radius:100px;
+  transition:width var(--t-slow) var(--ease-out)}
+.fuel-leg.prot .fuel-leg-bar i{background:var(--teal)}
+.fuel-leg.carb .fuel-leg-bar i{background:var(--sky)}
+.fuel-leg.fat  .fuel-leg-bar i{background:var(--amber)}
+.fuel-dot.fat{background:var(--amber)}
+
 .fuel-macros{display:flex;flex-direction:column;gap:13px;margin-top:18px}
 .fuel-quick{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .fuel-chip{display:flex;flex-direction:column;align-items:flex-start;gap:3px;
@@ -2081,6 +2097,14 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 
 /* The figure on the body-map sheet. Tall and narrow, because a body is, and
    the sheet gives it the height rather than the width. */
+/* The intro: the figure alongside the title rather than a wall of prose above
+   the button. It is lit with a plausible week rather than yours — you have not
+   trained anything through this feature yet, and a cold figure on the screen
+   that is selling mobility work says the wrong thing. */
+.str-intro{display:flex;align-items:center;gap:16px;margin-bottom:18px;padding-right:40px}
+.str-intro-fig{width:96px;flex:none;aspect-ratio:132/240}
+.str-intro-t{min-width:0}
+
 .bmap{position:relative;display:flex;justify-content:center}
 .bmap-fig{width:100%;max-width:280px;aspect-ratio:132/240}
 .bmap-turn{position:absolute;right:0;top:0;display:flex;align-items:center;gap:7px;
