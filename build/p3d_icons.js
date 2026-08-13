@@ -35,6 +35,58 @@ function svgIco(paths, extra) {
     aria-hidden="true" focusable="false"${extra ? ' ' + extra : ''}>${paths}</svg>`;
 }
 
+/* ------------------------------------------------------------
+   TONE, AND THE MASS UNDER THE LINE
+
+   Reported as "not enough contrasting colours" and "bland", and both halves of
+   that were true for one reason: every icon in the app was a single 1.7px grey
+   stroke sitting in a flat grey square. A hundred and thirty of them.
+
+   Two changes, both applied here rather than at the hundred and thirty
+   definitions — an icon set is a system and editing it one glyph at a time is
+   how a system stops being one.
+
+   **Tone.** Three colours and a neutral, assigned by what a thing *is* rather
+   than to brighten the screen. Ember is the journey — terrain, milestones,
+   effort, the things this app is a metaphor about. Teal is the body. Sky is
+   time and motion. Amber is the small number of icons that mean "careful".
+   Everything structural — gear, settings, marks, arrows — stays neutral,
+   because an icon set where everything is coloured is a sticker sheet and the
+   file already says so twenty lines up.
+
+   The tone is scoped in CSS to the tile contexts (`.ico`, `.opt-ico`, `.chip`,
+   `.milestone-ico`). Elsewhere an icon still inherits its parent's colour, so
+   nothing that uses colour to mean *state* — a tick going teal, a warning
+   going rose — is overruled by an icon insisting on its category.
+
+   **The mass.** A filled shape under the stroke at low alpha, in the icon's own
+   colour. It is what makes a drawn icon read as drawn rather than as a
+   wireframe, and it costs one path. Only where the glyph has a genuine closed
+   body: a chevron has no inside and filling one would be a smear.
+   ------------------------------------------------------------ */
+const ICO_TONE = {};
+const ICO_MASS = {};
+
+function toneIcons(tone, keys) { keys.forEach(k => { ICO_TONE[k] = tone; }); }
+
+/* Applied after every Object.assign below has run, so a tone or a mass can be
+   declared for an icon defined in any of them. The mass goes immediately after
+   the opening tag, which is what puts it *under* the strokes — a `<g>` appended
+   at the end would paint the fill over the line that defines the shape. */
+function finishIcons() {
+  Object.keys(ICO).forEach(k => {
+    let svg = ICO[k];
+    const m = ICO_MASS[k];
+    if (m) {
+      svg = svg.replace(/^(<svg[^>]*>)/,
+        `$1<g class="ico-m" fill="currentColor" stroke="none">${m}</g>`);
+    }
+    const t = ICO_TONE[k];
+    if (t) svg = svg.replace('class="ico-svg"', `class="ico-svg t-${t}"`);
+    ICO[k] = svg;
+  });
+}
+
 /* The figure every body-area icon is drawn on. Faint enough to read as a
    backdrop, present enough to say which way up a person is. */
 const BODY_BASE =
@@ -262,3 +314,130 @@ Object.assign(ICO, {
   pin:            svgIco('<path d="M12 21c4.2-5.2 6.2-8.4 6.2-11A6.2 6.2 0 005.8 10c0 2.6 2 5.8 6.2 11z"/><circle cx="12" cy="10" r="2.2"/>'),
   compass:        svgIco('<circle cx="12" cy="12" r="8.4"/><path d="M15.4 8.6l-2 5.2-5.2 2 2-5.2z"/>')
 });
+
+/* ---- tone: what a thing is, not how bright the screen should be ---- */
+
+/* The journey. Terrain at every scale, the markers you pass, and the two or
+   three things that mean effort. */
+toneIcons('ember', [
+  'ms-first', 'ms-pace', 'ms-way', 'ms-25', 'ms-50', 'ms-100', 'ms-200',
+  'ms-w4', 'ms-w12', 'ms-w26', 'ms-w52', 'ms-floor', 'ms-return', 'ms-tonne', 'ms-burn',
+  'lvl-new', 'lvl-some', 'lvl-adv', 'lvl-solid',
+  'cardio-light', 'cardio-some', 'cardio-lots',
+  'summit', 'peakMark', 'compass', 'pin', 'map', 'stone', 'fire', 'bolt', 'chart',
+  'goal-strength', 'goal-consist',
+  /* A session you built and the shape of a training week are training, not
+     furniture. */
+  'routines', 'pg-anchor3', 'pg-ul4', 'pg-ul5', 'pg-bro5', 'pg-ppl6', 'pg-hold2'
+]);
+
+/* The body. Every anatomical figure, and the things done to keep one working. */
+toneIcons('teal', [
+  'shoulder', 'lowback', 'knee', 'elbow', 'wrist', 'neck', 'hip', 'ankle',
+  'area-Back', 'area-Shoulders', 'area-Chest', 'area-Core',
+  'area-Quads', 'area-Glutes', 'area-Arms', 'area-Calves',
+  'stretch', 'mobility', 'env-bw', 'goal-health', 'goal-muscle',
+  'person', 'plaster', 'science', 'ruler'
+]);
+
+/* Time, covering ground through it, and anything that is there to be read. */
+toneIcons('sky', [
+  'car-treadmill-run', 'car-incline-walk', 'car-bike', 'car-rower', 'car-stair',
+  'car-jump-rope', 'car-run', 'car-walk', 'car-swim', 'car-hike',
+  'avail-long', 'avail-normal', 'avail-short', 'avail-micro', 'avail-none',
+  'clock', 'stopwatch', 'water', 'moon', 'repeat', 'globe',
+  'meal-b', 'meal-l', 'meal-d', 'meal-s',
+  'book', 'doc', 'search', 'phone', 'disk'
+]);
+
+/* Careful. Three icons, and they are the only three that should catch the eye
+   before you have decided to look at them. */
+toneIcons('amber', ['warn', 'ban', 'lock']);
+
+/* ---- the mass under the line ----
+   The same outer shape the stroke already describes, filled at low alpha in
+   the icon's own colour. Only where there is a genuine inside: a chevron, an
+   arrow or a rule has no body, and filling one is a smear rather than an icon.
+   The terrain family is the clearest win — a ridgeline closed to its baseline
+   is a mountain rather than a zigzag. */
+Object.assign(ICO_MASS, {
+  /* terrain, closed to the ground it stands on */
+  'lvl-new':      '<path d="M5 18.5l4.4-4.6 4 4.6z"/>',
+  'lvl-some':     '<path d="M3 18.5l5.4-7.4 3.4 4.2 3-3.8 5.2 7z"/>',
+  'lvl-adv':      '<path d="M2.8 19l6-11.6 3.4 5.2L16 4l5.2 15z"/>',
+  'lvl-solid':    '<path d="M3 18.8l5.6-8.6 3.2 4 3.2-4.6 5.6 9.2z"/>',
+  'cardio-light': '<path d="M6 17l3.4-2.6L13 17z"/>',
+  'cardio-some':  '<path d="M4 18.5l4.6-5.4 3.2 3.4L16 11l5.5 7.5z"/>',
+  'cardio-lots':  '<path d="M2.8 19.5l5-9.4 3.4 4.6L15.6 5l5.6 14.5z"/>',
+  'car-hike':     '<path d="M3.5 20l5.6-9.6 3 4.2 3.6-6.4L21 20z"/>',
+  'car-incline-walk': '<path d="M3 19L15.5 6.5 15.5 19z"/>',
+  summit:         '<path d="M2.4 20l6.6-13 3.6 5.6L16.2 4 21.6 20z"/>',
+  peakMark:       '<path d="M12 5.6l7 12.8H5z"/>',
+  'ms-25':        '<path d="M3.4 19l6-10.6L13 14l3-4.6L20.6 19z"/>',
+  'ms-50':        '<path d="M2.8 19.5l6.4-12.8 3.6 6.2L16.4 6l4.8 13.5z"/>',
+  'ms-200':       '<path d="M4 17.5L3 7.4l4.6 3.4L12 4.2l4.4 6.6L21 7.4l-1 10.1z"/>',
+  'ms-first':     '<path d="M6 17.5a6 6 0 0112 0z"/>',
+  'ms-way':       '<path d="M12 21c4.2-5.2 6.2-8.4 6.2-11A6.2 6.2 0 005.8 10c0 2.6 2 5.8 6.2 11z"/>',
+  'ms-w4':        '<path d="M18.6 14.4A7.4 7.4 0 019.1 5 7.9 7.9 0 1018.6 14.4z"/>',
+  'ms-w26':       '<circle cx="12" cy="12" r="8.4"/>',
+  'ms-floor':     '<circle cx="12" cy="13.4" r="7.2"/>',
+  'ms-burn':      '<path d="M12 21.2c3.8 0 6.4-2.4 6.4-5.8 0-4.4-4.4-5.6-3.4-11-2.6 1-4.6 3.4-4.6 6 0 1.8-1 2.4-1.8 1.4-.5-.6-.7-1.5-.7-2.3-1.4 1.6-2.3 3.8-2.3 5.9 0 3.4 2.6 5.8 6.4 5.8z"/>',
+  'ms-pace':      '<circle cx="12" cy="12" r="8.4"/>',
+  'ms-100':       '<circle cx="12" cy="9" r="4.6"/>',
+
+  /* rounds and bodies */
+  pin:            '<path d="M12 21c4.2-5.2 6.2-8.4 6.2-11A6.2 6.2 0 005.8 10c0 2.6 2 5.8 6.2 11z"/>',
+  compass:        '<circle cx="12" cy="12" r="8.4"/>',
+  globe:          '<circle cx="12" cy="12" r="8.4"/>',
+  clock:          '<circle cx="12" cy="12" r="8.4"/>',
+  stopwatch:      '<circle cx="12" cy="13.4" r="7.2"/>',
+  target:         '<circle cx="12" cy="12" r="8.4"/>',
+  ban:            '<circle cx="12" cy="12" r="8.4"/>',
+  search:         '<circle cx="10.8" cy="10.8" r="6.6"/>',
+  person:         '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.4a7.2 7.2 0 0114.4 0z"/>',
+  moon:           '<path d="M18.6 14.4A7.4 7.4 0 019.1 5 7.9 7.9 0 1018.6 14.4z"/>',
+  water:          '<path d="M12 3.2s6 6.2 6 10.1a6 6 0 01-12 0C6 9.4 12 3.2 12 3.2z"/>',
+  fire:           '<path d="M12 21.2c3.8 0 6.4-2.4 6.4-5.8 0-4.4-4.4-5.6-3.4-11-2.6 1-4.6 3.4-4.6 6 0 1.8-1 2.4-1.8 1.4-.5-.6-.7-1.5-.7-2.3-1.4 1.6-2.3 3.8-2.3 5.9 0 3.4 2.6 5.8 6.4 5.8z"/>',
+  bolt:           '<path d="M13.4 2.4L4.6 13.6h6L10.6 21.6l8.8-11.2h-6z"/>',
+  stone:          '<path d="M4.4 16.6l2.4-7.2 5.6-3.4 6.6 3.2 1 7.4-7.6 3.6z"/>',
+  'goal-health':  '<path d="M12 20.4S3.8 15.4 3.8 9.6A4.6 4.6 0 0112 7.4a4.6 4.6 0 018.2 2.2c0 5.8-8.2 10.8-8.2 10.8z"/>',
+  'meal-s':       '<path d="M12 3.4l2.3 5.6 6 .5-4.6 3.9 1.4 5.9L12 16.2l-5.1 3.1 1.4-5.9L3.7 9.5l6-.5z"/>',
+  'meal-d':       '<path d="M18.6 14.4A7.4 7.4 0 019.1 5 7.9 7.9 0 1018.6 14.4z"/>',
+  'meal-l':       '<circle cx="12" cy="12" r="8"/>',
+  half:           '<circle cx="12" cy="12" r="8"/>',
+  'gear-kettlebell': '<path d="M9.6 8.6a6.2 6.2 0 104.8 0z"/>',
+
+  /* boxes and panels */
+  warn:           '<path d="M12 3.8L21.2 19.8H2.8z"/>',
+  lock:           '<rect x="4.6" y="10.4" width="14.8" height="9.6" rx="2.2"/>',
+  bag:            '<rect x="3.5" y="7.5" width="17" height="12" rx="2"/>',
+  'env-hotel':    '<rect x="3.5" y="7.5" width="17" height="12" rx="2"/>',
+  doc:            '<path d="M6 3.5h7.4L18.6 8.8V20.5H6z"/>',
+  disk:           '<path d="M4.6 4.5h11.6l3.2 3.2v11.8H4.6z"/>',
+  building:       '<rect x="4.6" y="3.6" width="14.8" height="16.8" rx="1.8"/>',
+  phone:          '<rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.4"/>',
+  split:          '<rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2"/>',
+  'pg-ul4':       '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/>',
+  'pg-ul5':       '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/>',
+  'pg-bro5':      '<path d="M12 3.2l7.6 4.4v8.8L12 20.8 4.4 16.4V7.6z"/>',
+  'pg-ppl6':      '<path d="M12 3.2l7.6 4.4v8.8L12 20.8 4.4 16.4V7.6z"/>',
+  routines:       '<rect x="3.5" y="4.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="4.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="14.5" width="7" height="5" rx="1.6"/><rect x="13.5" y="14.5" width="7" height="5" rx="1.6"/>',
+  map:            '<path d="M3 6.4l6-2.2v13.4l-6 2.2z"/><path d="M15 6.4l6-2.2v13.4l-6 2.2z"/>',
+  desk:           '<rect x="3" y="4.5" width="18" height="11" rx="1.6"/>',
+  camera:         '<rect x="2.5" y="7.5" width="12" height="9" rx="1.8"/>',
+  lifting:        '<rect x="3" y="8.5" width="18" height="10" rx="1.8"/>',
+  'gear-bench':   '<rect x="3" y="8" width="18" height="3.4" rx="1.4"/>',
+  plaster:        '<rect x="2.6" y="8.4" width="18.8" height="7.2" rx="3.6" transform="rotate(-40 12 12)"/>',
+  chart:          '<path d="M5.4 20.5v-5.2h2.4v5.2zM9.8 20.5V8.4h2.4v12.1zM14.2 20.5v-8h2.4v8zM18.6 20.5V4.6H21v15.9z"/>',
+  'goal-consist': '<path d="M3.4 18v-2.6h2.4V18zM7.2 18v-5.2h2.4V18zM11 18v-4h2.4v4zM14.8 18v-6.8h2.4V18zM18.6 18v-5.4H21V18z"/>',
+
+  /* the plate stack, four times over — every icon that means load */
+  'gear-barbell':  '<rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>',
+  'gear-dumbbell': '<rect x="3" y="8.6" width="3" height="6.8" rx="1.2"/><rect x="18" y="8.6" width="3" height="6.8" rx="1.2"/><rect x="6.2" y="7" width="2.2" height="10" rx="1"/><rect x="15.6" y="7" width="2.2" height="10" rx="1"/>',
+  'env-full':      '<rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>',
+  'goal-strength': '<rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>',
+  'ms-tonne':      '<rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>',
+  plate:           '<circle cx="12" cy="13" r="7"/>'
+});
+
+finishIcons();

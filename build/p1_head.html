@@ -336,6 +336,45 @@ button.recall:active{transform:scale(.97)}
 .ico-svg{width:1.15em;height:1.15em;display:inline-block;vertical-align:-.18em;flex:none}
 .opt-ico .ico-svg,.ico .ico-svg{width:22px;height:22px;vertical-align:middle}
 .chip .ico-svg{width:24px;height:24px;margin-right:9px}
+
+/* ---------- the icon set has a palette ----------
+   Every icon in the app was a 1.7px grey stroke in a flat grey square, which
+   is what "bland, and not enough contrasting colours" was describing. Three
+   colours by category, and the tone only applies inside a *tile* — a list
+   row's icon well, an option, a chip, a milestone. Everywhere else an icon
+   still inherits its parent's colour, so nothing that uses colour to mean
+   state (a tick going teal, a warning going rose) is overruled by an icon
+   insisting on its category. See ICO_TONE in p3d_icons.js for the assignment
+   and the argument for keeping it to four.
+
+   The mass under the line is the icon's own colour at low alpha, so it follows
+   the tone rather than needing one of its own. */
+.ico-m{opacity:.16}
+.opt.on .ico-m,.chip.on .ico-m{opacity:.24}
+.ico .t-ember,.opt-ico .t-ember,.chip .t-ember,.milestone-ico .t-ember{color:var(--ember)}
+.ico .t-teal,.opt-ico .t-teal,.chip .t-teal,.milestone-ico .t-teal{color:var(--teal)}
+.ico .t-sky,.opt-ico .t-sky,.chip .t-sky,.milestone-ico .t-sky{color:var(--sky)}
+.ico .t-amber,.opt-ico .t-amber,.chip .t-amber,.milestone-ico .t-amber{color:var(--amber)}
+/* A chip that is on says so in ember, and an icon holding out for its own
+   category inside it would be reading as two states at once. */
+.chip.on .ico-svg,.opt.on .opt-ico .ico-svg{color:inherit}
+
+/* The well the icon sits in takes a wash of the same colour. This is most of
+   the difference: a coloured glyph in a grey box still reads grey, because the
+   box is four times the area. :has() rather than a class on every call site —
+   the tone lives on the icon and there are a few hundred places one is
+   written. */
+.ico:has(.t-ember),.opt-ico:has(.t-ember){background:linear-gradient(160deg,rgba(233,180,76,.17),rgba(233,180,76,.045));box-shadow:inset 0 0 0 1px rgba(233,180,76,.20)}
+.ico:has(.t-teal),.opt-ico:has(.t-teal){background:linear-gradient(160deg,rgba(79,209,165,.16),rgba(79,209,165,.04));box-shadow:inset 0 0 0 1px rgba(79,209,165,.20)}
+.ico:has(.t-sky),.opt-ico:has(.t-sky){background:linear-gradient(160deg,rgba(107,168,245,.16),rgba(107,168,245,.04));box-shadow:inset 0 0 0 1px rgba(107,168,245,.20)}
+.ico:has(.t-amber),.opt-ico:has(.t-amber){background:linear-gradient(160deg,rgba(245,196,81,.16),rgba(245,196,81,.04));box-shadow:inset 0 0 0 1px rgba(245,196,81,.22)}
+/* And a neutral well stops being a flat grey square. */
+.ico,.opt-ico{background:linear-gradient(160deg,var(--surface-3),rgba(24,29,36,.6));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+/* Slightly heavier inside a tile: 1.7 is right for an icon inline in a line of
+   text and thin for one standing alone in a 36px well. */
+.ico .ico-svg,.opt-ico .ico-svg,.chip .ico-svg{stroke-width:1.8}
+.milestone-ico .ico-svg{stroke-width:1.5}
 /* Only the chips that carry one. An icon column reads as a list you can scan;
    centring each icon against its own label puts them all in different places
    and gives the eye nothing to run down. Chips without icons keep the centred
@@ -1463,24 +1502,71 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    A transparent ::after pad would have extended the tap area without extending
    the box — which looks identical, passes by eye, and measures as an 8px
    target. blanks.mjs caught exactly that on the first attempt. */
-.rail{display:flex;gap:4px;align-items:stretch;height:44px;margin:-13px 0 -11px}
-.rail-seg{flex:1;min-width:6px;padding:0;border:0;background:none;position:relative;
-  transition:flex-grow .3s var(--ease-out)}
+/* ---------- the range ----------
+   The mountains that stand behind the ascent on Progress, at the top of Train,
+   revealing themselves as you work: a movement owns a slice of the horizon
+   equal to its sets over the session's sets, and lights that slice in
+   proportion to its own ticks.
+
+   Full-bleed to the card's edges, and the rail sits on its baseline as the
+   trail along the foot of the range. */
+.tr-head{position:relative;overflow:hidden;padding-top:0}
+.tr-range{position:relative;height:62px;margin:0 -15px 2px;pointer-events:none}
+.tr-range svg{display:block;width:100%;height:100%}
+/* Before you start: there, and only just. */
+.tr-f1{fill:#151b24}
+.tr-f2{fill:#11161d}
+.tr-f3{fill:#0d1116}
+.tr-e{fill:none;stroke:#232b36;stroke-width:1}
+/* With the light on it. The mass warms a little; it is the ridgelines catching
+   the sun that do the work — a dark mountain with a lit edge is the picture,
+   and filling the mass alone reads as a bar chart with peaks on it. */
+.tr-w1{fill:url(#tr-sky)}
+.tr-w2{fill:#232c39}
+.tr-w3{fill:#171e28}
+.tr-l1{fill:none;stroke:var(--ember);stroke-width:1.2;opacity:.5}
+.tr-l2{fill:none;stroke:var(--ember-2);stroke-width:1.3;opacity:.65}
+.tr-l3{fill:none;stroke:var(--ember-2);stroke-width:1.7;opacity:.95}
+.tr-div path{fill:none;stroke:rgba(255,255,255,.10);stroke-width:1}
+@media (prefers-reduced-motion: no-preference){
+  .tr-range rect{transition:x var(--t-slow) var(--ease-out),width var(--t-slow) var(--ease-out)}
+  .tr-you{transition:left var(--t-slow) var(--ease-out),top var(--t-slow) var(--ease-out)}
+}
+/* Standing on the skyline. Drawn in HTML, not in the SVG — that one is
+   preserveAspectRatio="none", so anything round inside it comes out an ellipse
+   whose eccentricity depends on the width of the phone. */
+.tr-you{position:absolute;width:9px;height:9px;border-radius:50%;
+  background:var(--ember-2);transform:translate(-50%,-50%);
+  box-shadow:0 0 0 2.5px rgba(10,12,15,.9),0 0 12px 2px rgba(244,208,140,.6)}
+/* The light on the range, carried by the marker rather than by a shape inside
+   the SVG — see the note there. */
+.tr-you::before{content:'';position:absolute;left:50%;top:50%;width:86px;height:86px;
+  margin:-43px 0 0 -43px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(244,208,140,.20),rgba(244,208,140,0) 68%)}
+
+/* The band reads as 5px and the button *is* 44px: the track is a
+   pseudo-element centred inside a full-height target, and the negative margin
+   gives back the space it does not need to show. A transparent pad would have
+   extended the tap area without extending the box — identical by eye, and 5px
+   to a measurement. */
+.rail{display:flex;gap:4px;align-items:stretch;height:44px;margin:-14px -3px -15px;position:relative}
+.rail-seg{flex:1 1 0;min-width:6px;padding:0;border:0;background:none;position:relative}
 .rail-seg::before{content:'';position:absolute;left:0;right:0;top:50%;
-  transform:translateY(-50%);height:8px;border-radius:100px;
-  background:var(--surface-3);transition:background .2s ease}
-.rail-seg i{position:absolute;left:0;top:50%;transform:translateY(-50%);height:8px;
+  transform:translateY(-50%);height:5px;border-radius:100px;
+  background:rgba(255,255,255,.07);transition:background .2s ease}
+.rail-seg i{position:absolute;left:0;top:50%;transform:translateY(-50%);height:5px;
   border-radius:100px;background:var(--ember);transition:width .34s var(--ease-out)}
 .rail-seg.done i{background:var(--teal)}
-/* The movement you are on takes more of the bar, so the rail says where you
-   are without needing a marker on top of it. */
 /* Purely a gap. flex:none so it never steals width from a movement, and the
    rail's own 4px gap sits on both sides of it, which is what makes the break
    read at a glance without a visible rule. */
-.rail-brk{flex:none;width:1px;align-self:center;height:14px;
+.rail-brk{flex:none;width:1px;align-self:center;height:12px;
   background:var(--line);border-radius:1px}
-.rail-seg.now{flex-grow:2.1}
-.rail-seg.now::before{background:rgba(233,180,76,.20)}
+/* The movement you are on used to grow to flex 2.1 to stand out. It cannot any
+   more: the range above divides on the same shares, and a segment that widened
+   itself would slide out from under its own mountain. It is lit instead. */
+.rail-seg.now::before{background:rgba(233,180,76,.24)}
+.rail-seg.now i{box-shadow:0 0 10px 1px rgba(233,180,76,.5)}
 .rail-seg:active::before{background:var(--line)}
 .tick{flex:none;width:58px;height:44px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;color:var(--faint);

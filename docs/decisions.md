@@ -611,3 +611,102 @@ passed a hit-test check while painting straight over the words. The first
 version of the pinned-band check also failed for a reason that was not there:
 it measured into the screen-arrival stagger, where every rectangle on the screen
 is a few pixels out.
+
+---
+
+## The range, and an icon set with a palette
+
+Two asks in one message: put the mountains that stand behind the ascent on
+Progress at the top of Train, "except it reveals itself as you progress through
+the workout — each exercise illuminates a corresponding % of the mountain that
+that exercise represents against the whole routine"; and go over the icons,
+which were "bland" with "not enough contrasting colours".
+
+### The range divides by work, not by movement count
+
+A movement owns a slice of the horizon equal to **its sets over the session's
+sets**. Ten sets of squats own more mountain than one set of calf raises, which
+is the honest reading of "what this exercise represents against the whole
+routine" — and the alternative, an equal slice each, would have made a warm-up
+hang worth as much of the view as the main lift.
+
+**Each movement lights its own slice**, in proportion to its own ticks, rather
+than one bar filling from the left. Doing the finisher first lights the far end
+of the range, because that is where that work sits. A single frontier would have
+lit the squats you have not done.
+
+The trail sits along the foot of the range, dividing on the same shares — which
+is why `.rail-seg.now` no longer grows to `flex: 2.1`. Widening the movement you
+are on moved every boundary along the range every time you finished something,
+and a trail segment that slides out from under its own mountain is worse than no
+alignment at all. It is brighter instead.
+
+**One function computes the geometry.** `rangeGeom()` is read by the markup and
+by the in-place update, and that is not tidiness — a revert that turned the
+markup into a single frontier bar changed nothing any check could see, because
+the first tick made `updateTrainProgress` rewrite the rects correctly from its
+own copy of the maths. Two call sites that can disagree eventually will, and one
+of them silently repairing the other is the worst version of it: the bug is
+present, invisible, and waiting for a render that nothing follows with a tick.
+The check now reads the rects straight off a render with no tick anywhere near
+it.
+
+Two things are drawn in HTML rather than inside the SVG, for one reason: the
+range is `preserveAspectRatio="none"`, so anything round in it comes out an
+ellipse whose eccentricity depends on how wide the phone is. The marker standing
+on the skyline is an HTML element positioned in percentages, and the light on
+the range is that marker's halo. The first attempt put the light in the SVG as a
+gradient-filled rect, which read as a bar stuck to the left edge before you had
+done anything.
+
+### The icons
+
+The diagnosis was one sentence: every icon in the app was a single 1.7px grey
+stroke sitting in a flat grey square, a hundred and forty times. Two changes,
+both applied in one place — an icon set is a system and editing it one glyph at
+a time is how a system stops being one.
+
+**Tone.** Three colours and a neutral, assigned by what a thing *is*:
+
+- **Ember — the journey.** Terrain at every scale, the markers you pass,
+  programmes, records, effort. The things this app is a metaphor about.
+- **Teal — the body.** Every anatomical figure, and the things done to keep one
+  working.
+- **Sky — time, motion and anything there to be read.** Cardio modes, session
+  lengths, clocks, meals, the guides.
+- **Amber — careful.** Three icons: a warning, a block, a lock. They are the
+  only ones that should catch the eye before you have decided to look.
+
+Everything structural — gear, settings, marks, arrows — stays neutral, because
+an icon set where everything is coloured is a sticker sheet, and the icons file
+had already written that down before any of them had a colour at all.
+
+**The tone applies only inside a tile** — a list row's icon well, an option, a
+chip, a milestone. Everywhere else an icon still inherits its parent's colour,
+so nothing that uses colour to mean *state* is overruled by an icon insisting on
+its category. A chip that is on says so in ember and its icon goes with it.
+
+**The well takes a wash of the same colour**, and this is most of the visible
+difference: a coloured glyph in a grey box still reads grey, because the box is
+four times the area. Done with `:has()` rather than a class at every call site —
+the tone lives on the icon and there are a few hundred places one is written.
+
+**The mass under the line.** A filled copy of the shape the stroke already
+describes, at 16% of the icon's own colour, injected immediately after the
+opening tag so it paints *under* the strokes. Seventy of the hundred and forty
+have one; the rest are chevrons, arrows and rules, which have no inside, and
+filling one is a smear rather than an icon.
+
+### What is asserted, and what a class name is worth
+
+A tone class is just a string until some CSS rule matches it, and a rule that is
+renamed, rescoped or dropped leaves the class in the markup and the icon grey.
+So `blanks.mjs` reads the colours back off rendered elements: the set carries at
+least four distinct colours in a tile, every tone it declares resolves to a
+different one, the mass is the first child of its SVG, a category colour never
+overrules a state colour, and outside a tile an icon still inherits.
+
+That last one was written wrong first and passed a revert. It sampled a single
+icon, so unscoping a *different* tone left it green. It samples one icon per
+tone now — the same lesson as the spread check that could not fail on a fresh
+profile, arriving from a different direction.

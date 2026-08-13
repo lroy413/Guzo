@@ -1682,6 +1682,71 @@ try {
   check('no emoji is painted on any screen or sheet',
     emojiSweep.n === 0, emojiSweep.hits.join(' | '));
 
+  /* ---- the icon set has a palette, and it is a system ----
+     Reported as "bland" and "not enough contrasting colours", and the cause was
+     that all hundred and forty were one grey stroke. What is asserted here is
+     the thing that can silently stop being true: a tone class is just a string
+     until some CSS rule matches it, and a rule that is renamed, scoped wrong or
+     dropped leaves the class in the markup and the icon grey. So the colours
+     are read back off the rendered element rather than off the class list. */
+  const palette = await page.evaluate(() => {
+    const host = document.createElement('div');
+    host.style.cssText = 'position:absolute;left:0;top:0';
+    /* In a tile, because that is the only place a tone is meant to apply. */
+    host.innerHTML = Object.keys(ICO).map(k =>
+      `<div class="ico" data-k="${k}">${ICO[k]}</div>`).join('');
+    document.body.appendChild(host);
+    const seen = {}, tones = {};
+    let massFirst = 0, massTotal = 0;
+    host.querySelectorAll('.ico').forEach(t => {
+      const svg = t.firstElementChild;
+      const c = getComputedStyle(svg).color;
+      seen[c] = (seen[c] || 0) + 1;
+      const cls = (svg.getAttribute('class') || '').split(/\s+/).find(x => x.indexOf('t-') === 0);
+      if (cls) tones[cls] = c;
+      const m = svg.querySelector('.ico-m');
+      if (m) { massTotal++; if (svg.firstElementChild === m) massFirst++; }
+    });
+    /* Colour must not override state. A chip that is on says so in ember, and
+       an icon holding out for its own category inside one would be two states
+       at once. */
+    const onChip = document.createElement('div');
+    onChip.className = 'chip on';
+    onChip.innerHTML = ICO.stretch + 'x';
+    document.body.appendChild(onChip);
+    const chipCol = getComputedStyle(onChip.firstElementChild).color;
+    const chipOwn = getComputedStyle(onChip).color;
+    /* And outside a tile an icon still inherits, so a tick in a done row stays
+       the row's colour rather than reverting to its category. One icon per
+       tone, because a single sample only proves the one tone it happens to
+       carry — which is how the first version of this passed a revert that
+       unscoped a different one. */
+    const loose = document.createElement('div');
+    loose.style.color = 'rgb(1, 2, 3)';
+    loose.innerHTML = ICO.water + ICO.summit + ICO.stretch + ICO.warn;
+    document.body.appendChild(loose);
+    const looseCol = [...loose.children].map(c => getComputedStyle(c).color)
+      .filter((v, n, a) => a.indexOf(v) === n).join(', ');
+    host.remove(); onChip.remove(); loose.remove();
+    return { n: Object.keys(ICO).length, distinct: Object.keys(seen).length,
+             tones, massFirst, massTotal, chipCol, chipOwn, looseCol,
+             counts: Object.entries(seen).map(([c, n]) => c + '×' + n) };
+  });
+  check('the palette probe looked at the whole set', palette.n > 120, String(palette.n));
+  check('an icon in a tile carries more than one colour',
+    palette.distinct >= 4, palette.counts.join(' '));
+  check('...and every tone it declares resolves to a distinct one',
+    new Set(Object.values(palette.tones)).size === Object.keys(palette.tones).length
+    && Object.keys(palette.tones).length >= 4,
+    JSON.stringify(palette.tones));
+  check('the mass is drawn under the line, never over it',
+    palette.massTotal > 30 && palette.massFirst === palette.massTotal,
+    `${palette.massFirst} of ${palette.massTotal}`);
+  check('a category colour never overrules a state colour',
+    palette.chipCol === palette.chipOwn, `${palette.chipCol} vs ${palette.chipOwn}`);
+  check('...and outside a tile an icon still inherits',
+    palette.looseCol === 'rgb(1, 2, 3)', palette.looseCol);
+
   /* ---- motion ----
      A screen should feel like it arrived, and the app has one set of curves so
      that nothing in it moves in a way nothing else does. Two things can go
@@ -2043,6 +2108,97 @@ try {
   check('...over a band nothing scrolls through',
     (pinnedRail.covered || []).every(c => String(c).indexOf('tr-pin') >= 0),
     (pinnedRail.covered || []).join(' | '));
+
+  /* ---- the range reveals itself as you work ----
+     Asked for as "each exercise illuminates a corresponding % of the mountain
+     that that exercise represents against the whole routine". Two claims, and
+     both have to be measured rather than described: a movement's slice of the
+     horizon is its sets over the session's sets, and it lights that slice in
+     proportion to its own ticks. */
+  const range = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.autoRest = false; save(true);
+    const mk = (exId, name, n) => ({ exId, name, load: 'wt', targetR: 5, targetW: 40,
+      sets: Array.from({ length: n }, () => ({ w: '', r: '', rpe: '', done: false })) });
+    /* Deliberately uneven: equal slices would pass a proportionality check by
+       accident, which is the same shape of lie as a spread check on a fresh
+       profile where every date is identical. */
+    S.active = { id: 'rg', date: today(), type: 'full', rung: 'full',
+      started: Date.now(), activeMs: 0, tickAt: Date.now(),
+      exercises: [mk('bb-back-squat', 'Back Squat', 5), mk('db-lateral', 'Lateral Raise', 2),
+                  mk('bb-bench', 'Bench Press', 3)] };
+    go('train');
+    if (!document.querySelector('#train-body .tr-range')) return { missing: 'no range' };
+    const W = 320;
+    /* Re-queried every time. renderTrain() replaces the body's innerHTML, so a
+       node captured before it is detached — and a detached node reports a
+       zero-width box, which reads as "nothing is lit" and as a divider at
+       Infinity rather than as a stale reference. */
+    const rangeEl = () => document.querySelector('#train-body .tr-range');
+    const slices = () => [0, 1, 2].map(i => {
+      const r = rangeEl().querySelector('[data-lit="' + i + '"]');
+      return r ? { x: +r.getAttribute('x'), w: +r.getAttribute('width') } : null;
+    });
+    /* The slice each movement owns, read off the divider positions rather than
+       off the clip rects — the rects are the *lit* part and are zero here. */
+    const owned = [];
+    let acc = 0;
+    sessionOrder(S.active).forEach(i => {
+      const n = S.active.exercises[i].sets.length;
+      owned.push({ i, x: acc, w: n / 10 * W });
+      acc += n / 10 * W;
+    });
+    const before = slices();
+    /* Straight off a render, with no tick anywhere near it. The markup and the
+       in-place update each used to do their own arithmetic, and a revert that
+       turned the markup into one frontier bar changed nothing any check could
+       see — because the first tick made updateTrainProgress rewrite the rects
+       correctly from its own copy. One of two call sites silently repairing the
+       other is worse than either being wrong. */
+    S.active.exercises[1].sets.forEach(s => { s.done = true; });
+    renderTrain();
+    const rendered = slices();
+    S.active.exercises[1].sets.forEach(s => { s.done = false; });
+    renderTrain();
+    /* Out of order on purpose: the last movement, which is the far end of the
+       range. A single frontier bar would light the squats instead. */
+    const far = document.querySelector('#train-body .ex-card[data-ei="2"]');
+    S.active.exercises[2].collapsed = false;
+    S.active.exercises[0].collapsed = true;
+    renderTrain();
+    document.querySelector('#train-body .ex-card[data-ei="2"] .tick').click();
+    const after = slices();
+    /* The rail must divide where the range does, or a segment sits under the
+       wrong mountain. Measured from the rendered boxes, not from the flex
+       values that produced them. */
+    const rb = rangeEl().getBoundingClientRect();
+    const segs = [...document.querySelectorAll('#train-body .rail-seg')].map(s => {
+      const b = s.getBoundingClientRect();
+      return ((b.left + b.right) / 2 - rb.left) / rb.width * W;
+    });
+    const wantCentres = owned.map(o => o.x + o.w / 2);
+    return { owned, before, rendered, after, segs, wantCentres, hasFar: !!far };
+  });
+  check('the range divides by work, not by movement count',
+    !range.missing && Math.abs(range.owned[0].w - 160) < 1
+    && Math.abs(range.owned[1].w - 96) < 1 && Math.abs(range.owned[2].w - 64) < 1,
+    range.missing || (range.owned || []).map(o => Math.round(o.w)).join(', '));
+  check('...and nothing is lit before you start',
+    (range.before || []).every(s => s && s.w === 0),
+    (range.before || []).map(s => s && s.w).join(', '));
+  check('a render alone lights the movement that is finished, and only it',
+    range.rendered && range.rendered[1].w > 0 && Math.abs(range.rendered[1].w - 64) < 1
+    && range.rendered[0].w === 0 && range.rendered[2].w === 0,
+    (range.rendered || []).map(s => s && +s.w.toFixed(1)).join(', '));
+  check('ticking a set lights that movement\'s own share of the mountain',
+    range.after && range.after[2].w > 0 && Math.abs(range.after[2].w - 96 / 3) < 1,
+    (range.after || []).map(s => s && +s.w.toFixed(1)).join(', '));
+  check('...and only that one, wherever in the session it sits',
+    range.after && range.after[0].w === 0 && range.after[1].w === 0,
+    (range.after || []).map(s => s && +s.w.toFixed(1)).join(', '));
+  check('the trail under the range divides where the range does',
+    (range.segs || []).length === (range.wantCentres || []).length
+    && range.segs.every((c, n) => Math.abs(c - range.wantCentres[n]) < 6),
+    (range.segs || []).map(Math.round).join(', ') + ' vs ' + (range.wantCentres || []).map(Math.round).join(', '));
 
   /* ---- the session reads like a written programme ----
      A real plan groups its movements and the heading tells you how to treat

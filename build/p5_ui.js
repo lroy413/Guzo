@@ -863,7 +863,8 @@ function renderTrain() {
         the header band is: --bg-grad shifts across four data-sky bands and a
         veil guessing at it would be visible in three of them. */''}
   <div class="tr-pin">
-    <div class="card tight">
+    <div class="card tight tr-head">
+      ${trainRangeHTML(A)}
       ${trainRailHTML(A)}
       <div class="row between mt-s">
         <span class="small" id="tp-where">${h(trainWhere(A))}</span>
@@ -1295,6 +1296,7 @@ function trainRailHTML(A) {
      below it already describe. Decorative, and therefore hidden from the
      accessibility tree and never counted as a segment. */
   let block = null;
+  const sh = sessionShares(A);
   return `<div class="rail">
     ${order.map(i => {
       const it = A.exercises[i];
@@ -1304,10 +1306,168 @@ function trainRailHTML(A) {
       const done = it.sets.filter(s => s.done).length;
       const all = it.sets.length || 1;
       const state = isComplete(it) ? 'done' : (i === cur ? 'now' : '');
+      /* flex-grow is the movement's share of the session, not 1. The range
+         drawn above this rail divides the same way, and a segment that took an
+         equal slice would sit under the wrong mountain — the alignment is the
+         whole point of drawing both. The movement you are on used to grow to
+         2.1 to stand out; it is brighter instead, because widening it moved
+         every boundary along the range every time you finished something. */
       return brk + `<button class="rail-seg ${state}" data-act="rail-go" data-i="${i}"
+        style="flex-grow:${(sh.share[i] * order.length).toFixed(3)}"
         aria-label="${h(it.name)}, ${done} of ${all} sets"><i style="width:${Math.round(done / all * 100)}%"></i></button>`;
     }).join('')}
   </div>`;
+}
+
+/* ------------------------------------------------------------
+   THE RANGE
+
+   Asked for directly: the mountains that stand behind the ascent on Progress,
+   at the top of Train, "except it reveals itself as you progress through the
+   workout — each exercise illuminates a corresponding % of the mountain that
+   that exercise represents against the whole routine."
+
+   So the range is divided by *work*, not by movement count: a movement's slice
+   of the horizon is its sets over the session's sets. Ten sets of squats own
+   more mountain than one set of calf raises, which is the honest reading of
+   "what this exercise represents against the whole routine".
+
+   Each movement lights its own slice in proportion to its own ticks, rather
+   than one bar filling from the left. Doing the finisher first lights the far
+   end of the range, which is where that work actually sits — a single frontier
+   would have lit the squats you have not done.
+   ------------------------------------------------------------ */
+function sessionShares(A) {
+  const order = sessionOrder(A);
+  const share = {}, lit = {};
+  let total = 0;
+  order.forEach(i => { total += (A.exercises[i].sets || []).length || 1; });
+  total = total || 1;
+  order.forEach(i => {
+    const it = A.exercises[i];
+    const all = (it.sets || []).length || 1;
+    share[i] = all / total;
+    lit[i] = it.sets.filter(s => s.done).length / all;
+  });
+  return { order, share, lit, total };
+}
+
+/* The three ridgelines, open for stroking and closed for filling. One set of
+   coordinates, used four times over — the cold range, the lit range, the
+   ridgelines that catch the light, and the marker that sits on the near one.
+   Four copies of a polyline would disagree the first time any of them moved. */
+const RANGE_W = 320, RANGE_H = 104;
+const RANGE_LINES = [
+  'M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58',
+  'M0 96 L28 74 L62 90 L104 58 L138 82 L178 60 L214 86 L252 66 L292 88 L320 72',
+  'M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90'
+];
+const RANGE_FILLS = RANGE_LINES.map(d => d + ` L${RANGE_W} ${RANGE_H} L0 ${RANGE_H} Z`);
+
+/* Where the near ridge sits at a given x, so the marker stands on the skyline
+   rather than floating above it. Linear between the points the path names —
+   the path is a polyline, so this is exact rather than an approximation. */
+function rangeY(x) {
+  const pts = RANGE_LINES[2].replace(/[ML]/g, ' ').trim().split(/\s+/).map(Number);
+  for (let n = 0; n + 3 < pts.length; n += 2) {
+    const x0 = pts[n], y0 = pts[n + 1], x1 = pts[n + 2], y1 = pts[n + 3];
+    if (x >= x0 && x <= x1) return y0 + (y1 - y0) * (x1 === x0 ? 0 : (x - x0) / (x1 - x0));
+  }
+  return pts[pts.length - 1];
+}
+
+/* The geometry of the lit range, computed once.
+   -----------------------------------------------
+   Both the render and the in-place update need this, and they were each doing
+   their own arithmetic — which is the same trap ghostFor() and supFor() were
+   written to close. It survived a revert here: turning the markup into one
+   frontier bar changed nothing a check could see, because the first tick made
+   updateTrainProgress rewrite the rects correctly from its own copy of the
+   maths. Two call sites that can disagree eventually will, and one of them
+   silently repairing the other is worse than either.
+
+   `lx` is where the light has reached: the end of the run of slices that are
+   finished, which is the skyline you are standing on. */
+function rangeGeom(A) {
+  const s = sessionShares(A);
+  const rects = [];
+  let x = 0, lx = 0, run = true;
+  s.order.forEach(i => {
+    const w = s.share[i] * RANGE_W;
+    rects.push({ i, x, w: w * s.lit[i] });
+    x += w;
+    if (run) { lx += w * s.lit[i]; if (s.lit[i] < 1) run = false; }
+  });
+  return { rects, lx };
+}
+
+function rangeClipRects(A) {
+  return rangeGeom(A).rects.map(r =>
+    `<rect data-lit="${r.i}" x="${r.x.toFixed(2)}" y="0" width="${r.w.toFixed(2)}" height="${RANGE_H}"/>`
+  ).join('');
+}
+
+function trainRangeHTML(A) {
+  const s = sessionShares(A);
+  let x = 0;
+  const divs = [];
+  s.order.forEach((i, n) => {
+    x += s.share[i] * RANGE_W;
+    if (n < s.order.length - 1) divs.push(x);
+  });
+  /* Where the light has reached: the end of the run of slices that are
+     finished, which is the skyline you are standing on. */
+  const lx = rangeGeom(A).lx;
+  return `<div class="tr-range" aria-hidden="true">
+    <svg viewBox="0 0 ${RANGE_W} ${RANGE_H}" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="tr-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#E9B44C" stop-opacity=".30"/>
+          <stop offset="100%" stop-color="#E9B44C" stop-opacity=".03"/>
+        </linearGradient>
+        ${/* One rect per movement, and the union of them is what is lit. A
+              single frontier rect would light the work you have not done as
+              soon as you did anything out of order. */''}
+        <clipPath id="tr-lit-clip">${rangeClipRects(A)}</clipPath>
+      </defs>
+      ${/* The range as it is before you start: cold, and only just there. */''}
+      <g class="tr-cold">
+        <path class="tr-f1" d="${RANGE_FILLS[0]}"/>
+        <path class="tr-f2" d="${RANGE_FILLS[1]}"/>
+        <path class="tr-f3" d="${RANGE_FILLS[2]}"/>
+        <path class="tr-e" d="${RANGE_LINES[2]}" vector-effect="non-scaling-stroke"/>
+      </g>
+      ${/* The same range with the light on it, showing through the clip. */''}
+      <g clip-path="url(#tr-lit-clip)">
+        <path class="tr-w1" d="${RANGE_FILLS[0]}"/>
+        <path class="tr-w2" d="${RANGE_FILLS[1]}"/>
+        <path class="tr-w3" d="${RANGE_FILLS[2]}"/>
+        ${/* The ridgelines catching it. A dark mountain with a lit edge is the
+               whole picture; filling the mass alone reads as a bar chart. */''}
+        <path class="tr-l1" d="${RANGE_LINES[0]}" vector-effect="non-scaling-stroke"/>
+        <path class="tr-l2" d="${RANGE_LINES[1]}" vector-effect="non-scaling-stroke"/>
+        <path class="tr-l3" d="${RANGE_LINES[2]}" vector-effect="non-scaling-stroke"/>
+      </g>
+      ${/* Where one movement's ground ends and the next begins. */''}
+      <g class="tr-div">${divs.map(d =>
+        `<path d="M${d.toFixed(2)} ${(rangeY(d) - 5).toFixed(1)}V${RANGE_H}" vector-effect="non-scaling-stroke"/>`).join('')}</g>
+    </svg>
+    ${/* Where you are, standing on the skyline — and the light on the range is
+          this marker's halo rather than a shape inside the SVG. Both for the
+          same reason: the SVG is preserveAspectRatio="none", so anything round
+          in it comes out an ellipse whose eccentricity depends on how wide the
+          phone is, and a rectangular glow instead read as a bar stuck to the
+          left edge before you had done anything. */''}
+    <i class="tr-you" style="${rangeYouStyle(lx)}"></i>
+  </div>`;
+}
+
+/* Clamped a few pixels inside the range. The card clips its overflow, so a
+   marker at 0% or 100% is drawn as a half circle against the card's edge —
+   which reads as a rendering fault rather than as a position. */
+function rangeYouStyle(lx) {
+  const x = Math.max(7, Math.min(RANGE_W - 7, lx));
+  return `left:${(x / RANGE_W * 100).toFixed(2)}%;top:${(rangeY(x) / RANGE_H * 100).toFixed(2)}%`;
 }
 
 /* "Back Squat · 2 of 6" — the movement you are on and where it sits, which is
@@ -1841,6 +2001,21 @@ function updateTrainProgress() {
       seg.classList.toggle('done', isComplete(it));
       seg.classList.toggle('now', !isComplete(it) && i === cur);
     });
+  }
+  /* The range lights in place. Each movement's clip rect is widened to its own
+     completion, so the mountain it owns comes up as its sets are ticked and
+     goes back down when one is undone — and because the rects are addressed by
+     exercise index rather than by position, working out of order lights the
+     ground that work actually sits on. */
+  const range = document.querySelector('#train-body .tr-range');
+  if (range) {
+    const g = rangeGeom(A);
+    g.rects.forEach(rc => {
+      const r = range.querySelector('[data-lit="' + rc.i + '"]');
+      if (r) { r.setAttribute('x', rc.x.toFixed(2)); r.setAttribute('width', rc.w.toFixed(2)); }
+    });
+    const you = range.querySelector('.tr-you');
+    if (you) you.style.cssText = rangeYouStyle(g.lx);
   }
   const kc = document.getElementById('tp-kcal');
   if (kc) kc.textContent = sessionKcal(A) + ' kcal';

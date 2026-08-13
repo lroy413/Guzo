@@ -336,6 +336,45 @@ button.recall:active{transform:scale(.97)}
 .ico-svg{width:1.15em;height:1.15em;display:inline-block;vertical-align:-.18em;flex:none}
 .opt-ico .ico-svg,.ico .ico-svg{width:22px;height:22px;vertical-align:middle}
 .chip .ico-svg{width:24px;height:24px;margin-right:9px}
+
+/* ---------- the icon set has a palette ----------
+   Every icon in the app was a 1.7px grey stroke in a flat grey square, which
+   is what "bland, and not enough contrasting colours" was describing. Three
+   colours by category, and the tone only applies inside a *tile* — a list
+   row's icon well, an option, a chip, a milestone. Everywhere else an icon
+   still inherits its parent's colour, so nothing that uses colour to mean
+   state (a tick going teal, a warning going rose) is overruled by an icon
+   insisting on its category. See ICO_TONE in p3d_icons.js for the assignment
+   and the argument for keeping it to four.
+
+   The mass under the line is the icon's own colour at low alpha, so it follows
+   the tone rather than needing one of its own. */
+.ico-m{opacity:.16}
+.opt.on .ico-m,.chip.on .ico-m{opacity:.24}
+.ico .t-ember,.opt-ico .t-ember,.chip .t-ember,.milestone-ico .t-ember{color:var(--ember)}
+.ico .t-teal,.opt-ico .t-teal,.chip .t-teal,.milestone-ico .t-teal{color:var(--teal)}
+.ico .t-sky,.opt-ico .t-sky,.chip .t-sky,.milestone-ico .t-sky{color:var(--sky)}
+.ico .t-amber,.opt-ico .t-amber,.chip .t-amber,.milestone-ico .t-amber{color:var(--amber)}
+/* A chip that is on says so in ember, and an icon holding out for its own
+   category inside it would be reading as two states at once. */
+.chip.on .ico-svg,.opt.on .opt-ico .ico-svg{color:inherit}
+
+/* The well the icon sits in takes a wash of the same colour. This is most of
+   the difference: a coloured glyph in a grey box still reads grey, because the
+   box is four times the area. :has() rather than a class on every call site —
+   the tone lives on the icon and there are a few hundred places one is
+   written. */
+.ico:has(.t-ember),.opt-ico:has(.t-ember){background:linear-gradient(160deg,rgba(233,180,76,.17),rgba(233,180,76,.045));box-shadow:inset 0 0 0 1px rgba(233,180,76,.20)}
+.ico:has(.t-teal),.opt-ico:has(.t-teal){background:linear-gradient(160deg,rgba(79,209,165,.16),rgba(79,209,165,.04));box-shadow:inset 0 0 0 1px rgba(79,209,165,.20)}
+.ico:has(.t-sky),.opt-ico:has(.t-sky){background:linear-gradient(160deg,rgba(107,168,245,.16),rgba(107,168,245,.04));box-shadow:inset 0 0 0 1px rgba(107,168,245,.20)}
+.ico:has(.t-amber),.opt-ico:has(.t-amber){background:linear-gradient(160deg,rgba(245,196,81,.16),rgba(245,196,81,.04));box-shadow:inset 0 0 0 1px rgba(245,196,81,.22)}
+/* And a neutral well stops being a flat grey square. */
+.ico,.opt-ico{background:linear-gradient(160deg,var(--surface-3),rgba(24,29,36,.6));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+/* Slightly heavier inside a tile: 1.7 is right for an icon inline in a line of
+   text and thin for one standing alone in a 36px well. */
+.ico .ico-svg,.opt-ico .ico-svg,.chip .ico-svg{stroke-width:1.8}
+.milestone-ico .ico-svg{stroke-width:1.5}
 /* Only the chips that carry one. An icon column reads as a list you can scan;
    centring each icon against its own label puts them all in different places
    and gives the eye nothing to run down. Chips without icons keep the centred
@@ -1463,24 +1502,71 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    A transparent ::after pad would have extended the tap area without extending
    the box — which looks identical, passes by eye, and measures as an 8px
    target. blanks.mjs caught exactly that on the first attempt. */
-.rail{display:flex;gap:4px;align-items:stretch;height:44px;margin:-13px 0 -11px}
-.rail-seg{flex:1;min-width:6px;padding:0;border:0;background:none;position:relative;
-  transition:flex-grow .3s var(--ease-out)}
+/* ---------- the range ----------
+   The mountains that stand behind the ascent on Progress, at the top of Train,
+   revealing themselves as you work: a movement owns a slice of the horizon
+   equal to its sets over the session's sets, and lights that slice in
+   proportion to its own ticks.
+
+   Full-bleed to the card's edges, and the rail sits on its baseline as the
+   trail along the foot of the range. */
+.tr-head{position:relative;overflow:hidden;padding-top:0}
+.tr-range{position:relative;height:62px;margin:0 -15px 2px;pointer-events:none}
+.tr-range svg{display:block;width:100%;height:100%}
+/* Before you start: there, and only just. */
+.tr-f1{fill:#151b24}
+.tr-f2{fill:#11161d}
+.tr-f3{fill:#0d1116}
+.tr-e{fill:none;stroke:#232b36;stroke-width:1}
+/* With the light on it. The mass warms a little; it is the ridgelines catching
+   the sun that do the work — a dark mountain with a lit edge is the picture,
+   and filling the mass alone reads as a bar chart with peaks on it. */
+.tr-w1{fill:url(#tr-sky)}
+.tr-w2{fill:#232c39}
+.tr-w3{fill:#171e28}
+.tr-l1{fill:none;stroke:var(--ember);stroke-width:1.2;opacity:.5}
+.tr-l2{fill:none;stroke:var(--ember-2);stroke-width:1.3;opacity:.65}
+.tr-l3{fill:none;stroke:var(--ember-2);stroke-width:1.7;opacity:.95}
+.tr-div path{fill:none;stroke:rgba(255,255,255,.10);stroke-width:1}
+@media (prefers-reduced-motion: no-preference){
+  .tr-range rect{transition:x var(--t-slow) var(--ease-out),width var(--t-slow) var(--ease-out)}
+  .tr-you{transition:left var(--t-slow) var(--ease-out),top var(--t-slow) var(--ease-out)}
+}
+/* Standing on the skyline. Drawn in HTML, not in the SVG — that one is
+   preserveAspectRatio="none", so anything round inside it comes out an ellipse
+   whose eccentricity depends on the width of the phone. */
+.tr-you{position:absolute;width:9px;height:9px;border-radius:50%;
+  background:var(--ember-2);transform:translate(-50%,-50%);
+  box-shadow:0 0 0 2.5px rgba(10,12,15,.9),0 0 12px 2px rgba(244,208,140,.6)}
+/* The light on the range, carried by the marker rather than by a shape inside
+   the SVG — see the note there. */
+.tr-you::before{content:'';position:absolute;left:50%;top:50%;width:86px;height:86px;
+  margin:-43px 0 0 -43px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(244,208,140,.20),rgba(244,208,140,0) 68%)}
+
+/* The band reads as 5px and the button *is* 44px: the track is a
+   pseudo-element centred inside a full-height target, and the negative margin
+   gives back the space it does not need to show. A transparent pad would have
+   extended the tap area without extending the box — identical by eye, and 5px
+   to a measurement. */
+.rail{display:flex;gap:4px;align-items:stretch;height:44px;margin:-14px -3px -15px;position:relative}
+.rail-seg{flex:1 1 0;min-width:6px;padding:0;border:0;background:none;position:relative}
 .rail-seg::before{content:'';position:absolute;left:0;right:0;top:50%;
-  transform:translateY(-50%);height:8px;border-radius:100px;
-  background:var(--surface-3);transition:background .2s ease}
-.rail-seg i{position:absolute;left:0;top:50%;transform:translateY(-50%);height:8px;
+  transform:translateY(-50%);height:5px;border-radius:100px;
+  background:rgba(255,255,255,.07);transition:background .2s ease}
+.rail-seg i{position:absolute;left:0;top:50%;transform:translateY(-50%);height:5px;
   border-radius:100px;background:var(--ember);transition:width .34s var(--ease-out)}
 .rail-seg.done i{background:var(--teal)}
-/* The movement you are on takes more of the bar, so the rail says where you
-   are without needing a marker on top of it. */
 /* Purely a gap. flex:none so it never steals width from a movement, and the
    rail's own 4px gap sits on both sides of it, which is what makes the break
    read at a glance without a visible rule. */
-.rail-brk{flex:none;width:1px;align-self:center;height:14px;
+.rail-brk{flex:none;width:1px;align-self:center;height:12px;
   background:var(--line);border-radius:1px}
-.rail-seg.now{flex-grow:2.1}
-.rail-seg.now::before{background:rgba(233,180,76,.20)}
+/* The movement you are on used to grow to flex 2.1 to stand out. It cannot any
+   more: the range above divides on the same shares, and a segment that widened
+   itself would slide out from under its own mountain. It is lit instead. */
+.rail-seg.now::before{background:rgba(233,180,76,.24)}
+.rail-seg.now i{box-shadow:0 0 10px 1px rgba(233,180,76,.5)}
 .rail-seg:active::before{background:var(--line)}
 .tick{flex:none;width:58px;height:44px;border-radius:11px;background:var(--surface-2);border:1px solid var(--line);
   display:flex;align-items:center;justify-content:center;color:var(--faint);
@@ -3852,6 +3938,58 @@ function svgIco(paths, extra) {
     aria-hidden="true" focusable="false"${extra ? ' ' + extra : ''}>${paths}</svg>`;
 }
 
+/* ------------------------------------------------------------
+   TONE, AND THE MASS UNDER THE LINE
+
+   Reported as "not enough contrasting colours" and "bland", and both halves of
+   that were true for one reason: every icon in the app was a single 1.7px grey
+   stroke sitting in a flat grey square. A hundred and thirty of them.
+
+   Two changes, both applied here rather than at the hundred and thirty
+   definitions — an icon set is a system and editing it one glyph at a time is
+   how a system stops being one.
+
+   **Tone.** Three colours and a neutral, assigned by what a thing *is* rather
+   than to brighten the screen. Ember is the journey — terrain, milestones,
+   effort, the things this app is a metaphor about. Teal is the body. Sky is
+   time and motion. Amber is the small number of icons that mean "careful".
+   Everything structural — gear, settings, marks, arrows — stays neutral,
+   because an icon set where everything is coloured is a sticker sheet and the
+   file already says so twenty lines up.
+
+   The tone is scoped in CSS to the tile contexts (`.ico`, `.opt-ico`, `.chip`,
+   `.milestone-ico`). Elsewhere an icon still inherits its parent's colour, so
+   nothing that uses colour to mean *state* — a tick going teal, a warning
+   going rose — is overruled by an icon insisting on its category.
+
+   **The mass.** A filled shape under the stroke at low alpha, in the icon's own
+   colour. It is what makes a drawn icon read as drawn rather than as a
+   wireframe, and it costs one path. Only where the glyph has a genuine closed
+   body: a chevron has no inside and filling one would be a smear.
+   ------------------------------------------------------------ */
+const ICO_TONE = {};
+const ICO_MASS = {};
+
+function toneIcons(tone, keys) { keys.forEach(k => { ICO_TONE[k] = tone; }); }
+
+/* Applied after every Object.assign below has run, so a tone or a mass can be
+   declared for an icon defined in any of them. The mass goes immediately after
+   the opening tag, which is what puts it *under* the strokes — a `<g>` appended
+   at the end would paint the fill over the line that defines the shape. */
+function finishIcons() {
+  Object.keys(ICO).forEach(k => {
+    let svg = ICO[k];
+    const m = ICO_MASS[k];
+    if (m) {
+      svg = svg.replace(/^(<svg[^>]*>)/,
+        `$1<g class="ico-m" fill="currentColor" stroke="none">${m}</g>`);
+    }
+    const t = ICO_TONE[k];
+    if (t) svg = svg.replace('class="ico-svg"', `class="ico-svg t-${t}"`);
+    ICO[k] = svg;
+  });
+}
+
 /* The figure every body-area icon is drawn on. Faint enough to read as a
    backdrop, present enough to say which way up a person is. */
 const BODY_BASE =
@@ -4079,6 +4217,133 @@ Object.assign(ICO, {
   pin:            svgIco('<path d="M12 21c4.2-5.2 6.2-8.4 6.2-11A6.2 6.2 0 005.8 10c0 2.6 2 5.8 6.2 11z"/><circle cx="12" cy="10" r="2.2"/>'),
   compass:        svgIco('<circle cx="12" cy="12" r="8.4"/><path d="M15.4 8.6l-2 5.2-5.2 2 2-5.2z"/>')
 });
+
+/* ---- tone: what a thing is, not how bright the screen should be ---- */
+
+/* The journey. Terrain at every scale, the markers you pass, and the two or
+   three things that mean effort. */
+toneIcons('ember', [
+  'ms-first', 'ms-pace', 'ms-way', 'ms-25', 'ms-50', 'ms-100', 'ms-200',
+  'ms-w4', 'ms-w12', 'ms-w26', 'ms-w52', 'ms-floor', 'ms-return', 'ms-tonne', 'ms-burn',
+  'lvl-new', 'lvl-some', 'lvl-adv', 'lvl-solid',
+  'cardio-light', 'cardio-some', 'cardio-lots',
+  'summit', 'peakMark', 'compass', 'pin', 'map', 'stone', 'fire', 'bolt', 'chart',
+  'goal-strength', 'goal-consist',
+  /* A session you built and the shape of a training week are training, not
+     furniture. */
+  'routines', 'pg-anchor3', 'pg-ul4', 'pg-ul5', 'pg-bro5', 'pg-ppl6', 'pg-hold2'
+]);
+
+/* The body. Every anatomical figure, and the things done to keep one working. */
+toneIcons('teal', [
+  'shoulder', 'lowback', 'knee', 'elbow', 'wrist', 'neck', 'hip', 'ankle',
+  'area-Back', 'area-Shoulders', 'area-Chest', 'area-Core',
+  'area-Quads', 'area-Glutes', 'area-Arms', 'area-Calves',
+  'stretch', 'mobility', 'env-bw', 'goal-health', 'goal-muscle',
+  'person', 'plaster', 'science', 'ruler'
+]);
+
+/* Time, covering ground through it, and anything that is there to be read. */
+toneIcons('sky', [
+  'car-treadmill-run', 'car-incline-walk', 'car-bike', 'car-rower', 'car-stair',
+  'car-jump-rope', 'car-run', 'car-walk', 'car-swim', 'car-hike',
+  'avail-long', 'avail-normal', 'avail-short', 'avail-micro', 'avail-none',
+  'clock', 'stopwatch', 'water', 'moon', 'repeat', 'globe',
+  'meal-b', 'meal-l', 'meal-d', 'meal-s',
+  'book', 'doc', 'search', 'phone', 'disk'
+]);
+
+/* Careful. Three icons, and they are the only three that should catch the eye
+   before you have decided to look at them. */
+toneIcons('amber', ['warn', 'ban', 'lock']);
+
+/* ---- the mass under the line ----
+   The same outer shape the stroke already describes, filled at low alpha in
+   the icon's own colour. Only where there is a genuine inside: a chevron, an
+   arrow or a rule has no body, and filling one is a smear rather than an icon.
+   The terrain family is the clearest win — a ridgeline closed to its baseline
+   is a mountain rather than a zigzag. */
+Object.assign(ICO_MASS, {
+  /* terrain, closed to the ground it stands on */
+  'lvl-new':      '<path d="M5 18.5l4.4-4.6 4 4.6z"/>',
+  'lvl-some':     '<path d="M3 18.5l5.4-7.4 3.4 4.2 3-3.8 5.2 7z"/>',
+  'lvl-adv':      '<path d="M2.8 19l6-11.6 3.4 5.2L16 4l5.2 15z"/>',
+  'lvl-solid':    '<path d="M3 18.8l5.6-8.6 3.2 4 3.2-4.6 5.6 9.2z"/>',
+  'cardio-light': '<path d="M6 17l3.4-2.6L13 17z"/>',
+  'cardio-some':  '<path d="M4 18.5l4.6-5.4 3.2 3.4L16 11l5.5 7.5z"/>',
+  'cardio-lots':  '<path d="M2.8 19.5l5-9.4 3.4 4.6L15.6 5l5.6 14.5z"/>',
+  'car-hike':     '<path d="M3.5 20l5.6-9.6 3 4.2 3.6-6.4L21 20z"/>',
+  'car-incline-walk': '<path d="M3 19L15.5 6.5 15.5 19z"/>',
+  summit:         '<path d="M2.4 20l6.6-13 3.6 5.6L16.2 4 21.6 20z"/>',
+  peakMark:       '<path d="M12 5.6l7 12.8H5z"/>',
+  'ms-25':        '<path d="M3.4 19l6-10.6L13 14l3-4.6L20.6 19z"/>',
+  'ms-50':        '<path d="M2.8 19.5l6.4-12.8 3.6 6.2L16.4 6l4.8 13.5z"/>',
+  'ms-200':       '<path d="M4 17.5L3 7.4l4.6 3.4L12 4.2l4.4 6.6L21 7.4l-1 10.1z"/>',
+  'ms-first':     '<path d="M6 17.5a6 6 0 0112 0z"/>',
+  'ms-way':       '<path d="M12 21c4.2-5.2 6.2-8.4 6.2-11A6.2 6.2 0 005.8 10c0 2.6 2 5.8 6.2 11z"/>',
+  'ms-w4':        '<path d="M18.6 14.4A7.4 7.4 0 019.1 5 7.9 7.9 0 1018.6 14.4z"/>',
+  'ms-w26':       '<circle cx="12" cy="12" r="8.4"/>',
+  'ms-floor':     '<circle cx="12" cy="13.4" r="7.2"/>',
+  'ms-burn':      '<path d="M12 21.2c3.8 0 6.4-2.4 6.4-5.8 0-4.4-4.4-5.6-3.4-11-2.6 1-4.6 3.4-4.6 6 0 1.8-1 2.4-1.8 1.4-.5-.6-.7-1.5-.7-2.3-1.4 1.6-2.3 3.8-2.3 5.9 0 3.4 2.6 5.8 6.4 5.8z"/>',
+  'ms-pace':      '<circle cx="12" cy="12" r="8.4"/>',
+  'ms-100':       '<circle cx="12" cy="9" r="4.6"/>',
+
+  /* rounds and bodies */
+  pin:            '<path d="M12 21c4.2-5.2 6.2-8.4 6.2-11A6.2 6.2 0 005.8 10c0 2.6 2 5.8 6.2 11z"/>',
+  compass:        '<circle cx="12" cy="12" r="8.4"/>',
+  globe:          '<circle cx="12" cy="12" r="8.4"/>',
+  clock:          '<circle cx="12" cy="12" r="8.4"/>',
+  stopwatch:      '<circle cx="12" cy="13.4" r="7.2"/>',
+  target:         '<circle cx="12" cy="12" r="8.4"/>',
+  ban:            '<circle cx="12" cy="12" r="8.4"/>',
+  search:         '<circle cx="10.8" cy="10.8" r="6.6"/>',
+  person:         '<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.4a7.2 7.2 0 0114.4 0z"/>',
+  moon:           '<path d="M18.6 14.4A7.4 7.4 0 019.1 5 7.9 7.9 0 1018.6 14.4z"/>',
+  water:          '<path d="M12 3.2s6 6.2 6 10.1a6 6 0 01-12 0C6 9.4 12 3.2 12 3.2z"/>',
+  fire:           '<path d="M12 21.2c3.8 0 6.4-2.4 6.4-5.8 0-4.4-4.4-5.6-3.4-11-2.6 1-4.6 3.4-4.6 6 0 1.8-1 2.4-1.8 1.4-.5-.6-.7-1.5-.7-2.3-1.4 1.6-2.3 3.8-2.3 5.9 0 3.4 2.6 5.8 6.4 5.8z"/>',
+  bolt:           '<path d="M13.4 2.4L4.6 13.6h6L10.6 21.6l8.8-11.2h-6z"/>',
+  stone:          '<path d="M4.4 16.6l2.4-7.2 5.6-3.4 6.6 3.2 1 7.4-7.6 3.6z"/>',
+  'goal-health':  '<path d="M12 20.4S3.8 15.4 3.8 9.6A4.6 4.6 0 0112 7.4a4.6 4.6 0 018.2 2.2c0 5.8-8.2 10.8-8.2 10.8z"/>',
+  'meal-s':       '<path d="M12 3.4l2.3 5.6 6 .5-4.6 3.9 1.4 5.9L12 16.2l-5.1 3.1 1.4-5.9L3.7 9.5l6-.5z"/>',
+  'meal-d':       '<path d="M18.6 14.4A7.4 7.4 0 019.1 5 7.9 7.9 0 1018.6 14.4z"/>',
+  'meal-l':       '<circle cx="12" cy="12" r="8"/>',
+  half:           '<circle cx="12" cy="12" r="8"/>',
+  'gear-kettlebell': '<path d="M9.6 8.6a6.2 6.2 0 104.8 0z"/>',
+
+  /* boxes and panels */
+  warn:           '<path d="M12 3.8L21.2 19.8H2.8z"/>',
+  lock:           '<rect x="4.6" y="10.4" width="14.8" height="9.6" rx="2.2"/>',
+  bag:            '<rect x="3.5" y="7.5" width="17" height="12" rx="2"/>',
+  'env-hotel':    '<rect x="3.5" y="7.5" width="17" height="12" rx="2"/>',
+  doc:            '<path d="M6 3.5h7.4L18.6 8.8V20.5H6z"/>',
+  disk:           '<path d="M4.6 4.5h11.6l3.2 3.2v11.8H4.6z"/>',
+  building:       '<rect x="4.6" y="3.6" width="14.8" height="16.8" rx="1.8"/>',
+  phone:          '<rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.4"/>',
+  split:          '<rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2"/>',
+  'pg-ul4':       '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/>',
+  'pg-ul5':       '<rect x="3.5" y="4.5" width="17" height="15" rx="2"/>',
+  'pg-bro5':      '<path d="M12 3.2l7.6 4.4v8.8L12 20.8 4.4 16.4V7.6z"/>',
+  'pg-ppl6':      '<path d="M12 3.2l7.6 4.4v8.8L12 20.8 4.4 16.4V7.6z"/>',
+  routines:       '<rect x="3.5" y="4.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="4.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="14.5" width="7" height="5" rx="1.6"/><rect x="13.5" y="14.5" width="7" height="5" rx="1.6"/>',
+  map:            '<path d="M3 6.4l6-2.2v13.4l-6 2.2z"/><path d="M15 6.4l6-2.2v13.4l-6 2.2z"/>',
+  desk:           '<rect x="3" y="4.5" width="18" height="11" rx="1.6"/>',
+  camera:         '<rect x="2.5" y="7.5" width="12" height="9" rx="1.8"/>',
+  lifting:        '<rect x="3" y="8.5" width="18" height="10" rx="1.8"/>',
+  'gear-bench':   '<rect x="3" y="8" width="18" height="3.4" rx="1.4"/>',
+  plaster:        '<rect x="2.6" y="8.4" width="18.8" height="7.2" rx="3.6" transform="rotate(-40 12 12)"/>',
+  chart:          '<path d="M5.4 20.5v-5.2h2.4v5.2zM9.8 20.5V8.4h2.4v12.1zM14.2 20.5v-8h2.4v8zM18.6 20.5V4.6H21v15.9z"/>',
+  'goal-consist': '<path d="M3.4 18v-2.6h2.4V18zM7.2 18v-5.2h2.4V18zM11 18v-4h2.4v4zM14.8 18v-6.8h2.4V18zM18.6 18v-5.4H21V18z"/>',
+
+  /* the plate stack, four times over — every icon that means load */
+  'gear-barbell':  '<rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>',
+  'gear-dumbbell': '<rect x="3" y="8.6" width="3" height="6.8" rx="1.2"/><rect x="18" y="8.6" width="3" height="6.8" rx="1.2"/><rect x="6.2" y="7" width="2.2" height="10" rx="1"/><rect x="15.6" y="7" width="2.2" height="10" rx="1"/>',
+  'env-full':      '<rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>',
+  'goal-strength': '<rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>',
+  'ms-tonne':      '<rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>',
+  plate:           '<circle cx="12" cy="13" r="7"/>'
+});
+
+finishIcons();
 /* ============================================================
    STATE
    ============================================================ */
@@ -11661,7 +11926,8 @@ function renderTrain() {
         the header band is: --bg-grad shifts across four data-sky bands and a
         veil guessing at it would be visible in three of them. */''}
   <div class="tr-pin">
-    <div class="card tight">
+    <div class="card tight tr-head">
+      ${trainRangeHTML(A)}
       ${trainRailHTML(A)}
       <div class="row between mt-s">
         <span class="small" id="tp-where">${h(trainWhere(A))}</span>
@@ -12093,6 +12359,7 @@ function trainRailHTML(A) {
      below it already describe. Decorative, and therefore hidden from the
      accessibility tree and never counted as a segment. */
   let block = null;
+  const sh = sessionShares(A);
   return `<div class="rail">
     ${order.map(i => {
       const it = A.exercises[i];
@@ -12102,10 +12369,168 @@ function trainRailHTML(A) {
       const done = it.sets.filter(s => s.done).length;
       const all = it.sets.length || 1;
       const state = isComplete(it) ? 'done' : (i === cur ? 'now' : '');
+      /* flex-grow is the movement's share of the session, not 1. The range
+         drawn above this rail divides the same way, and a segment that took an
+         equal slice would sit under the wrong mountain — the alignment is the
+         whole point of drawing both. The movement you are on used to grow to
+         2.1 to stand out; it is brighter instead, because widening it moved
+         every boundary along the range every time you finished something. */
       return brk + `<button class="rail-seg ${state}" data-act="rail-go" data-i="${i}"
+        style="flex-grow:${(sh.share[i] * order.length).toFixed(3)}"
         aria-label="${h(it.name)}, ${done} of ${all} sets"><i style="width:${Math.round(done / all * 100)}%"></i></button>`;
     }).join('')}
   </div>`;
+}
+
+/* ------------------------------------------------------------
+   THE RANGE
+
+   Asked for directly: the mountains that stand behind the ascent on Progress,
+   at the top of Train, "except it reveals itself as you progress through the
+   workout — each exercise illuminates a corresponding % of the mountain that
+   that exercise represents against the whole routine."
+
+   So the range is divided by *work*, not by movement count: a movement's slice
+   of the horizon is its sets over the session's sets. Ten sets of squats own
+   more mountain than one set of calf raises, which is the honest reading of
+   "what this exercise represents against the whole routine".
+
+   Each movement lights its own slice in proportion to its own ticks, rather
+   than one bar filling from the left. Doing the finisher first lights the far
+   end of the range, which is where that work actually sits — a single frontier
+   would have lit the squats you have not done.
+   ------------------------------------------------------------ */
+function sessionShares(A) {
+  const order = sessionOrder(A);
+  const share = {}, lit = {};
+  let total = 0;
+  order.forEach(i => { total += (A.exercises[i].sets || []).length || 1; });
+  total = total || 1;
+  order.forEach(i => {
+    const it = A.exercises[i];
+    const all = (it.sets || []).length || 1;
+    share[i] = all / total;
+    lit[i] = it.sets.filter(s => s.done).length / all;
+  });
+  return { order, share, lit, total };
+}
+
+/* The three ridgelines, open for stroking and closed for filling. One set of
+   coordinates, used four times over — the cold range, the lit range, the
+   ridgelines that catch the light, and the marker that sits on the near one.
+   Four copies of a polyline would disagree the first time any of them moved. */
+const RANGE_W = 320, RANGE_H = 104;
+const RANGE_LINES = [
+  'M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58',
+  'M0 96 L28 74 L62 90 L104 58 L138 82 L178 60 L214 86 L252 66 L292 88 L320 72',
+  'M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90'
+];
+const RANGE_FILLS = RANGE_LINES.map(d => d + ` L${RANGE_W} ${RANGE_H} L0 ${RANGE_H} Z`);
+
+/* Where the near ridge sits at a given x, so the marker stands on the skyline
+   rather than floating above it. Linear between the points the path names —
+   the path is a polyline, so this is exact rather than an approximation. */
+function rangeY(x) {
+  const pts = RANGE_LINES[2].replace(/[ML]/g, ' ').trim().split(/\s+/).map(Number);
+  for (let n = 0; n + 3 < pts.length; n += 2) {
+    const x0 = pts[n], y0 = pts[n + 1], x1 = pts[n + 2], y1 = pts[n + 3];
+    if (x >= x0 && x <= x1) return y0 + (y1 - y0) * (x1 === x0 ? 0 : (x - x0) / (x1 - x0));
+  }
+  return pts[pts.length - 1];
+}
+
+/* The geometry of the lit range, computed once.
+   -----------------------------------------------
+   Both the render and the in-place update need this, and they were each doing
+   their own arithmetic — which is the same trap ghostFor() and supFor() were
+   written to close. It survived a revert here: turning the markup into one
+   frontier bar changed nothing a check could see, because the first tick made
+   updateTrainProgress rewrite the rects correctly from its own copy of the
+   maths. Two call sites that can disagree eventually will, and one of them
+   silently repairing the other is worse than either.
+
+   `lx` is where the light has reached: the end of the run of slices that are
+   finished, which is the skyline you are standing on. */
+function rangeGeom(A) {
+  const s = sessionShares(A);
+  const rects = [];
+  let x = 0, lx = 0, run = true;
+  s.order.forEach(i => {
+    const w = s.share[i] * RANGE_W;
+    rects.push({ i, x, w: w * s.lit[i] });
+    x += w;
+    if (run) { lx += w * s.lit[i]; if (s.lit[i] < 1) run = false; }
+  });
+  return { rects, lx };
+}
+
+function rangeClipRects(A) {
+  return rangeGeom(A).rects.map(r =>
+    `<rect data-lit="${r.i}" x="${r.x.toFixed(2)}" y="0" width="${r.w.toFixed(2)}" height="${RANGE_H}"/>`
+  ).join('');
+}
+
+function trainRangeHTML(A) {
+  const s = sessionShares(A);
+  let x = 0;
+  const divs = [];
+  s.order.forEach((i, n) => {
+    x += s.share[i] * RANGE_W;
+    if (n < s.order.length - 1) divs.push(x);
+  });
+  /* Where the light has reached: the end of the run of slices that are
+     finished, which is the skyline you are standing on. */
+  const lx = rangeGeom(A).lx;
+  return `<div class="tr-range" aria-hidden="true">
+    <svg viewBox="0 0 ${RANGE_W} ${RANGE_H}" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="tr-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#E9B44C" stop-opacity=".30"/>
+          <stop offset="100%" stop-color="#E9B44C" stop-opacity=".03"/>
+        </linearGradient>
+        ${/* One rect per movement, and the union of them is what is lit. A
+              single frontier rect would light the work you have not done as
+              soon as you did anything out of order. */''}
+        <clipPath id="tr-lit-clip">${rangeClipRects(A)}</clipPath>
+      </defs>
+      ${/* The range as it is before you start: cold, and only just there. */''}
+      <g class="tr-cold">
+        <path class="tr-f1" d="${RANGE_FILLS[0]}"/>
+        <path class="tr-f2" d="${RANGE_FILLS[1]}"/>
+        <path class="tr-f3" d="${RANGE_FILLS[2]}"/>
+        <path class="tr-e" d="${RANGE_LINES[2]}" vector-effect="non-scaling-stroke"/>
+      </g>
+      ${/* The same range with the light on it, showing through the clip. */''}
+      <g clip-path="url(#tr-lit-clip)">
+        <path class="tr-w1" d="${RANGE_FILLS[0]}"/>
+        <path class="tr-w2" d="${RANGE_FILLS[1]}"/>
+        <path class="tr-w3" d="${RANGE_FILLS[2]}"/>
+        ${/* The ridgelines catching it. A dark mountain with a lit edge is the
+               whole picture; filling the mass alone reads as a bar chart. */''}
+        <path class="tr-l1" d="${RANGE_LINES[0]}" vector-effect="non-scaling-stroke"/>
+        <path class="tr-l2" d="${RANGE_LINES[1]}" vector-effect="non-scaling-stroke"/>
+        <path class="tr-l3" d="${RANGE_LINES[2]}" vector-effect="non-scaling-stroke"/>
+      </g>
+      ${/* Where one movement's ground ends and the next begins. */''}
+      <g class="tr-div">${divs.map(d =>
+        `<path d="M${d.toFixed(2)} ${(rangeY(d) - 5).toFixed(1)}V${RANGE_H}" vector-effect="non-scaling-stroke"/>`).join('')}</g>
+    </svg>
+    ${/* Where you are, standing on the skyline — and the light on the range is
+          this marker's halo rather than a shape inside the SVG. Both for the
+          same reason: the SVG is preserveAspectRatio="none", so anything round
+          in it comes out an ellipse whose eccentricity depends on how wide the
+          phone is, and a rectangular glow instead read as a bar stuck to the
+          left edge before you had done anything. */''}
+    <i class="tr-you" style="${rangeYouStyle(lx)}"></i>
+  </div>`;
+}
+
+/* Clamped a few pixels inside the range. The card clips its overflow, so a
+   marker at 0% or 100% is drawn as a half circle against the card's edge —
+   which reads as a rendering fault rather than as a position. */
+function rangeYouStyle(lx) {
+  const x = Math.max(7, Math.min(RANGE_W - 7, lx));
+  return `left:${(x / RANGE_W * 100).toFixed(2)}%;top:${(rangeY(x) / RANGE_H * 100).toFixed(2)}%`;
 }
 
 /* "Back Squat · 2 of 6" — the movement you are on and where it sits, which is
@@ -12639,6 +13064,21 @@ function updateTrainProgress() {
       seg.classList.toggle('done', isComplete(it));
       seg.classList.toggle('now', !isComplete(it) && i === cur);
     });
+  }
+  /* The range lights in place. Each movement's clip rect is widened to its own
+     completion, so the mountain it owns comes up as its sets are ticked and
+     goes back down when one is undone — and because the rects are addressed by
+     exercise index rather than by position, working out of order lights the
+     ground that work actually sits on. */
+  const range = document.querySelector('#train-body .tr-range');
+  if (range) {
+    const g = rangeGeom(A);
+    g.rects.forEach(rc => {
+      const r = range.querySelector('[data-lit="' + rc.i + '"]');
+      if (r) { r.setAttribute('x', rc.x.toFixed(2)); r.setAttribute('width', rc.w.toFixed(2)); }
+    });
+    const you = range.querySelector('.tr-you');
+    if (you) you.style.cssText = rangeYouStyle(g.lx);
   }
   const kc = document.getElementById('tp-kcal');
   if (kc) kc.textContent = sessionKcal(A) + ' kcal';
