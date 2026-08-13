@@ -122,31 +122,58 @@ function bodyPath(pts, shape, flip, open) {
    pinned to its sides.
    ------------------------------------------------------------ */
 const BODY_OUTLINE = [
-  [66, 0.4], [73.4, 2.6], [78, 11.4], [77, 22.4], [73.4, 29.4],       // skull
-  [71, 33.4],                                                         // under the jaw
-  [71.4, 38.4], [71.8, 44.4],                                         // neck
-  [74.4, 45.6], [79.4, 47.4], [85.4, 50.4], [91, 53.8],                // trapezius slope
-  [95.4, 57.4], [97.6, 65.4], [97.8, 76.4],                           // deltoid cap
-  [99, 88.4], [99.6, 100.4],                                          // upper arm to elbow
-  [100.4, 114.4], [100.8, 128.4],                                     // forearm
-  [99.8, 137.4],                                                      // wrist
-  [102.2, 146.4], [102, 155.4], [99, 160.4], [94, 159.4], [92, 150.4], // hand
-  [92.2, 137.4], [91.6, 123.4], [91, 109.4],                          // forearm, inner
-  [90.4, 100.4], [89.8, 86.4], [89.2, 76.4],                          // upper arm, inner
-  [87.2, 70.4],                                                       // the armpit apex
-  [85.4, 78.4], [84.4, 90.4], [83.2, 101.4],                          // ribs to waist
-  [84.6, 110.4], [87, 119.4],                                         // iliac crest
-  [88.4, 129.4],                                                      // hip to thigh
-  [86.6, 151.4], [82, 169.4],                                         // thigh
-  [79.6, 177.4],                                                      // knee
-  [79.4, 189.4], [78, 201.4],                                         // calf
-  [75, 215.4], [73.4, 226.4],                                         // ankle
-  [75.6, 233.4], [80.4, 238.4], [80, 240], [69.4, 240],               // foot
-  [69.6, 228.4], [70, 215.4],                                         // inner ankle
-  [69.8, 201.4], [69.6, 187.4],                                       // inner calf
-  [69.6, 177.4], [69.2, 167.4], [68.2, 151.4], [67, 137.4],           // inner thigh
-  [66, 129.4]                                                         // crotch
+  /* Skull, then a jaw. The first version was an egg — widest at the middle and
+     tapering evenly to a rounded point, which is a head from a distance and a
+     balloon up close. A cranium is widest high and above the ears, the jaw
+     angles in below it, and the notch where the jaw meets the neck is most of
+     what makes a head read as a head rather than as a shape on a stick. */
+  [66, 0.4], [70.8, 0.9], [75.2, 3.6], [77.4, 9.4], [77.4, 16],
+  [76.2, 21.4], [74.4, 25],                                           // cheek
+  [72.6, 27.6], [71, 29.6],                                           // jaw angle, tight
+  /* A short neck. It was thirteen units from chin to shoulder, which is longer
+     than a head is wide and reads as a stem rather than as a neck — and with
+     the smoothing running through it the head and the neck came out as one
+     tube. Two points close together at the jaw force the corner the curve was
+     rounding away. */
+  [70.6, 33.4], [70.8, 40.4],
+  /* Trapezius. It leaves the neck close to flat and only turns down as it
+     goes over the ball of the shoulder — the previous six points were at a
+     constant slope, which is the definition of a straight line and read as a
+     coat hanger however many points were on it. */
+  [73.4, 41.6], [78.4, 43.4], [84, 46.4], [89.4, 50.6],
+  [93.6, 56], [96.6, 64.4], [97.8, 77.4],                             // deltoid cap
+  /* The upper arm narrows into the elbow and the forearm swells just below it
+     before running down to a wrist half its width. It was one tube of even
+     thickness from shoulder to hand. */
+  [97.2, 88.4], [96.6, 99.4],                                         // upper arm to elbow
+  [98.4, 108.4], [99, 116.4],                                         // forearm belly
+  [97.6, 128.4], [96.2, 137.4],                                       // wrist
+  [98.4, 145.4], [98.6, 154.4], [96, 160.4], [92, 158.4], [90.8, 148.4], // hand
+  [90.4, 137.4], [89.8, 124.4], [89.6, 110.4],                        // forearm, inner
+  [89.8, 99.4], [89.4, 88.4], [89, 78.4],                             // upper arm, inner
+  [86.8, 70.4],                                                       // the armpit apex
+  /* A waist that is actually narrower than the ribs above it and the hips
+     below it. At 83.2 against a 84.4 rib and an 87 hip the torso was a
+     rectangle with rounded corners. */
+  [85, 78.4], [83.8, 90.4], [81.4, 102.4],
+  [83.8, 111.4], [86.8, 120.4],                                       // iliac crest
+  [88.2, 129.4],                                                      // hip to thigh
+  /* The thigh is widest just under the hip and the knee is the narrowest part
+     of the leg. Both were nearly parallel before. */
+  [86.8, 148.4], [83, 164.4], [80, 175.4],
+  [78.8, 179.4],                                                      // knee
+  /* A calf belly high on the shin, then a long taper to an ankle a third its
+     width. The lateral head sits higher than the medial one, which is why the
+     two sides of the lower leg are not the same curve. */
+  [80.4, 190.4], [79.4, 200.4],
+  [75.4, 214.4], [73.2, 226.4],                                       // ankle
+  [74.6, 233.4], [79.4, 238.4], [80, 240], [68.8, 240],               // foot
+  [69, 227.4], [69.6, 214.4],                                         // inner ankle
+  [70.8, 200.4], [71.4, 188.4],                                       // inner calf, lower
+  [71.6, 179.4], [71, 168.4], [69.8, 152.4], [68, 138.4],             // inner thigh
+  [66, 130.4]                                                         // crotch
 ];
+
 
 /* Regions. Each is a name from the app's own ten, a view, and a shape.
    `both` means the group is drawn once per side and mirrored.
@@ -160,8 +187,8 @@ const BODY_OUTLINE = [
 const BODY_REGIONS = {
   front: [
     { m: 'Shoulders', both: true, pts: [
-      [80.4, 49.4], [87.4, 51.6], [93.4, 56.4], [96.8, 65.4], [96.8, 77.4],
-      [92.4, 81.4], [88.4, 74.4], [86.4, 64.4], [82.4, 54.4] ] },
+      [80.4, 49.6], [86, 51.8], [92.4, 56.6], [96.6, 66.4], [96.8, 78.4],
+      [92.2, 82.4], [88.2, 74.4], [86, 64.4], [82.2, 54.6] ] },
     { m: 'Chest', both: true, pts: [
       [67, 52.4], [76.4, 53.4], [83.4, 56.4], [86.4, 63.4], [85.6, 71.4],
       [80.4, 77.4], [72.4, 77.4], [67, 74.4] ] },
@@ -173,8 +200,8 @@ const BODY_REGIONS = {
       [67, 80.4], [74.4, 81.4], [79.6, 87.4], [80.4, 98.4], [78.4, 110.4],
       [73.4, 119.4], [67, 121.4] ] },
     { m: 'Biceps', both: true, pts: [
-      [89.2, 77.4], [94.6, 81.4], [97.6, 91.4], [98.4, 100.4], [95, 104.4],
-      [91, 100.4], [89.2, 88.4] ] },
+      [89.2, 78.4], [94.2, 81.6], [96.4, 90.4], [96, 99.4], [92.8, 102.4],
+      [90.6, 98.4], [89.2, 88.4] ] },
     { m: 'Quads', both: true, pts: [
       [67.4, 134.4], [75.4, 132.4], [85, 134.4], [86.2, 144.4], [83.6, 160.4],
       [79, 172.4], [73, 172.4], [69.8, 159.4], [67.8, 146.4] ] },
@@ -188,8 +215,8 @@ const BODY_REGIONS = {
   ],
   back: [
     { m: 'Shoulders', both: true, pts: [
-      [80.4, 49.4], [87.4, 51.6], [93.4, 56.4], [96.8, 65.4], [96.8, 77.4],
-      [92.4, 81.4], [88.4, 74.4], [86.4, 64.4], [82.4, 54.4] ] },
+      [80.4, 49.6], [86, 51.8], [92.4, 56.6], [96.6, 66.4], [96.8, 78.4],
+      [92.2, 82.4], [88.2, 74.4], [86, 64.4], [82.2, 54.6] ] },
     /* Traps, lats and the lower back are one shape, because the app has one
        muscle called Back and a diagram that offers three where the engine
        reasons about one is a diagram that cannot be acted on. */
@@ -197,8 +224,8 @@ const BODY_REGIONS = {
       [67, 46.4], [77.4, 49.4], [85.4, 54.4], [87.4, 64.4], [86, 76.4],
       [84.6, 89.4], [83.2, 101.4], [80.4, 112.4], [74.4, 119.4], [67, 121.4] ] },
     { m: 'Triceps', both: true, pts: [
-      [89.2, 77.4], [95, 81.4], [98.4, 92.4], [99.4, 101.4], [95.8, 105.4],
-      [91.2, 101.4], [89.2, 88.4] ] },
+      [89.2, 78.4], [94.6, 81.6], [96.6, 90.4], [96.2, 99.4], [93, 102.6],
+      [90.6, 98.4], [89.2, 88.4] ] },
     { m: 'Glutes', both: true, pts: [
       [67, 120.4], [76, 118.4], [85, 122.4], [87.8, 132.4], [85.6, 142.4],
       [78, 146.4], [69, 144.4], [67, 136.4] ] },

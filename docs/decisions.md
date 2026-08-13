@@ -1130,3 +1130,39 @@ The check compares the bars to the **ring itself** rather than to a recomputed
 target. Recomputing would only prove the check can do arithmetic, and it would
 keep passing if the ring quietly started using a different target from the bars
 — which is the entire failure mode of two things drawing one number.
+
+---
+
+## The figure, made person-shaped
+
+Three things were wrong and all three were the same mistake: authoring a body
+part as the shape it *approximately* is rather than as the shape it is.
+
+**A head is not an egg.** The first one was widest at the middle and tapered
+evenly to a rounded point, which is a head from across a room and a balloon up
+close. A cranium is widest high and above the ears; the jaw angles in below it;
+and the notch where the jaw meets the neck is most of what makes a head read as
+a head rather than as a shape on a stick. Two points close together at the jaw
+angle force the corner that the Catmull-Rom was rounding away.
+
+**A neck is short.** It ran thirteen units from chin to shoulder — longer than
+a head is wide. With the smoothing running through it, the head and the neck
+came out as one continuous tube.
+
+**A straight line is a straight line however many points are on it.** The
+trapezius had six points and they were all at the same slope, which is the
+definition of a straight diagonal and read as a coat hanger. A real trapezius
+leaves the neck close to flat and only turns down as it goes over the ball of
+the shoulder.
+
+The same class of fix elsewhere: the waist is now genuinely narrower than the
+ribs above it and the hips below it, where before all three sat within four
+units of each other and the torso was a rectangle with rounded corners; the
+upper arm narrows into the elbow and the forearm swells below it, where before
+the whole limb was one tube; the knee is the narrowest part of the leg and the
+calf belly sits high on the shin with a long taper to an ankle a third its
+width; and there is daylight between the thighs, which a standing figure has and
+this one did not.
+
+The geometry check paid for itself again — five region points ended up outside
+the new, tapered limbs, and it named all five with their coordinates.
