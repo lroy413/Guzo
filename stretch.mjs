@@ -329,6 +329,96 @@ try {
   check('...and saving lands on the stretch, not back on the form',
     setup.landed === true && setup.onboarded === true);
 
+
+  // ================= 6. running it on the Train screen ==================
+  console.log('\nrunning it\n');
+
+  const run = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.stretch = { onboarded: true, occupation: 'desk', areas: [], done: {}, mins: 8 };
+    save(true);
+    sheetStretch();
+    const btn = document.querySelector('#sheet-body [data-act="stretch-start"]');
+    if (!btn) return { started: false };
+    btn.click();
+    /* Read here, not after finishing — finishSession() sends you back to
+       Today, so a screen captured at the end says 'today' about a session that
+       ran perfectly well on Train. */
+    const landedOn = SCREEN;
+    const A = S.active;
+    if (!A) return { started: false };
+    /* The holds have to arrive as holds, or the Train screen has nothing to
+       count down. */
+    const timed = A.exercises.filter(x => x.load === 'time').length;
+    renderTrain();
+    const body = document.getElementById('train-body');
+    const rows = body ? body.querySelectorAll('.set-row').length : 0;
+    /* Tick everything and finish through the real button. */
+    A.exercises.forEach(it => it.sets.forEach(st => { st.done = true; }));
+    A.activeMs = 9 * 60 * 1000;
+    finishSession();
+    const sess = S.sessions[S.sessions.length - 1];
+    return {
+      started: true, screen: landedOn, n: A.exercises.length, timed, rows,
+      onTrain: rows > 0,
+      /* An extra never discharges the day you committed to. */
+      extra: !!sess.extra,
+      planDone: !!(S.week.plan[today()] && S.week.plan[today()].done),
+      /* Running it counts the same as ticking it by hand. */
+      markedDone: stretchDone(today()).length,
+      dur: sess.dur,
+      /* Mobility sets no working weight, wherever it is run from. */
+      lifts: Object.keys(S.lifts || {}).filter(id => (S.lifts[id] || {}).w != null).length
+    };
+  });
+  check('today\'s stretch can be started', run.started === true);
+  check('...and it lands on the Train screen with rows to work through',
+    run.screen === 'train' && run.onTrain, `${run.screen}, ${run.rows} rows`);
+  check('...with the holds arriving as holds, so they count down',
+    run.timed > 0, String(run.timed));
+  check('...it never discharges the session you committed to',
+    run.extra === true && run.planDone === false,
+    `extra ${run.extra}, plan done ${run.planDone}`);
+  check('...finishing it ticks the day off in the stretch store too',
+    run.markedDone === run.n, `${run.markedDone} of ${run.n}`);
+  check('...and it records the time you were in it', run.dur === 9, String(run.dur));
+  check('...and still sets no working weight', run.lifts === 0, String(run.lifts));
+
+  // ================= 7. the catalogue is big enough =====================
+  console.log('\nhow much there is\n');
+
+  const cat = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const all = EXLIST.filter(x => x.pattern === 'mobility');
+    const pool = stretchPool();
+    const regions = {};
+    pool.forEach(x => { const r = stretchRegion(x); regions[r] = (regions[r] || 0) + 1; });
+    /* Fifteen minutes is the longest a stretch can be asked for; it must not
+       have to repeat itself to fill that. */
+    S.stretch = { onboarded: true, occupation: 'desk', areas: [], done: {}, mins: 15 };
+    const longest = dailyStretch();
+    const ids = longest.map(s => s.ex.id);
+    return {
+      all: all.length, pool: pool.length, regions,
+      longest: longest.length,
+      noRepeats: new Set(ids).size === ids.length,
+      /* Every row has to parse, or a malformed one is a silent undefined. */
+      malformed: all.filter(x => !x.name || !x.primary || !(x.rl > 0) || !(x.rh >= x.rl)).map(x => x.id),
+      dupes: all.map(x => x.id).filter((id, i, a) => a.indexOf(id) !== i)
+    };
+  });
+  check('the catalogue has a real number of stretches in it',
+    cat.all >= 60, String(cat.all));
+  check('...and enough of them need nothing but a floor', cat.pool >= 55, String(cat.pool));
+  check('...covering every region rather than piling into one',
+    Object.keys(cat.regions).length >= 4 &&
+    Math.min(...Object.values(cat.regions)) >= 6, JSON.stringify(cat.regions));
+  check('...with no duplicate or malformed rows',
+    cat.dupes.length === 0 && cat.malformed.length === 0,
+    JSON.stringify([cat.dupes, cat.malformed]));
+  check('the longest stretch never has to repeat a movement',
+    cat.noRepeats === true && cat.longest >= 10, `${cat.longest} movements`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

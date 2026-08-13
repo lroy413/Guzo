@@ -409,6 +409,12 @@ button.recall:active{transform:scale(.99)}
 .str-strip{margin-bottom:12px}
 .str-strip-ok{color:var(--ember);font-size:19px;font-weight:700;line-height:1}
 
+/* The session clock. A button, because a clock you cannot stop is a clock you
+   have to take on faith. */
+.tp-clock{font-family:var(--fm);font-size:13px;color:var(--text-dim);
+  min-height:44px;padding:0 6px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.tp-clock.paused{color:var(--faint);text-decoration:line-through;text-decoration-thickness:1px}
+
 /* ---------- plate calculator ---------- */
 .plate-total{font-size:46px;font-weight:700;letter-spacing:-.04em;line-height:1.05;color:var(--text)}
 .plate-unit{font-size:19px;font-weight:600;color:var(--muted);margin-left:3px;letter-spacing:0}

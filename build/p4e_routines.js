@@ -511,7 +511,7 @@ function buildRoutineSession(id, asPlanned) {
     warmupCount: warmups,
     planMins: routineMins(r),
     exercises,
-    started: null, ended: null, dur: 0
+    started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
   };
 }
 

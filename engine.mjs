@@ -1630,6 +1630,150 @@ try {
   check('Enter still steps weight → reps on a barbell row', enterOrder.squat === 'r', enterOrder.squat);
   check('...and distance → minutes on a run', enterOrder.run === 'r', enterOrder.run);
 
+  // ================= 18. how long you actually trained ==================
+  console.log('\nthe session clock\n');
+
+  /* Reported with a screenshot reading 596 min for a push day. `dur` was wall
+     clock from creating the session to tapping Finish, so a session started in
+     the morning and closed after work logged the whole day as training. */
+  const sessClock = await page.evaluate(() => {
+    const start = () => {
+      S = blank(); S.onboarded = true; save(true);
+      const e = EX['bb-bench'] || EX['bb-back-squat'];
+      S.active = { id: 'sx1', date: today(), type: 'full', env: 'full', rung: 'full',
+        backdated: false, started: Date.now(), ended: null, dur: 0,
+        activeMs: 0, tickAt: Date.now(), paused: false,
+        exercises: [{ exId: e.id, name: e.name, load: e.load, targetW: 60, targetR: 8,
+          sets: [{ w: 60, r: 8, rpe: '', done: false }] }] };
+      noteInteraction();
+    };
+
+    /* The pump is driven by hand rather than by waiting ten real minutes —
+       what is being tested is the arithmetic and the conditions, not
+       setInterval. Stepped in slices no larger than the cap, because the real
+       pump fires every five seconds and a single two-minute slice is a thing
+       that only happens in a fixture. `advanceRaw` is the one that hands it a
+       single enormous slice, which is what the cap exists for. */
+    const advanceRaw = (ms) => { S.active.tickAt = Date.now() - ms; pumpSessionClock(); };
+    const advance = (ms) => {
+      let left = ms;
+      while (left > 0) { const step = Math.min(left, 30000); advanceRaw(step); left -= step; }
+    };
+
+    start();
+    advance(60000);
+    const oneMin = sessionActiveMins();
+
+    /* The reported bug: the phone goes in a pocket for nine hours. Nothing
+       should be counted for any of it. */
+    start();
+    advance(60000);
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    advance(9 * 3600 * 1000);
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+    const hidden = sessionActiveMins();
+
+    /* Visible, but untouched for hours — the app left open on a counter. */
+    start();
+    advance(60000);
+    lastInteraction = Date.now() - 40 * 60 * 1000;
+    advance(3 * 3600 * 1000);
+    const idle = sessionActiveMins();
+
+    /* Rest between heavy sets IS training, even with nothing being touched. */
+    start();
+    lastInteraction = Date.now() - 40 * 60 * 1000;
+    const bar = document.getElementById('rest-bar');
+    bar.classList.add('on');
+    advance(120000);
+    const resting = sessionActiveMins();
+    bar.classList.remove('on');
+
+    /* Paused by hand. */
+    start();
+    advance(60000);
+    const pausedNow = toggleSessionPause();
+    advance(30 * 60 * 1000);
+    const whilePaused = sessionActiveMins();
+    toggleSessionPause();
+    advance(60000);
+    const afterResume = sessionActiveMins();
+
+    /* A single slice is capped, in case an interval is throttled or the device
+       sleeps without ever firing visibilitychange. */
+    start();
+    advanceRaw(6 * 3600 * 1000);
+    const capped = sessionActiveMins();
+
+    return { oneMin, hidden, idle, resting, pausedNow, whilePaused, afterResume, capped };
+  });
+  check('a minute in the session is a minute on the clock', sessClock.oneMin === 1, String(sessClock.oneMin));
+  /* The reported bug, as a check. */
+  check('nine hours with the phone away adds nothing', sessClock.hidden === 1, String(sessClock.hidden));
+  check('...and neither does the app left open and untouched', sessClock.idle === 1, String(sessClock.idle));
+  check('but resting between sets counts', sessClock.resting === 2, String(sessClock.resting));
+  check('the clock can be paused by hand', sessClock.pausedNow === true);
+  check('...and nothing accrues while it is', sessClock.whilePaused === 1, String(sessClock.whilePaused));
+  check('...and it picks up again on resume', sessClock.afterResume === 2, String(sessClock.afterResume));
+  check('one slice is capped, so a sleeping device cannot dump hours in',
+    sessClock.capped === 1, String(sessClock.capped));
+
+  /* Through the real Finish button, so what is stored is what a person gets. */
+  const finished = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const e = EX['bb-bench'] || EX['bb-back-squat'];
+    S.active = { id: 'sx2', date: today(), type: 'full', env: 'full', rung: 'full',
+      backdated: false, started: Date.now() - 9 * 3600 * 1000, ended: null, dur: 0,
+      activeMs: 47 * 60 * 1000, tickAt: Date.now(), paused: false,
+      exercises: [{ exId: e.id, name: e.name, load: e.load, targetW: 60, targetR: 8,
+        sets: [{ w: 60, r: 8, rpe: '', done: true }] }] };
+    go('train'); renderTrain();
+    const clockEl = document.getElementById('tp-time');
+    const shown = clockEl ? clockEl.textContent.trim() : '(none)';
+    finishSession();
+    const s = S.sessions[S.sessions.length - 1];
+    return { shown, dur: s ? s.dur : -1, started: s ? s.started : 0, ended: s ? s.ended : 0 };
+  });
+  check('the Train screen shows the time you were in it', finished.shown === '47 min', finished.shown);
+  /* Nine hours between opening the session and finishing it; forty-seven
+     minutes of actually being in it. The stored figure is the second one. */
+  check('...and that is what gets stored, not the wall clock',
+    finished.dur === 47, String(finished.dur));
+  check('...while the real start and end are still recorded',
+    finished.ended - finished.started > 8 * 3600 * 1000,
+    String(Math.round((finished.ended - finished.started) / 3600000)) + 'h');
+
+  /* The sessions already in the store carry the old wall-clock numbers. */
+  const repaired = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    const e = EX['bb-bench'] || EX['bb-back-squat'];
+    const mk = (id, dur) => ({ id, date: today(), ended: Date.now(), dur, type: 'full',
+      exercises: [{ exId: e.id, name: e.name, load: e.load,
+        sets: [{ w: 60, r: 8, done: true }, { w: 60, r: 8, done: true },
+               { w: 60, r: 8, done: true }] }] });
+    S.sessions = [mk('a', 596), mk('b', 52), mk('c', 1440)];
+    delete S.meta.durFixed;
+    save(true);
+    const n = repairSessionDurations();
+    const after = S.sessions.map(s => s.dur);
+    /* Once, and only once. A repair that runs every boot will eventually
+       rewrite something real. */
+    S.sessions[1].dur = 999;
+    const again = repairSessionDurations();
+    return { n, after, again, stillThere: S.sessions[1].dur,
+             kept: S.sessions[0].durWas };
+  });
+  check('an impossible duration already in the store is repaired',
+    repaired.n === 2, String(repaired.n));
+  check('...to something the work could actually have taken',
+    repaired.after[0] > 0 && repaired.after[0] < 240 && repaired.after[2] < 240,
+    JSON.stringify(repaired.after));
+  check('...leaving a plausible one alone', repaired.after[1] === 52, String(repaired.after[1]));
+  check('...keeping what it was, rather than quietly losing it',
+    repaired.kept === 596, String(repaired.kept));
+  check('...and it never runs twice', repaired.again === 0 && repaired.stillThere === 999,
+    `${repaired.again} / ${repaired.stillThere}`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

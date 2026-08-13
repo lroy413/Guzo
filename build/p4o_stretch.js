@@ -323,3 +323,57 @@ function saveDailyAsRoutine() {
   save(true);
   return r;
 }
+
+/* ------------------------------------------------------------
+   Running it on the Train screen.
+
+   Asked for: the stretch should run under Train so the holds count themselves
+   down. They already can — a timed item counts itself down there and has since
+   the reps-or-seconds change — so this is a session built out of today's
+   recommendation rather than a second runner.
+
+   Marked `extra`, so a stretch never discharges the session you committed to:
+   ten minutes of mobility is not the Upper day you skipped. And marked
+   `stretch`, so finishing it ticks the day off in the stretch store as well.
+   ------------------------------------------------------------ */
+function buildStretchSession(list) {
+  const items = (list && list.length ? list : dailyStretch()).map(s => s.ex || s);
+  if (!items.length) return null;
+  return {
+    id: 'sx' + Date.now().toString(36),
+    date: today(),
+    type: 'recovery',
+    stretch: true,
+    extra: true,
+    env: (dayConstraint(today()).env) || 'bw',
+    rung: 'full',
+    circuit: false, rounds: null, restRound: null, warmupCount: 0,
+    planMins: Math.round(stretchSeconds(items.map(ex => ({ ex }))) / 60),
+    exercises: items.map(ex => ({
+      exId: ex.id, name: ex.name,
+      /* The catalogue's own load, so a 60-second hold arrives as a hold and
+         the Train screen counts it down. */
+      load: ex.load,
+      targetW: null, targetR: ex.rh,
+      sets: [{ w: '', r: '', rpe: '', done: false }],
+      note: ''
+    })),
+    started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
+  };
+}
+
+/* Everything in a finished stretch session counts as done for the day, so
+   running it and ticking it by hand are the same thing to everything
+   downstream. */
+function markStretchSessionDone(sess) {
+  if (!sess || !sess.stretch) return;
+  const st = stretchStore();
+  const kk = key(sess.date);
+  const list = st.done[kk] || [];
+  (sess.exercises || []).forEach(it => {
+    if (!it.sets.some(x => x.done)) return;
+    if (list.indexOf(it.exId) < 0) list.push(it.exId);
+  });
+  if (list.length) st.done[kk] = list;
+  save();
+}

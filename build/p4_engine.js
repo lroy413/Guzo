@@ -599,6 +599,110 @@ function seedStartingWeights(levelKey, bodyweight, overrides, exact) {
 /* ============================================================
    PROGRESSION — double progression with a 2-strike deload
    ============================================================ */
+/* ============================================================
+   HOW LONG YOU ACTUALLY TRAINED
+   ------------------------------------------------------------
+   Reported with a screenshot reading **596 min**, which is nearly ten hours
+   and was not a workout — it was a session started in the morning and
+   finished after work. `dur` was wall clock from the moment the session was
+   created to the moment Finish was tapped, so every phone left in a pocket
+   and every session picked up later logged the gap as training. The comment
+   above it even said the clock measured how long you spent typing; it just
+   did not do anything about it.
+
+   The fix is to count time in the segments you were actually in it. A pump
+   runs on an interval and adds the elapsed slice only when all of these hold:
+
+   - a session is open and you have not paused it,
+   - the page is visible — a phone in a pocket trains nobody,
+   - and either you have touched something recently, or a rest timer is
+     running. Rest between heavy sets is training; an app left open on the
+     kitchen counter is not.
+
+   The idle cutoff is generous at ten minutes, because the rest timer tops out
+   near seven and setting up a rack takes a while. Anything longer than that
+   with no interaction is not a set you are in the middle of.
+
+   `tickAt` advances whether or not the slice counted, so nothing is ever
+   back-filled: coming back after four hours adds one interval, not four hours.
+   ============================================================ */
+const IDLE_CUTOFF_MS = 10 * 60 * 1000;
+/* A single slice is capped in case an interval is throttled or the device
+   sleeps without firing visibilitychange. */
+const CLOCK_STEP_CAP_MS = 60 * 1000;
+
+let lastInteraction = Date.now();
+function noteInteraction() { lastInteraction = Date.now(); }
+
+function sessionClockRunning() {
+  const A = S && S.active;
+  if (!A || A.paused) return false;
+  if (typeof document !== 'undefined' && document.hidden) return false;
+  if (typeof timerRunning === 'function' && timerRunning()) return true;
+  return (Date.now() - lastInteraction) < IDLE_CUTOFF_MS;
+}
+
+function pumpSessionClock() {
+  const A = S && S.active;
+  if (!A) return;
+  const now = Date.now();
+  if (A.tickAt == null) { A.tickAt = now; return; }
+  const delta = now - A.tickAt;
+  A.tickAt = now;
+  if (delta <= 0) return;
+  if (!sessionClockRunning()) return;
+  A.activeMs = (+A.activeMs || 0) + Math.min(delta, CLOCK_STEP_CAP_MS);
+}
+
+/* Minutes, for the label and for the record. A session with any work in it is
+   at least a minute — a rounded zero reads as a bug. */
+function sessionActiveMins(A) {
+  A = A || (S && S.active);
+  if (!A) return 0;
+  return Math.round((+A.activeMs || 0) / 60000);
+}
+
+function toggleSessionPause() {
+  const A = S && S.active;
+  if (!A) return false;
+  pumpSessionClock();
+  A.paused = !A.paused;
+  A.tickAt = Date.now();
+  save();
+  return !!A.paused;
+}
+
+/* ------------------------------------------------------------
+   Repairing what the old clock wrote.
+
+   Sessions already in the store carry wall-clock durations, and some of them
+   are absurd — the reported one was 596 minutes. Nothing in this app produces
+   a real session over four hours: the longest generated session is ninety
+   minutes and the longest a routine can be is well inside that. So anything
+   past the cutoff is the old bug rather than a very long day, and it is
+   replaced by the estimate built from the work itself, which is the same
+   figure a session logged after the fact has always used.
+
+   Run once, flagged, and left alone afterwards — a repair that runs every
+   boot is a repair that will eventually rewrite something real.
+   ------------------------------------------------------------ */
+const IMPLAUSIBLE_SESSION_MINS = 240;
+
+function repairSessionDurations() {
+  if (!S.meta) S.meta = {};
+  if (S.meta.durFixed) return 0;
+  let n = 0;
+  (S.sessions || []).forEach(sess => {
+    if (!sess || !(+sess.dur > IMPLAUSIBLE_SESSION_MINS)) return;
+    sess.durWas = sess.dur;
+    sess.dur = sessionMinsEstimate(sess);
+    n++;
+  });
+  S.meta.durFixed = true;
+  if (n) save(true);
+  return n;
+}
+
 function liftOf(exId) {
   if (!S.lifts[exId]) S.lifts[exId] = { w:null, r:null, fails:0, best:null, lastDate:null, history:[] };
   return S.lifts[exId];
@@ -883,7 +987,7 @@ function generateSession(type, envKey, rung, minutes) {
     type, env: envKey, rung,
     planMins: Math.round(spent),
     exercises: items,
-    started: null, ended: null, dur: 0
+    started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
   };
 }
 
@@ -904,7 +1008,7 @@ function microSession(envKey) {
       sets: [{ w:'', r:40, rpe:'', done:false }],
       note: 'Forty seconds. Stop when the timer stops, not when it hurts.'
     })),
-    started: null, ended: null, dur: 0
+    started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
   };
 }
 
@@ -970,7 +1074,7 @@ function recoverySession(envKey, rung) {
     type: 'recovery', env: envKey, rung: rung || 'full',
     planMins: recoveryMins(exercises),
     exercises,
-    started: null, ended: null, dur: 0
+    started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
   };
 }
 

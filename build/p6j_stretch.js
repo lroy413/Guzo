@@ -63,6 +63,7 @@ function sheetStretch() {
       }).join('')}
     </div>
 
+    ${allDone ? '' : `<button class="btn primary block lg mb" data-act="stretch-start">Start it &mdash; ${Math.round(secs / 60)} min</button>`}
     <div class="btn-row mb">
       <button class="btn ghost grow" data-act="stretch-reroll">Something else</button>
       <button class="btn ghost grow" data-act="stretch-save">Save as routine</button>
@@ -70,12 +71,14 @@ function sheetStretch() {
 
     ${mine.length ? `<div class="sec-head"><span class="sec-t">Your stretch routines</span></div>
       <div class="list mb">
-        ${mine.map(r => `<button class="lrow" data-act="stretch-open-rt" data-v="${h(r.id)}">
+        ${mine.map(r => `<div class="lrow">
           <div class="ico">${h(r.emoji || '🧘')}</div>
-          <div class="grow"><div class="h3">${h(r.name)}</div>
-            <div class="tiny mt-s">${r.items.length} movement${r.items.length === 1 ? '' : 's'}</div></div>
-          <span class="chev">›</span>
-        </button>`).join('')}
+          <button class="grow" data-act="stretch-open-rt" data-v="${h(r.id)}" style="text-align:left">
+            <div class="h3">${h(r.name)}</div>
+            <div class="tiny mt-s">${r.items.length} movement${r.items.length === 1 ? '' : 's'} &middot; edit</div>
+          </button>
+          <button class="btn xs" data-act="routine-start" data-v="${h(r.id)}">Start</button>
+        </div>`).join('')}
       </div>` : ''}
 
     <div class="btn-row">

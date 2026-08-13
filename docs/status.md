@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **879,373 bytes**, `VERSION = '1.3.0'`.
-Last sweep: `dupes` + `blanks` (375) + `engine` (239) + `fuel` (100) + `stretch` (41) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **892,386 bytes**, `VERSION = '1.3.0'`.
+Last sweep: `dupes` + `blanks` (375) + `engine` (255) + `fuel` (100) + `stretch` (53) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -25,7 +25,7 @@ Last sweep: `dupes` + `blanks` (375) + `engine` (239) + `fuel` (100) + `stretch`
 | Import a plan | Complete. Offered from Structure, from the routines list, and from inside the builder. A PDF or text file becomes one routine per day — or, from the builder, movements appended to the routine you already have open: text extracted on-device with no library, movements matched to the catalogue by name, supersets read off the plan's own 4A/4B notation, and everything shown for review before anything is built. |
 | Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
 | Water | Complete. A target from bodyweight and what you trained, a flask that fills, quick pours in real vessel sizes, and a streak an unfinished day can never break. Stored in millilitres, shown in whichever unit follows your weight. |
-| Stretch | Complete. A daily stretch scored from what you trained, what you flagged as sore and what your working day does to you — with its own three-question setup, a time budget rather than a movement count, and your own routines built on the existing builder. |
+| Stretch | Complete. 65 mobility movements. A daily stretch scored from what you trained, what you flagged as sore and what your working day does to you — with its own three-question setup, a time budget rather than a movement count, your own routines built on the existing builder, and it runs on the Train screen so the holds count themselves down. |
 | Pinned headers | Complete. Every screen title stays put instead of scrolling behind the status bar, over a band painted with the page's own sky gradient so it is invisible, and a rule that appears only once something has gone under it. |
 | The ascent (Progress) | Complete. One switchback trail from trailhead to summit whose waypoints are the rows you read — the route card and the markers list under it were the same data twice. Chronological, with "you are here" between the last marker passed and the next. |
 | Distance and pace | Complete. Thirteen movements that cover ground ask for a distance where everything else asks for a weight, and the pace falls out of the minutes already logged. Wheels read in speed. Distance has its own unit, because kilos and miles is a normal pairing. |
@@ -576,6 +576,79 @@ than a viewport unit. Putting `100dvh` back prints `100dvh`; zeroing the
 clearance prints `pad 0 vs nav 60` on four screens.
 
 ---
+
+### 596 minutes was not a workout
+
+Reported with a screenshot: a push day logged at **596 min**. Nearly ten hours,
+and obviously not what happened — the session was started in the morning and
+finished after work.
+
+`dur` was wall clock from creating the session to tapping Finish. Every phone
+that went in a pocket, every session picked up later, every day where you
+opened Train and got called away logged the gap as training. The comment above
+the line even said the clock measured how long you spent typing rather than how
+long you trained; it just did not do anything about it.
+
+**It counts the segments you were actually in it now.** A pump runs on a
+five-second interval and adds the elapsed slice only when a session is open and
+unpaused, the page is visible, and either you have touched something recently
+or a rest timer is running. Rest between heavy sets is training; an app left
+open on a kitchen counter is not. The idle cutoff is a generous ten minutes,
+because the rest timer tops out near seven and setting up a rack takes a while.
+
+Three details that matter more than they look:
+
+- **`tickAt` advances whether or not the slice counted**, so nothing is ever
+  back-filled. Coming back after four hours adds one interval, not four hours.
+- **A single slice is capped at a minute**, in case an interval is throttled or
+  the device sleeps without firing `visibilitychange`.
+- **The clock is a button.** A clock you cannot stop is a clock you have to
+  take on faith, so tapping it pauses, and paused it says so rather than
+  quietly freezing.
+
+`started` and `ended` are still recorded as they were — the wall clock is real
+history, it was just never the answer to "how long did I train".
+
+**And the sessions already in the store are repaired**, once, flagged. Nothing
+this app generates is a real session over four hours, so anything past that is
+the old bug rather than a very long day; it is replaced by the same estimate a
+session logged after the fact has always used, with the old figure kept in
+`durWas` rather than quietly lost. A repair that runs every boot is a repair
+that will eventually rewrite something real, so it runs once.
+
+One thing had to be fixed before any of this could work: `updateTrainProgress`
+held a **second** wall-clock write to the same node, left over from before.
+Removing the variable it read left it referencing a `t` that no longer existed,
+which threw on every session tick — caught by the console check rather than by
+reading, and the second source of truth is gone now either way.
+
+### The stretch runs on the Train screen
+
+Asked for: the stretch should run under Train so the holds count themselves
+down. They already could — a timed item has counted itself down there since the
+reps-or-seconds change — so what was missing was a way to start one. Today's
+recommendation now builds a session directly, and saved stretch routines carry
+a Start button beside the edit.
+
+It is marked `extra`, so ten minutes of mobility never discharges the Upper day
+you skipped, and `stretch`, so finishing it ticks the day off in the stretch
+store as well — running it and ticking it by hand mean the same thing to
+everything downstream.
+
+### Thirty stretches was not enough
+
+**Thirty-five more**, taking the catalogue to sixty-five mobility movements and
+the daily pool to sixty-two. The gaps were the parts a working day actually
+wrecks and the original set barely touched: neck and upper trap, wrists and
+forearms, adductors and the deep hip, ankles and plantar fascia, and thoracic
+rotation beyond the one cat-cow.
+
+The checks assert the size, the spread across regions, that every row parses,
+and that the longest stretch never repeats a movement. Reverted to the old
+thirty, the size checks print **31 and 29** — but the no-repeat check stays
+green, because thirty was already just enough to fill fifteen minutes without
+doubling up. So that one is not evidence for this change; it is a guard against
+the next person trimming the catalogue far enough to break it.
 
 ### Water, and a bottle that fills
 

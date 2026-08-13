@@ -118,6 +118,7 @@ function blankSession(dateKey) {
     env: c.env || 'full', rung: 'full', planMins: 0,
     backdated: daysBetween(k, today()) > 0,
     exercises: [], started: Date.now(), ended: null, dur: 0,
+    activeMs: 0, tickAt: Date.now(), paused: false,
     readiness: (S.readiness[k] || {}).score || null
   };
   save(true); go('train');
@@ -132,9 +133,14 @@ function finishSession() {
     S.active = null; wakeOff(); save(true); render(); return;
   }
   A.ended = Date.now();
-  /* The clock measured how long you spent typing, not how long you trained. */
+  pumpSessionClock();
+  /* The time you were actually in it, not the gap between opening the session
+     and remembering to close it — that is what logged 596 minutes for a push
+     day. See the clock in p4_engine.js. A session with a set in it is at least
+     a minute, and if the clock somehow recorded nothing the estimate from the
+     work is a better answer than zero. */
   A.dur = A.backdated ? sessionMinsEstimate(A)
-                      : Math.max(1, Math.round((A.ended - A.started) / 60000));
+                      : Math.max(1, sessionActiveMins(A) || sessionMinsEstimate(A));
   A.exercises = A.exercises.filter(i => i.sets.some(s => s.done));
   A.kcal = sessionKcal(A);
   applyProgression(A);
@@ -142,6 +148,9 @@ function finishSession() {
   /* An extra you chose to do must not quietly discharge the session you
      committed to. Abs at 10pm is not the same as the Upper day you skipped. */
   if (!A.extra && S.week.plan[A.date]) S.week.plan[A.date].done = true;
+  /* A stretch run through Train ticks the day off in the stretch store too, so
+     running it and ticking it by hand mean the same thing everywhere. */
+  markStretchSessionDone(A);
   if (A.routineId) {
     const rt = routineById(A.routineId);
     if (rt) { rt.uses = (rt.uses || 0) + 1; rt.lastUsed = A.date; }
@@ -254,6 +263,9 @@ document.addEventListener('keydown', ev => {
 });
 
 document.addEventListener('click', ev => {
+  /* Any tap counts as being in the workout. The session clock stops after ten
+     idle minutes, and this is what "idle" is measured against. */
+  noteInteraction();
   const nav = ev.target.closest('[data-go]');
   if (nav) { go(nav.dataset.go); return; }
 
@@ -600,6 +612,12 @@ document.addEventListener('click', ev => {
     case 'open-typepick': sheetTypePick(); break;
     case 'pick-type': closeSheet(); sheetLadder(v); break;
     case 'goto-train': go('train'); break;
+    case 'train-pause': {
+      const paused = toggleSessionPause();
+      updateTrainClock();
+      toast(paused ? 'Clock paused' : 'Clock running', true);
+      break;
+    }
     case 'goto-progress': go('progress'); break;
     case 'new-session': sheetLadder(nextType()); break;
 
@@ -1388,6 +1406,17 @@ document.addEventListener('click', ev => {
       sheetStretch();
       break;
     }
+    case 'stretch-start': {
+      if (S.active) { toast('Finish the session you are in first'); go('train'); return; }
+      const sess = buildStretchSession();
+      if (!sess) { toast('Nothing to stretch yet'); return; }
+      sess.started = Date.now();
+      sess.activeMs = 0; sess.tickAt = Date.now(); sess.paused = false;
+      noteInteraction();
+      S.active = sess;
+      save(true); closeSheet(); wakeOn(); go('train'); buzz();
+      break;
+    }
     case 'stretch-save': {
       const r = saveDailyAsRoutine();
       toast('Saved as a routine', true);
@@ -1448,6 +1477,10 @@ document.addEventListener('click', ev => {
       const sess = buildRoutineSession(v, t.dataset.planned === '1');
       if (!sess) { toast('Add something to it first'); sheetRoutineEdit(v); return; }
       sess.started = Date.now();
+      /* Anchored here, not in the builder: the builder makes a session, this
+         is the moment one actually starts. */
+      sess.activeMs = 0; sess.tickAt = Date.now(); sess.paused = false;
+      noteInteraction();
       const rd = S.readiness[today()];
       sess.readiness = rd ? rd.score : null;
       S.active = sess;
@@ -1625,6 +1658,7 @@ document.addEventListener('change', ev => {
 document.addEventListener('input', ev => {
   const el = ev.target;
   if (!el.dataset || !el.dataset.set || !S.active) return;
+  noteInteraction();
   const i = +el.dataset.i, si = +el.dataset.s, f = el.dataset.set;
   const item = S.active.exercises[i];
   if (!item || !item.sets[si]) return;
@@ -1831,6 +1865,29 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
        position does not flicker the rule on and off at rest. */
     el.classList.toggle('scrolled', el.scrollTop > 4);
   }, true);
+
+  /* ---- the session clock ----
+     Five seconds is plenty for a figure shown in minutes, and it keeps the
+     wake-ups cheap. The pump decides for itself whether the slice counts. */
+  setInterval(() => {
+    if (!S || !S.active) return;
+    pumpSessionClock();
+    updateTrainClock();
+  }, 5000);
+
+  /* Coming back to the app anchors the clock at now rather than back-filling
+     the time it was away — that is the whole point. */
+  document.addEventListener('visibilitychange', () => {
+    if (!S || !S.active) return;
+    if (document.hidden) pumpSessionClock();
+    S.active.tickAt = Date.now();
+    if (!document.hidden) { noteInteraction(); updateTrainClock(); }
+  });
+
+  /* One-off, flagged: the old wall-clock durations left absurd numbers in the
+     store and a screen full of correct figures with one wrong one in it is
+     worse than no figures. See repairSessionDurations(). */
+  repairSessionDurations();
 
   window.addEventListener('beforeunload', () => save(true));
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });

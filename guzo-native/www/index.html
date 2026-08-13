@@ -409,6 +409,12 @@ button.recall:active{transform:scale(.99)}
 .str-strip{margin-bottom:12px}
 .str-strip-ok{color:var(--ember);font-size:19px;font-weight:700;line-height:1}
 
+/* The session clock. A button, because a clock you cannot stop is a clock you
+   have to take on faith. */
+.tp-clock{font-family:var(--fm);font-size:13px;color:var(--text-dim);
+  min-height:44px;padding:0 6px;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.tp-clock.paused{color:var(--faint);text-decoration:line-through;text-decoration-thickness:1px}
+
 /* ---------- plate calculator ---------- */
 .plate-total{font-size:46px;font-weight:700;letter-spacing:-.04em;line-height:1.05;color:var(--text)}
 .plate-unit{font-size:19px;font-weight:600;color:var(--muted);margin-left:3px;letter-spacing:0}
@@ -2322,6 +2328,41 @@ cab-wood-chop|Cable Wood Chop|Cable|f|core|Core|Shoulders|3|10|16|wt
 mob-leg-swing|Leg Swing|Bodyweight|fhb|mobility|Hamstrings|Glutes|4|10|20|bw
 mob-cross-body|Cross-Body Shoulder Stretch|Bodyweight|fhb|mobility|Shoulders||4|20|45|time
 mob-foam-thoracic|Thoracic Foam Roll|Bodyweight|fh|mobility|Back||4|30|90|time
+mob-neck-side|Neck Side Bend|Bodyweight|fhb|mobility|Shoulders||4|20|40|time
+mob-chin-tuck|Chin Tuck|Bodyweight|fhb|mobility|Shoulders||4|8|15|bw
+mob-levator|Levator Scapulae Stretch|Bodyweight|fhb|mobility|Shoulders|Back|4|20|40|time
+mob-upper-trap|Upper Trap Stretch|Bodyweight|fhb|mobility|Shoulders|Back|4|20|40|time
+mob-thread-needle|Thread the Needle|Bodyweight|fhb|mobility|Back|Shoulders|4|20|45|time
+mob-puppy|Puppy Pose|Bodyweight|fhb|mobility|Back|Shoulders|4|30|60|time
+mob-sphinx|Sphinx Pose|Bodyweight|fhb|mobility|Core|Back|4|30|60|time
+mob-side-bend|Standing Side Bend|Bodyweight|fhb|mobility|Core|Back|4|20|40|time
+mob-supine-twist|Supine Spinal Twist|Bodyweight|fhb|mobility|Back|Glutes|4|30|60|time
+mob-ql-stretch|Side-Lying QL Stretch|Bodyweight|fhb|mobility|Back|Core|4|30|60|time
+mob-wrist-flexor|Wrist Flexor Stretch|Bodyweight|fhb|mobility|Biceps||4|20|40|time
+mob-wrist-extensor|Wrist Extensor Stretch|Bodyweight|fhb|mobility|Triceps||4|20|40|time
+mob-prayer|Prayer Stretch|Bodyweight|fhb|mobility|Biceps|Triceps|4|20|40|time
+mob-finger-fan|Finger Fan and Fist|Bodyweight|fhb|mobility|Biceps||4|10|20|bw
+mob-wrist-circle|Wrist Circles|Bodyweight|fhb|mobility|Biceps||4|8|15|bw
+mob-butterfly|Butterfly Stretch|Bodyweight|fhb|mobility|Glutes|Hamstrings|4|30|60|time
+mob-frog|Frog Stretch|Bodyweight|fhb|mobility|Glutes||4|30|60|time
+mob-adductor-rock|Adductor Rock Back|Bodyweight|fhb|mobility|Glutes|Hamstrings|4|8|15|bw
+mob-cossack|Cossack Squat Hold|Bodyweight|fhb|mobility|Quads|Glutes|4|20|40|time
+mob-deep-squat|Deep Squat Hold|Bodyweight|fhb|mobility|Quads|Glutes,Calves|4|30|60|time
+mob-glute-bridge-hold|Glute Bridge Hold|Bodyweight|fhb|mobility|Glutes|Core|4|20|45|time
+mob-hip-airplane|Hip Airplane|Bodyweight|fhb|mobility|Glutes|Core|4|5|10|bw
+mob-happy-baby|Happy Baby|Bodyweight|fhb|mobility|Glutes|Back|4|30|60|time
+mob-seated-figure4|Seated Figure-Four|Bodyweight|fhb|mobility|Glutes||4|30|60|time
+mob-hamstring-supine|Supine Hamstring Stretch|Bodyweight|fhb|mobility|Hamstrings||4|30|60|time
+mob-hamstring-sweep|Toe-Touch Sweep|Bodyweight|fhb|mobility|Hamstrings|Back|4|8|15|bw
+mob-soleus|Bent-Knee Calf Stretch|Bodyweight|fhb|mobility|Calves||4|30|60|time
+mob-heel-raise-slow|Slow Heel Raise|Bodyweight|fhb|mobility|Calves||4|10|20|bw
+mob-plantar-roll|Plantar Foot Roll|Bodyweight|fhb|mobility|Calves||4|30|60|time
+mob-ankle-circle|Ankle Circles|Bodyweight|fhb|mobility|Calves||4|8|15|bw
+mob-pec-corner|Corner Pec Stretch|Bodyweight|fhb|mobility|Chest|Shoulders|4|30|60|time
+mob-open-book|Open Book|Bodyweight|fhb|mobility|Back|Chest|4|8|15|bw
+mob-sleeper|Sleeper Stretch|Bodyweight|fhb|mobility|Shoulders||4|20|40|time
+mob-standing-fold|Standing Forward Fold|Bodyweight|fhb|mobility|Hamstrings|Back|4|30|60|time
+mob-quad-couch-wall|Wall Quad Stretch|Bodyweight|fhb|mobility|Quads|Glutes|4|30|60|time
 `.trim();
 
 const EX = {};
@@ -4085,6 +4126,110 @@ function seedStartingWeights(levelKey, bodyweight, overrides, exact) {
 /* ============================================================
    PROGRESSION — double progression with a 2-strike deload
    ============================================================ */
+/* ============================================================
+   HOW LONG YOU ACTUALLY TRAINED
+   ------------------------------------------------------------
+   Reported with a screenshot reading **596 min**, which is nearly ten hours
+   and was not a workout — it was a session started in the morning and
+   finished after work. `dur` was wall clock from the moment the session was
+   created to the moment Finish was tapped, so every phone left in a pocket
+   and every session picked up later logged the gap as training. The comment
+   above it even said the clock measured how long you spent typing; it just
+   did not do anything about it.
+
+   The fix is to count time in the segments you were actually in it. A pump
+   runs on an interval and adds the elapsed slice only when all of these hold:
+
+   - a session is open and you have not paused it,
+   - the page is visible — a phone in a pocket trains nobody,
+   - and either you have touched something recently, or a rest timer is
+     running. Rest between heavy sets is training; an app left open on the
+     kitchen counter is not.
+
+   The idle cutoff is generous at ten minutes, because the rest timer tops out
+   near seven and setting up a rack takes a while. Anything longer than that
+   with no interaction is not a set you are in the middle of.
+
+   `tickAt` advances whether or not the slice counted, so nothing is ever
+   back-filled: coming back after four hours adds one interval, not four hours.
+   ============================================================ */
+const IDLE_CUTOFF_MS = 10 * 60 * 1000;
+/* A single slice is capped in case an interval is throttled or the device
+   sleeps without firing visibilitychange. */
+const CLOCK_STEP_CAP_MS = 60 * 1000;
+
+let lastInteraction = Date.now();
+function noteInteraction() { lastInteraction = Date.now(); }
+
+function sessionClockRunning() {
+  const A = S && S.active;
+  if (!A || A.paused) return false;
+  if (typeof document !== 'undefined' && document.hidden) return false;
+  if (typeof timerRunning === 'function' && timerRunning()) return true;
+  return (Date.now() - lastInteraction) < IDLE_CUTOFF_MS;
+}
+
+function pumpSessionClock() {
+  const A = S && S.active;
+  if (!A) return;
+  const now = Date.now();
+  if (A.tickAt == null) { A.tickAt = now; return; }
+  const delta = now - A.tickAt;
+  A.tickAt = now;
+  if (delta <= 0) return;
+  if (!sessionClockRunning()) return;
+  A.activeMs = (+A.activeMs || 0) + Math.min(delta, CLOCK_STEP_CAP_MS);
+}
+
+/* Minutes, for the label and for the record. A session with any work in it is
+   at least a minute — a rounded zero reads as a bug. */
+function sessionActiveMins(A) {
+  A = A || (S && S.active);
+  if (!A) return 0;
+  return Math.round((+A.activeMs || 0) / 60000);
+}
+
+function toggleSessionPause() {
+  const A = S && S.active;
+  if (!A) return false;
+  pumpSessionClock();
+  A.paused = !A.paused;
+  A.tickAt = Date.now();
+  save();
+  return !!A.paused;
+}
+
+/* ------------------------------------------------------------
+   Repairing what the old clock wrote.
+
+   Sessions already in the store carry wall-clock durations, and some of them
+   are absurd — the reported one was 596 minutes. Nothing in this app produces
+   a real session over four hours: the longest generated session is ninety
+   minutes and the longest a routine can be is well inside that. So anything
+   past the cutoff is the old bug rather than a very long day, and it is
+   replaced by the estimate built from the work itself, which is the same
+   figure a session logged after the fact has always used.
+
+   Run once, flagged, and left alone afterwards — a repair that runs every
+   boot is a repair that will eventually rewrite something real.
+   ------------------------------------------------------------ */
+const IMPLAUSIBLE_SESSION_MINS = 240;
+
+function repairSessionDurations() {
+  if (!S.meta) S.meta = {};
+  if (S.meta.durFixed) return 0;
+  let n = 0;
+  (S.sessions || []).forEach(sess => {
+    if (!sess || !(+sess.dur > IMPLAUSIBLE_SESSION_MINS)) return;
+    sess.durWas = sess.dur;
+    sess.dur = sessionMinsEstimate(sess);
+    n++;
+  });
+  S.meta.durFixed = true;
+  if (n) save(true);
+  return n;
+}
+
 function liftOf(exId) {
   if (!S.lifts[exId]) S.lifts[exId] = { w:null, r:null, fails:0, best:null, lastDate:null, history:[] };
   return S.lifts[exId];
@@ -4369,7 +4514,7 @@ function generateSession(type, envKey, rung, minutes) {
     type, env: envKey, rung,
     planMins: Math.round(spent),
     exercises: items,
-    started: null, ended: null, dur: 0
+    started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
   };
 }
 
@@ -4390,7 +4535,7 @@ function microSession(envKey) {
       sets: [{ w:'', r:40, rpe:'', done:false }],
       note: 'Forty seconds. Stop when the timer stops, not when it hurts.'
     })),
-    started: null, ended: null, dur: 0
+    started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
   };
 }
 
@@ -4456,7 +4601,7 @@ function recoverySession(envKey, rung) {
     type: 'recovery', env: envKey, rung: rung || 'full',
     planMins: recoveryMins(exercises),
     exercises,
-    started: null, ended: null, dur: 0
+    started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
   };
 }
 
@@ -6030,7 +6175,7 @@ function buildRoutineSession(id, asPlanned) {
     warmupCount: warmups,
     planMins: routineMins(r),
     exercises,
-    started: null, ended: null, dur: 0
+    started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
   };
 }
 
@@ -9268,6 +9413,60 @@ function saveDailyAsRoutine() {
   save(true);
   return r;
 }
+
+/* ------------------------------------------------------------
+   Running it on the Train screen.
+
+   Asked for: the stretch should run under Train so the holds count themselves
+   down. They already can — a timed item counts itself down there and has since
+   the reps-or-seconds change — so this is a session built out of today's
+   recommendation rather than a second runner.
+
+   Marked `extra`, so a stretch never discharges the session you committed to:
+   ten minutes of mobility is not the Upper day you skipped. And marked
+   `stretch`, so finishing it ticks the day off in the stretch store as well.
+   ------------------------------------------------------------ */
+function buildStretchSession(list) {
+  const items = (list && list.length ? list : dailyStretch()).map(s => s.ex || s);
+  if (!items.length) return null;
+  return {
+    id: 'sx' + Date.now().toString(36),
+    date: today(),
+    type: 'recovery',
+    stretch: true,
+    extra: true,
+    env: (dayConstraint(today()).env) || 'bw',
+    rung: 'full',
+    circuit: false, rounds: null, restRound: null, warmupCount: 0,
+    planMins: Math.round(stretchSeconds(items.map(ex => ({ ex }))) / 60),
+    exercises: items.map(ex => ({
+      exId: ex.id, name: ex.name,
+      /* The catalogue's own load, so a 60-second hold arrives as a hold and
+         the Train screen counts it down. */
+      load: ex.load,
+      targetW: null, targetR: ex.rh,
+      sets: [{ w: '', r: '', rpe: '', done: false }],
+      note: ''
+    })),
+    started: null, ended: null, dur: 0, activeMs: 0, tickAt: null, paused: false
+  };
+}
+
+/* Everything in a finished stretch session counts as done for the day, so
+   running it and ticking it by hand are the same thing to everything
+   downstream. */
+function markStretchSessionDone(sess) {
+  if (!sess || !sess.stretch) return;
+  const st = stretchStore();
+  const kk = key(sess.date);
+  const list = st.done[kk] || [];
+  (sess.exercises || []).forEach(it => {
+    if (!it.sets.some(x => x.done)) return;
+    if (list.indexOf(it.exId) < 0) list.push(it.exId);
+  });
+  if (list.length) st.done[kk] = list;
+  save();
+}
 /* ============================================================
    ONBOARDING
    One decision per screen, grouped into four short chapters.
@@ -10742,7 +10941,7 @@ function renderTrain() {
   const doneSets = A.exercises.reduce((a,i)=>a+i.sets.filter(s=>s.done).length,0);
   const allSets = A.exercises.reduce((a,i)=>a+i.sets.length,0);
   const pct = allSets ? Math.round(doneSets/allSets*100) : 0;
-  const elapsed = A.started ? Math.round((Date.now() - A.started)/60000) : 0;
+
 
   let html = `
   <div class="train-top">
@@ -10766,7 +10965,11 @@ function renderTrain() {
       <span class="small mono em" id="tp-kcal">${sessionKcal(A)} kcal</span>
       <!-- A running clock on a session you are typing in after the fact would
            be measuring the wrong thing entirely. -->
-      <span class="small mono" id="tp-time">${A.backdated ? sessionMinsEstimate(A) : elapsed} min</span></span>
+      ${/* Tappable, because a clock you cannot stop is a clock you have to
+             trust. Paused it says so rather than quietly freezing. */''}
+      <button class="tp-clock ${A.paused ? 'paused' : ''}" id="tp-time" data-act="train-pause"
+              aria-label="${A.paused ? 'Resume the session clock' : 'Pause the session clock'}">${
+        A.backdated ? sessionMinsEstimate(A) + ' min' : sessionActiveMins(A) + ' min'}</button></span>
     </div>
   </div>`;
 
@@ -11342,6 +11545,17 @@ function exCardHTML(item, ei) {
   </div>`;
 }
 
+/* The session clock, in place. Driven by the pump on an interval as well as by
+   every tick, so it moves while you are resting rather than only when you log
+   something. */
+function updateTrainClock() {
+  const A = S && S.active;
+  const t = document.getElementById('tp-time');
+  if (!A || !t) return;
+  t.textContent = (A.backdated ? sessionMinsEstimate(A) : sessionActiveMins(A)) + ' min';
+  t.classList.toggle('paused', !!A.paused);
+}
+
 /* In-place progress update so logging never rebuilds the DOM under your thumb */
 /* The weight the plate line should describe: whatever is typed into the
    first set if anything is, otherwise the prescription. A stale plate count
@@ -11452,8 +11666,8 @@ function updateTrainProgress() {
   const done = A.exercises.reduce((a,i)=>a+i.sets.filter(s=>s.done).length,0);
   const all = A.exercises.reduce((a,i)=>a+i.sets.length,0);
   const c = document.getElementById('tp-count');
-  const t = document.getElementById('tp-time');
   if (c) c.textContent = done + '/' + all;
+  updateTrainClock();
   /* Updated in place, never by re-rendering: a full re-render mid-session
      closes the keyboard and loses your place, which is the whole reason this
      function exists. */
@@ -11478,7 +11692,6 @@ function updateTrainProgress() {
       seg.classList.toggle('now', !isComplete(it) && i === cur);
     });
   }
-  if (t && A.started) t.textContent = Math.round((Date.now() - A.started)/60000) + ' min';
   const kc = document.getElementById('tp-kcal');
   if (kc) kc.textContent = sessionKcal(A) + ' kcal';
 }
@@ -15749,6 +15962,7 @@ function sheetStretch() {
       }).join('')}
     </div>
 
+    ${allDone ? '' : `<button class="btn primary block lg mb" data-act="stretch-start">Start it &mdash; ${Math.round(secs / 60)} min</button>`}
     <div class="btn-row mb">
       <button class="btn ghost grow" data-act="stretch-reroll">Something else</button>
       <button class="btn ghost grow" data-act="stretch-save">Save as routine</button>
@@ -15756,12 +15970,14 @@ function sheetStretch() {
 
     ${mine.length ? `<div class="sec-head"><span class="sec-t">Your stretch routines</span></div>
       <div class="list mb">
-        ${mine.map(r => `<button class="lrow" data-act="stretch-open-rt" data-v="${h(r.id)}">
+        ${mine.map(r => `<div class="lrow">
           <div class="ico">${h(r.emoji || '🧘')}</div>
-          <div class="grow"><div class="h3">${h(r.name)}</div>
-            <div class="tiny mt-s">${r.items.length} movement${r.items.length === 1 ? '' : 's'}</div></div>
-          <span class="chev">›</span>
-        </button>`).join('')}
+          <button class="grow" data-act="stretch-open-rt" data-v="${h(r.id)}" style="text-align:left">
+            <div class="h3">${h(r.name)}</div>
+            <div class="tiny mt-s">${r.items.length} movement${r.items.length === 1 ? '' : 's'} &middot; edit</div>
+          </button>
+          <button class="btn xs" data-act="routine-start" data-v="${h(r.id)}">Start</button>
+        </div>`).join('')}
       </div>` : ''}
 
     <div class="btn-row">
@@ -15981,6 +16197,7 @@ function blankSession(dateKey) {
     env: c.env || 'full', rung: 'full', planMins: 0,
     backdated: daysBetween(k, today()) > 0,
     exercises: [], started: Date.now(), ended: null, dur: 0,
+    activeMs: 0, tickAt: Date.now(), paused: false,
     readiness: (S.readiness[k] || {}).score || null
   };
   save(true); go('train');
@@ -15995,9 +16212,14 @@ function finishSession() {
     S.active = null; wakeOff(); save(true); render(); return;
   }
   A.ended = Date.now();
-  /* The clock measured how long you spent typing, not how long you trained. */
+  pumpSessionClock();
+  /* The time you were actually in it, not the gap between opening the session
+     and remembering to close it — that is what logged 596 minutes for a push
+     day. See the clock in p4_engine.js. A session with a set in it is at least
+     a minute, and if the clock somehow recorded nothing the estimate from the
+     work is a better answer than zero. */
   A.dur = A.backdated ? sessionMinsEstimate(A)
-                      : Math.max(1, Math.round((A.ended - A.started) / 60000));
+                      : Math.max(1, sessionActiveMins(A) || sessionMinsEstimate(A));
   A.exercises = A.exercises.filter(i => i.sets.some(s => s.done));
   A.kcal = sessionKcal(A);
   applyProgression(A);
@@ -16005,6 +16227,9 @@ function finishSession() {
   /* An extra you chose to do must not quietly discharge the session you
      committed to. Abs at 10pm is not the same as the Upper day you skipped. */
   if (!A.extra && S.week.plan[A.date]) S.week.plan[A.date].done = true;
+  /* A stretch run through Train ticks the day off in the stretch store too, so
+     running it and ticking it by hand mean the same thing everywhere. */
+  markStretchSessionDone(A);
   if (A.routineId) {
     const rt = routineById(A.routineId);
     if (rt) { rt.uses = (rt.uses || 0) + 1; rt.lastUsed = A.date; }
@@ -16117,6 +16342,9 @@ document.addEventListener('keydown', ev => {
 });
 
 document.addEventListener('click', ev => {
+  /* Any tap counts as being in the workout. The session clock stops after ten
+     idle minutes, and this is what "idle" is measured against. */
+  noteInteraction();
   const nav = ev.target.closest('[data-go]');
   if (nav) { go(nav.dataset.go); return; }
 
@@ -16463,6 +16691,12 @@ document.addEventListener('click', ev => {
     case 'open-typepick': sheetTypePick(); break;
     case 'pick-type': closeSheet(); sheetLadder(v); break;
     case 'goto-train': go('train'); break;
+    case 'train-pause': {
+      const paused = toggleSessionPause();
+      updateTrainClock();
+      toast(paused ? 'Clock paused' : 'Clock running', true);
+      break;
+    }
     case 'goto-progress': go('progress'); break;
     case 'new-session': sheetLadder(nextType()); break;
 
@@ -17251,6 +17485,17 @@ document.addEventListener('click', ev => {
       sheetStretch();
       break;
     }
+    case 'stretch-start': {
+      if (S.active) { toast('Finish the session you are in first'); go('train'); return; }
+      const sess = buildStretchSession();
+      if (!sess) { toast('Nothing to stretch yet'); return; }
+      sess.started = Date.now();
+      sess.activeMs = 0; sess.tickAt = Date.now(); sess.paused = false;
+      noteInteraction();
+      S.active = sess;
+      save(true); closeSheet(); wakeOn(); go('train'); buzz();
+      break;
+    }
     case 'stretch-save': {
       const r = saveDailyAsRoutine();
       toast('Saved as a routine', true);
@@ -17311,6 +17556,10 @@ document.addEventListener('click', ev => {
       const sess = buildRoutineSession(v, t.dataset.planned === '1');
       if (!sess) { toast('Add something to it first'); sheetRoutineEdit(v); return; }
       sess.started = Date.now();
+      /* Anchored here, not in the builder: the builder makes a session, this
+         is the moment one actually starts. */
+      sess.activeMs = 0; sess.tickAt = Date.now(); sess.paused = false;
+      noteInteraction();
       const rd = S.readiness[today()];
       sess.readiness = rd ? rd.score : null;
       S.active = sess;
@@ -17488,6 +17737,7 @@ document.addEventListener('change', ev => {
 document.addEventListener('input', ev => {
   const el = ev.target;
   if (!el.dataset || !el.dataset.set || !S.active) return;
+  noteInteraction();
   const i = +el.dataset.i, si = +el.dataset.s, f = el.dataset.set;
   const item = S.active.exercises[i];
   if (!item || !item.sets[si]) return;
@@ -17694,6 +17944,29 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
        position does not flicker the rule on and off at rest. */
     el.classList.toggle('scrolled', el.scrollTop > 4);
   }, true);
+
+  /* ---- the session clock ----
+     Five seconds is plenty for a figure shown in minutes, and it keeps the
+     wake-ups cheap. The pump decides for itself whether the slice counts. */
+  setInterval(() => {
+    if (!S || !S.active) return;
+    pumpSessionClock();
+    updateTrainClock();
+  }, 5000);
+
+  /* Coming back to the app anchors the clock at now rather than back-filling
+     the time it was away — that is the whole point. */
+  document.addEventListener('visibilitychange', () => {
+    if (!S || !S.active) return;
+    if (document.hidden) pumpSessionClock();
+    S.active.tickAt = Date.now();
+    if (!document.hidden) { noteInteraction(); updateTrainClock(); }
+  });
+
+  /* One-off, flagged: the old wall-clock durations left absurd numbers in the
+     store and a screen full of correct figures with one wrong one in it is
+     worse than no figures. See repairSessionDurations(). */
+  repairSessionDurations();
 
   window.addEventListener('beforeunload', () => save(true));
   document.addEventListener('visibilitychange', () => { if (document.hidden) save(true); });

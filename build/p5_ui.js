@@ -832,7 +832,7 @@ function renderTrain() {
   const doneSets = A.exercises.reduce((a,i)=>a+i.sets.filter(s=>s.done).length,0);
   const allSets = A.exercises.reduce((a,i)=>a+i.sets.length,0);
   const pct = allSets ? Math.round(doneSets/allSets*100) : 0;
-  const elapsed = A.started ? Math.round((Date.now() - A.started)/60000) : 0;
+
 
   let html = `
   <div class="train-top">
@@ -856,7 +856,11 @@ function renderTrain() {
       <span class="small mono em" id="tp-kcal">${sessionKcal(A)} kcal</span>
       <!-- A running clock on a session you are typing in after the fact would
            be measuring the wrong thing entirely. -->
-      <span class="small mono" id="tp-time">${A.backdated ? sessionMinsEstimate(A) : elapsed} min</span></span>
+      ${/* Tappable, because a clock you cannot stop is a clock you have to
+             trust. Paused it says so rather than quietly freezing. */''}
+      <button class="tp-clock ${A.paused ? 'paused' : ''}" id="tp-time" data-act="train-pause"
+              aria-label="${A.paused ? 'Resume the session clock' : 'Pause the session clock'}">${
+        A.backdated ? sessionMinsEstimate(A) + ' min' : sessionActiveMins(A) + ' min'}</button></span>
     </div>
   </div>`;
 
@@ -1432,6 +1436,17 @@ function exCardHTML(item, ei) {
   </div>`;
 }
 
+/* The session clock, in place. Driven by the pump on an interval as well as by
+   every tick, so it moves while you are resting rather than only when you log
+   something. */
+function updateTrainClock() {
+  const A = S && S.active;
+  const t = document.getElementById('tp-time');
+  if (!A || !t) return;
+  t.textContent = (A.backdated ? sessionMinsEstimate(A) : sessionActiveMins(A)) + ' min';
+  t.classList.toggle('paused', !!A.paused);
+}
+
 /* In-place progress update so logging never rebuilds the DOM under your thumb */
 /* The weight the plate line should describe: whatever is typed into the
    first set if anything is, otherwise the prescription. A stale plate count
@@ -1542,8 +1557,8 @@ function updateTrainProgress() {
   const done = A.exercises.reduce((a,i)=>a+i.sets.filter(s=>s.done).length,0);
   const all = A.exercises.reduce((a,i)=>a+i.sets.length,0);
   const c = document.getElementById('tp-count');
-  const t = document.getElementById('tp-time');
   if (c) c.textContent = done + '/' + all;
+  updateTrainClock();
   /* Updated in place, never by re-rendering: a full re-render mid-session
      closes the keyboard and loses your place, which is the whole reason this
      function exists. */
@@ -1568,7 +1583,6 @@ function updateTrainProgress() {
       seg.classList.toggle('now', !isComplete(it) && i === cur);
     });
   }
-  if (t && A.started) t.textContent = Math.round((Date.now() - A.started)/60000) + ' min';
   const kc = document.getElementById('tp-kcal');
   if (kc) kc.textContent = sessionKcal(A) + ' kcal';
 }

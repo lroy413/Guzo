@@ -354,6 +354,41 @@ cab-wood-chop|Cable Wood Chop|Cable|f|core|Core|Shoulders|3|10|16|wt
 mob-leg-swing|Leg Swing|Bodyweight|fhb|mobility|Hamstrings|Glutes|4|10|20|bw
 mob-cross-body|Cross-Body Shoulder Stretch|Bodyweight|fhb|mobility|Shoulders||4|20|45|time
 mob-foam-thoracic|Thoracic Foam Roll|Bodyweight|fh|mobility|Back||4|30|90|time
+mob-neck-side|Neck Side Bend|Bodyweight|fhb|mobility|Shoulders||4|20|40|time
+mob-chin-tuck|Chin Tuck|Bodyweight|fhb|mobility|Shoulders||4|8|15|bw
+mob-levator|Levator Scapulae Stretch|Bodyweight|fhb|mobility|Shoulders|Back|4|20|40|time
+mob-upper-trap|Upper Trap Stretch|Bodyweight|fhb|mobility|Shoulders|Back|4|20|40|time
+mob-thread-needle|Thread the Needle|Bodyweight|fhb|mobility|Back|Shoulders|4|20|45|time
+mob-puppy|Puppy Pose|Bodyweight|fhb|mobility|Back|Shoulders|4|30|60|time
+mob-sphinx|Sphinx Pose|Bodyweight|fhb|mobility|Core|Back|4|30|60|time
+mob-side-bend|Standing Side Bend|Bodyweight|fhb|mobility|Core|Back|4|20|40|time
+mob-supine-twist|Supine Spinal Twist|Bodyweight|fhb|mobility|Back|Glutes|4|30|60|time
+mob-ql-stretch|Side-Lying QL Stretch|Bodyweight|fhb|mobility|Back|Core|4|30|60|time
+mob-wrist-flexor|Wrist Flexor Stretch|Bodyweight|fhb|mobility|Biceps||4|20|40|time
+mob-wrist-extensor|Wrist Extensor Stretch|Bodyweight|fhb|mobility|Triceps||4|20|40|time
+mob-prayer|Prayer Stretch|Bodyweight|fhb|mobility|Biceps|Triceps|4|20|40|time
+mob-finger-fan|Finger Fan and Fist|Bodyweight|fhb|mobility|Biceps||4|10|20|bw
+mob-wrist-circle|Wrist Circles|Bodyweight|fhb|mobility|Biceps||4|8|15|bw
+mob-butterfly|Butterfly Stretch|Bodyweight|fhb|mobility|Glutes|Hamstrings|4|30|60|time
+mob-frog|Frog Stretch|Bodyweight|fhb|mobility|Glutes||4|30|60|time
+mob-adductor-rock|Adductor Rock Back|Bodyweight|fhb|mobility|Glutes|Hamstrings|4|8|15|bw
+mob-cossack|Cossack Squat Hold|Bodyweight|fhb|mobility|Quads|Glutes|4|20|40|time
+mob-deep-squat|Deep Squat Hold|Bodyweight|fhb|mobility|Quads|Glutes,Calves|4|30|60|time
+mob-glute-bridge-hold|Glute Bridge Hold|Bodyweight|fhb|mobility|Glutes|Core|4|20|45|time
+mob-hip-airplane|Hip Airplane|Bodyweight|fhb|mobility|Glutes|Core|4|5|10|bw
+mob-happy-baby|Happy Baby|Bodyweight|fhb|mobility|Glutes|Back|4|30|60|time
+mob-seated-figure4|Seated Figure-Four|Bodyweight|fhb|mobility|Glutes||4|30|60|time
+mob-hamstring-supine|Supine Hamstring Stretch|Bodyweight|fhb|mobility|Hamstrings||4|30|60|time
+mob-hamstring-sweep|Toe-Touch Sweep|Bodyweight|fhb|mobility|Hamstrings|Back|4|8|15|bw
+mob-soleus|Bent-Knee Calf Stretch|Bodyweight|fhb|mobility|Calves||4|30|60|time
+mob-heel-raise-slow|Slow Heel Raise|Bodyweight|fhb|mobility|Calves||4|10|20|bw
+mob-plantar-roll|Plantar Foot Roll|Bodyweight|fhb|mobility|Calves||4|30|60|time
+mob-ankle-circle|Ankle Circles|Bodyweight|fhb|mobility|Calves||4|8|15|bw
+mob-pec-corner|Corner Pec Stretch|Bodyweight|fhb|mobility|Chest|Shoulders|4|30|60|time
+mob-open-book|Open Book|Bodyweight|fhb|mobility|Back|Chest|4|8|15|bw
+mob-sleeper|Sleeper Stretch|Bodyweight|fhb|mobility|Shoulders||4|20|40|time
+mob-standing-fold|Standing Forward Fold|Bodyweight|fhb|mobility|Hamstrings|Back|4|30|60|time
+mob-quad-couch-wall|Wall Quad Stretch|Bodyweight|fhb|mobility|Quads|Glutes|4|30|60|time
 `.trim();
 
 const EX = {};
