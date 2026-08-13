@@ -1019,6 +1019,7 @@ document.addEventListener('click', ev => {
       clearFix(v); renderFuel(); closeSheet(); toast('Back to the catalogue', true); break;
     }
     case 'fuel-quick-add': sheetQuickAdd(); break;
+    case 'fuel-face': setFuelFace(v); break;
 
     /* ---- water ---- */
     /* refreshWater(), never renderFuel(): a re-render replaces the liquid with

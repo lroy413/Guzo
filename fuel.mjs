@@ -635,6 +635,10 @@ try {
     S.profile.units = 'kg'; S.profile.bodyweight = [{ d: today(), w: 60 }];
     setWaterGoal(1000); save(true);
     go('fuel'); renderFuel();
+    /* Onto the water face first. The deck keeps the face behind it `inert`, so
+       a tap the screen does not offer is a tap this check does not get to make
+       either — which is the point of inert and worth exercising here. */
+    setFuelFace('water', { silent: true });
     const miss = { found: false, after: -1, level: -1, cleared: -1 };
     const card = document.querySelector('.wtr-card');
     if (!card) return miss;
@@ -663,6 +667,112 @@ try {
   check('...and the bottle fills to exactly that fraction', bottle.frac === 0.5, String(bottle.frac));
   check('...and clearing empties the day', bottle.cleared === 0, String(bottle.cleared));
   check('...and takes its own button away with it', bottle.gone === true);
+
+
+  // ============ food and water as one card ============
+  console.log('\nthe deck\n');
+
+  /* A fresh page. `fuelFace` is a module variable that holds your choice for as
+     long as you are in the app, and the water checks above deliberately switch
+     it — so "the deck opens on food" is a claim about a fresh load, and testing
+     it against a page that has already been driven proves nothing. */
+  await page.goto(origin + '/', { waitUntil: 'load' });
+
+  const deck = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.units = 'kg'; S.profile.bodyweight = [{ d: today(), w: 80 }];
+    S.profile.heightCm = 178; S.profile.birthYear = 1990; S.profile.sex = 'm';
+    save(true);
+    go('fuel'); renderFuel();
+
+    /* Both faces measured in the same read, so "the viewport fits the face in
+       front" is compared against a number that came from somewhere else. The
+       first version read only the active one, and if the track had stretched
+       its children the check would have compared a height to itself and passed
+       on anything. */
+    const heights = () => {
+      const f = document.querySelector('.deck-face.food');
+      const w = document.querySelector('.deck-face.water');
+      return { food: Math.round(f.getBoundingClientRect().height),
+               water: Math.round(w.getBoundingClientRect().height) };
+    };
+    const read = () => {
+      const d = document.querySelector('.deck');
+      const vp = document.querySelector('.deck-vp');
+      const on = document.querySelector('.deck-face.on');
+      const off = document.querySelector('.deck-face:not(.on)');
+      if (!d || !vp || !on || !off) return null;
+      return {
+        face: d.dataset.face,
+        vpH: Math.round(vp.getBoundingClientRect().height),
+        onH: Math.round(on.getBoundingClientRect().height),
+        offInert: off.hasAttribute('inert'),
+        onInert: on.hasAttribute('inert'),
+        tabOn: [...document.querySelectorAll('.deck-tab')]
+          .filter(b => b.getAttribute('aria-selected') === 'true').map(b => b.dataset.v),
+        /* Both stay mounted: the bottle's fill is a transition on a transform,
+           and a face built on demand is a new node with nothing to move from. */
+        bothMounted: document.querySelectorAll('.wtr-card, .fuel-day-card').length === 2
+      };
+    };
+    /* The node itself, held across the switch. Asking whether *a* .wtr-liquid
+       exists afterwards is true of a re-render too — the first version of this
+       check did that and sailed straight through its own revert. Identity is
+       the property: the same element has to still be in the document, because
+       a new one has no previous transform to transition from. */
+    window.__deck = { heights, read };
+    window.__liquid = document.querySelector('.wtr-liquid');
+    return { sizes: heights(), food: read() };
+  });
+
+  /* The viewport's height is transitioned, so a rect read the instant after
+     the tap is the height it is animating *from*. Waited out rather than
+     slept through — the same mistake the header's hairline check made, and the
+     app was right both times. */
+  const settle = async (want) => {
+    await page.waitForFunction((w) => {
+      const vp = document.querySelector('.deck-vp');
+      const f = document.querySelector('.deck-face.' + w);
+      if (!vp || !f) return false;
+      return Math.abs(vp.getBoundingClientRect().height - f.getBoundingClientRect().height) <= 1;
+    }, want, { timeout: 4000 }).catch(() => {});
+  };
+
+  await page.evaluate(() => document.querySelector('[data-act="fuel-face"][data-v="water"]').click());
+  await settle('water');
+  const deckWater = await page.evaluate(() => ({
+    ...window.__deck.read(),
+    liquidSurvived: !!window.__liquid && document.body.contains(window.__liquid) }));
+
+  await page.evaluate(() => document.querySelector('[data-act="fuel-face"][data-v="food"]').click());
+  await settle('food');
+  const deckBack = await page.evaluate(() => window.__deck.read());
+  deck.water = deckWater;
+  deck.back = deckBack;
+  deck.liquidSurvived = deckWater.liquidSurvived;
+  check('food and water are two faces of one card', deck.food !== null && deck.food.bothMounted,
+    JSON.stringify(deck.food));
+  check('...opening on food', deck.food.face === 'food' && deck.food.tabOn.join() === 'food',
+    JSON.stringify(deck.food.tabOn));
+  check('...and the tab moves to water', deck.water.face === 'water' &&
+    deck.water.tabOn.join() === 'water', JSON.stringify(deck.water.tabOn));
+  check('...and back again', deck.back.face === 'food', deck.back.face);
+  /* The guard first: if the two faces were the same height, or the track
+     stretched them to match, "the card fits the face in front" would be true
+     of nothing. */
+  check('the two faces are genuinely different heights',
+    Math.abs(deck.sizes.food - deck.sizes.water) > 20,
+    `${deck.sizes.food} vs ${deck.sizes.water}`);
+  check('...and the card takes the height of whichever is in front',
+    Math.abs(deck.food.vpH - deck.sizes.food) <= 1 &&
+    Math.abs(deck.water.vpH - deck.sizes.water) <= 1,
+    `${deck.food.vpH} then ${deck.water.vpH}`);
+  check('the face behind cannot be tapped or tabbed into',
+    deck.food.offInert && deck.water.offInert && !deck.food.onInert && !deck.water.onInert,
+    JSON.stringify([deck.food.offInert, deck.water.offInert]));
+  /* Switched in place: a re-render would replace the liquid and the level
+     would snap instead of rising. */
+  check('...and switching never rebuilds the bottle', deck.liquidSurvived === true);
 
   // ============ the catalogue holds together ============
   console.log('\nthe food catalogue\n');

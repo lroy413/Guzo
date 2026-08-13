@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **892,386 bytes**, `VERSION = '1.4.0'`.
-Last sweep: `dupes` + `blanks` (375) + `engine` (255) + `fuel` (100) + `stretch` (53) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **899,137 bytes**, `VERSION = '1.5.0'`.
+Last sweep: `dupes` + `blanks` (375) + `engine` (255) + `fuel` (108) + `stretch` (53) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -576,6 +576,56 @@ than a viewport unit. Putting `100dvh` back prints `100dvh`; zeroing the
 clearance prints `pad 0 vs nav 60` on four screens.
 
 ---
+
+### Food and water are two faces of one card
+
+Reported as clumsy, with two screenshots showing it: the ring took a full
+screen, then the bottle took another, and the second was permanently below the
+fold. Two cards, one purpose, and a long scroll between them.
+
+They are one card now with **tabs on top, swipeable either way**. The swipe is
+the same shape as the week strip's, and for the same reasons: a gesture that
+scrolled the screen was a scroll whatever its geometry, and a slow drag is
+someone holding the page rather than flicking it.
+
+Three things make it work rather than merely switch:
+
+- **Both faces stay mounted.** The bottle's fill is a transition on a
+  transform, and a face built on demand is a new node with nothing to move
+  from — the level would snap. `refreshWater()` still finds its card either
+  way.
+- **The face behind is `inert`**, so it is neither tappable nor focusable
+  through the card in front of it. That is stronger than hiding it, and it
+  changed a check: the water test used to tap a pour button while the food
+  face was showing, which a person cannot do, so it switches faces first now.
+- **The card takes the height of whichever face is in front.** Measured, not
+  guessed, and skipped when `offsetHeight` is 0 — that is a hidden screen, and
+  writing it would collapse the card. Without this the shorter face left a band
+  of dead space under it, which is most of what "clumsy" was.
+
+One copy fix fell out of it: the target note read "About 33 ml per kg" on a
+screen showing ounces, which is a rule of thumb you cannot apply. It says
+"about half an ounce per pound" there — the same figure, 33 ml/kg being 0.51
+oz/lb, and the version anyone using ounces has already heard.
+
+**Eight checks, five subjects proven red.** Three of them were mine to fix first.
+The "opens on food" check ran against a page the water checks had already
+driven — `fuelFace` holds your choice for as long as you are in the app, so
+that claim is about a fresh load and now gets one. And the height check read
+the viewport's rect the instant after the tap, which is the height it is
+animating *from*; it waits for the transition to settle, the same mistake the
+header's hairline check made. **The app was right both times.**
+
+The third was worse, because it was green through its own revert: "switching
+never rebuilds the bottle" asked whether *a* `.wtr-liquid` existed afterwards,
+which is true of a re-render too. It holds the node across the switch and asks
+whether that one is still in the document — identity is the property, because a
+new element has no previous transform to move from.
+
+There is also a guard in front of the height check: the two faces have to be
+genuinely different heights, or "the card fits the face in front" is true of
+nothing. Stretching them to match — one word in the stylesheet — makes the
+guard go red rather than the check silently passing.
 
 ### 596 minutes was not a workout
 

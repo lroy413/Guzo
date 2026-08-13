@@ -310,6 +310,31 @@ button.recall:active{transform:scale(.99)}
   font-variant-numeric:tabular-nums}
 .pace-p{font-size:13px;color:var(--text-dim);flex:none;font-variant-numeric:tabular-nums}
 
+/* ---------- the fuel deck ----------
+   Food and water as two faces of one card rather than two cards stacked. Both
+   faces stay mounted so the bottle keeps the node its fill transition needs;
+   the one behind is `inert`, so it is neither tappable nor focusable. */
+.deck{margin-bottom:20px}
+.deck-tabs{display:flex;gap:4px;padding:4px;margin-bottom:10px;
+  background:var(--surface-2);border:1px solid var(--line-soft);border-radius:999px}
+.deck-tab{flex:1;min-height:38px;border-radius:999px;font-size:13px;font-weight:650;
+  letter-spacing:.01em;color:var(--muted);transition:color var(--t) ease,background var(--t) ease}
+.deck-tab.on{background:var(--surface-3);color:var(--text);box-shadow:var(--inset)}
+.deck-tab:active{transform:scale(.98)}
+
+.deck-vp{overflow:hidden;transition:height var(--t) var(--ease-out)}
+.deck-track{display:flex;align-items:flex-start;width:100%;
+  transition:transform var(--t) var(--ease-out)}
+.deck-face{flex:0 0 100%;min-width:0}
+/* The card in front sits at x=0; the one behind is one width along and clipped
+   by the viewport. A transform, so switching costs nothing to paint. */
+.deck[data-face="water"] .deck-track{transform:translateX(-100%)}
+/* The faces already carry their own card margins; the deck owns the gap. */
+.deck-face > *{margin-bottom:0 !important}
+@media (prefers-reduced-motion:reduce){
+  .deck-vp,.deck-track{transition:none}
+}
+
 /* ---------- water ----------
    A flask that fills, not a progress bar. The liquid is clipped to the
    bottle's inside path so it takes the shoulder taper, and only its

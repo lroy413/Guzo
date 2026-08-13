@@ -1,6 +1,6 @@
 {
   "name": "guzo-native",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "description": "iOS shell for Guzo Fit. The web build is copied into www/ by ../build.sh — nothing is authored here.",
   "scripts": {

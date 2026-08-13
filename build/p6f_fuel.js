@@ -108,7 +108,31 @@ function renderFuel() {
   const cTarget = tg.c || (e && e.c) || 0;
   const fTarget = tg.f || (e && e.f) || 0;
 
-  html += `<div class="fuel-day-card">
+  /* ── the deck: food and water, one card's worth of room ──────
+     Two full-height cards stacked made the screen a long scroll with the
+     second one permanently below the fold — reported as clumsy. They are two
+     faces of one card now: tabs on top, swipeable, and only one of them
+     occupies the page at a time.
+
+     Both faces stay mounted. The bottle's fill is a CSS transform with a
+     transition on it, and a face that is built on demand is a new element with
+     no previous transform to move from — the level would snap. The inactive
+     one is `inert` instead, so it cannot be tapped or focused through the card
+     in front of it. */
+  html += `<div class="deck" data-face="${fuelFace}">
+    <div class="deck-tabs" role="tablist" aria-label="Food or water">
+      <button class="deck-tab ${fuelFace === 'food' ? 'on' : ''}" role="tab"
+              aria-selected="${fuelFace === 'food'}" aria-controls="deck-food"
+              data-act="fuel-face" data-v="food">Food</button>
+      <button class="deck-tab ${fuelFace === 'water' ? 'on' : ''}" role="tab"
+              aria-selected="${fuelFace === 'water'}" aria-controls="deck-water"
+              data-act="fuel-face" data-v="water">Water</button>
+    </div>
+    <div class="deck-vp">
+      <div class="deck-track">
+        <div class="deck-face food ${fuelFace === 'food' ? 'on' : ''}" id="deck-food" role="tabpanel"
+             aria-label="Food" ${fuelFace === 'food' ? '' : 'inert'}>`
+  + `<div class="fuel-day-card">
     <div class="fuel-ring-wrap">
       <svg class="fuel-ring" viewBox="0 0 180 180" aria-hidden="true">
         ${ringTrack(78)}${ringArc(mainPct, 78, 'main')}
@@ -134,8 +158,14 @@ function renderFuel() {
     </div>` : `<p class="tiny mt center">Calories are switched off. Protein is the number with the strongest evidence behind it for building muscle &mdash; everything else is being logged, just not shown.</p>`}
   </div>`;
 
-  /* ── water ───────────────────────────────────────────────── */
-  html += bottleHTML(k);
+  html += `</div>
+        <div class="deck-face water ${fuelFace === 'water' ? 'on' : ''}" id="deck-water" role="tabpanel"
+             aria-label="Water" ${fuelFace === 'water' ? '' : 'inert'}>`
+    + bottleHTML(k)
+    + `</div>
+      </div>
+    </div>
+  </div>`;
 
   /* ── add ─────────────────────────────────────────────────── */
   html += `<div class="fuel-actions">
@@ -196,6 +226,8 @@ function renderFuel() {
 
   const el = document.getElementById('fuel-body');
   if (el) el.innerHTML = html;
+  /* After the markup lands, so the face in front has a height to measure. */
+  sizeFuelDeck();
 }
 
 /* ---------- suggested meals ----------
@@ -339,6 +371,11 @@ function energyPanelHTML(e, pOnly) {
    before, because the fastest logger is the only one anybody
    keeps using past week two.
    ============================================================ */
+
+/* Which face of the deck is showing. A module variable rather than saved
+   state: Fuel opens on food, because that is what the screen is mostly for,
+   and it holds your choice for as long as you are in the app. */
+let fuelFace = 'food';
 
 let foodQ = '';
 let foodGroupOpen = null;
@@ -898,7 +935,13 @@ function waterNote(k, g) {
   const bw = (S.profile.bodyweight || []).slice(-1)[0];
   const parts = [];
   if (S.nutrition.water && +S.nutrition.water.goal > 0) parts.push('Your target');
-  else if (bw && +bw.w > 0) parts.push('About 33 ml per kg');
+  /* Said in the unit you are reading. "33 ml per kg" on a screen showing
+     ounces is a rule of thumb you cannot apply. Half an ounce per pound is the
+     same figure — 33 ml/kg works out at 0.51 — and it is the version anyone
+     using ounces has already heard. */
+  else if (bw && +bw.w > 0) parts.push(waterUnit() === 'oz'
+    ? 'About half an ounce per pound'
+    : 'About ' + WATER_ML_PER_KG + ' ml per kg');
   else parts.push('A flat estimate — log a bodyweight and it scales');
   if (g.bonus > 0) parts.push(`+${fmtWater(g.bonus)} for ${g.mins} min trained`);
   return parts.join(' · ');
@@ -1045,3 +1088,79 @@ function refreshWater() {
     clr.remove();
   }
 }
+
+/* ------------------------------------------------------------
+   The deck.
+
+   Switched in place rather than by re-rendering, for the same reason the
+   bottle is: a re-render would replace the liquid and the level would snap
+   instead of rising. It also means the switch is a transform, which is free.
+   ------------------------------------------------------------ */
+function setFuelFace(face, opts) {
+  if (face !== 'food' && face !== 'water') return;
+  fuelFace = face;
+  const deck = document.querySelector('.deck');
+  if (!deck) return;
+  deck.dataset.face = face;
+  deck.querySelectorAll('.deck-tab').forEach(b => {
+    const on = b.dataset.v === face;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-selected', on ? 'true' : 'false');
+  });
+  deck.querySelectorAll('.deck-face').forEach(f => {
+    const on = f.classList.contains(face);
+    f.classList.toggle('on', on);
+    /* Not just hidden — the face behind cannot be tapped or tabbed into. */
+    if (on) f.removeAttribute('inert'); else f.setAttribute('inert', '');
+  });
+  sizeFuelDeck();
+  if (!opts || !opts.silent) buzz(8);
+}
+
+/* The viewport takes the height of the face in front of it, so the shorter of
+   the two never leaves a band of dead space under it — which is most of what
+   made the stacked version feel clumsy. Measured rather than guessed, and
+   skipped entirely when the screen is not on: an offsetHeight of 0 is a hidden
+   screen, and writing it would collapse the card. */
+function sizeFuelDeck() {
+  const vp = document.querySelector('.deck-vp');
+  const face = document.querySelector('.deck-face.on');
+  if (!vp || !face) return;
+  const h = face.offsetHeight;
+  if (!h) return;
+  vp.style.height = h + 'px';
+}
+
+/* Swipe between the faces. The same shape as the week strip's: a gesture that
+   scrolled the screen was a scroll whatever its geometry, and a slow drag is
+   someone holding the page rather than flicking it. */
+(function fuelDeckSwipe() {
+  let x0 = null, y0 = null, t0 = 0, scroll0 = 0, on = false;
+  const SLOP = 44;
+  const scroller = () => document.getElementById('s-' + SCREEN);
+
+  document.addEventListener('touchstart', e => {
+    on = !!(e.target.closest && e.target.closest('.deck'));
+    if (!on) return;
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY;
+    t0 = Date.now();
+    const sc = scroller();
+    scroll0 = sc ? sc.scrollTop : 0;
+  }, { passive: true });
+
+  document.addEventListener('touchend', e => {
+    const wasOn = on; on = false;
+    const t = e.changedTouches && e.changedTouches[0];
+    const sx = x0, sy = y0, st = t0, s0 = scroll0;
+    x0 = y0 = null;
+    if (!wasOn || sx == null || !t) return;
+    const dx = t.clientX - sx, dy = t.clientY - sy;
+    if (Math.abs(dx) < SLOP || Math.abs(dx) <= Math.abs(dy)) return;
+    const sc = scroller();
+    if (sc && Math.abs(sc.scrollTop - s0) > 4) return;
+    if (Date.now() - st > 700) return;
+    const next = dx < 0 ? 'water' : 'food';
+    if (next === fuelFace) return;
+    requestAnimationFrame(() => setFuelFace(next));
+  }, { passive: true });
+})();
