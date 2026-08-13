@@ -21,14 +21,22 @@ function sheetStretch() {
     <div class="row between mb-s" style="padding-right:44px">
       <h2 class="h1">Today's stretch</h2>
     </div>
-    <p class="small mb">${Math.round(secs / 60)} minutes &middot; ${list.length} movements${
-      streak ? ` &middot; <span class="em">${streak} day${streak === 1 ? '' : 's'} running</span>` : ''}</p>
+    ${/* The body map sits on the header line rather than as a row between the
+          warning and the list — it is a way in to a different question, not a
+          step in this one. */''}
+    <div class="row between mb">
+      <p class="small">${Math.round(secs / 60)} min &middot; ${list.length} movements${
+        streak ? ` &middot; <span class="em">${streak} day${streak === 1 ? '' : 's'} running</span>` : ''}</p>
+      <button class="str-one" data-act="body-map">${ICO['area-Back']}<span>One thing</span></button>
+    </div>
     ${/* Only where it can actually bite: this is a minute per area, which is the
           far side of the threshold where a static hold measurably costs you
           strength. Said once, on the screen, not buried in a help page. */''}
+    ${/* One line. It was three, in a bordered amber box a third the height of
+          the screen, to say something you need to know once. */''}
     ${!S.active && !sessionsOn(today()).length && plannedToday() && !((S.week.plan[today()] || {}).done)
-      ? `<p class="tiny mb str-warn">You have a session owed today. Held stretching costs a few
-         percent of your strength for a while afterwards &mdash; this is better placed after it.</p>` : ''}
+      ? `<p class="tiny mb str-warn">A session is owed today &mdash; a long hold costs a few percent
+         of your strength for a while, so this sits better after it.</p>` : ''}
 
     ${allDone ? `<div class="note mb ok">
       <p class="note-t">Done for today.</p>
@@ -39,28 +47,27 @@ function sheetStretch() {
           A recommendation you cannot interrogate is a horoscope. */''}
     ${/* Point at it instead of reading a list. The figure is the only thing on
           this screen that answers "I know exactly what hurts" in one tap. */''}
-    <button class="lrow mb" data-act="body-map" style="width:100%;text-align:left">
-      <div class="ico">${ICO['area-Back']}</div>
-      <div class="grow">
-        <div class="h3">Stretch one thing</div>
-        <div class="tiny mt-s">Point at a muscle on the body map</div>
-      </div>
-      <span class="chev">&rsaquo;</span>
-    </button>
+    ${/* The reason was a chip on every row and a chip row above them saying
+          the same three words. Six of nine rows read "flagged", which is a
+          label that has stopped labelling — the same failure as the pill on
+          the Route screen that said "A normal day" seven times.
 
-    <div class="str-why mb">
-      <span class="str-why-k">Built from</span>
-      ${st.areas.length ? `<span class="str-chip sore">${st.areas.length} area${st.areas.length === 1 ? '' : 's'} you flagged</span>` : ''}
-      ${occ ? `<span class="str-chip work">${h(occ.label)}</span>` : ''}
-      <span class="str-chip trained">what you trained</span>
-    </div>
-
-    <div class="list mb">
-      ${list.map(s => {
+          The reasons are headings now. A movement is under the answer that put
+          it there, the chips are gone from the rows, and the list is organised
+          rather than annotated. A reason with nothing under it is not drawn. */''}
+    ${(() => {
+      /* Short, because these are uppercase and letter-spaced: "Because of your
+         working day · Camera / AV crew" wrapped to two lines and pushed the
+         count onto the second one. The heading names the reason; the setup
+         sheet is where the reason is spelled out. */
+      const WHY = [
+        { k: 'sore',    t: st.areas.length === 1 ? 'The area you flagged' : 'Areas you flagged' },
+        { k: 'work',    t: 'Your working day' },
+        { k: 'trained', t: 'What you trained' },
+        { k: '',        t: 'Rounding it out' }
+      ];
+      const row = s => {
         const on = done.indexOf(s.ex.id) >= 0;
-        /* "each side" was claimed on everything rep-counted, which is right for
-           a hip switch and wrong for an inchworm. The catalogue does not record
-           laterality, so it is not asserted. */
         const sets = stretchSets(s.ex);
         /* The rep form already carries a × of its own, so composing it with
            the set count printed "2 × ×15". A hold composes; a rep count is
@@ -74,16 +81,23 @@ function sheetStretch() {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>
           </button>
           <button class="grow str-main" data-act="stretch-info" data-v="${h(s.ex.id)}">
-            <div class="str-n">${h(s.ex.name)}</div>
-            <div class="str-sub">${h(amount)} &middot; ${h(s.ex.primary)}</div>
+            <span class="str-n">${h(s.ex.name)}</span>
+            <span class="str-sub">${h(s.ex.primary)}</span>
           </button>
-          ${/* One chip: whichever of the three contributed most. Three chips on
-                every row is not an explanation, it is wallpaper. */''}
-          <div class="str-tags">${s.why
-            ? `<span class="str-chip ${s.why}">${s.why === 'sore' ? 'flagged' : s.why === 'work' ? 'work' : 'trained'}</span>`
-            : ''}</div>
+          <span class="str-dose mono">${h(amount)}</span>
         </div>`;
-      }).join('')}
+      };
+      return WHY.map(w => {
+        const mine = list.filter(x => (x.why || '') === w.k);
+        if (!mine.length) return '';
+        const doneN = mine.filter(x => done.indexOf(x.ex.id) >= 0).length;
+        return `<div class="str-grp ${h(w.k || 'plain')}">
+          <div class="str-grp-h"><span class="str-grp-t">${w.t}</span>
+            <span class="str-grp-n mono">${doneN}/${mine.length}</span></div>
+          ${mine.map(row).join('')}
+        </div>`;
+      }).join('');
+    })()}
     </div>
 
     ${allDone ? '' : `<button class="btn primary block lg mb" data-act="stretch-start">Start it &mdash; ${Math.round(secs / 60)} min</button>`}

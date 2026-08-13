@@ -520,6 +520,35 @@ button.recall:active{transform:scale(.97)}
 .str-chip.trained{border-color:var(--ember-line);background:var(--ember-dim);color:var(--ember-2)}
 .str-chip.work{border-color:var(--sky);background:var(--sky-dim);color:#a8cbf9}
 
+/* ---------- the daily stretch, grouped by why ----------
+   Every row carried a coloured chip naming the reason it was there, above a
+   chip row naming the same three reasons — and six of nine rows read
+   "flagged", which is a label that has stopped labelling. The reasons are
+   headings now: a movement sits under the answer that put it there, the rows
+   carry no chip at all, and the dose moved to the right where it lines up
+   down the column instead of running on after the muscle name. */
+.str-one{display:flex;align-items:center;gap:7px;flex:none;min-height:44px;padding:0 12px;
+  border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.012));
+  border:1px solid var(--line);color:var(--text-dim);font-size:12.5px;font-weight:650;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.str-one:active{transform:translateY(1px) scale(.985);background:var(--surface-3)}
+.str-one .ico-svg{width:16px;height:16px;color:var(--teal)}
+
+.str-grp{margin-bottom:18px}
+.str-grp:last-child{margin-bottom:0}
+.str-grp-h{display:flex;align-items:baseline;gap:10px;padding:0 2px 6px;
+  border-bottom:1px solid var(--hairline);margin-bottom:2px}
+.str-grp-t{flex:1;min-width:0;font-size:11px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--muted)}
+.str-grp-n{flex:none;font-size:11.5px;color:var(--faint)}
+/* The reason keeps its colour, on the heading rather than on nine rows. */
+.str-grp.sore .str-grp-t{color:var(--rose)}
+.str-grp.work .str-grp-t{color:var(--sky)}
+.str-grp.trained .str-grp-t{color:var(--ember-2)}
+.str-dose{flex:none;font-size:12.5px;font-weight:650;color:var(--text-dim);
+  letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.str-row.done .str-dose{color:var(--faint)}
+
 .str-row{display:flex;align-items:center;gap:11px;padding:9px 2px;
   border-bottom:1px solid var(--line-soft)}
 .str-row:last-child{border-bottom:0}
@@ -530,8 +559,8 @@ button.recall:active{transform:scale(.97)}
 .str-tick.on{background:var(--ember-dim);border-color:var(--ember);color:var(--ember)}
 .str-tick:active{transform:scale(.94)}
 .str-main{flex:1;min-width:0;text-align:left;min-height:44px}
-.str-n{font-size:14px;font-weight:650;letter-spacing:-.01em}
-.str-sub{font-size:11.5px;color:var(--muted);margin-top:2px}
+.str-n{display:block;font-size:14px;font-weight:650;letter-spacing:-.01em}
+.str-sub{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
 .str-row.done .str-n{color:var(--muted)}
 .str-tags{display:flex;flex-direction:column;gap:3px;flex:none;align-items:flex-end}
 

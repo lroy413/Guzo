@@ -1166,3 +1166,47 @@ this one did not.
 
 The geometry check paid for itself again — five region points ended up outside
 the new, tapered limbs, and it named all five with their coordinates.
+
+---
+
+## A label that labels six of nine rows is not a label
+
+Today's stretch list carried a coloured chip on every row naming why the
+movement was there, under a chip row above it naming the same three reasons in
+a different colour system. Six of the nine rows read **"flagged"**. This is the
+identical failure to the Route screen's pill that printed "A normal day" seven
+times: a label repeated on most of its rows stops carrying information and
+becomes texture, and paying for it in row height (80px) and in a third palette
+makes it worse than nothing.
+
+The reason is now the **heading of a group**, and the rows underneath it are
+plain — name, muscle, and the dose right-aligned in its own column. Each group
+carries its own done count, so the thing the chips were actually being read for
+(how much of *this* is left) is answered once per group instead of inferred
+across nine rows. Rows are 63px. The body-map entry moved off its own row onto
+the header as a single button; the warning is one line.
+
+**A movement can have no reason at all.** `dailyStretch()` returns `why: null`
+for anything that is just rounding the session out, so the grouping falls back
+through `(x.why || '')` into a "Rounding it out" group. On a profile with no
+flagged areas, no occupation and no training history that is *every* movement —
+without the fallback the list renders empty, and the first version of the check
+could not see it because its fixture supplied all three reasons. This is the
+third time in this project a coverage check over a union has needed a
+single-case subject to be able to fail; the other two were `Calves` and
+`lowback` on the body map.
+
+Two further defects in the check itself, both the same shape: `pills` and `rowH`
+were read off the sheet body **after** a second `sheetStretch()` had replaced
+that node's innerHTML for the bare fixture, so they measured a render they were
+not named after — and any `.str-grp` element held across that call is detached,
+where `getBoundingClientRect()` returns zeros and a width assertion passes by
+measuring nothing. Everything about a render is now read before the next one.
+
+The heading-wrap check measures **painted text width against a fixed 300px**
+rather than rendered height. The instrument's window is 1280 wide, so the sheet
+in it is about three times a phone's and no copy ever wraps — a height check
+there passes whatever you write.
+
+All four subjects were reverted individually and confirmed red. The bare-row
+one prints `0 of 7`.

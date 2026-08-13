@@ -888,6 +888,75 @@ try {
   check('...and the button that starts it is within a phone screen of the top',
     intro.visible === true, intro.reach + 'px');
 
+  /* The daily list is grouped by the answer that put each movement there. It
+     was a coloured chip on every row under a chip row naming the same three
+     reasons — and six of nine rows read "flagged", which is a label that has
+     stopped labelling. Same failure as the pill on the Route screen that said
+     "A normal day" seven times. */
+  const grouped = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.profile.sex = 'm'; save(true); buildWeekPlan(true);
+    stretchStore(); S.stretch.onboarded = true; S.stretch.occupation = 'camera';
+    S.stretch.areas = ['shoulder']; S.stretch.mins = 12;
+    const mk = (id, n) => ({ exId: id, name: EX[id].name, load: 'wt', targetR: 8,
+      sets: Array.from({ length: n }, () => ({ w: 60, r: 8, done: true })) });
+    S.sessions.push({ id: 'g1', date: dk(addDays(fromKey(today()), -1)), type: 'full',
+      ended: Date.now(), dur: 40, exercises: [mk('bb-bench', 4), mk('bb-back-squat', 3)] });
+    save(true); go('more'); sheetStretch();
+    const b = document.getElementById('sheet-body');
+    const groups = [...b.querySelectorAll('.str-grp')];
+    const list = dailyStretch();
+    /* Every movement is under exactly one heading, and the headings account
+       for all of them — a grouped list that drops one is worse than a flat
+       one that keeps them all. */
+    const inGroups = groups.reduce((a, g) => a + g.querySelectorAll('.str-row').length, 0);
+    /* No heading is wider than the column a phone gives it. Measured as painted
+       text against a fixed width rather than as rendered height: the
+       instrument's window is 1280 wide, so the sheet here is roughly three
+       times a phone's and nothing ever wraps in it — a height check would pass
+       whatever the copy said. 300px is the sheet's text column on a 390px
+       screen once the padding and the count are taken off. */
+    const wrapped = groups.filter(g => {
+      const t = g.querySelector('.str-grp-t');
+      if (!t) return false;
+      const r = document.createRange(); r.selectNodeContents(t);
+      return r.getBoundingClientRect().width > 300;
+    }).length;
+    /* Everything about the first render is read here, before the second
+       fixture — sheetStretch() replaces this same node's innerHTML, so a
+       measurement taken after it is of the bare list whatever it is named
+       after, and a `groups` element read after it is detached and returns
+       zeros. That is how `pills` came to be measured on a render that has no
+       chips for a different reason than the one it is checking. */
+    const pills = b.querySelectorAll('.str-row .str-chip').length;
+    const rowEl = b.querySelector('.str-row');
+    const rowH = rowEl ? Math.round(rowEl.getBoundingClientRect().height) : 0;
+    /* And again with nothing to go on — no areas, no occupation, no history.
+       Every movement then has no reason at all, which is the case the "||''"
+       in the grouping exists for and the one a fixture with three real reasons
+       cannot reach. */
+    S.stretch.areas = []; S.stretch.occupation = null; S.sessions = [];
+    save(true); sheetStretch();
+    const bare = document.getElementById('sheet-body');
+    const bareRows = bare.querySelectorAll('.str-grp .str-row').length;
+    const bareWant = dailyStretch().length;
+    return { n: groups.length, inGroups, want: list.length, bareRows, bareWant,
+             pills, wrapped, rowH,
+             kinds: groups.map(g => g.className.replace('str-grp ', '').trim()) };
+  });
+  check('the daily list says which of your answers put each movement there',
+    grouped.n >= 2, String(grouped.n));
+  check('...as a heading rather than a chip on every row', grouped.pills === 0,
+    String(grouped.pills));
+  check('...with every movement under exactly one of them',
+    grouped.inGroups === grouped.want, `${grouped.inGroups} of ${grouped.want}`);
+  check('...including the ones with no reason to give',
+    grouped.bareRows === grouped.bareWant && grouped.bareWant > 0,
+    `${grouped.bareRows} of ${grouped.bareWant}`);
+  check('...each heading naming a reason the engine actually gives',
+    grouped.kinds.every(k => ['sore', 'work', 'trained', 'plain'].includes(k)),
+    grouped.kinds.join(', '));
+  check('...on one line', grouped.wrapped === 0, String(grouped.wrapped));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {
