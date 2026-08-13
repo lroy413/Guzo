@@ -1432,3 +1432,64 @@ with"*. Both stopped being true when the opt-in Open Food Facts lookup shipped.
 A privacy policy that under-declares is worse than one that over-declares, and
 this one is written to be the actual policy. It now names the lookup, says what
 it sends, and shows whether it is currently on.
+
+---
+
+## Onboarding, measured against the apps it competes with
+
+Twenty-six screens, twenty questions, 2,703 words, and **exactly one screen
+that showed the user anything back about themselves**. After the last question,
+`ready` announced a further task — the week setup, seven more taps — so the
+first exercise name appeared somewhere past interaction twenty-seven, and even
+then Today said "Full body · 60 min" with the movements behind a Start button.
+
+For comparison, Fitbod asks goal, experience and equipment and then shows a
+full session with rep, set and weight targets. The subscription benchmarks say
+the same thing from the commercial end: reaching a value moment before the
+paywall roughly doubles trial starts, and most of the purchase decision happens
+on day zero.
+
+### The tension, and why it was not a real one
+
+The instruction was to make onboarding *more* thorough, even if longer. The
+benchmark data says time-to-value is what converts. Those look opposed and are
+not: the problem was never the number of questions, it was that twenty
+questions bought the user nothing until the end. **The fix is to give something
+back during them, not to ask less.**
+
+So the flow now ends on the session itself. `preview` sits after `seed` — so
+the weights are the ones just confirmed rather than numbers that change a
+screen later — and immediately before `ready`, so the one screen that asks for
+more work is preceded by the reason to do it.
+
+### It is generated, not mocked
+
+By the real engine, from the real draft. A preview that is not the thing is a
+promise rather than a payoff, and a mock would go stale the first time session
+generation changed. Which means it honours the kit, the injuries and the seeded
+weights, and the checks assert all three by building it four ways — full gym,
+hotel room, bodyweight only, and a body with every injury flagged.
+
+**The hazard is state.** `generateSession()` reads `S`, not the draft, so the
+draft has to be written into `S` to build anything — and it *also* lazily
+initialises rep targets into `S.lifts` through `targetFor()`, which is easy to
+miss and would leave a half-seeded profile behind for somebody who walked back
+and changed their answers. So the whole of `S` is snapshotted and restored in a
+`finally` rather than unwound field by field. Reverting that restore fails the
+check with `lifts 27/28` — twenty-seven catalogue entries written into a save
+by a screen that only meant to draw a list.
+
+### On the word count
+
+Cut where it was worst: `structure` 262 → 186, `goals` 177 → 137, and the age
+footnote by half. The total is roughly flat, because the preview adds words of
+its own — but they are words that *give* rather than ask, which is the metric
+that actually mattered.
+
+Deliberately not cut further. The breakdown is 841 words of headings and
+intros, **902 in option descriptions**, and 473 in footnotes. The option
+descriptions are where the trade-off lives — "a missed day leaves half of you
+untrained" is the sentence that makes the choice possible — and stripping those
+would leave a shorter flow that is harder to answer. Screen count and word
+count are proxies; the thing worth optimising is how much of what is on the
+screen is load-bearing.

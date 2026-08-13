@@ -2036,6 +2036,17 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .opt-mark svg{width:13px;height:13px;stroke-width:3.2;color:#1F1704;opacity:0;transition:opacity .18s ease}
 .opt.on .opt-mark svg{opacity:1}
 .opt-tag{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ember-2);background:var(--ember-dim);border:1px solid var(--ember-line);padding:2px 7px;border-radius:5px;margin-left:8px;vertical-align:middle}
+/* The first-session preview. A flex row rather than a grid, for the reason the
+   set row learned the hard way: the weight column is empty on a bodyweight
+   movement and the whole cell goes with it. */
+.prev-eyebrow{font-size:11.5px;font-weight:650;letter-spacing:.12em;text-transform:uppercase;color:var(--ember-2);margin-bottom:10px}
+.prev-row{display:flex;align-items:baseline;gap:10px;padding:11px 0;border-bottom:1px solid var(--line-soft)}
+.prev-row:last-child{border-bottom:0}
+.prev-n{font-size:14.5px;font-weight:600;line-height:1.3}
+.prev-t{font-size:11px;color:var(--faint);margin-top:2px}
+.prev-r{flex:none;font-size:13.5px;color:var(--text-dim);font-variant-numeric:tabular-nums}
+.prev-w{flex:none;min-width:52px;text-align:right;font-size:13.5px;color:var(--ember-2);font-variant-numeric:tabular-nums}
+
 /* A value the option is being chosen *by*, in its own column — so it can be
    read down the screen instead of hunted for inside each title. */
 .opt-meta{flex:none;display:flex;align-items:baseline;gap:1px;margin-top:1px;color:var(--text-dim)}
@@ -11429,18 +11440,18 @@ const GOALS = {
      promise on the screen where somebody tells you what they want is the worst
      possible place to keep one you are not keeping. */
   strength: { k:'strength', ico:'goal-strength', label:'Get stronger',
-              note:'Three-minute rests on the main lifts instead of two and a half, so a heavy set is actually heavy.' },
+              note:'Three-minute rests on the main lifts, so a heavy set is actually heavy.' },
   muscle:   { k:'muscle',   ico:'goal-muscle', label:'Build muscle',
-              note:'Protein at 1.9 g per kg instead of 1.6, and any minutes left over at the end of a session go into extra accessory sets.' },
+              note:'Protein at 1.9 g per kg, and spare minutes at the end of a session become extra accessory sets.' },
   /* The reason most people install a training app, and it was not on the list.
      energyTargets() had been testing for it since before this option existed —
      a -400 kcal branch keyed on 'lean' that nothing could ever set. */
   lean:     { k:'lean',     ico:'goal-lean', label:'Lose fat',
-              note:'Calories set below maintenance and protein at 2.2 g per kg to hold the muscle you have. Training stays as it is — in a deficit you keep muscle by still lifting heavy, not by doing more.' },
+              note:'Calories below maintenance, protein at 2.2 g per kg to hold the muscle you have. Training stays heavy — in a deficit that is what keeps it.' },
   health:   { k:'health',   ico:'goal-health', label:'Stay healthy and durable',
               note:'The balanced default — nothing added, nothing cut. Your injuries, priorities and hours still shape every session.' },
   consist:  { k:'consist',  ico:'goal-consist', label:'Just be consistent',
-              note:'Nothing extra on top. The app spends its effort on fitting the day you actually got, which it does for you either way.' }
+              note:'Nothing extra on top. The app already spends its effort fitting the day you actually got.' }
 };
 
 const tick = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>`;
@@ -11482,6 +11493,15 @@ const OB_STEPS = [
   { k:'meals',       q:19, ch:4 },
   { k:'diet',        q:20, ch:4 },
   { k:'seed',        q:21, ch:4 },
+  /* The payoff, and it is placed here for two reasons. It comes after `seed`
+     so the weights it shows are the ones the user just confirmed rather than
+     numbers that change a screen later; and it comes immediately before
+     `ready`, which is the one screen that asks for more work at the moment
+     somebody expects to be finished. Twenty questions of giving with a single
+     screen giving anything back is what this is for.
+
+     Not a question, so it does not carry a `q` and does not move the counter. */
+  { k:'preview' },
   { k:'ready' }
 ];
 const CHAPTERS = { 1:'You', 2:'Your training', 3:'Where and how', 4:'Finishing up' };
@@ -11725,11 +11745,10 @@ OB_RENDER.age = () => {
   const now = new Date().getFullYear();
   return obShell(`
     <h1 class="ob-q">What year were you born?</h1>
-    <p class="ob-sub">It changes what the app says about spacing hard sessions, and
-      it is checked against the protein guidelines for your age. It does not touch
-      your readiness score, the size ladder, or a single rep range &mdash; there is
-      no evidence behind any of those and inventing some would be worse than not
-      asking.</p>
+    <p class="ob-sub">It changes how hard sessions are spaced and the floor under your protein.
+      It does not touch your readiness score, the size ladder or a rep range &mdash;
+      there is no evidence behind those and inventing some would be worse than
+      not asking.</p>
     <div class="field mb">
       <input class="input mono lg" id="ob-focus" type="text" inputmode="numeric"
              enterkeyhint="done" value="${obDraft.birthYear || ''}"
@@ -11741,10 +11760,9 @@ OB_RENDER.age = () => {
                    ? `The app will say when two hard days land back to back, and your
                       protein target is held at ${b.protein} g/kg or above.`
                    : `Your protein target is held at ${b.protein} g/kg or above.`; })()}</p>` : ''}
-    <p class="ob-why">The evidence on recovery is genuinely split &mdash; some studies
-      find older lifters worse off after hard work, some find the opposite. What it does
-      support is the practical end: three sessions a week, 48 to 72 hours apart. So the
-      app says that where it applies and leaves your week
+    <p class="ob-why">The evidence on recovery is genuinely split. What it does
+      support is the practical end &mdash; 48 to 72 hours between hard sessions &mdash; so
+      the app says that where it applies and leaves your week
       alone.<span class="src">${EVIDENCE.ageSrc}</span></p>
   `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>
              <button class="btn quiet block mt-s" data-act="ob-skip-age">Rather not say</button>` });
@@ -11800,7 +11818,7 @@ OB_RENDER.diet = () => obShell(`
 /* ---------- 3. goals ---------- */
 OB_RENDER.goals = () => obShell(`
   <h1 class="ob-q">What are you actually training for?</h1>
-  <p class="ob-sub">Pick everything that applies &mdash; they are not exclusive. This sets your protein target, your calories, how much accessory work you get and how long you rest between heavy sets.</p>
+  <p class="ob-sub">Pick everything that applies. This sets your protein, your calories, your accessory work, and your rest between heavy sets.</p>
   <div class="opts">
     ${Object.values(GOALS).map(g => opt({ act:'ob-goal', v:g.k, on:obDraft.goals.includes(g.k), ico:g.ico, title:g.label, desc:g.note })).join('')}
   </div>
@@ -11809,7 +11827,7 @@ OB_RENDER.goals = () => obShell(`
 /* ---------- 4. experience ---------- */
 OB_RENDER.level = () => obShell(`
   <h1 class="ob-q">How much lifting have you done?</h1>
-  <p class="ob-sub">Be honest rather than optimistic. This only decides where your first few sessions start, and starting light is far easier to fix than starting heavy.</p>
+  <p class="ob-sub">Be honest rather than optimistic. It only decides where you start, and starting light is far easier to fix.</p>
   <div class="opts">
     ${Object.values(LEVELS).map(l => opt({ act:'ob-level', v:l.k, on:obDraft.level===l.k, ico:l.ico, title:l.label, desc:l.note })).join('')}
   </div>
@@ -11818,19 +11836,19 @@ OB_RENDER.level = () => obShell(`
 /* ---------- 5. priorities ---------- */
 OB_RENDER.priorities = () => obShell(`
   <h1 class="ob-q">Anything you want to bring up?</h1>
-  <p class="ob-sub">Pick up to three. Each one earns an extra dedicated set in every full session, rotating so no single area hogs the time.</p>
+  <p class="ob-sub">Pick up to three. Each earns an extra set in every full session, rotating so no one area hogs the time.</p>
   <div class="opts">
     ${Object.keys(PRIORITIES).map(m => opt({
       act:'ob-priority', v:m, on:obDraft.priorities.includes(m),
       ico:PRIORITIES[m].ico, title:m, desc:PRIORITIES[m].note })).join('')}
   </div>
-  <p class="ob-why">Leave it empty if nothing stands out. A balanced plan is a perfectly good plan and this is genuinely optional.</p>
+  <p class="ob-why">Leave it empty if nothing stands out &mdash; a balanced plan is a perfectly good plan.</p>
 `, { foot:`<button class="btn primary block lg" data-act="ob-next">${obDraft.priorities.length ? 'Continue' : 'Nothing in particular'}</button>` });
 
 /* ---------- 6. cardio amount ---------- */
 OB_RENDER.cardio = () => obShell(`
   <h1 class="ob-q">How much cardio do you want?</h1>
-  <p class="ob-sub">Added as a finisher on the end of strength sessions, so it never becomes another thing you have to find time for separately.</p>
+  <p class="ob-sub">Added as a finisher on the end of strength sessions, so it never becomes a separate thing to find time for.</p>
   <div class="opts">
     ${Object.values(CARDIO_AMOUNT).map(c => opt({
       act:'ob-cardio', v:c.k, on:obDraft.cardioAmount===c.k, ico:c.ico, title:c.label, desc:c.note })).join('')}
@@ -11853,7 +11871,7 @@ OB_RENDER.injuries = () => {
   const n = injuryExclusionsFor(obDraft.injuries).size;
   return obShell(`
     <h1 class="ob-q">Anything that hurts, or used to?</h1>
-    <p class="ob-sub">Old injuries and current niggles both count. Whatever you flag gets removed from the exercise library permanently — it will never appear in a generated session.</p>
+    <p class="ob-sub">Old injuries and current niggles both count. Anything you flag is removed from the library for good and will never be given to you.</p>
     <div class="opts">
       ${Object.values(INJURIES).map(j => opt({
         act:'ob-injury', v:j.k, on:obDraft.injuries.includes(j.k), ico:ico(j.ico), title:j.label, desc:j.note })).join('')}
@@ -11935,16 +11953,16 @@ OB_RENDER.structure = () => {
   const tags = { anchor3:'Recommended', ul4:null, ul5:'Popular', bro5:null, ppl6:null, hold2:null };
   const icos = { anchor3:'pg-anchor3', ul4:'pg-ul4', ul5:'pg-ul5', bro5:'pg-bro5', ppl6:'pg-ppl6', hold2:'pg-hold2' };
   const plain = {
-    anchor3:'Three full-body sessions a week. Every session works everything, so no single missed day leaves a gap. The most forgiving structure there is, and the right default for changing hours.',
-    ul4:'Four sessions alternating upper and lower. More volume per muscle group, which builds size faster, but a missed day leaves half your body untrained that week.',
-    ul5:'Push, pull, legs, then an upper and a lower day. Everything gets hit close to twice a week, which is where most of the muscle-building evidence points — and the extra days give the app room to shuffle when a shoot overruns.',
-    bro5:'Chest, back, legs, shoulders, arms — one area a day. Lots of volume per area and easy to remember, but each muscle is only trained once a week, so a missed day costs you that muscle entirely.',
-    ppl6:'Six sessions across push, pull and legs. The strongest stimulus available, and the least tolerant of an unpredictable schedule.',
-    hold2:'Two full-body sessions a week. Not a growth plan — a holding pattern for heavy shoot blocks. Research puts true maintenance near one session a week, so this stays comfortably ahead of losing ground.'
+    anchor3:'Three full-body sessions. Every one works everything, so a missed day never leaves a gap. The most forgiving there is.',
+    ul4:'Four sessions alternating upper and lower. More volume per muscle, but a missed day leaves half of you untrained.',
+    ul5:'Push, pull, legs, then upper and lower. Everything trained close to twice a week, which is where the evidence points.',
+    bro5:'One area a day. Easy to remember, but each muscle is trained once a week &mdash; so a missed day costs you that muscle.',
+    ppl6:'Six sessions across push, pull and legs. The strongest stimulus there is, and the least forgiving of a chaotic week.',
+    hold2:'Two full-body sessions. Not growth &mdash; a holding pattern for heavy blocks, and comfortably ahead of losing ground.'
   };
   return obShell(`
     <h1 class="ob-q">How many days a week, realistically?</h1>
-    <p class="ob-sub">Not the number you wish you could do. The number you can hit in an ordinary month. Changeable any time, and the app re-cuts around a bad week regardless.</p>
+    <p class="ob-sub">Not the number you wish you could do &mdash; the number you hit in an ordinary month. Changeable any time.</p>
     <div class="opts">
       ${Object.values(PROGRAMS).map(p => opt({
         /* The day count is the answer to the question this screen asks, so it
@@ -11969,7 +11987,7 @@ OB_RENDER.length = () => {
   const tight = Math.max(15, Math.round(b * 0.4 / 5) * 5);
   return obShell(`
     <h1 class="ob-q">How long is a normal session for you?</h1>
-    <p class="ob-sub">This is the most load-bearing number in the app. Every other duration is worked out from it — what a busy day looks like, what a clear one looks like, and how much gets cut when you're short.</p>
+    <p class="ob-sub">The most load-bearing number in the app. Every other duration comes off it &mdash; a busy day, a clear one, and what gets cut when you are short.</p>
     <div class="opts">
       ${Object.keys(SESSION_LENGTHS).map(m => opt({
         act:'ob-length', v:m, on:String(obDraft.sessionMins)===String(m),
@@ -12115,6 +12133,79 @@ OB_RENDER.seed = () => {
 function roundToStep(w, u) { const step = u === 'kg' ? 2.5 : 5; return Math.max(0, Math.round(w / step) * step); }
 
 /* ---------- ready ---------- */
+/* ---------- the first session, built from the answers so far ----------
+   Generated by the real engine rather than mocked up, because a preview that
+   is not the thing is a promise rather than a payoff — and because a mock
+   would go stale the first time session generation changed.
+
+   The engine reads S, not the draft, so the draft is applied to S and the
+   whole of S is put back afterwards. A snapshot round-trip rather than
+   unwinding field by field: generateSession() also lazily writes rep targets
+   into S.lifts through targetFor(), which is easy to miss and would leave a
+   half-seeded profile behind for someone who then walked back and changed
+   their answers. The restore is in a finally, so a throw cannot leak it. */
+function obPreviewSession() {
+  const snap = JSON.stringify(S);
+  try {
+    const P = S.profile;
+    P.units = obDraft.units;
+    P.goals = obDraft.goals;
+    P.level = obDraft.level;
+    P.priorities = obDraft.priorities;
+    P.injuries = obDraft.injuries;
+    P.envs = obDraft.envs.length ? obDraft.envs : ['full'];
+    P.gear = obDraft.envs.includes('full') ? { ...obDraft.gear } : { ...GEAR_ALL };
+    P.programId = obDraft.programId;
+    P.sessionMins = obDraft.sessionMins;
+    P.cardio = { amount: obDraft.cardioAmount, modes: obDraft.cardioModes };
+    if (obDraft.bodyweight > 0) P.bodyweight = [{ d: today(), w: obDraft.bodyweight }];
+    seedStartingWeights(obDraft.level, obDraft.bodyweight || 0,
+                        obDraft.seedOverrides, obDraft.seedExact);
+    const prog = PROGRAMS[obDraft.programId] || PROGRAMS.anchor3;
+    return generateSession(prog.cycle[0] || 'full', P.envs[0], 'full', obDraft.sessionMins);
+  } catch (e) {
+    return null;
+  } finally {
+    S = JSON.parse(snap);
+  }
+}
+
+OB_RENDER.preview = () => {
+  const prog = PROGRAMS[obDraft.programId] || PROGRAMS.anchor3;
+  const sess = obPreviewSession();
+  const items = (sess && sess.exercises) || [];
+  const u = obDraft.units;
+
+  const row = (it) => {
+    const ex = EX[it.exId];
+    if (!ex) return '';
+    const reps = it.cardio ? `${it.targetR} min`
+               : it.load === 'time' ? `${it.sets.length} × ${it.targetR}s`
+               : `${it.sets.length} × ${it.targetR}`;
+    const w = (!it.cardio && it.targetW != null && it.targetW !== '') ? `${fmtW(it.targetW)}${u}` : '';
+    return `<div class="prev-row">
+      <div class="grow"><div class="prev-n">${h(ex.name)}</div>
+        ${it.warmup ? '<div class="prev-t">warm-up</div>' : ''}</div>
+      <div class="prev-r mono">${reps}</div>
+      <div class="prev-w mono">${w}</div>
+    </div>`;
+  };
+
+  return obShell(`
+    <div class="prev-eyebrow">${h(prog.name)} &middot; ${prog.target} sessions a week</div>
+    <h1 class="ob-q">Here is your first one.</h1>
+    <p class="ob-sub">Built from what you have just told us &mdash; your kit, your injuries, what you said you can lift. Nothing here is a sample.</p>
+
+    ${items.length ? `<div class="card mt-l" style="padding:6px 14px 10px">
+      ${items.map(row).join('')}
+    </div>
+    <p class="ob-why">It re-cuts itself to the day you actually get: the same session at
+      thirty minutes keeps the first movements and drops the rest, and there is a
+      three-minute version for the days that fall apart entirely.</p>`
+    : `<div class="card mt-l"><p class="small">Your first session will be built once your week is set up.</p></div>`}
+  `, { foot:`<button class="btn primary block lg" data-act="ob-next">Looks good</button>` });
+};
+
 OB_RENDER.ready = () => {
   const prog = PROGRAMS[obDraft.programId];
   return obShell(`
