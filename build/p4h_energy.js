@@ -158,6 +158,21 @@ function proteinTarget() {
   const tg = S.nutrition.targets || {};
   if (tg.p > 0) return tg.p;
   const e = energyTargets();
+  /* No age adjustment here, and that is a finding rather than an omission.
+
+     Older muscle is anabolically resistant — the same dose produces a smaller
+     synthesis response — so every age-adjusted guideline puts the floor for an
+     older adult above the 1.6 g/kg that Morton's plateau gives a trained
+     twenty-something. The obvious move is to raise the target with age.
+
+     It was written, and it never once bound: energyTargets() lands around
+     1.9 g/kg for anyone it can compute for, which is already above the highest
+     of those guidelines. A floor that can never be reached is dead code with a
+     comment on it, so it is gone and the guarantee moved to engine.mjs, which
+     asserts the target still clears the older-adult floor at every band. If
+     someone lowers the protein model one day, that is what catches it.
+
+     What age does change is on the training side — see backToBackHard(). */
   return e ? e.p : Math.round(kg * 1.6);
 }
 

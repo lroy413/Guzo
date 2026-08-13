@@ -685,6 +685,11 @@ const LINES = [
 
 /* ---------- evidence strings surfaced in the UI ---------- */
 const EVIDENCE = {
+  /* The scoping review is the honest citation here: it is the one that says
+     the functional recovery evidence is equivocal rather than the ones that
+     pick a side. */
+  ageSrc: 'Sports Med Open 2023, recovery from resistance exercise in older adults (scoping review); Morton et al. 2018, BJSM',
+
   oneMiss: 'Missing a single session lowers habit automaticity by about 0.29 points on a 42-point scale — and next-day performance recovers fully. One miss is statistical noise.',
   oneMissSrc: 'Lally et al., European Journal of Social Psychology, 2010',
   twoMiss: 'Two in a row is where it starts to matter. Not a crisis — but the research is clear that repeated omissions, unlike single ones, do slow habit formation.',

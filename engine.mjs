@@ -1851,6 +1851,92 @@ try {
   check('...and a set already done offers no button', hold.runnersAfter === 1,
     String(hold.runnersAfter));
 
+  /* ---- age ----
+     Asked in onboarding now rather than behind the Fuel switch, and it has to
+     do something or it should not be asked. Two things, and precisely two: a
+     floor under protein, and a word about spacing hard sessions. The check
+     that matters most is the negative one — that it does NOT touch readiness,
+     the rung ladder or a rep range, because that is where an app that knew
+     your age would be tempted to invent something. */
+  console.log('\nage\n');
+  /* The published floors, not the app's numbers — the point is to compare. */
+  const AGE_FLOOR = { '30': 1.6, '56': 1.7, '71': 1.8 };
+
+  const age = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.profile.bodyweight = [{ d: today(), w: 70 }];
+    save(true);
+    const bands = {};
+    [null, 1996, 1970, 1955].forEach(y => {
+      S.profile.birthYear = y; save(true);
+      bands[y === null ? 'none' : String(new Date().getFullYear() - y)] =
+        { k: ageBand().k, p: ageBand().protein, gap: recoveryGapHours() };
+    });
+    /* The protein target is not adjusted for age, because it never needed to
+       be: it already lands above the highest age-adjusted guideline. That is
+       the guarantee worth holding — if the protein model is ever lowered, this
+       is what says it has dropped under the older-adult floor. */
+    S.profile.bodyweight = [{ d: today(), w: 70 }];
+    S.nutrition.targets = {}; save(true);
+    const perKg = {};
+    [1996, 1970, 1955].forEach(y => {
+      S.profile.birthYear = y; save(true);
+      perKg[String(new Date().getFullYear() - y)] = proteinTarget() / 70;
+    });
+    /* And nothing else moved. Same readiness, same suggested rung, same rep
+       range, at 31 and at 71. */
+    const probe = () => {
+      const r = { sleepH: 6, sleepQ: 3, energy: 3, sore: 3, stress: 3 };
+      return [readinessScore(r), suggestRung(readinessScore(r), 60),
+              JSON.stringify(EX['bb-back-squat'])].join('|');
+    };
+    S.profile.birthYear = 1996; save(true);
+    const atYoung = probe();
+    S.profile.birthYear = 1955; save(true);
+    const atOld = probe();
+    return { bands, perKg, untouched: atYoung === atOld };
+  });
+  check('age lands in a band, and no age lands in the youngest',
+    age.bands.none.k === 'young' && age.bands['30'].k === 'young'
+    && age.bands['56'].k === 'mid' && age.bands['71'].k === 'older',
+    JSON.stringify(age.bands));
+  check('...and only the older bands say anything about spacing',
+    age.bands.none.gap === 0 && age.bands['30'].gap === 0
+    && age.bands['56'].gap === 48 && age.bands['71'].gap === 48,
+    JSON.stringify(age.bands));
+  check('the protein target already clears every age-adjusted floor',
+    Object.keys(age.perKg).every(k => age.perKg[k] >= (AGE_FLOOR[k] || 1.6)),
+    JSON.stringify(age.perKg));
+  check('age changes nothing it has no evidence for', age.untouched === true);
+
+  /* Said, never done. A week rebuilt around a number given for the energy
+     equation is not something anyone asked for, and the functional recovery
+     evidence is not strong enough to spend someone's Tuesday on. */
+  const gap = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.profile.birthYear = 1955;
+    save(true); buildWeekPlan(true);
+    const st = weekStart();
+    for (let i = 0; i < 7; i++) {
+      const k = dk(addDays(st, i));
+      if (daysBetween(k, today()) > 0) continue;
+      S.week.plan[k] = { type: 'full', done: false };
+      S.week.days[k] = { avail: 'long', env: 'full' };
+    }
+    save(true);
+    const before = JSON.stringify(S.week.plan);
+    const hit = backToBackHard();
+    go('plan');
+    const notice = !!document.querySelector('#plan-body .wk-gap');
+    const after = JSON.stringify(S.week.plan);
+    S.profile.birthYear = 1996; save(true);
+    go('plan');
+    const young = !!document.querySelector('#plan-body .wk-gap');
+    return { hit: !!hit, notice, young, unchanged: before === after };
+  });
+  check('two hard days touching is noticed', gap.hit && gap.notice === true);
+  check('...and nothing is moved for it', gap.unchanged === true);
+  check('...and it is silent for someone the evidence does not cover',
+    gap.young === false);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

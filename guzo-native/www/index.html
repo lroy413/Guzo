@@ -2112,6 +2112,8 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 @keyframes bodyTurn{from{transform:perspective(700px) rotateY(38deg);opacity:.35}
   to{transform:none;opacity:1}}
 
+.wk-gap{display:block;width:100%;text-align:left}
+
 /* ---------- the route, as a route ----------
    Seven days as waypoints on one trail: teal behind you, ember where you are,
    dashed ahead. The rail is its own column so the line runs continuously
@@ -3183,6 +3185,11 @@ const LINES = [
 
 /* ---------- evidence strings surfaced in the UI ---------- */
 const EVIDENCE = {
+  /* The scoping review is the honest citation here: it is the one that says
+     the functional recovery evidence is equivocal rather than the ones that
+     pick a side. */
+  ageSrc: 'Sports Med Open 2023, recovery from resistance exercise in older adults (scoping review); Morton et al. 2018, BJSM',
+
   oneMiss: 'Missing a single session lowers habit automaticity by about 0.29 points on a 42-point scale — and next-day performance recovers fully. One miss is statistical noise.',
   oneMissSrc: 'Lally et al., European Journal of Social Psychology, 2010',
   twoMiss: 'Two in a row is where it starts to matter. Not a crisis — but the research is clear that repeated omissions, unlike single ones, do slow habit formation.',
@@ -7754,6 +7761,75 @@ function ageYears() {
   return new Date().getFullYear() - y;
 }
 
+/* ------------------------------------------------------------
+   WHAT AGE ACTUALLY CHANGES
+
+   Two things, and it is worth being precise about which — because most of what
+   apps do with your age is not supported by anything.
+
+   **Protein, yes.** Anabolic resistance is well established: the same dose of
+   protein produces a smaller muscle-protein-synthesis response in older muscle,
+   so the intake that saturates it is higher. Morton's 1.6 g/kg plateau is drawn
+   from a trained population with a mean age in the twenties and thirties; the
+   PROT-AGE and ESPEN groups put the floor for older adults higher, and higher
+   again for those training.
+
+   **Recovery between hard sessions, cautiously.** The scoping review is clear
+   that the *functional* evidence is equivocal — four studies found worse
+   symptoms in older participants, two found the opposite, and the rest found no
+   difference. What it does support is the practical end: three sessions a week,
+   48 to 72 hours apart, is enough recovery for most older adults. So the app
+   says that where it is relevant and does not silently reshuffle your week for
+   it. A recommendation you can read and ignore is honest; a plan quietly
+   rebuilt around a number you gave for the energy equation is not.
+
+   **Nothing else.** Not the readiness score, not the rung ladder, not the rep
+   ranges. There is no age evidence behind any of those and inventing some would
+   be worse than not asking.
+   ------------------------------------------------------------ */
+const AGE_BANDS = [
+  { from: 0,  k: 'young',  protein: 1.6, gap: 0 },
+  { from: 50, k: 'mid',    protein: 1.7, gap: 48 },
+  { from: 65, k: 'older',  protein: 1.8, gap: 48 }
+];
+
+function ageBand() {
+  const a = ageYears();
+  if (a == null) return AGE_BANDS[0];
+  let out = AGE_BANDS[0];
+  AGE_BANDS.forEach(b => { if (a >= b.from) out = b; });
+  return out;
+}
+
+/* The gap the evidence supports between two hard sessions, in hours, or 0 when
+   age says nothing about it. */
+function recoveryGapHours() { return ageBand().gap; }
+
+/* Whether the week has two hard days touching, and which. Says it, never fixes
+   it — a plan quietly rebuilt around a number you gave for the energy equation
+   is not something you asked for, and the evidence is not strong enough to
+   spend your Tuesday on. Returns null when age says nothing, when nothing
+   touches, or when the days in question are not the heavy kind: a recovery day
+   next to a full session is the spacing working, not a warning. */
+function backToBackHard() {
+  const gap = recoveryGapHours();
+  if (!gap || !S.week || !S.week.plan) return null;
+  const hard = k => {
+    const p = S.week.plan[k];
+    if (!p || p.done || p.elsewhere || p.type === 'recovery') return false;
+    return availOf(dayConstraint(k).avail).mins >= 40;
+  };
+  const start = weekStart();
+  for (let i = 0; i < 6; i++) {
+    const a = dk(addDays(start, i)), b = dk(addDays(start, i + 1));
+    /* Only ahead of you. Telling someone their Monday and Tuesday were too
+       close together on a Thursday is a lecture, not a plan. */
+    if (daysBetween(b, today()) > 0) continue;
+    if (hard(a) && hard(b)) return { a, b, gap };
+  }
+  return null;
+}
+
 /* ---------- height display ---------- */
 function heightLabel() {
   const cm = profileNum('heightCm');
@@ -8692,6 +8768,21 @@ function proteinTarget() {
   const tg = S.nutrition.targets || {};
   if (tg.p > 0) return tg.p;
   const e = energyTargets();
+  /* No age adjustment here, and that is a finding rather than an omission.
+
+     Older muscle is anabolically resistant — the same dose produces a smaller
+     synthesis response — so every age-adjusted guideline puts the floor for an
+     older adult above the 1.6 g/kg that Morton's plateau gives a trained
+     twenty-something. The obvious move is to raise the target with age.
+
+     It was written, and it never once bound: energyTargets() lands around
+     1.9 g/kg for anyone it can compute for, which is already above the highest
+     of those guidelines. A floor that can never be reached is dead code with a
+     comment on it, so it is gone and the guarantee moved to engine.mjs, which
+     asserts the target still clears the older-adult floor at every band. If
+     someone lowers the protein model one day, that is what catches it.
+
+     What age does change is on the training side — see backToBackHard(). */
   return e ? e.p : Math.round(kg * 1.6);
 }
 
@@ -11121,31 +11212,37 @@ const OB_STEPS = [
   { k:'welcome' },
   { k:'ch-you',      c:1 },
   { k:'name',        q:1,  ch:1 },
-  { k:'body',        q:2,  ch:1 },
+  /* Always asked, and asked here rather than behind the Fuel switch where it
+     used to sit. It changes the protein floor and what the app says about
+     spacing hard sessions — see AGE_BANDS — so it is not a nutrition input
+     any more, and a question that changes training belongs in the part of
+     onboarding about you. */
+  { k:'age',         q:2,  ch:1 },
+  { k:'body',        q:3,  ch:1 },
   { k:'ch-training', c:2 },
-  { k:'goals',       q:3,  ch:2 },
-  { k:'level',       q:4,  ch:2 },
-  { k:'priorities',  q:5,  ch:2 },
-  { k:'cardio',      q:6,  ch:2 },
-  { k:'cardiomode',  q:7,  ch:2 },
-  { k:'injuries',    q:8,  ch:2 },
-  { k:'sleep',       q:9,  ch:2 },
+  { k:'goals',       q:4,  ch:2 },
+  { k:'level',       q:5,  ch:2 },
+  { k:'priorities',  q:6,  ch:2 },
+  { k:'cardio',      q:7,  ch:2 },
+  { k:'cardiomode',  q:8,  ch:2 },
+  { k:'injuries',    q:9,  ch:2 },
+  { k:'sleep',       q:10,  ch:2 },
   { k:'ch-where',    c:3 },
-  { k:'env',         q:10, ch:3 },
-  { k:'gear',        q:11, ch:3 },
-  { k:'geardetail',  q:12, ch:3 },
-  { k:'structure',   q:13, ch:3 },
-  { k:'length',      q:14, ch:3 },
+  { k:'env',         q:11, ch:3 },
+  { k:'gear',        q:12, ch:3 },
+  { k:'geardetail',  q:13, ch:3 },
+  { k:'structure',   q:14, ch:3 },
+  { k:'length',      q:15, ch:3 },
   { k:'ch-finish',   c:4 },
-  { k:'nutrition',   q:15, ch:4 },
+  { k:'nutrition',   q:16, ch:4 },
   /* Both skipped unless Fuel was just switched on. Height, age and sex change
      nothing about training — they are the Mifflin-St Jeor inputs, and without
      them energyTargets() returns null and Fuel opens with no target at all. */
-  { k:'measure',     q:16, ch:4 },
-  { k:'activity',    q:17, ch:4 },
-  { k:'meals',       q:18, ch:4 },
-  { k:'diet',        q:19, ch:4 },
-  { k:'seed',        q:20, ch:4 },
+  { k:'measure',     q:17, ch:4 },
+  { k:'activity',    q:18, ch:4 },
+  { k:'meals',       q:19, ch:4 },
+  { k:'diet',        q:20, ch:4 },
+  { k:'seed',        q:21, ch:4 },
   { k:'ready' }
 ];
 const CHAPTERS = { 1:'You', 2:'Your training', 3:'Where and how', 4:'Finishing up' };
@@ -11313,8 +11410,15 @@ function collectMeasureInputs() {
     const cm = parseFloat(($('#ob-focus') || {}).value);
     obDraft.heightCm = (isNaN(cm) || cm < 120 || cm > 230) ? null : Math.round(cm * 10) / 10;
   }
+}
+
+/* Its own step now, so its own capture. Loose here and strict at the end:
+   setBirthYear() rejects out-of-range values, so a typo lands as null and
+   everything that reads age falls back to saying nothing rather than to
+   reporting nonsense. */
+function collectAgeInput() {
   const now = new Date().getFullYear();
-  const y = parseInt(($('#ob-year') || {}).value, 10);
+  const y = parseInt(($('#ob-focus') || {}).value, 10);
   obDraft.birthYear = (isNaN(y) || y < now - 100 || y > now - 13) ? null : y;
 }
 
@@ -11346,11 +11450,6 @@ OB_RENDER.measure = () => {
         <input class="input mono" id="ob-focus" type="text" inputmode="decimal" enterkeyhint="next"
                value="${obDraft.heightCm || ''}" placeholder="178"> </div>`}
 
-    <div class="label mt mb-s">Year you were born</div>
-    <div class="field mb">
-      <input class="input mono" id="ob-year" type="text" inputmode="numeric" enterkeyhint="done"
-             value="${obDraft.birthYear || ''}" placeholder="${now - 32}"></div>
-
     <div class="label mt mb-s">Sex</div>
     <div class="seg">
       ${SEXES.map(x => `<button class="${obDraft.sex === x.k ? 'on' : ''}" data-act="ob-sex" data-v="${x.k}">${x.label}</button>`).join('')}
@@ -11358,6 +11457,38 @@ OB_RENDER.measure = () => {
     <p class="ob-why">Sex is used for one constant in the equation and nothing else. "Rather not say" averages the two, which costs about 80 kcal of precision.</p>
   `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>
              <button class="btn quiet block mt-s" data-act="ob-skip-measure">Skip this</button>` });
+};
+
+/* Age. One field, and the screen says exactly what it is for — including the
+   part where the evidence is mixed, because a number collected without a
+   reason is a number people give wrong. */
+OB_RENDER.age = () => {
+  const now = new Date().getFullYear();
+  return obShell(`
+    <h1 class="ob-q">What year were you born?</h1>
+    <p class="ob-sub">It changes what the app says about spacing hard sessions, and
+      it is checked against the protein guidelines for your age. It does not touch
+      your readiness score, the size ladder, or a single rep range &mdash; there is
+      no evidence behind any of those and inventing some would be worse than not
+      asking.</p>
+    <div class="field mb">
+      <input class="input mono lg" id="ob-focus" type="text" inputmode="numeric"
+             enterkeyhint="done" value="${obDraft.birthYear || ''}"
+             placeholder="${now - 32}" aria-label="Year you were born"></div>
+    ${obDraft.birthYear ? `<p class="ob-why">${now - obDraft.birthYear} years old.
+      ${(() => { const b = AGE_BANDS.slice().reverse()
+                   .find(x => (now - obDraft.birthYear) >= x.from) || AGE_BANDS[0];
+                 return b.gap
+                   ? `The app will say when two hard days land back to back, and your
+                      protein target is held above ${b.protein} g/kg.`
+                   : `Your protein target is held above ${b.protein} g/kg.`; })()}</p>` : ''}
+    <p class="ob-why">The evidence on recovery is genuinely split &mdash; some studies
+      find older lifters worse off after hard work, some find the opposite. What it does
+      support is the practical end: three sessions a week, 48 to 72 hours apart. So the
+      app says that where it applies and leaves your week
+      alone.<span class="src">${EVIDENCE.ageSrc}</span></p>
+  `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>
+             <button class="btn quiet block mt-s" data-act="ob-skip-age">Rather not say</button>` });
 };
 
 OB_RENDER.activity = () => obShell(`
@@ -12476,6 +12607,18 @@ function renderPlan() {
      It replaces seven 180px rows that each carried a 44px tick, a date, a
      subtitle and a pill reading "A normal day", which is the default and was
      therefore printed seven times to say nothing. */
+  /* Said once, above the week, where you can act on it — and only ever said.
+     See backToBackHard(): the evidence supports the 48-hour gap and does not
+     support rebuilding someone's week for it. */
+  const b2b = backToBackHard();
+  if (b2b) {
+    html += `<button class="banner soft mb wk-gap" data-act="open-week">
+      <strong>${h(prettyDate(b2b.a))} and ${h(prettyDate(b2b.b))} are back to back.</strong>
+      Three sessions a week with ${b2b.gap}&ndash;72 hours between them is enough recovery for
+      most people over ${ageBand().from}. Move one if it suits &mdash; nothing here has been
+      changed for you.<span class="src">${EVIDENCE.ageSrc}</span></button>`;
+  }
+
   html += `<div class="wroute mt-l">`;
   for (let i = 0; i < 7; i++) {
     const d = addDays(sws, i);
@@ -18894,6 +19037,7 @@ document.addEventListener('click', ev => {
       if (k === 'env' && !obDraft.envs.length) { toast('Pick at least one place'); return; }
       if (k === 'cardiomode' && !obDraft.cardioModes.length) { toast('Pick at least one you would actually do'); return; }
       if (k === 'geardetail' && !Object.values(obDraft.gear).some(Boolean)) { toast('You must have something'); return; }
+      if (k === 'age') collectAgeInput();
       if (k === 'measure') collectMeasureInputs();
       if (k === 'seed') collectSeedInputs();
       obAdvance(1); renderOnboard(); break;
@@ -18902,9 +19046,10 @@ document.addEventListener('click', ev => {
     /* Skipping is a real answer, so it clears rather than leaves whatever was
        half-typed. Fuel still works from bodyweight alone. */
     case 'ob-skip-measure': {
-      obDraft.heightCm = null; obDraft.birthYear = null;
+      obDraft.heightCm = null;
       obAdvance(1); renderOnboard(); break;
     }
+    case 'ob-skip-age': { obDraft.birthYear = null; obAdvance(1); renderOnboard(); break; }
     case 'ob-sex': { collectMeasureInputs(); obDraft.sex = v; renderOnboard(); break; }
     case 'ob-activity': { obDraft.activity = v; renderOnboard(); break; }
     case 'ob-meals':  { obDraft.mealsPerDay = +v; renderOnboard(); break; }

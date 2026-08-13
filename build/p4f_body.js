@@ -65,6 +65,75 @@ function ageYears() {
   return new Date().getFullYear() - y;
 }
 
+/* ------------------------------------------------------------
+   WHAT AGE ACTUALLY CHANGES
+
+   Two things, and it is worth being precise about which — because most of what
+   apps do with your age is not supported by anything.
+
+   **Protein, yes.** Anabolic resistance is well established: the same dose of
+   protein produces a smaller muscle-protein-synthesis response in older muscle,
+   so the intake that saturates it is higher. Morton's 1.6 g/kg plateau is drawn
+   from a trained population with a mean age in the twenties and thirties; the
+   PROT-AGE and ESPEN groups put the floor for older adults higher, and higher
+   again for those training.
+
+   **Recovery between hard sessions, cautiously.** The scoping review is clear
+   that the *functional* evidence is equivocal — four studies found worse
+   symptoms in older participants, two found the opposite, and the rest found no
+   difference. What it does support is the practical end: three sessions a week,
+   48 to 72 hours apart, is enough recovery for most older adults. So the app
+   says that where it is relevant and does not silently reshuffle your week for
+   it. A recommendation you can read and ignore is honest; a plan quietly
+   rebuilt around a number you gave for the energy equation is not.
+
+   **Nothing else.** Not the readiness score, not the rung ladder, not the rep
+   ranges. There is no age evidence behind any of those and inventing some would
+   be worse than not asking.
+   ------------------------------------------------------------ */
+const AGE_BANDS = [
+  { from: 0,  k: 'young',  protein: 1.6, gap: 0 },
+  { from: 50, k: 'mid',    protein: 1.7, gap: 48 },
+  { from: 65, k: 'older',  protein: 1.8, gap: 48 }
+];
+
+function ageBand() {
+  const a = ageYears();
+  if (a == null) return AGE_BANDS[0];
+  let out = AGE_BANDS[0];
+  AGE_BANDS.forEach(b => { if (a >= b.from) out = b; });
+  return out;
+}
+
+/* The gap the evidence supports between two hard sessions, in hours, or 0 when
+   age says nothing about it. */
+function recoveryGapHours() { return ageBand().gap; }
+
+/* Whether the week has two hard days touching, and which. Says it, never fixes
+   it — a plan quietly rebuilt around a number you gave for the energy equation
+   is not something you asked for, and the evidence is not strong enough to
+   spend your Tuesday on. Returns null when age says nothing, when nothing
+   touches, or when the days in question are not the heavy kind: a recovery day
+   next to a full session is the spacing working, not a warning. */
+function backToBackHard() {
+  const gap = recoveryGapHours();
+  if (!gap || !S.week || !S.week.plan) return null;
+  const hard = k => {
+    const p = S.week.plan[k];
+    if (!p || p.done || p.elsewhere || p.type === 'recovery') return false;
+    return availOf(dayConstraint(k).avail).mins >= 40;
+  };
+  const start = weekStart();
+  for (let i = 0; i < 6; i++) {
+    const a = dk(addDays(start, i)), b = dk(addDays(start, i + 1));
+    /* Only ahead of you. Telling someone their Monday and Tuesday were too
+       close together on a Thursday is a lecture, not a plan. */
+    if (daysBetween(b, today()) > 0) continue;
+    if (hard(a) && hard(b)) return { a, b, gap };
+  }
+  return null;
+}
+
 /* ---------- height display ---------- */
 function heightLabel() {
   const cm = profileNum('heightCm');

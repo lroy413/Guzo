@@ -356,6 +356,7 @@ document.addEventListener('click', ev => {
       if (k === 'env' && !obDraft.envs.length) { toast('Pick at least one place'); return; }
       if (k === 'cardiomode' && !obDraft.cardioModes.length) { toast('Pick at least one you would actually do'); return; }
       if (k === 'geardetail' && !Object.values(obDraft.gear).some(Boolean)) { toast('You must have something'); return; }
+      if (k === 'age') collectAgeInput();
       if (k === 'measure') collectMeasureInputs();
       if (k === 'seed') collectSeedInputs();
       obAdvance(1); renderOnboard(); break;
@@ -364,9 +365,10 @@ document.addEventListener('click', ev => {
     /* Skipping is a real answer, so it clears rather than leaves whatever was
        half-typed. Fuel still works from bodyweight alone. */
     case 'ob-skip-measure': {
-      obDraft.heightCm = null; obDraft.birthYear = null;
+      obDraft.heightCm = null;
       obAdvance(1); renderOnboard(); break;
     }
+    case 'ob-skip-age': { obDraft.birthYear = null; obAdvance(1); renderOnboard(); break; }
     case 'ob-sex': { collectMeasureInputs(); obDraft.sex = v; renderOnboard(); break; }
     case 'ob-activity': { obDraft.activity = v; renderOnboard(); break; }
     case 'ob-meals':  { obDraft.mealsPerDay = +v; renderOnboard(); break; }

@@ -985,3 +985,56 @@ Three details that are the difference between a trail and a decorated list:
 A day that went by without a session is not marked in red and does not break
 the trail. It is simply not filled in — see the tone rule, which has said since
 the beginning that a missed day is free.
+
+---
+
+## Age, and the discipline of asking for it
+
+Age was collected only if you turned Fuel on, and the code said outright why:
+*"Height, age and sex change nothing about training — they are the Mifflin-St
+Jeor inputs."* Asked for now, in chapter one, always. Which raises the question
+that should be asked before any app collects a date of birth: **what is it
+allowed to change?**
+
+The evidence, looked up rather than assumed:
+
+- **Recovery is genuinely equivocal.** The 2023 scoping review is explicit: four
+  studies found worse symptoms in older participants, two found the opposite,
+  and the rest found no difference. There is no honest basis for slowing
+  someone's programme because of their birth year.
+- **The practical end is better supported.** Three sessions a week, 48–72 hours
+  apart, is enough recovery for most older adults.
+- **Anabolic resistance is well established.** The same protein dose produces a
+  smaller synthesis response in older muscle, so the intake that saturates it is
+  higher.
+
+So age does exactly two things, and the negative list is the more important
+half:
+
+**It says when two hard days land back to back** — and only says it. A week
+quietly rebuilt around a number someone gave for the energy equation is not
+something they asked for, and the functional evidence is nowhere near strong
+enough to spend somebody's Tuesday on. The notice appears above the route, names
+the two days, cites the review, and states in the copy that nothing has been
+changed. It is silent for anyone the evidence does not cover.
+
+**It is checked against the protein guidelines** — which is not the same as
+raising the target, and the difference is a finding worth writing down. The
+obvious move is a floor that rises with age. It was written, and it never once
+bound: `energyTargets()` already lands around 1.9 g/kg for anyone it can compute
+for, above the highest age-adjusted guideline there is. **A floor that can never
+be reached is dead code with a comment on it.** It came out, and the guarantee
+moved to `engine.mjs`, which asserts the target still clears the older-adult
+floor at every band — so if the protein model is ever lowered, that is what
+catches it. Strictly better than the line of code it replaced.
+
+**And nothing else.** Not the readiness score, not the rung ladder, not a single
+rep range. `engine.mjs` asserts that too, by computing readiness, the suggested
+rung and a catalogue row at 30 and at 71 and comparing the strings — which is
+the check that goes red on the revert that makes `readinessScore()` peek at
+`ageYears()`. That is the temptation this whole section exists to close off: an
+app that knows your age will find somewhere to use it, and the places it would
+reach for first are the ones with no evidence behind them at all.
+
+The onboarding screen says all of this in three sentences, because a number
+collected without a stated reason is a number people give wrong.

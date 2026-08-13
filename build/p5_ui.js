@@ -752,6 +752,18 @@ function renderPlan() {
      It replaces seven 180px rows that each carried a 44px tick, a date, a
      subtitle and a pill reading "A normal day", which is the default and was
      therefore printed seven times to say nothing. */
+  /* Said once, above the week, where you can act on it — and only ever said.
+     See backToBackHard(): the evidence supports the 48-hour gap and does not
+     support rebuilding someone's week for it. */
+  const b2b = backToBackHard();
+  if (b2b) {
+    html += `<button class="banner soft mb wk-gap" data-act="open-week">
+      <strong>${h(prettyDate(b2b.a))} and ${h(prettyDate(b2b.b))} are back to back.</strong>
+      Three sessions a week with ${b2b.gap}&ndash;72 hours between them is enough recovery for
+      most people over ${ageBand().from}. Move one if it suits &mdash; nothing here has been
+      changed for you.<span class="src">${EVIDENCE.ageSrc}</span></button>`;
+  }
+
   html += `<div class="wroute mt-l">`;
   for (let i = 0; i < 7; i++) {
     const d = addDays(sws, i);

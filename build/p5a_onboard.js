@@ -37,31 +37,37 @@ const OB_STEPS = [
   { k:'welcome' },
   { k:'ch-you',      c:1 },
   { k:'name',        q:1,  ch:1 },
-  { k:'body',        q:2,  ch:1 },
+  /* Always asked, and asked here rather than behind the Fuel switch where it
+     used to sit. It changes the protein floor and what the app says about
+     spacing hard sessions — see AGE_BANDS — so it is not a nutrition input
+     any more, and a question that changes training belongs in the part of
+     onboarding about you. */
+  { k:'age',         q:2,  ch:1 },
+  { k:'body',        q:3,  ch:1 },
   { k:'ch-training', c:2 },
-  { k:'goals',       q:3,  ch:2 },
-  { k:'level',       q:4,  ch:2 },
-  { k:'priorities',  q:5,  ch:2 },
-  { k:'cardio',      q:6,  ch:2 },
-  { k:'cardiomode',  q:7,  ch:2 },
-  { k:'injuries',    q:8,  ch:2 },
-  { k:'sleep',       q:9,  ch:2 },
+  { k:'goals',       q:4,  ch:2 },
+  { k:'level',       q:5,  ch:2 },
+  { k:'priorities',  q:6,  ch:2 },
+  { k:'cardio',      q:7,  ch:2 },
+  { k:'cardiomode',  q:8,  ch:2 },
+  { k:'injuries',    q:9,  ch:2 },
+  { k:'sleep',       q:10,  ch:2 },
   { k:'ch-where',    c:3 },
-  { k:'env',         q:10, ch:3 },
-  { k:'gear',        q:11, ch:3 },
-  { k:'geardetail',  q:12, ch:3 },
-  { k:'structure',   q:13, ch:3 },
-  { k:'length',      q:14, ch:3 },
+  { k:'env',         q:11, ch:3 },
+  { k:'gear',        q:12, ch:3 },
+  { k:'geardetail',  q:13, ch:3 },
+  { k:'structure',   q:14, ch:3 },
+  { k:'length',      q:15, ch:3 },
   { k:'ch-finish',   c:4 },
-  { k:'nutrition',   q:15, ch:4 },
+  { k:'nutrition',   q:16, ch:4 },
   /* Both skipped unless Fuel was just switched on. Height, age and sex change
      nothing about training — they are the Mifflin-St Jeor inputs, and without
      them energyTargets() returns null and Fuel opens with no target at all. */
-  { k:'measure',     q:16, ch:4 },
-  { k:'activity',    q:17, ch:4 },
-  { k:'meals',       q:18, ch:4 },
-  { k:'diet',        q:19, ch:4 },
-  { k:'seed',        q:20, ch:4 },
+  { k:'measure',     q:17, ch:4 },
+  { k:'activity',    q:18, ch:4 },
+  { k:'meals',       q:19, ch:4 },
+  { k:'diet',        q:20, ch:4 },
+  { k:'seed',        q:21, ch:4 },
   { k:'ready' }
 ];
 const CHAPTERS = { 1:'You', 2:'Your training', 3:'Where and how', 4:'Finishing up' };
@@ -229,8 +235,15 @@ function collectMeasureInputs() {
     const cm = parseFloat(($('#ob-focus') || {}).value);
     obDraft.heightCm = (isNaN(cm) || cm < 120 || cm > 230) ? null : Math.round(cm * 10) / 10;
   }
+}
+
+/* Its own step now, so its own capture. Loose here and strict at the end:
+   setBirthYear() rejects out-of-range values, so a typo lands as null and
+   everything that reads age falls back to saying nothing rather than to
+   reporting nonsense. */
+function collectAgeInput() {
   const now = new Date().getFullYear();
-  const y = parseInt(($('#ob-year') || {}).value, 10);
+  const y = parseInt(($('#ob-focus') || {}).value, 10);
   obDraft.birthYear = (isNaN(y) || y < now - 100 || y > now - 13) ? null : y;
 }
 
@@ -262,11 +275,6 @@ OB_RENDER.measure = () => {
         <input class="input mono" id="ob-focus" type="text" inputmode="decimal" enterkeyhint="next"
                value="${obDraft.heightCm || ''}" placeholder="178"> </div>`}
 
-    <div class="label mt mb-s">Year you were born</div>
-    <div class="field mb">
-      <input class="input mono" id="ob-year" type="text" inputmode="numeric" enterkeyhint="done"
-             value="${obDraft.birthYear || ''}" placeholder="${now - 32}"></div>
-
     <div class="label mt mb-s">Sex</div>
     <div class="seg">
       ${SEXES.map(x => `<button class="${obDraft.sex === x.k ? 'on' : ''}" data-act="ob-sex" data-v="${x.k}">${x.label}</button>`).join('')}
@@ -274,6 +282,38 @@ OB_RENDER.measure = () => {
     <p class="ob-why">Sex is used for one constant in the equation and nothing else. "Rather not say" averages the two, which costs about 80 kcal of precision.</p>
   `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>
              <button class="btn quiet block mt-s" data-act="ob-skip-measure">Skip this</button>` });
+};
+
+/* Age. One field, and the screen says exactly what it is for — including the
+   part where the evidence is mixed, because a number collected without a
+   reason is a number people give wrong. */
+OB_RENDER.age = () => {
+  const now = new Date().getFullYear();
+  return obShell(`
+    <h1 class="ob-q">What year were you born?</h1>
+    <p class="ob-sub">It changes what the app says about spacing hard sessions, and
+      it is checked against the protein guidelines for your age. It does not touch
+      your readiness score, the size ladder, or a single rep range &mdash; there is
+      no evidence behind any of those and inventing some would be worse than not
+      asking.</p>
+    <div class="field mb">
+      <input class="input mono lg" id="ob-focus" type="text" inputmode="numeric"
+             enterkeyhint="done" value="${obDraft.birthYear || ''}"
+             placeholder="${now - 32}" aria-label="Year you were born"></div>
+    ${obDraft.birthYear ? `<p class="ob-why">${now - obDraft.birthYear} years old.
+      ${(() => { const b = AGE_BANDS.slice().reverse()
+                   .find(x => (now - obDraft.birthYear) >= x.from) || AGE_BANDS[0];
+                 return b.gap
+                   ? `The app will say when two hard days land back to back, and your
+                      protein target is held above ${b.protein} g/kg.`
+                   : `Your protein target is held above ${b.protein} g/kg.`; })()}</p>` : ''}
+    <p class="ob-why">The evidence on recovery is genuinely split &mdash; some studies
+      find older lifters worse off after hard work, some find the opposite. What it does
+      support is the practical end: three sessions a week, 48 to 72 hours apart. So the
+      app says that where it applies and leaves your week
+      alone.<span class="src">${EVIDENCE.ageSrc}</span></p>
+  `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>
+             <button class="btn quiet block mt-s" data-act="ob-skip-age">Rather not say</button>` });
 };
 
 OB_RENDER.activity = () => obShell(`
