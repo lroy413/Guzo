@@ -17,7 +17,7 @@ function routineStripHTML() {
   return `<div class="sec-head"><span class="sec-t">Your routines</span><button class="sec-a" data-act="routines">Manage</button></div>
     <div class="rt-strip">
       ${list.slice(0, 6).map(r => `<button class="rt-chip" data-act="routine-start" data-v="${h(r.id)}">
-        <span class="rt-emoji">${h(r.emoji)}</span>
+        <span class="rt-emoji">${ico(r.emoji)}</span>
         <span class="rt-chip-t">${h(r.name)}</span>
         <span class="rt-chip-b">${r.items.length} · ${routineMins(r)} min</span>
       </button>`).join('')}
@@ -33,7 +33,7 @@ function todaySessionsHTML() {
       ${list.map(s => {
         const v = sessionVolume(s);
         return `<div class="lrow">
-          <div class="ico">${s.extra ? h((routineById(s.routineId) || {}).emoji || '✓') : '✓'}</div>
+          <div class="ico">${s.extra ? ico((routineById(s.routineId) || {}).emoji || 'tick') : ICO.tick}</div>
           <div class="grow">
             <div class="h3">${h(sessionTitle(s))}</div>
             <div class="tiny mt-s">${v.sets} sets · ${s.dur || 0} min${s.kcal ? ' · ' + s.kcal + ' kcal' : ''}${s.extra ? ' · extra' : ''}</div>
@@ -54,7 +54,7 @@ function sheetRoutines() {
 
     ${list.length ? `<div class="list mb">
       ${list.map(r => `<button class="lrow" data-act="routine-edit" data-v="${h(r.id)}" style="width:100%;text-align:left">
-        <div class="ico">${h(r.emoji)}</div>
+        <div class="ico">${ico(r.emoji)}</div>
         <div class="grow">
           <div class="h3">${h(r.name)}</div>
           <div class="tiny mt-s">${h(routineSummary(r))}${r.uses ? ' · used ' + r.uses + '×' : ''}</div>
@@ -114,8 +114,8 @@ function sheetRoutineEdit(id) {
         </div>
       </div>
       <div class="rt-ctl">
-        <button data-act="rt-move" data-v="${h(id)}" data-i="${i}" data-d="-1" aria-label="Move ${h(ex.name)} up"${i === 0 ? ' disabled style="opacity:.35"' : ''}>↑</button>
-        <button data-act="rt-move" data-v="${h(id)}" data-i="${i}" data-d="1" aria-label="Move ${h(ex.name)} down"${i === r.items.length - 1 ? ' disabled style="opacity:.35"' : ''}>↓</button>
+        <button data-act="rt-move" data-v="${h(id)}" data-i="${i}" data-d="-1" aria-label="Move ${h(ex.name)} up"${i === 0 ? ' disabled style="opacity:.35"' : ''}>${ICO.arrowU}</button>
+        <button data-act="rt-move" data-v="${h(id)}" data-i="${i}" data-d="1" aria-label="Move ${h(ex.name)} down"${i === r.items.length - 1 ? ' disabled style="opacity:.35"' : ''}>${ICO.arrowD}</button>
         <button class="rt-del" data-act="rt-remove" data-v="${h(id)}" data-i="${i}" aria-label="Remove ${h(ex.name)}"><span class="rt-ctl-l">Remove</span></button>
       </div>
     </div>
@@ -125,7 +125,7 @@ function sheetRoutineEdit(id) {
     ${!r.circuit && i < r.items.length - 1 ? `<button class="rt-link${it.supNext ? ' on' : ''}"
         data-act="rt-superset" data-v="${h(id)}" data-i="${i}"
         aria-pressed="${it.supNext ? 'true' : 'false'}">
-        <span class="rt-link-i">${it.supNext ? '⇄' : '+'}</span>
+        <span class="rt-link-i">${it.supNext ? ICO.link : ICO.plus}</span>
         <span>${it.supNext ? 'Superset &mdash; no rest between these' : 'Superset with the next one'}</span>
       </button>` : ''}`;
   }).join('');
@@ -143,7 +143,7 @@ function sheetRoutineEdit(id) {
     </div>
 
     <div class="rt-emoji-row mb">
-      ${ROUTINE_EMOJI.map(e => `<button class="rt-emoji-pick ${r.emoji === e ? 'on' : ''}" data-act="rt-emoji" data-v="${h(id)}" data-e="${e}">${e}</button>`).join('')}
+      ${ROUTINE_EMOJI.map(e => `<button class="rt-emoji-pick ${r.emoji === e ? 'on' : ''}" data-act="rt-emoji" data-v="${h(id)}" data-e="${h(e)}">${ico(e)}</button>`).join('')}
     </div>
 
     ${r.items.length ? rows : `<div class="note mb"><p class="note-t">Empty so far.</p><p class="note-b">Add the movements you want, in the order you want to do them.</p></div>`}
@@ -156,7 +156,7 @@ function sheetRoutineEdit(id) {
 
     <div class="list mt">
       <div class="lrow" data-act="rt-warmup" data-v="${h(id)}">
-        <div class="ico">🤸</div>
+        <div class="ico">${ICO.mobility}</div>
         <div class="grow">
           <div class="h3">Warm-up first</div>
           <div class="tiny mt-s">${r.warmup
@@ -166,7 +166,7 @@ function sheetRoutineEdit(id) {
         <div class="switch ${r.warmup ? 'on' : ''}"></div>
       </div>
       <div class="lrow" data-act="rt-circuit" data-v="${h(id)}">
-        <div class="ico">🔁</div>
+        <div class="ico">${ICO.repeat}</div>
         <div class="grow">
           <div class="h3">Run it as a circuit</div>
           <div class="tiny mt-s">${r.circuit

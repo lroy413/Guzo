@@ -40,7 +40,7 @@ function bootFail(err) {
 }
 window.addEventListener('error', e => { if (!window.__guzoBooted) bootFail(e.error || e.message); });
 
-const VERSION = '1.6.0';
+const VERSION = '1.7.0';
 const KEY = 'guzo.v1';
 const LEGACY_KEYS = ['fittrek.v1'];
 
@@ -389,6 +389,81 @@ mob-open-book|Open Book|Bodyweight|fhb|mobility|Back|Chest|4|8|15|bw
 mob-sleeper|Sleeper Stretch|Bodyweight|fhb|mobility|Shoulders||4|20|40|time
 mob-standing-fold|Standing Forward Fold|Bodyweight|fhb|mobility|Hamstrings|Back|4|30|60|time
 mob-quad-couch-wall|Wall Quad Stretch|Bodyweight|fhb|mobility|Quads|Glutes|4|30|60|time
+mob-neck-rotation-slow|Slow Neck Rotation|Bodyweight|fhb|mobility|Shoulders||4|20|40|time
+mob-scalene|Scalene Stretch|Bodyweight|fhb|mobility|Shoulders||4|20|40|time
+mob-neck-nod|Neck Nod|Bodyweight|fhb|mobility|Shoulders||4|8|15|bw
+mob-jaw-release|Jaw and Temple Release|Bodyweight|fhb|mobility|Shoulders||4|20|40|time
+mob-suboccipital|Base-of-Skull Release|Bodyweight|fhb|mobility|Shoulders|Back|4|30|60|time
+mob-shoulder-shrug-roll|Shoulder Roll|Bodyweight|fhb|mobility|Shoulders||4|8|15|bw
+mob-arm-circle|Arm Circles|Bodyweight|fhb|mobility|Shoulders||4|10|20|bw
+mob-pec-floor|Floor Pec Opener|Bodyweight|fhb|mobility|Chest|Shoulders|4|30|60|time
+mob-bench-thoracic|Elbows-Down Chest Opener|Bodyweight|fhb|mobility|Chest|Back|4|30|60|time
+mob-behind-back-clasp|Behind-the-Back Clasp|Bodyweight|fhb|mobility|Chest|Shoulders|4|20|40|time
+mob-wall-angel|Wall Angel|Bodyweight|fhb|mobility|Shoulders|Back|4|8|15|bw
+mob-prone-y|Prone Y Raise|Bodyweight|fhb|mobility|Shoulders|Back|4|8|15|bw
+mob-prone-t|Prone T Raise|Bodyweight|fhb|mobility|Back|Shoulders|4|8|15|bw
+mob-prone-w|Prone W Raise|Bodyweight|fhb|mobility|Back|Shoulders|4|8|15|bw
+mob-serratus-wall|Wall Serratus Slide|Bodyweight|fhb|mobility|Shoulders|Chest|4|8|15|bw
+mob-rotator-external|External Rotation Hold|Bodyweight|fhb|mobility|Shoulders||4|20|40|time
+mob-crossbody-supine|Supine Cross-Body Reach|Bodyweight|fhb|mobility|Shoulders|Back|4|30|60|time
+mob-thoracic-wall|Wall Thoracic Extension|Bodyweight|fhb|mobility|Back|Shoulders|4|30|60|time
+mob-cat-cow-standing|Standing Cat-Cow|Bodyweight|fhb|mobility|Back|Core|4|8|15|bw
+mob-seated-cat-cow|Seated Cat-Cow|Bodyweight|fhb|mobility|Back|Core|4|8|15|bw
+mob-side-lying-rotation|Side-Lying Windmill|Bodyweight|fhb|mobility|Back|Chest|4|30|60|time
+mob-prayer-reach|Prayer Reach|Bodyweight|fhb|mobility|Back|Shoulders|4|30|60|time
+mob-standing-fold-clasp|Forward Fold with Clasp|Bodyweight|fhb|mobility|Hamstrings|Shoulders|4|30|60|time
+mob-rag-doll|Rag Doll Hang|Bodyweight|fhb|mobility|Back|Hamstrings|4|30|60|time
+mob-knee-to-chest|Single Knee to Chest|Bodyweight|fhb|mobility|Back|Glutes|4|30|60|time
+mob-double-knee|Double Knee to Chest|Bodyweight|fhb|mobility|Back||4|30|60|time
+mob-pelvic-tilt|Pelvic Tilt|Bodyweight|fhb|mobility|Core|Back|4|8|15|bw
+mob-dead-bug-slow|Slow Dead Bug|Bodyweight|fhb|mobility|Core||4|8|15|bw
+mob-bird-dog-hold|Bird Dog Hold|Bodyweight|fhb|mobility|Core|Back|4|20|40|time
+mob-side-plank-hold|Side Plank Hold|Bodyweight|fhb|mobility|Core|Shoulders|4|20|40|time
+mob-glute-med-clam|Side-Lying Clam|Bodyweight|fhb|mobility|Glutes||4|10|20|bw
+mob-fire-hydrant|Fire Hydrant|Bodyweight|fhb|mobility|Glutes|Core|4|10|20|bw
+mob-hip-cars|Hip Circles on All Fours|Bodyweight|fhb|mobility|Glutes|Core|4|6|12|bw
+mob-lizard|Lizard Lunge|Bodyweight|fhb|mobility|Glutes|Quads|4|30|60|time
+mob-half-pigeon-fold|Pigeon with Fold|Bodyweight|fhb|mobility|Glutes|Back|4|30|60|time
+mob-supine-figure4|Supine Figure-Four|Bodyweight|fhb|mobility|Glutes||4|30|60|time
+mob-seated-hip-cross|Seated Cross-Leg Hip Stretch|Bodyweight|fhb|mobility|Glutes||4|30|60|time
+mob-psoas-lunge|Low Lunge Hip Flexor|Bodyweight|fhb|mobility|Quads|Glutes|4|30|60|time
+mob-kneeling-hip-reach|Kneeling Hip Flexor with Reach|Bodyweight|fhb|mobility|Quads|Core|4|30|60|time
+mob-side-lying-quad|Side-Lying Quad Stretch|Bodyweight|fhb|mobility|Quads||4|30|60|time
+mob-heel-to-glute|Standing Heel to Glute|Bodyweight|fhb|mobility|Quads||4|20|40|time
+mob-adductor-side-lunge|Side Lunge Adductor Stretch|Bodyweight|fhb|mobility|Glutes|Hamstrings|4|30|60|time
+mob-straddle-fold|Straddle Forward Fold|Bodyweight|fhb|mobility|Hamstrings|Glutes|4|30|60|time
+mob-single-leg-fold|Single-Leg Forward Fold|Bodyweight|fhb|mobility|Hamstrings||4|30|60|time
+mob-hamstring-wall|Legs-Up-the-Wall Hamstring|Bodyweight|fhb|mobility|Hamstrings|Back|4|30|60|time
+mob-hamstring-doorway|Doorway Hamstring Stretch|Bodyweight|fhb|mobility|Hamstrings||4|30|60|time
+mob-nerve-floss|Seated Nerve Floss|Bodyweight|fhb|mobility|Hamstrings|Calves|4|8|15|bw
+mob-calf-step|Step-Edge Calf Drop|Bodyweight|fhb|mobility|Calves||4|30|60|time
+mob-calf-downdog|Downward Dog Calf Pedal|Bodyweight|fhb|mobility|Calves|Hamstrings|4|8|15|bw
+mob-toe-sit|Toe Sit|Bodyweight|fhb|mobility|Calves|Quads|4|20|40|time
+mob-shin-kneel|Kneeling Shin Stretch|Bodyweight|fhb|mobility|Calves|Quads|4|20|40|time
+mob-big-toe|Big Toe Stretch|Bodyweight|fhb|mobility|Calves||4|20|40|time
+mob-ankle-alphabet|Ankle Alphabet|Bodyweight|fhb|mobility|Calves||4|6|12|bw
+mob-forearm-wall|Wall Forearm Stretch|Bodyweight|fhb|mobility|Biceps|Triceps|4|20|40|time
+mob-tricep-wall|Wall Triceps Stretch|Bodyweight|fhb|mobility|Triceps|Shoulders|4|20|40|time
+mob-bicep-doorway|Doorway Biceps Stretch|Bodyweight|fhb|mobility|Biceps|Chest|4|20|40|time
+mob-median-glide|Median Nerve Glide|Bodyweight|fhb|mobility|Biceps|Shoulders|4|8|15|bw
+mob-thumb-stretch|Thumb Stretch|Bodyweight|fhb|mobility|Biceps||4|20|40|time
+mob-grip-release|Grip Open and Close|Bodyweight|fhb|mobility|Biceps||4|10|20|bw
+mob-supine-twist-knee|Supine Twist with Knee Draw|Bodyweight|fhb|mobility|Back|Glutes|4|30|60|time
+mob-thread-needle-deep|Deep Thread the Needle|Bodyweight|fhb|mobility|Back|Shoulders|4|30|60|time
+mob-childs-side|Side Child's Pose|Bodyweight|fhb|mobility|Back|Core|4|30|60|time
+mob-standing-quad-wall|Wall-Supported Quad Stretch|Bodyweight|fhb|mobility|Quads||4|30|60|time
+mob-90-90-fold|90/90 Forward Fold|Bodyweight|fhb|mobility|Glutes|Back|4|30|60|time
+mob-couch-wall|Couch Stretch at a Wall|Bodyweight|fhb|mobility|Quads|Glutes|4|30|60|time
+mob-cossack-flow|Cossack Shift|Bodyweight|fhb|mobility|Glutes|Quads|4|8|15|bw
+mob-squat-to-stand|Squat to Stand|Bodyweight|fhb|mobility|Hamstrings|Glutes|4|6|12|bw
+mob-hip-hinge-drill|Hip Hinge Drill|Bodyweight|fhb|mobility|Hamstrings|Back|4|8|15|bw
+mob-scap-wall-slide|Scapular Wall Slide|Bodyweight|fhb|mobility|Shoulders|Back|4|8|15|bw
+mob-chest-doorway-low|Low Doorway Chest Stretch|Bodyweight|fhb|mobility|Chest|Shoulders|4|30|60|time
+mob-chest-doorway-high|High Doorway Chest Stretch|Bodyweight|fhb|mobility|Chest|Shoulders|4|30|60|time
+mob-lat-doorway|Doorway Lat Stretch|Bodyweight|fhb|mobility|Back|Shoulders|4|30|60|time
+mob-side-body-reach|Overhead Side Reach|Bodyweight|fhb|mobility|Core|Back|4|20|40|time
+mob-standing-twist|Standing Torso Twist|Bodyweight|fhb|mobility|Back|Core|4|8|15|bw
+mob-neck-hand-assist|Hand-Assisted Neck Stretch|Bodyweight|fhb|mobility|Shoulders||4|20|40|time
 `.trim();
 
 const EX = {};

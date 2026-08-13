@@ -317,7 +317,7 @@ function renderToday() {
     const v = sessionVolume(sess);
     html += `<div class="hero done">
       <div class="hero-in">
-        <span class="hero-eyebrow tl">✓ Logged today</span>
+        <span class="hero-eyebrow tl">${ICO.tick} Logged today</span>
         <h1 class="hero-title">${h(sessionTitle(sess))}</h1>
         <div class="hero-stats">
           <div><span class="hs-v">${v.sets}</span><span class="hs-k">sets</span></div>
@@ -379,7 +379,7 @@ function renderToday() {
         </div>
         <p class="hero-sub">${rt ? 'Your own routine, on the week&rsquo;s plan. Finishing it marks today done.' : heroReason(rd, band, suggested, rungDef)}</p>
         ${rd || rt ? '' : `<button class="hero-checkin" data-act="open-readiness">
-          <span class="hero-checkin-d">◐</span>
+          <span class="hero-checkin-d">${ICO.half}</span>
           <span class="grow">Check in first &mdash; it sizes this session</span>
           <span class="strip-chev">›</span>
         </button>`}
@@ -434,7 +434,7 @@ function stretchStripHTML() {
         : `${list.length} movements · ${Math.round(stretchSeconds(list) / 60)} min`;
 
   return `<button class="lrow str-strip" data-act="stretch" style="width:100%;text-align:left">
-    <div class="ico">${all ? '<span class="str-strip-ok">✓</span>' : '🧘'}</div>
+    <div class="ico">${all ? `<span class="str-strip-ok">${ICO.tick}</span>` : ICO.mobility}</div>
     <div class="grow">
       <div class="h3">${set ? "Today's stretch" : 'Stretch'}</div>
       <div class="tiny mt-s">${h(sub)}</div>
@@ -718,7 +718,7 @@ function renderPlan() {
     else if (stripOffset > 0) sub = availOf(c.avail).label + ' · ' + availOf(c.avail).mins + ' min expected';
     else sub = 'Open';
     html += `<div class="lrow" data-act="day-tap" data-k="${k}">
-      <div class="ico">${done ? '✓' : c.avail === 'none' ? '·' : p ? '▲' : '–'}</div>
+      <div class="ico">${done ? ICO.tick : c.avail === 'none' ? ICO.dot : p ? ICO.peakMark : ICO.minus}</div>
       <div class="grow">
         <div class="row between">
           <div class="h3">${prettyDate(k)}${k===today()?' <span class="pill em">today</span>':''}</div>
@@ -815,7 +815,7 @@ function renderTrain() {
         <div class="h1 mt-s">${typeLabel(type)}</div>
         <p class="small mt">Suggested size: <strong>${RUNGS.find(r=>r.k===suggested).label}</strong> · ${ENVS[c.env]?ENVS[c.env].label:'Full gym'}</p>
         <button class="btn primary block lg mt" data-act="start-session" data-type="${type}" data-rung="${suggested}">Start ${RUNGS.find(r=>r.k===suggested).label.toLowerCase()}</button>
-        <button class="btn quiet block mt-s" data-act="open-ladder" data-type="${type}">Choose a different size ▾</button>
+        <button class="btn quiet block mt-s" data-act="open-ladder" data-type="${type}">Choose a different size ${ICO.chevD}</button>
       </div>
       <div class="divide"></div>
       <div class="eyebrow mb-s">Or</div>`;
@@ -1608,7 +1608,7 @@ function recentSessionsHTML(n) {
     recent.map(s => {
       const v = sessionVolume(s);
       return `<div class="lrow" data-act="view-session" data-id="${s.id}">
-        <div class="ico">${s.micro?'⏱':'▲'}</div>
+        <div class="ico">${s.micro?ICO.clock:ICO.peakMark}</div>
         <div class="grow">
           <div class="row between"><div class="h3">${typeLabel(s.type)}</div><div class="pill">${relDate(s.date)}</div></div>
           <div class="tiny mt-s">${v.sets} sets${v.tonnage?` · ${v.tonnage.toLocaleString()} ${unit()}`:''}${s.dur?` · ${Math.round(s.dur)} min`:''}</div>
@@ -1814,7 +1814,7 @@ function wayNodeHTML(m, state, pct) {
          <circle class="asc-ring-i" cx="20" cy="20" r="${R}"
                  style="stroke-dasharray:${C.toFixed(1)};stroke-dashoffset:${(C * (1 - pct / 100)).toFixed(1)}"/>
        </svg>` : '';
-  return `<span class="asc-node ${state}">${ring}<span class="asc-ico">${m.ico}</span></span>`;
+  return `<span class="asc-node ${state}">${ring}<span class="asc-ico">${ico(m.ico)}</span></span>`;
 }
 
 function ascentRowHTML(o) {

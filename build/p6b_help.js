@@ -2,14 +2,14 @@
    HELP & GUIDES
    ============================================================ */
 const HELP_PAGES = {
-  how:   { ico:'🧭', title:'How Guzo works', sub:'The ladder, week shaping, and why one miss is free' },
-  form:  { ico:'📐', title:'Form guides',       sub:'Diagrams and cues for the main lifts' },
-  terms: { ico:'📖', title:'Terms explained',   sub:'RPE, 1RM, double progression, deload, tonnage' },
-  start: { ico:'▶️', title:'Getting started',   sub:'Your first week, and what to do on a bad one' },
-  data:  { ico:'💾', title:'Install & backups', sub:'Home screen, exporting, restoring, resetting' },
-  shortcut: { ico:'📲', title:'Steps &amp; sleep from Health', sub:'Build the shortcut that hands Apple Health over' },
-  why:   { ico:'🔬', title:'The evidence',      sub:'The research this app is built on' },
-  privacy: { ico:'🔒', title:'Privacy',          sub:'What is stored, where it lives, and what never leaves' }
+  how:   { ico:'compass', title:'How Guzo works', sub:'The ladder, week shaping, and why one miss is free' },
+  form:  { ico:'ruler', title:'Form guides',       sub:'Diagrams and cues for the main lifts' },
+  terms: { ico:'book', title:'Terms explained',   sub:'RPE, 1RM, double progression, deload, tonnage' },
+  start: { ico:'play', title:'Getting started',   sub:'Your first week, and what to do on a bad one' },
+  data:  { ico:'disk', title:'Install & backups', sub:'Home screen, exporting, restoring, resetting' },
+  shortcut: { ico:'phone', title:'Steps &amp; sleep from Health', sub:'Build the shortcut that hands Apple Health over' },
+  why:   { ico:'science', title:'The evidence',      sub:'The research this app is built on' },
+  privacy: { ico:'lock', title:'Privacy',          sub:'What is stored, where it lives, and what never leaves' }
 };
 
 function sheetHelp() {
@@ -19,7 +19,7 @@ function sheetHelp() {
     <div class="list">
       ${Object.keys(HELP_PAGES).map(k => `
         <button class="lrow" data-act="help-page" data-v="${k}" style="width:100%;text-align:left">
-          <div class="ico">${HELP_PAGES[k].ico}</div>
+          <div class="ico">${ico(HELP_PAGES[k].ico)}</div>
           <div class="grow">
             <div class="h3">${HELP_PAGES[k].title}</div>
             <div class="tiny mt-s">${HELP_PAGES[k].sub}</div>
@@ -55,7 +55,7 @@ function sheetFormList(query) {
           <span class="chev">›</span>
         </button>`).join('')}
     </div>
-    ${ids.length ? '' : '<div class="blankstate"><div class="big">🔍</div>No diagram for that yet.<br>Every lift still has muscle targets and rep ranges in the picker.</div>'}
+    ${ids.length ? '' : '<div class="blankstate"><div class="big">${ICO.search}</div>No diagram for that yet.<br>Every lift still has muscle targets and rep ranges in the picker.</div>'}
   `);
   const qi = document.getElementById('form-q');
   if (qi) qi.addEventListener('input', ev => {
@@ -306,29 +306,33 @@ function sheetJourney() {
 
     ${nxt ? `<div class="card accent mb">
       <div class="row between"><div class="eyebrow em">Next marker</div><div class="pill em">${nxt.left > 0 ? `${nxt.left} ${nxt.unit}` : 'close'}</div></div>
-      <div class="h2 mt-s">${nxt.ico} ${nxt.title}</div>
+      <div class="h2 mt-s">${ico(nxt.ico)} ${nxt.title}</div>
       <p class="small mt-s">${nxt.body}</p>
     </div>` : `<div class="banner good mb">Every marker reached. There is no end to a journey like this — just more of it.</div>`}
 
     <div class="eyebrow mb-s">Markers reached</div>
-    ${reached.length ? `<div class="jpath mb">
+    ${/* `.lrow`, not `.jnode` — that class went with the markers list when the
+          Progress ascent merged the two, and this sheet had been rendering
+          unstyled ever since. Caught by a syntax error in the line below it,
+          which is not a way to find things. */''}
+    ${reached.length ? `<div class="list mb">
       ${reached.slice().reverse().map(m => `
-        <div class="jnode done">
-          <div class="jnode-ico">${m.ico}</div>
+        <div class="lrow">
+          <div class="ico">${ico(m.ico)}</div>
           <div class="grow">
-            <div class="jnode-t">${m.title}</div>
-            <div class="jnode-d">${relDate(m.on)}</div>
-            <p class="small mt-s">${m.body}</p>
+            <div class="h3">${h(m.title)}</div>
+            <div class="tiny mt-s">${h(relDate(m.on))}</div>
+            <p class="small mt-s">${h(m.body)}</p>
           </div>
         </div>`).join('')}
-    </div>` : '<div class="blankstate"><div class="big">🌅</div>None yet.<br>The first arrives the moment you finish a session — any size.</div>'}
+    </div>` : `<div class="blankstate"><div class="big">${ICO['ms-first']}</div>None yet.<br>The first arrives the moment you finish a session &mdash; any size.</div>`}
 
     <div class="eyebrow mb-s mt-l">Still ahead</div>
-    <div class="jpath mb">
+    <div class="list mb">
       ${MILESTONES.filter(m => !(S.journey && S.journey.reached && S.journey.reached[m.k])).map(m => `
-        <div class="jnode">
-          <div class="jnode-ico">${m.ico}</div>
-          <div class="grow"><div class="jnode-t">${m.title}</div></div>
+        <div class="lrow">
+          <div class="ico">${ico(m.ico)}</div>
+          <div class="grow"><div class="h3">${h(m.title)}</div></div>
         </div>`).join('')}
     </div>
 

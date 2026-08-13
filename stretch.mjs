@@ -542,6 +542,120 @@ try {
     icons.unknown.length === 0, icons.unknown.join(', '));
   check('...all sixteen of them different', icons.distinct === 16, String(icons.distinct));
 
+
+  // ================= 10. presets ========================================
+  console.log('\npresets\n');
+
+  const pre = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    const sq = EX['bb-back-squat'];
+    S.sessions = [{ id: 'p1', date: today(), ended: Date.now(), dur: 45, kcal: 300, type: 'full',
+      exercises: [{ exId: 'bb-back-squat', name: sq.name, load: sq.load,
+        sets: [{ w: 100, r: 5, done: true }, { w: 100, r: 5, done: true },
+               { w: 100, r: 5, done: true }] }] }];
+    S.stretch = { onboarded: true, occupation: 'desk', areas: [], done: {}, mins: 15 };
+    save(true);
+
+    const out = STRETCH_PRESETS.map(p => {
+      const l = presetStretch(p.k);
+      const outside = p.focus ? l.filter(s => p.focus.indexOf(s.ex.primary) < 0).map(s => s.ex.name) : [];
+      return { k: p.k, n: l.length, mins: stretchSeconds(l) / 60, want: p.mins,
+               outside, ready: presetReady(p.k),
+               unique: new Set(l.map(s => s.ex.id)).size === l.length };
+    });
+
+    /* A preset is a filter over the same pool and the same scoring, so it must
+       still respect an injury. If it did not it would be a second, worse
+       stretch tool wearing the same name. */
+    S.profile.injuries = ['shoulder'];
+    const banned = injuryExclusions();
+    const leaks = presetStretch('neck').filter(s => banned.has(s.ex.id)).map(s => s.ex.id);
+    S.profile.injuries = [];
+
+    /* And the kit you have. */
+    S.profile.gear.bands = false;
+    const bandLeak = STRETCH_PRESETS.flatMap(p => presetStretch(p.k))
+      .filter(s => s.ex.eq === 'Band').map(s => s.ex.id);
+
+    /* "Wake up" is short and moving on purpose — the research says a held
+       stretch is the wrong thing first. */
+    const wakeHolds = presetStretch('wake').filter(s => s.ex.load === 'time').map(s => s.ex.name);
+    /* "After training" is built from what was actually trained. */
+    const trained = recentlyTrained(2);
+    const post = presetStretch('posttrain');
+    const unrelated = post.filter(s =>
+      ![s.ex.primary].concat(s.ex.sec || []).some(m => trained[m])).map(s => s.ex.name);
+
+    return { out, leaks, bandLeak, wakeHolds, unrelated, postN: post.length };
+  });
+
+  check('every preset builds something usable',
+    pre.out.every(p => p.ready && p.n >= 3),
+    pre.out.filter(p => !p.ready || p.n < 3).map(p => p.k + ':' + p.n).join(', '));
+  check('...at about the length it promises',
+    pre.out.every(p => Math.abs(p.mins - p.want) <= Math.max(1.5, p.want * 0.12)),
+    pre.out.map(p => `${p.k} ${Math.round(p.mins)}/${p.want}`).join(' · '));
+  check('...without repeating a movement', pre.out.every(p => p.unique));
+  /* A back preset that quietly includes calf work is not a back preset. */
+  check('a focused preset stays inside the areas it names',
+    pre.out.every(p => p.outside.length === 0),
+    pre.out.filter(p => p.outside.length).map(p => p.k + ': ' + p.outside.join('/')).join(' | '));
+  /* The three the daily stretch already gets right, which a preset must not
+     bypass by being a hand-picked list instead of a filter. */
+  check('...still honours an injury', pre.leaks.length === 0, pre.leaks.join(', '));
+  check('...and the kit you actually have', pre.bandLeak.length === 0, pre.bandLeak.join(', '));
+  check('the wake-up preset holds nothing', pre.wakeHolds.length === 0, pre.wakeHolds.join(', '));
+  check('the after-training preset is built from what you trained',
+    pre.postN >= 3 && pre.unrelated.length === 0,
+    `${pre.postN} movements, ${pre.unrelated.length} unrelated`);
+
+  const preUi = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.stretch = { onboarded: true, occupation: 'desk', areas: [], done: {}, mins: 15 };
+    save(true);
+    sheetStretch();
+    const cards = [...document.querySelectorAll('#sheet-body [data-act="stretch-preset"]')];
+    if (!cards.length) return { found: false };
+    cards[3].click();
+    const body = document.getElementById('sheet-body');
+    const started = !!body.querySelector('[data-act="stretch-preset-start"]');
+    const back = !!body.querySelector('[data-act="stretch-back"]');
+    const rows = body.querySelectorAll('.str-row').length;
+    body.querySelector('[data-act="stretch-preset-start"]').click();
+    return { found: true, cards: cards.length, started, back, rows,
+             active: !!S.active, screen: SCREEN,
+             n: S.active ? S.active.exercises.length : 0,
+             named: S.active ? S.active.presetName : '' };
+  });
+  check('the stretch screen offers presets', preUi.found && preUi.cards >= 8,
+    String(preUi.cards));
+  check('...opening one shows what is in it before you start',
+    preUi.rows >= 3 && preUi.started === true, `${preUi.rows} rows`);
+  check('...with a way back that is not the ✕', preUi.back === true);
+  check('...and starting one runs it on Train',
+    preUi.active && preUi.screen === 'train' && preUi.n >= 3,
+    `${preUi.screen}, ${preUi.n} movements`);
+  check('...under the name of the preset', /\w/.test(preUi.named || ''), preUi.named);
+
+  /* The complaint that prompted this: an hour used two-thirds of everything,
+     so a focused session had nothing left to draw on. */
+  const depth = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.stretch = { onboarded: true, occupation: null, areas: [], done: {}, mins: 60 };
+    save(true);
+    const pool = stretchPool().length;
+    const hour = dailyStretch().length;
+    const byRegion = {};
+    stretchPool().forEach(x => { byRegion[x.primary] = (byRegion[x.primary] || 0) + 1; });
+    return { pool, hour, share: hour / pool, byRegion,
+             thinnest: Math.min(...Object.values(byRegion)),
+             regions: Object.keys(byRegion).length };
+  });
+  check('the pool is deep enough that an hour is a fraction of it',
+    depth.share < 0.45, `${depth.hour} of ${depth.pool} (${Math.round(depth.share * 100)}%)`);
+  check('...and every region has enough for a focused session on its own',
+    depth.thinnest >= 3 && depth.regions >= 9, JSON.stringify(depth.byRegion));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

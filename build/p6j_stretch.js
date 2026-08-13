@@ -51,8 +51,12 @@ function sheetStretch() {
            a hip switch and wrong for an inchworm. The catalogue does not record
            laterality, so it is not asserted. */
         const sets = stretchSets(s.ex);
-        const one = s.ex.load === 'time' ? s.ex.rh + 's' : '×' + s.ex.rh;
-        const amount = sets > 1 ? sets + ' × ' + one : one;
+        /* The rep form already carries a × of its own, so composing it with
+           the set count printed "2 × ×15". A hold composes; a rep count is
+           written out. */
+        const amount = s.ex.load === 'time'
+          ? (sets > 1 ? sets + ' × ' + s.ex.rh + 's' : s.ex.rh + 's')
+          : (sets > 1 ? sets + ' × ' + s.ex.rh : '×' + s.ex.rh);
         return `<div class="str-row ${on ? 'done' : ''}">
           <button class="str-tick ${on ? 'on' : ''}" data-act="stretch-tick" data-v="${h(s.ex.id)}"
                   aria-label="${on ? 'Undo' : 'Mark'} ${h(s.ex.name)}" aria-pressed="${on ? 'true' : 'false'}">
@@ -77,10 +81,22 @@ function sheetStretch() {
       <button class="btn ghost grow" data-act="stretch-save">Save as routine</button>
     </div>
 
+    ${/* Presets. The other question people have is not "what should I do
+          today" but "my back is wrecked and I have fifteen minutes". */''}
+    <div class="sec-head"><span class="sec-t">Quick start</span></div>
+    <div class="pset mb">
+      ${STRETCH_PRESETS.filter(p => presetReady(p.k)).map(p => `
+        <button class="pset-c" data-act="stretch-preset" data-v="${h(p.k)}">
+          <span class="pset-i">${ico(p.ico)}</span>
+          <span class="pset-n">${h(p.name)}</span>
+          <span class="pset-m mono">${p.mins} min</span>
+        </button>`).join('')}
+    </div>
+
     ${mine.length ? `<div class="sec-head"><span class="sec-t">Your stretch routines</span></div>
       <div class="list mb">
         ${mine.map(r => `<div class="lrow">
-          <div class="ico">${h(r.emoji || '🧘')}</div>
+          <div class="ico">${ico(r.emoji || 'env-bw')}</div>
           <button class="grow" data-act="stretch-open-rt" data-v="${h(r.id)}" style="text-align:left">
             <div class="h3">${h(r.name)}</div>
             <div class="tiny mt-s">${r.items.length} movement${r.items.length === 1 ? '' : 's'} &middot; edit</div>
@@ -199,4 +215,50 @@ function sheetStretchInfo(exId) {
       tension rather than pain, breathe out into it, and stop if it is sharp.</p></div>
     <button class="btn ghost block" data-act="stretch-back">Back to today's stretch</button>
   `, { key: 'stretch-info' });
+}
+
+/* A preset, before you commit to it. Shown rather than started outright: it is
+   the same list every other stretch shows, so it gets the same treatment —
+   what is in it, why, and a button. */
+function sheetStretchPreset(k) {
+  const p = presetById(k);
+  if (!p) return;
+  const list = presetStretch(k);
+  if (!list.length) { toast('Nothing available for that right now'); return; }
+  const secs = stretchSeconds(list);
+  const done = stretchDone(today());
+
+  openSheet(`
+    <button class="sheet-back" data-act="stretch-back" aria-label="Back to your stretch">
+      ${ICO.arrowL}<span>Stretch</span>
+    </button>
+    <h2 class="h1 mt-s mb-s" style="padding-right:44px">${h(p.name)}</h2>
+    <p class="small mb">${h(p.blurb)}</p>
+    <p class="tiny mb">${Math.round(secs / 60)} minutes &middot; ${list.length} movements &middot;
+      still filtered by anything you have flagged and by the kit you have.</p>
+
+    <div class="list mb">
+      ${list.map(s => {
+        const on = done.indexOf(s.ex.id) >= 0;
+        const sets = stretchSets(s.ex);
+        const amount = s.ex.load === 'time'
+          ? (sets > 1 ? sets + ' × ' + s.ex.rh + 's' : s.ex.rh + 's')
+          : (sets > 1 ? sets + ' × ' + s.ex.rh : '×' + s.ex.rh);
+        return `<div class="str-row ${on ? 'done' : ''}">
+          <button class="str-tick ${on ? 'on' : ''}" data-act="stretch-tick" data-v="${h(s.ex.id)}"
+                  aria-label="${on ? 'Undo' : 'Mark'} ${h(s.ex.name)}" aria-pressed="${on ? 'true' : 'false'}">
+            ${ICO.tick}
+          </button>
+          <button class="grow str-main" data-act="stretch-info" data-v="${h(s.ex.id)}">
+            <div class="str-n">${h(s.ex.name)}</div>
+            <div class="str-sub">${h(amount)} &middot; ${h(s.ex.primary)}</div>
+          </button>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <button class="btn primary block lg mb-s" data-act="stretch-preset-start" data-v="${h(p.k)}">
+      Start it &mdash; ${Math.round(secs / 60)} min</button>
+    <button class="btn ghost block" data-act="stretch-preset-save" data-v="${h(p.k)}">Save as a routine</button>
+  `, { key: 'stretch-preset-' + k });
 }

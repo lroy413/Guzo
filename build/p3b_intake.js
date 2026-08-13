@@ -58,52 +58,52 @@ function injuryExclusionsFor(keys) {
 
 /* ---------- priority areas → an extra accessory slot ---------- */
 const PRIORITIES = {
-  Back:      { ico:'🔙', note:'Rows and pulldowns. The single best thing you can train if you carry weight on one shoulder all day.' },
-  Shoulders: { ico:'🎯', note:'Side and rear delts. Width, and shoulders that tolerate a rig.' },
-  Chest:     { ico:'🛡', note:'Pressing volume across flat and incline.' },
-  Core:      { ico:'⚓️', note:'Anti-rotation and bracing work — the part that actually protects your back under load.' },
-  Quads:     { ico:'🦿', note:'Squats, presses and extensions.' },
-  Glutes:    { ico:'🍑', note:'Hip thrusts, hinges and bridges. Underrated for standing all day.' },
-  Arms:      { ico:'💪', note:'Biceps and triceps, directly.' },
-  Calves:    { ico:'🐄', note:'Standing and seated raises.' }
+  Back:      { ico:'area-Back', note:'Rows and pulldowns. The single best thing you can train if you carry weight on one shoulder all day.' },
+  Shoulders: { ico:'area-Shoulders', note:'Side and rear delts. Width, and shoulders that tolerate a rig.' },
+  Chest:     { ico:'area-Chest', note:'Pressing volume across flat and incline.' },
+  Core:      { ico:'area-Core', note:'Anti-rotation and bracing work — the part that actually protects your back under load.' },
+  Quads:     { ico:'area-Quads', note:'Squats, presses and extensions.' },
+  Glutes:    { ico:'area-Glutes', note:'Hip thrusts, hinges and bridges. Underrated for standing all day.' },
+  Arms:      { ico:'area-Arms', note:'Biceps and triceps, directly.' },
+  Calves:    { ico:'area-Calves', note:'Standing and seated raises.' }
 };
 
 /* ---------- cardio ---------- */
 const CARDIO_AMOUNT = {
   none:  { k:'none',  label:'None for now', ico:'⏸',
            note:'Strength only. You can turn this on later without changing anything else.' },
-  light: { k:'light', label:'A little',     ico:'🚶',
+  light: { k:'light', label:'A little',     ico:'cardio-light',
            note:'One short piece a week, tacked onto the end of a session. Ten to fifteen minutes.' },
-  some:  { k:'some',  label:'A moderate amount', ico:'🏃',
+  some:  { k:'some',  label:'A moderate amount', ico:'cardio-some',
            note:'Two pieces a week, fifteen to twenty minutes. Enough to matter for heart health without eating into recovery.' },
-  lots:  { k:'lots',  label:'A lot',        ico:'🔥',
+  lots:  { k:'lots',  label:'A lot',        ico:'cardio-lots',
            note:'Three pieces a week, twenty minutes plus. You want conditioning as a real goal, not an afterthought.' }
 };
 const CARDIO_MODES = {
-  'car-walk':          { label:'Walking outdoors',  ico:'🚶' },
-  'car-run':           { label:'Running outdoors',  ico:'🏃' },
-  'car-treadmill-run': { label:'Treadmill',         ico:'🏃‍♂️' },
-  'car-incline-walk':  { label:'Incline walking',   ico:'⛰' },
-  'car-bike':          { label:'Bike',              ico:'🚴' },
-  'car-rower':         { label:'Rower',             ico:'🚣' },
-  'car-stair':         { label:'Stair climber',     ico:'🪜' },
-  'car-jump-rope':     { label:'Skipping rope',     ico:'🪢' }
+  'car-walk':          { label:'Walking outdoors',  ico:'car-walk' },
+  'car-run':           { label:'Running outdoors',  ico:'car-run' },
+  'car-treadmill-run': { label:'Treadmill',         ico:'car-treadmill-run' },
+  'car-incline-walk':  { label:'Incline walking',   ico:'car-incline-walk' },
+  'car-bike':          { label:'Bike',              ico:'car-bike' },
+  'car-rower':         { label:'Rower',             ico:'car-rower' },
+  'car-stair':         { label:'Stair climber',     ico:'car-stair' },
+  'car-jump-rope':     { label:'Skipping rope',     ico:'car-jump-rope' }
 };
 const CARDIO_SESSIONS = { none:0, light:1, some:2, lots:3 };
 const CARDIO_MINS = { none:0, light:12, some:18, lots:22 };
 
 /* ---------- gym equipment ---------- */
 const GEAR_ITEMS = {
-  barbell:   { label:'Barbell and plates', ico:'🏋️', note:'Squats, deadlifts, bench, rows' },
-  rack:      { label:'Squat rack or stands', ico:'🔲', note:'Needed to squat or press from height safely' },
-  bench:     { label:'A bench',            ico:'🛏', note:'Flat or adjustable' },
-  dumbbells: { label:'Dumbbells',          ico:'🔩', note:'Any range' },
-  kettlebells:{ label:'Kettlebells',       ico:'🔔', note:'Swings, cleans, get-ups, carries' },
-  cables:    { label:'Cable machine',      ico:'🪢', note:'Pulldowns, rows, pushdowns, face pulls' },
-  machines:  { label:'Resistance machines',ico:'⚙️', note:'Leg press, chest press, curls, extensions' },
-  pullupBar: { label:'Pull-up bar',        ico:'➖', note:'Pull-ups, chin-ups, hanging work' },
-  bands:     { label:'Resistance bands',   ico:'🎗', note:'Useful anywhere, essential when travelling' },
-  cardioKit: { label:'Cardio machines',    ico:'🚴', note:'Treadmill, bike, rower, stairs' }
+  barbell:   { label:'Barbell and plates', ico:'gear-barbell', note:'Squats, deadlifts, bench, rows' },
+  rack:      { label:'Squat rack or stands', ico:'gear-rack', note:'Needed to squat or press from height safely' },
+  bench:     { label:'A bench',            ico:'gear-bench', note:'Flat or adjustable' },
+  dumbbells: { label:'Dumbbells',          ico:'gear-dumbbell', note:'Any range' },
+  kettlebells:{ label:'Kettlebells',       ico:'gear-kettlebell', note:'Swings, cleans, get-ups, carries' },
+  cables:    { label:'Cable machine',      ico:'gear-cable', note:'Pulldowns, rows, pushdowns, face pulls' },
+  machines:  { label:'Resistance machines',ico:'gear-machine', note:'Leg press, chest press, curls, extensions' },
+  pullupBar: { label:'Pull-up bar',        ico:'gear-pullup', note:'Pull-ups, chin-ups, hanging work' },
+  bands:     { label:'Resistance bands',   ico:'gear-band', note:'Useful anywhere, essential when travelling' },
+  cardioKit: { label:'Cardio machines',    ico:'cardio-some', note:'Treadmill, bike, rower, stairs' }
 };
 const GEAR_ALL = { barbell:true, rack:true, bench:true, dumbbells:true, kettlebells:true, cables:true, machines:true, pullupBar:true, bands:true, cardioKit:true };
 

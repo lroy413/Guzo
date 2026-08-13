@@ -44,7 +44,7 @@ function planOrderHTML() {
         <span class="ord-t">${e ? h(planLabel(e)) + (e.routineId ? ' <span class="pill" style="font-size:10px;padding:2px 7px">yours</span>' : '') : '<span style="color:#98a2ae">Free</span>'}</span>
         ${state ? `<span class="ord-s">${state}</span>` : ''}
       </button>
-      ${settled ? '<span class="ord-lock">✓</span>' : (e ? `<div class="ord-ctl">
+      ${settled ? `<span class="ord-lock">${ICO.tick}</span>` : (e ? `<div class="ord-ctl">
         <button data-act="plan-move" data-k="${k}" data-d="-1" aria-label="Move ${h(planLabel(e))} earlier"${canUp ? '' : ' disabled'}>${ORD_ARROW('M18 15l-6-6-6 6')}</button>
         <button data-act="plan-move" data-k="${k}" data-d="1" aria-label="Move ${h(planLabel(e))} later"${canDown ? '' : ' disabled'}>${ORD_ARROW('M6 9l6 6 6-6')}</button>
       </div>` : '<span class="ord-lock" style="color:#98a2ae;font-weight:400">+</span>')}
@@ -92,7 +92,7 @@ function daySummaryHTML(k) {
       const v = sessionVolume(s);
       const kc = s.kcal != null ? s.kcal : sessionKcal(s);
       return `<div class="lrow">
-        <div class="ico">${s.extra ? h((routineById(s.routineId) || {}).emoji || '✓') : '✓'}</div>
+        <div class="ico">${s.extra ? ico((routineById(s.routineId) || {}).emoji || 'tick') : ICO.tick}</div>
         <div class="grow">
           <div class="h3">${h(sessionTitle(s))}</div>
           <div class="tiny mt-s">${v.sets} set${v.sets === 1 ? '' : 's'} · ${s.dur || 0} min${kc ? ' · ' + kc + ' kcal' : ''}${v.tonnage ? ' · ' + (v.tonnage / 1000).toFixed(1) + 'k ' + unit() : ''}${s.extra ? ' · extra' : ''}</div>
@@ -171,13 +171,13 @@ function sheetDay(k) {
 
     <div class="list">
       ${thisWeek && !planDaySettled(k) ? `<div class="lrow" data-act="plan-day" data-k="${k}">
-        <div class="ico">▲</div>
+        <div class="ico">${ICO.peakMark}</div>
         <div class="grow"><div class="h3">Change the session</div>
           <div class="tiny mt-s">Pick a different split, or one of your routines</div></div>
         <span class="chev">›</span>
       </div>` : ''}
       <div class="lrow" data-act="day-edit" data-k="${k}" data-b="day">
-        <div class="ico">${av.ico}</div>
+        <div class="ico">${ico(av.ico)}</div>
         <div class="grow"><div class="h3">Time and place</div>
           <div class="tiny mt-s">${h(av.label)}${av.mins ? ' · ' + av.mins + ' min' : ''}${ENVS[c.env] ? ' · ' + ENVS[c.env].label.toLowerCase() : ''}</div></div>
         <span class="chev">›</span>
@@ -218,7 +218,7 @@ function sheetPlanDay(k) {
     ${routines.length ? `<div class="eyebrow mb-s">Your routines</div>
       <div class="list mb">
         ${routines.map(r => `<button class="lrow ${isCur({routineId:r.id}) ? 'on' : ''}" data-act="plan-set" data-k="${k}" data-r="${h(r.id)}" style="width:100%;text-align:left">
-          <div class="ico">${r.emoji}</div>
+          <div class="ico">${ico(r.emoji)}</div>
           <div class="grow">
             <div class="h3" style="font-size:14.5px">${h(r.name)}</div>
             <div class="tiny mt-s">${r.items.length} movement${r.items.length===1?'':'s'} · about ${routineMins(r)} min</div>
@@ -254,14 +254,14 @@ function sheetPlanApply(k, spec) {
     <p class="small mb">And the rest of the week?</p>
     <div class="opts">
       ${swap ? `<div class="opt" data-act="plan-apply" data-k="${k}" ${enc} data-m="swap">
-        <div class="opt-ico">⇄</div>
+        <div class="opt-ico">${ICO.link}</div>
         <div class="grow">
           <div class="opt-t">Swap with ${DAYNAMES[fromKey(swap.with).getDay()]}</div>
           <div class="opt-d">${DAYNAMES[fromKey(swap.with).getDay()]} already has ${h(label)} on it, so the two trade places. The week keeps the same mix &mdash; nothing gets trained twice and nothing gets dropped.</div>
         </div>
       </div>` : ''}
       ${after ? `<div class="opt" data-act="plan-apply" data-k="${k}" ${enc} data-m="reflow">
-        <div class="opt-ico">↻</div>
+        <div class="opt-ico">${ICO.repeat}</div>
         <div class="grow">
           <div class="opt-t">Carry on from here</div>
           <div class="opt-d">The ${after} remaining day${after===1?'':'s'} re-lay in rotation after this one. Days you have already set yourself are left alone.</div>
@@ -294,7 +294,7 @@ function sheetElsewhere() {
           <div class="h3" style="font-size:14.5px">${DAYNAMES[d.getDay()]} ${d.getDate()}</div>
           <div class="tiny mt-s">${logged ? 'Logged in the app' : on ? h(planLabel(e)) + ' · done elsewhere' : e ? 'Planned: ' + h(planLabel(e)) : 'Nothing planned'}</div>
         </div>
-        <span class="chev">${on ? '✕' : '›'}</span>
+        <span class="chev">${on ? ICO.cross : ICO.chevR}</span>
       </button>`;
     }).join('');
 

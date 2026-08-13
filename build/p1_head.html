@@ -310,6 +310,18 @@ button.recall:active{transform:scale(.99)}
   font-variant-numeric:tabular-nums}
 .pace-p{font-size:13px;color:var(--text-dim);flex:none;font-variant-numeric:tabular-nums}
 
+/* A drawn icon standing in for what used to be a big emoji — the brand mark
+   on the More screen and the onboarding finish. */
+.ob-mark .ico-svg,.who-mark .ico-svg{width:44px;height:44px;color:var(--ember)}
+.blankstate .big .ico-svg{width:34px;height:34px;color:var(--faint)}
+.pill .ico-svg{width:13px;height:13px}
+.ord-lock .ico-svg,.rt-link-i .ico-svg{width:14px;height:14px}
+.hero-checkin-d .ico-svg{width:14px;height:14px}
+.rt-emoji .ico-svg,.rt-emoji-pick .ico-svg{width:20px;height:20px}
+.milestone-ico .ico-svg{width:38px;height:38px;color:var(--ember)}
+.str-strip-ok .ico-svg{width:20px;height:20px}
+.set-u .ico-svg,.chev .ico-svg{width:14px;height:14px}
+
 /* Drawn icons rather than emoji — see p3d_icons.js. They take the colour of
    whatever they sit in, which an emoji never did. */
 .ico-svg{width:1.15em;height:1.15em;display:inline-block;vertical-align:-.18em;flex:none}
@@ -428,6 +440,20 @@ button.recall:active{transform:scale(.99)}
 .wtr-wk.met .wtr-wk-t i{opacity:1}
 .wtr-wk-d{font-size:10px;color:var(--faint);margin-top:4px}
 .wtr-wk.today .wtr-wk-d{color:var(--ember);font-weight:700}
+
+/* Preset stretches. A grid of two, because the names are short and the point
+   is choosing quickly. */
+.pset{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.pset-c{display:flex;flex-direction:column;align-items:flex-start;gap:2px;
+  padding:12px 12px 11px;min-height:82px;border-radius:13px;
+  border:1px solid var(--line);background:var(--surface-2);text-align:left}
+.pset-c:active{transform:scale(.98)}
+.pset-i .ico-svg{width:22px;height:22px;color:var(--ember);display:block;margin-bottom:4px}
+.pset-n{font-size:13.5px;font-weight:650;letter-spacing:-.01em;color:var(--text);line-height:1.25}
+.pset-m{font-size:11px;color:var(--muted);margin-top:auto}
+.sheet-back{display:flex;align-items:center;gap:6px;min-height:44px;font-size:13px;
+  font-weight:650;color:var(--muted)}
+.sheet-back .ico-svg{width:16px;height:16px}
 
 /* ---------- stretch ---------- */
 .str-why{display:flex;align-items:center;flex-wrap:wrap;gap:6px}

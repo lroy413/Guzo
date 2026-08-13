@@ -1,7 +1,7 @@
 # Status
 
-Verified against the build at **912,240 bytes**, `VERSION = '1.6.0'`.
-Last sweep: `dupes` + `blanks` (375) + `engine` (263) + `fuel` (108) + `stretch` (72) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
+Verified against the build at **948,710 bytes**, `VERSION = '1.7.0'`.
+Last sweep: `dupes` + `blanks` (377) + `engine` (263) + `fuel` (108) + `stretch` (87) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---
 
@@ -25,7 +25,8 @@ Last sweep: `dupes` + `blanks` (375) + `engine` (263) + `fuel` (108) + `stretch`
 | Import a plan | Complete. Offered from Structure, from the routines list, and from inside the builder. A PDF or text file becomes one routine per day — or, from the builder, movements appended to the routine you already have open: text extracted on-device with no library, movements matched to the catalogue by name, supersets read off the plan's own 4A/4B notation, and everything shown for review before anything is built. |
 | Circuits | Complete. A routine can run as a circuit: one pass through the list is a round, rest comes after the round. The Train screen becomes a runner. |
 | Water | Complete. A target from bodyweight and what you trained, a flask that fills, quick pours in real vessel sizes, and a streak an unfinished day can never break. Stored in millilitres, shown in whichever unit follows your weight. |
-| Stretch | Complete. 65 mobility movements, holds built to accumulate a minute per area, 5-60 minute sessions. A daily stretch scored from what you trained, what you flagged as sore and what your working day does to you — with its own three-question setup, a time budget rather than a movement count, your own routines built on the existing builder, and it runs on the Train screen so the holds count themselves down. |
+| Stretch | Complete. 141 mobility movements and ten presets, holds built to accumulate a minute per area, 5-60 minute sessions. A daily stretch scored from what you trained, what you flagged as sore and what your working day does to you — with its own three-question setup, a time budget rather than a movement count, your own routines built on the existing builder, and it runs on the Train screen so the holds count themselves down. |
+| Icons | Complete. ~130 drawn SVG icons on one grid; no emoji anywhere user-facing, asserted by a sweep over every screen and sheet. |
 | Pinned headers | Complete. Every screen title stays put instead of scrolling behind the status bar, over a band painted with the page's own sky gradient so it is invisible, and a rule that appears only once something has gone under it. |
 | The ascent (Progress) | Complete. One switchback trail from trailhead to summit whose waypoints are the rows you read — the route card and the markers list under it were the same data twice. Chronological, with "you are here" between the last marker passed and the next. |
 | Distance and pace | Complete. Thirteen movements that cover ground ask for a distance where everything else asks for a weight, and the pace falls out of the minutes already logged. Wheels read in speed. Distance has its own unit, because kilos and miles is a normal pairing. |
@@ -576,6 +577,77 @@ than a viewport unit. Putting `100dvh` back prints `100dvh`; zeroing the
 clearance prints `pad 0 vs nav 60` on four screens.
 
 ---
+
+### Every emoji is gone, and the icons are one system
+
+Asked for: the SVG treatment everywhere an emoji appeared, and for the whole
+thing to feel like one brand rather than a sticker sheet.
+
+**Ninety-six distinct emoji across twenty-one files.** They are replaced by
+about 130 drawn icons on a 24-unit grid — single stroke, round caps,
+`currentColor`, no fill unless the shape is genuinely solid. Because they
+inherit the colour of whatever they sit in, they finally go dim when a chip is
+off and bright when it is on, which an emoji never did.
+
+**Where the app already has a metaphor, the icons use it rather than inventing
+a second one.** Session sizes are lengths of trail, not traffic lights.
+Experience is foothill, ridge, summit. Milestones are things you pass on a
+walk — a sunrise, a compass, a waypoint, a peak. Body areas are one faint
+figure with the region lit, so the only thing the eye resolves is which joint
+is highlighted. The product is a journey on foot; the icon set should not be
+stapled to that from outside.
+
+**Two bugs fell out of the sweep**, one of them not mine to begin with:
+
+- A `${'ICO[...]'}` interpolation went into a **single-quoted** string, so the
+  quote inside the key closed it and the whole app stopped parsing. Caught
+  immediately by `blanks.mjs` refusing to find `blank`, which is what a
+  functional suite is for.
+- Fixing that exposed a **real regression from the ascent merge**: the journey
+  help sheet still used `.jpath` and `.jnode`, and those classes went with the
+  markers list when Progress merged its two components. That sheet had been
+  rendering unstyled ever since, and nothing had noticed. It uses `.lrow` now.
+
+There is a sweep in `blanks.mjs` over six screens and nine sheets asserting no
+pictographic code point is *painted* anywhere — read from `innerText`, so only
+what is on screen counts, with a guard that it read something. Plain
+typographic arrows in running prose ("Route → Shape this week") are text, not
+icons, and stay.
+
+### A hundred and forty-one stretches, and ten ways in
+
+Reported: an hour used two-thirds of the catalogue, so a focused session on one
+or two areas had nothing left to draw on. Correct — 40 of 64.
+
+**Seventy-five more movements, taking mobility to 141 and the daily pool to
+139.** An hour is now 43 of them, under a third. More to the point, every
+region has real depth: Back 27, Shoulders 25, Glutes 23, Hamstrings 15, Calves
+12, Quads 11, Core 9, Biceps 9, Chest 7.
+
+**Ten presets**, which answer the question the daily stretch does not: not
+"what should I do today" but "my back is wrecked and I have fifteen minutes".
+Wake up, desk reset, neck and shoulders, lower back, hips, legs and ankles,
+wrists and forearms, after training, full body, and the long one.
+
+**They are filters over the same pool and the same scoring, not a second
+catalogue of hand-picked lists.** A hand-picked list goes stale the moment the
+catalogue grows, ignores the injuries you flagged, and offers band work to
+someone with no bands. A preset says which regions to draw from and how long to
+run; everything else is the machinery that was already there — which is
+exactly what the checks assert, by reverting a preset to a hand-picked list and
+watching the injury and equipment filters stop applying.
+
+Two of them carry a rule of their own. **Wake up holds nothing** — the evidence
+note above says a long static hold is the wrong thing to do first, so that
+preset is rep-counted movements only. **After training** is built from what you
+actually trained in the last two days, and contains nothing unrelated to it.
+
+**Two bugs the screenshots caught.** The set count composed with the rep form
+and printed "2 × ×15", because the rep form already carries a × of its own. And
+every row said "work": four ticked sets is a full training signal, not six, and
+at six a normal three-set movement only ever reached half its weight — so the
+occupation, the weakest of the three signals by design, outranked what you had
+actually done.
 
 ### Holds long enough to count, sessions up to an hour
 

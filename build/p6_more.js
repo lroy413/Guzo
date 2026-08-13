@@ -37,7 +37,7 @@ function renderMore() {
      app — a bordered box with a 52px emoji square hand-styled at the call
      site. */
   let html = `<div class="who">
-    <div class="who-mark">🏔️</div>
+    <div class="who-mark">${ICO.summit}</div>
     <div class="grow">
       <div class="who-name">${h(p.name || 'Traveller')}</div>
       <div class="who-sub">Day ${jst.day} on the route &middot; ${st.count} session${st.count === 1 ? '' : 's'}</div>
@@ -53,20 +53,20 @@ function renderMore() {
      "Shape this week" is not here any more. It was never a setting, and Today
      and Plan already offer it in five places. */
   html += `<div class="sec-head"><span class="sec-t">Your journey</span></div><div class="list mb">
-    <div class="lrow" data-act="open-journey"><div class="ico">🧭</div><div class="grow"><div class="h3">Day ${jst.day} of your guzo</div><div class="tiny mt-s">${milestonesReached().length} of ${MILESTONES.length} markers reached · ${(jst.kcal/1000).toFixed(1)}k kcal estimated</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="stretch"><div class="ico">🧘</div><div class="grow"><div class="h3">Stretch</div><div class="tiny mt-s">${stretchOnboarded() ? (stretchStreak() ? stretchStreak() + ' day' + (stretchStreak() === 1 ? '' : 's') + ' running · built from what you trained' : 'A daily stretch, built from what you trained') : 'Daily stretches for your training and your working day'}</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="routines"><div class="ico">🧩</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="chev">›</span></div>
-    ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">🗺</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="chev">›</span></div>` : ''}
-    ${fuelOn() ? `<div class="lrow" data-act="open-nutrition"><div class="ico">📊</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">›</span></div>` : ''}
+    <div class="lrow" data-act="open-journey"><div class="ico">${ICO.compass}</div><div class="grow"><div class="h3">Day ${jst.day} of your guzo</div><div class="tiny mt-s">${milestonesReached().length} of ${MILESTONES.length} markers reached · ${(jst.kcal/1000).toFixed(1)}k kcal estimated</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="stretch"><div class="ico">${ICO.mobility}</div><div class="grow"><div class="h3">Stretch</div><div class="tiny mt-s">${stretchOnboarded() ? (stretchStreak() ? stretchStreak() + ' day' + (stretchStreak() === 1 ? '' : 's') + ' running · built from what you trained' : 'A daily stretch, built from what you trained') : 'Daily stretches for your training and your working day'}</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="routines"><div class="ico">${ICO.routines}</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="chev">›</span></div>
+    ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">${ICO.map}</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="chev">›</span></div>` : ''}
+    ${fuelOn() ? `<div class="lrow" data-act="open-nutrition"><div class="ico">${ICO.chart}</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">›</span></div>` : ''}
   </div>`;
 
   html += `<div class="sec-head"><span class="sec-t">Guides</span></div><div class="list mb">
-    <div class="lrow" data-act="open-help"><div class="ico">🧭</div><div class="grow"><div class="h3">Help &amp; guides</div><div class="tiny mt-s">How it works, form diagrams, terms, backups</div></div><span class="chev">›</span></div>
-    <div class="lrow" data-act="help-form-list"><div class="ico">📐</div><div class="grow"><div class="h3">Form guides</div><div class="tiny mt-s">${Object.keys(FORMS).length} lifts with diagrams and cues</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="open-help"><div class="ico">${ICO.book}</div><div class="grow"><div class="h3">Help &amp; guides</div><div class="tiny mt-s">How it works, form diagrams, terms, backups</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="help-form-list"><div class="ico">${ICO.ruler}</div><div class="grow"><div class="h3">Form guides</div><div class="tiny mt-s">${Object.keys(FORMS).length} lifts with diagrams and cues</div></div><span class="chev">›</span></div>
   </div>`;
 
   html += `<div class="sec-head"><span class="sec-t">App</span></div><div class="list mb">
-    <div class="lrow" data-act="open-settings"><div class="ico">⚙</div><div class="grow"><div class="h3">Settings</div><div class="tiny mt-s">${settingsSummary()}</div></div><span class="chev">›</span></div>
+    <div class="lrow" data-act="open-settings"><div class="ico">${ICO.cog}</div><div class="grow"><div class="h3">Settings</div><div class="tiny mt-s">${settingsSummary()}</div></div><span class="chev">›</span></div>
   </div>`;
 
   html += `<div class="sec-head"><span class="sec-t">Membership</span></div>
@@ -190,7 +190,7 @@ function sheetWeek() {
     ${hidden && !isNext ? `<p class="tiny" style="margin:-4px 0 12px">${hidden} day${hidden===1?'':'s'} of this week already gone. Only what's left is shown.</p>` : ''}
     ${isNext ? `<p class="tiny" style="margin:-4px 0 12px">Setting next week early is the single most useful thing you can do here — especially if you already have the call sheet.</p>` : ''}
 
-    <div class="list mb">${rows || '<div class="blankstate"><div class="big">✓</div>Nothing left to set this week.</div>'}</div>
+    <div class="list mb">${rows || '<div class="blankstate"><div class="big">${ICO.tick}</div>Nothing left to set this week.</div>'}</div>
 
     <div class="card ${placed >= prog.target ? 'teal' : 'accent'} mb">
       <div class="row between">
@@ -221,7 +221,7 @@ function sheetDayEdit(k, back) {
   const c = dayConstraint(k);
   const toDay = back === 'day';
   const backAct = toDay ? `data-act="day-open" data-k="${k}"` : 'data-act="open-week"';
-  const envIcos = { full:'🏋️', hotel:'🧳', bw:'🧘' };
+  const envIcos = { full:'env-full', hotel:'env-hotel', bw:'env-bw' };
   openSheet(`
     <div class="row between mb-s">
       <button class="btn xs quiet" ${backAct}>‹ ${toDay ? DAYNAMES[d.getDay()] : 'Week'}</button>
@@ -273,7 +273,7 @@ function dayStartLabel() {
 function sheetDayStart() {
   const cur = dayStartHour();
   const opt = (n, t, d) => `<div class="opt ${cur === n ? 'on' : ''}" data-act="set-daystart" data-v="${n}">
-      <div class="opt-ico">${n ? '🌙' : '🕛'}</div>
+      <div class="opt-ico">${n ? ICO.moon : ICO.clock}</div>
       <div class="grow"><div class="opt-t">${t}</div><div class="opt-d">${d}</div></div>
       <div class="opt-mark">${tick}</div>
     </div>`;
@@ -355,7 +355,7 @@ function sheetProgram() {
     <div class="sec-head"><span class="sec-t">Already have a plan?</span></div>
     <div class="list">
       <div class="lrow" data-act="import">
-        <div class="ico">📄</div>
+        <div class="ico">${ICO.doc}</div>
         <div class="grow">
           <div class="h3">Import one from a file</div>
           <div class="tiny mt-s">A PDF or text plan becomes a routine per day, with every movement
@@ -504,9 +504,9 @@ function sheetEnvs() {
     <div class="list mb">
       ${Object.values(ENVS).map(e => `
         <div class="lrow ${S.profile.envs.includes(e.k)?'on':''}" data-act="toggle-env" data-v="${e.k}">
-          <div class="ico">${e.k==='full'?'🏋️':e.k==='hotel'?'🧳':'🧘'}</div>
+          <div class="ico">${ico(e.k==='full'?'env-full':e.k==='hotel'?'env-hotel':'env-bw')}</div>
           <div class="grow"><div class="h3">${e.label}</div><div class="tiny mt-s">${e.note}</div></div>
-          <div class="pill ${S.profile.envs.includes(e.k)?'em':''}">${S.profile.envs.includes(e.k)?'✓':''}</div>
+          <div class="pill ${S.profile.envs.includes(e.k)?'em':''}">${S.profile.envs.includes(e.k)?ICO.tick:''}</div>
         </div>`).join('')}
     </div>
     <button class="btn primary block" data-act="close">Done</button>`);
@@ -531,7 +531,7 @@ function sheetRest() {
 function sheetPaywall() {
   openSheet(`
     <div class="center mb">
-      <div style="font-size:38px">🏔️</div>
+      <div class="ob-mark">${ICO.summit}</div>
       <h2 class="h1 mt-s">Guzo Pro</h2>
       <p class="small mt-s">Scaffolding preview. No payment is wired up in beta.</p>
     </div>
@@ -547,7 +547,7 @@ function sheetPaywall() {
     <div class="eyebrow mb-s">Pro includes</div>
     <div class="list mb">
       ${['Week shaping and automatic re-routing','Readiness-driven session sizing','Nutrition and protein targets','Full analytics, balance and PR history','Unlimited custom structures'].map(f =>
-        `<div class="lrow"><div class="ico" style="color:var(--teal)">✓</div><div class="grow"><div class="small">${f}</div></div></div>`).join('')}
+        `<div class="lrow"><div class="ico" style="color:var(--teal)">${ICO.tick}</div><div class="grow"><div class="small">${f}</div></div></div>`).join('')}
     </div>
     <div class="banner soft mb">Free tier keeps: logging, the four-rung ladder, terrain check-ins, full history and data export. Logging your training should never be behind a paywall.</div>
     <button class="btn primary block lg" data-act="close">Everything's unlocked in beta</button>
@@ -597,26 +597,26 @@ function sheetSettings() {
 
     <div class="eyebrow mb-s">Training</div>
     <div class="list mb">
-      ${row('open-program', '▲', 'Structure', `${h(programOf().name)} · ${programOf().target}×/wk`)}
-      ${row('edit-envs', '📍', 'Where you train', h(p.envs.map(e => ENVS[e] ? ENVS[e].label : e).join(', ')))}
+      ${row('open-program', ICO.peakMark, 'Structure', `${h(programOf().name)} · ${programOf().target}×/wk`)}
+      ${row('edit-envs', ICO.pin, 'Where you train', h(p.envs.map(e => ENVS[e] ? ENVS[e].label : e).join(', ')))}
       ${row('rest-settings', '⏱', 'Rest timers', `${S.settings.restMain}s compounds · ${S.settings.restAcc}s accessories · auto-start ${S.settings.autoRest ? 'on' : 'off'}`)}
-      ${row('plate-settings', '🏋️', 'Bar and plates', `${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand`)}
-      ${toggle('set-toggle-warmup', '🤸', 'Mobility warm-up', 'One short mobility movement at the start of full sessions', S.settings.warmup)}
-      ${toggle('set-toggle-rpe', '◎', 'RPE column', rpeShown()
+      ${row('plate-settings', ICO['gear-barbell'], 'Bar and plates', `${fmtP(plateCfg().bar)}${unit()} bar · ${plateCfg().plates.length} plate sizes on hand`)}
+      ${toggle('set-toggle-warmup', ICO.mobility, 'Mobility warm-up', 'One short mobility movement at the start of full sessions', S.settings.warmup)}
+      ${toggle('set-toggle-rpe', ICO.target, 'RPE column', rpeShown()
         ? 'On — a third field on every set row, for how hard it felt'
         : 'Off — weight and reps get the width instead', rpeShown())}
-      ${row('day-start', '🌙', 'When your day ends',
+      ${row('day-start', ICO.moon, 'When your day ends',
         dayStartHour() ? `${dayStartLabel()} · a session before then counts as the day before`
                        : 'Midnight · the ordinary calendar day')}
     </div>
 
     <div class="eyebrow mb-s">Modules</div>
     <div class="list mb">
-      ${toggle('set-toggle-fuel', '🔥', `Fuel${can('nutrition') ? '' : ' <span class="pro-tag">PRO</span>'}`,
+      ${toggle('set-toggle-fuel', ICO.fire, `Fuel${can('nutrition') ? '' : ' <span class="pro-tag">PRO</span>'}`,
         fuelOn() ? 'On — it has its own tab, and Route moves to More' : 'Protein and calorie targets, worked out from your body data',
         fuelOn())}
-      ${fuelOn() ? row('open-diet-prefs', '🍽', 'How you eat', 'Meals a day, dietary pattern, what to leave out') : ''}
-      ${fuelOn() ? toggle('toggle-off', '🌐', 'Barcode lookup', S.settings.off
+      ${fuelOn() ? row('open-diet-prefs', ICO.plate, 'How you eat', 'Meals a day, dietary pattern, what to leave out') : ''}
+      ${fuelOn() ? toggle('toggle-off', ICO.globe, 'Barcode lookup', S.settings.off
         ? 'On — the first scan of an unknown packet asks Open Food Facts. The only thing this app ever sends anywhere, and it sends only the barcode.'
         : 'Off — everything stays on the device. An unknown packet asks you to name it once.',
         !!S.settings.off) : ''}
@@ -624,15 +624,15 @@ function sheetSettings() {
 
     <div class="eyebrow mb-s">You</div>
     <div class="list mb">
-      ${row('edit-profile', '👤', 'Profile', `${h(p.name || 'No name')} · ${p.units} · height, age, activity`)}
+      ${row('edit-profile', ICO.person, 'Profile', `${h(p.name || 'No name')} · ${p.units} · height, age, activity`)}
     </div>
 
     <div class="eyebrow mb-s">Your data</div>
     <div class="list mb">
-      ${row('export', '⬇️', 'Export backup', 'A JSON file of everything. Do this weekly.')}
-      ${row('import', '⬆️', 'Restore from backup', 'Replaces everything on this device')}
+      ${row('export', ICO.download, 'Export backup', 'A JSON file of everything. Do this weekly.')}
+      ${row('import', ICO.upload, 'Restore from backup', 'Replaces everything on this device')}
       <div class="lrow" data-act="reset">
-        <div class="ico">⚠</div>
+        <div class="ico">${ICO.warn}</div>
         <div class="grow"><div class="h3" style="color:var(--rose)">Reset everything</div><div class="tiny mt-s">Cannot be undone</div></div>
         <span class="chev">›</span>
       </div>
@@ -641,12 +641,12 @@ function sheetSettings() {
     <div class="eyebrow mb-s">About</div>
     <div class="list mb">
       <div class="lrow" data-act="help-page" data-v="privacy">
-        <div class="ico">🔒</div>
+        <div class="ico">${ICO.lock}</div>
         <div class="grow"><div class="h3">Privacy</div><div class="tiny mt-s">What is stored, where it lives, and what never leaves this device</div></div>
         <span class="chev">›</span>
       </div>
       <div class="lrow" data-act="help-page" data-v="why">
-        <div class="ico">🔬</div>
+        <div class="ico">${ICO.science}</div>
         <div class="grow"><div class="h3">Why this app behaves the way it does</div><div class="tiny mt-s">The research behind no streaks, a free miss, and three-minute sessions</div></div>
         <span class="chev">›</span>
       </div>

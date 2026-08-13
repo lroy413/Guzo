@@ -200,7 +200,7 @@ function renderFuel() {
       const pr = Math.round(mine.reduce((a, x) => a + (+x.p || 0), 0));
       html += `<div class="fuel-meal">
         <div class="fuel-meal-h">
-          <span class="fuel-meal-i" aria-hidden="true">${meal.ico}</span>
+          <span class="fuel-meal-i" aria-hidden="true">${ico(meal.ico)}</span>
           <span class="grow fuel-meal-n">${meal.n}</span>
           <span class="fuel-meal-s mono">${pOnly ? pr + 'g' : kc + ' kcal'}</span>
         </div>

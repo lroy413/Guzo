@@ -173,7 +173,7 @@ function sheetSessionDone(A, v, fresh) {
   const kc = A.kcal || 0;
   openSheet(`
     <div class="center">
-      <div style="font-size:44px">${A.rung==='micro'?'⏱':'✓'}</div>
+      <div style="font-size:44px">${A.rung==='micro'?ICO.clock:ICO.tick}</div>
       <h2 class="h1 mt-s">Waypoint marked</h2>
       <p class="small mt-s">${completionLine(A, st)}</p>
       <div class="journey-line mt">Day ${st.day} of your guzo · session ${st.count}</div>
@@ -187,7 +187,7 @@ function sheetSessionDone(A, v, fresh) {
     ${sessionPRsHTML(A)}
     ${fresh && fresh.length ? fresh.map(m => `
       <div class="milestone mb">
-        <div class="milestone-ico">${m.ico}</div>
+        <div class="milestone-ico">${ico(m.ico)}</div>
         <div class="milestone-eyebrow">Milestone reached</div>
         <div class="milestone-t">${m.title}</div>
         <p class="milestone-b">${m.body}</p>
@@ -828,13 +828,13 @@ document.addEventListener('click', ev => {
         <h2 class="h1 mt-s mb">${h(item.name)}</h2>
         <div class="list mb">
           ${hasForm(item.exId) ? `<div class="lrow" data-act="ex-form" data-i="${i}" data-v="${h(item.exId)}">
-            <div class="ico">◎</div>
+            <div class="ico">${ICO.target}</div>
             <div class="grow"><div class="h3">How to do it</div>
               <div class="tiny mt-s">Form guide, drawn for this movement</div></div>
             <span class="chev">&rsaquo;</span>
           </div>` : ''}
           <div class="lrow" data-act="swap-ex" data-i="${i}">
-            <div class="ico">⇄</div>
+            <div class="ico">${ICO.link}</div>
             <div class="grow"><div class="h3">Swap it out</div>
               <div class="tiny mt-s">Something else that trains the same thing</div></div>
             <span class="chev">&rsaquo;</span>
@@ -1444,6 +1444,30 @@ document.addEventListener('click', ev => {
       noteInteraction();
       S.active = sess;
       save(true); closeSheet(); wakeOn(); go('train'); buzz();
+      break;
+    }
+    case 'stretch-preset': sheetStretchPreset(v); break;
+    case 'stretch-preset-start': {
+      if (S.active) { toast('Finish the session you are in first'); go('train'); return; }
+      const sess = buildStretchSession(presetStretch(v));
+      if (!sess) { toast('Nothing to stretch yet'); return; }
+      const p = presetById(v);
+      if (p) sess.presetName = p.name;
+      sess.started = Date.now();
+      sess.activeMs = 0; sess.tickAt = Date.now(); sess.paused = false;
+      noteInteraction();
+      S.active = sess;
+      save(true); closeSheet(); wakeOn(); go('train'); buzz();
+      break;
+    }
+    case 'stretch-preset-save': {
+      const p = presetById(v);
+      if (!p) break;
+      const r = newStretchRoutine(p.name);
+      presetStretch(v).forEach(s => addToRoutine(r.id, s.ex.id));
+      save(true);
+      toast('Saved as a routine', true);
+      sheetRoutineEdit(r.id);
       break;
     }
     case 'stretch-save': {

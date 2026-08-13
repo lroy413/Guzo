@@ -554,10 +554,10 @@ function portionLabel(food, qty) {
    Read through today()'s day boundary rather than the wall clock: someone
    whose day ends at 4am eating at 2am is having dinner, not breakfast. */
 const MEALS = [
-  { id:'b', n:'Breakfast', ico:'☀' },
-  { id:'l', n:'Lunch',     ico:'◐' },
-  { id:'d', n:'Dinner',    ico:'☾' },
-  { id:'s', n:'Snacks',    ico:'✦' }
+  { id:'b', n:'Breakfast', ico:'meal-b' },
+  { id:'l', n:'Lunch',     ico:'meal-l' },
+  { id:'d', n:'Dinner',    ico:'meal-d' },
+  { id:'s', n:'Snacks',    ico:'meal-s' }
 ];
 function mealById(id) { return MEALS.find(m => m.id === id) || MEALS[3]; }
 function mealNow() {

@@ -53,7 +53,7 @@ function sheetProfile() {
       <div class="list">
         ${ACTIVITY.map(x => `<button class="lrow ${S.profile.activity === x.k ? 'on' : ''}" data-act="pf-activity" data-v="${x.k}" style="width:100%;text-align:left">
           <div class="grow"><div class="h3" style="font-size:14.5px">${x.label}</div><div class="tiny mt-s">${x.note}</div></div>
-          <span class="small">${S.profile.activity === x.k ? '✓' : ''}</span>
+          <span class="small">${S.profile.activity === x.k ? ICO.tick : ''}</span>
         </button>`).join('')}
       </div>
       <p class="tiny mt-s">Fourteen hours on your feet with a camera is not a sedentary day, whatever the training log says.</p>
@@ -72,13 +72,13 @@ function sheetProfile() {
     <div class="eyebrow mt-l mb-s">Training</div>
     <div class="list mb">
       <button class="lrow" data-act="open-program" style="width:100%;text-align:left">
-        <div class="ico">📋</div><div class="grow"><div class="h3">Split</div><div class="tiny mt-s">${h(programOf().label)}</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.split}</div><div class="grow"><div class="h3">Split</div><div class="tiny mt-s">${h(programOf().label)}</div></div><span class="chev">›</span></button>
       <button class="lrow" data-act="open-envs" style="width:100%;text-align:left">
-        <div class="ico">📍</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${(S.profile.envs||[]).map(k=>ENVS[k]?ENVS[k].label:k).join(', ') || 'Not set'}</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.pin}</div><div class="grow"><div class="h3">Where you train</div><div class="tiny mt-s">${(S.profile.envs||[]).map(k=>ENVS[k]?ENVS[k].label:k).join(', ') || 'Not set'}</div></div><span class="chev">›</span></button>
       <button class="lrow" data-act="pf-session" style="width:100%;text-align:left">
         <div class="ico">⏱</div><div class="grow"><div class="h3">A normal session</div><div class="tiny mt-s">${S.profile.sessionMins || 60} minutes &mdash; everything scales from this</div></div><span class="chev">›</span></button>
       <button class="lrow" data-act="pf-sleep" style="width:100%;text-align:left">
-        <div class="ico">🌙</div><div class="grow"><div class="h3">A normal night</div><div class="tiny mt-s">${S.profile.sleepNorm || 7.5}h &mdash; readiness is scored against this, not against eight</div></div><span class="chev">›</span></button>
+        <div class="ico">${ICO.moon}</div><div class="grow"><div class="h3">A normal night</div><div class="tiny mt-s">${S.profile.sleepNorm || 7.5}h &mdash; readiness is scored against this, not against eight</div></div><span class="chev">›</span></button>
     </div>
 
     <div class="field mb">

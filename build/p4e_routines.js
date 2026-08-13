@@ -12,7 +12,8 @@
    discharge the thing you committed to.
    ============================================================ */
 
-const ROUTINE_EMOJI = ['🌙', '🔥', '🧘', '⚡', '🪨', '🎒', '🩹', '🏃', '💪', '⏱'];
+/* Icon keys, not emoji — see p3d_icons.js. */
+const ROUTINE_EMOJI = ['moon', 'fire', 'env-bw', 'bolt', 'stone', 'bag', 'plaster', 'car-run', 'area-Arms', 'clock'];
 
 const ROUTINE_LIMITS = { name: 40, items: 24, sets: 12, reps: 300, rounds: 12, rest: 600 };
 

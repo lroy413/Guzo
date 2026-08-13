@@ -1634,6 +1634,54 @@ try {
     hdrRest.rule === false && +hdrRest.hairline === 0,
     `${hdrRest.rule}, opacity ${hdrRest.hairline}`);
 
+
+  /* ---- no emoji reaches any screen ----
+     An emoji is a glyph the *platform* supplies: Apple Color Emoji on an
+     iPhone, Noto Color Emoji on Android, different style, weight and palette,
+     and a tofu box where the font has none. Nothing in this app should depend
+     on one. Swept over every screen and every sheet rather than over the
+     source, because the source is allowed to talk about them in comments. */
+  const emojiSweep = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.bodyweight = [{ d: today(), w: 80 }];
+    S.profile.heightCm = 178; S.profile.birthYear = 1990; S.profile.sex = 'm';
+    const e = EX['bb-back-squat'];
+    S.sessions = [{ id: 'e1', date: today(), ended: Date.now(), dur: 45, kcal: 300, type: 'full',
+      exercises: [{ exId: e.id, name: e.name, load: e.load,
+        sets: [{ w: 100, r: 5, done: true }] }] }];
+    S.stretch = { onboarded: true, occupation: 'desk', areas: ['lowback'], done: {}, mins: 15 };
+    checkMilestones(); save(true);
+
+    /* Pictographic ranges only. Plain typographic arrows and dashes in running
+       prose are text, render identically everywhere, and are not the subject. */
+    const re = /[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{2713}\u{2714}\u{2715}-\u{2718}\u{25A0}-\u{25FF}]/u;
+    const hits = [];
+    const scan = (where) => {
+      const t = (document.getElementById(where) || {}).innerText || '';
+      /* innerText, so only what is painted counts. */
+      t.split('\n').forEach(line => {
+        const m = line.match(re);
+        if (m) hits.push(where + ': ' + line.trim().slice(0, 40) + ' [' + m[0] + ']');
+      });
+    };
+    ['today', 'plan', 'train', 'fuel', 'progress', 'more'].forEach(sc => {
+      go(sc); render();
+      scan(sc === 'more' ? 'more-body' : sc + '-body');
+    });
+    const sheets = [
+      () => sheetStretch(), () => sheetStretchSetup(), () => sheetRoutines(),
+      () => sheetSettings(), () => sheetHelp(), () => sheetJourney(),
+      () => sheetProfile(), () => sheetWeek(), () => sheetEnvs()
+    ];
+    sheets.forEach(fn => { try { fn(); scan('sheet-body'); } catch (err) {} });
+    return { hits: hits.slice(0, 8), n: hits.length,
+             /* The sweep has to have looked at something. */
+             looked: (document.getElementById('sheet-body') || {}).innerText.length };
+  });
+  check('the sweep actually read some screens', emojiSweep.looked > 40, String(emojiSweep.looked));
+  check('no emoji is painted on any screen or sheet',
+    emojiSweep.n === 0, emojiSweep.hits.join(' | '));
+
   /* ---- motion ----
      A screen should feel like it arrived, and the app has one set of curves so
      that nothing in it moves in a way nothing else does. Two things can go

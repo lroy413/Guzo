@@ -158,7 +158,11 @@ function stretchScores() {
     const by = { sore: 0, trained: 0, work: 0 };
     all.forEach(([m, w]) => {
       if (sore[m]) by.sore += STRETCH_W.sore * w * sore[m];
-      if (trained[m]) by.trained += STRETCH_W.trained * w * Math.min(1, trained[m] / 6);
+      /* Four ticked sets is a full signal, not six. At six a normal three-set
+         movement only ever reached half its weight, so the occupation — the
+         weakest of the three by design — outranked what you had actually
+         trained, and every row on the screen said "work". */
+      if (trained[m]) by.trained += STRETCH_W.trained * w * Math.min(1, trained[m] / 4);
       if (workAreas.has(m)) by.work += STRETCH_W.work * w;
     });
     const score = by.sore + by.trained + by.work;
@@ -196,17 +200,25 @@ const STRETCH_AREA_MUSCLES = {
    a hip opener done eight times. Deterministic for a given day and a given
    state, so opening the screen twice does not shuffle it.
    ------------------------------------------------------------ */
-function dailyStretch(n) {
+function dailyStretch(n, opts) {
+  opts = opts || {};
   /* Filled to a time budget, not to a count. The first version turned minutes
      into a movement count with a flat 45-seconds-each guess and then measured
      the result at 56 — so asking for eight minutes produced ten and a half.
      One number decides the length now, and it is the one being asked for. */
-  const budget = n ? null : Math.max(3, +stretchStore().mins || 15) * 60;
+  const mins = opts.mins != null ? opts.mins : (+stretchStore().mins || 15);
+  const budget = n ? null : Math.max(3, mins) * 60;
   /* An hour of stretching is sixty-odd minutes of *distinct* movements at two
      or three holds each, so the ceiling has to clear the pool rather than sit
-     at fourteen. It is capped at the pool size below either way. */
-  const want = n ? Math.max(1, Math.min(40, n)) : 40;
-  const scored = stretchScores().sort((a, b) => {
+     at fourteen. It is capped at the pool size below either way, and the
+     budget stops it long before this in every real case — the number exists
+     only so the loop cannot run away. */
+  const want = n ? Math.max(1, Math.min(80, n)) : 80;
+  /* A preset narrows the pool here rather than anywhere else, so everything
+     downstream — injuries, equipment, region spread, hold length — is the
+     machinery that was already there. */
+  const pool = opts.filter ? stretchScores().filter(s => opts.filter(s.ex)) : stretchScores();
+  const scored = pool.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     if (a.last !== b.last) return (a.last || '').localeCompare(b.last || '');
     return a.ex.name.localeCompare(b.ex.name);
@@ -341,6 +353,7 @@ function stretchRoutines() {
 }
 function newStretchRoutine(name) {
   const r = newRoutine(name || 'My stretch');
+  r.emoji = 'env-bw';
   r.stretch = true;
   r.warmup = false;
   save(true);
@@ -408,4 +421,93 @@ function markStretchSessionDone(sess) {
   });
   if (list.length) st.done[kk] = list;
   save();
+}
+
+/* ============================================================
+   PRESETS
+   ------------------------------------------------------------
+   The daily stretch answers "what should I do today". A preset answers the
+   other question people actually have, which is "my back is wrecked and I
+   have fifteen minutes".
+
+   They are **filters over the same pool and the same scoring**, not a second
+   catalogue of hand-picked lists. A hand-picked list is stale the moment the
+   catalogue grows, ignores the injuries you flagged, and offers band work to
+   someone with no bands — all three of which this tool already gets right.
+   So a preset says which regions to draw from and how long to run; everything
+   downstream is the machinery that was already there.
+
+   `focus` is a set of MUSCLES entries. Anything outside it is excluded rather
+   than merely down-weighted: a back preset that quietly includes calf work
+   because the calf movement scored well is not a back preset.
+   ============================================================ */
+const STRETCH_PRESETS = [
+  { k: 'wake',    name: 'Wake up',           mins: 5,  ico: 'ms-first',
+    blurb: 'Short and moving. Nothing held long enough to make you slow.',
+    focus: null, prefer: 'reps' },
+  { k: 'desk',    name: 'Desk reset',        mins: 5,  ico: 'desk',
+    blurb: 'Chest, upper back and hips — the three a seated day shortens.',
+    focus: ['Chest', 'Back', 'Shoulders', 'Glutes'] },
+  { k: 'neck',    name: 'Neck and shoulders', mins: 15, ico: 'area-Shoulders',
+    blurb: 'For a day spent under a rig, a headset or a screen.',
+    focus: ['Shoulders', 'Chest', 'Back'] },
+  { k: 'back',    name: 'Lower back',        mins: 15, ico: 'lowback',
+    blurb: 'The back itself, plus the hips and hamstrings that pull on it.',
+    focus: ['Back', 'Glutes', 'Hamstrings', 'Core'] },
+  { k: 'hips',    name: 'Hips',              mins: 15, ico: 'hip',
+    blurb: 'Flexors, glutes and adductors. The thing sitting takes most.',
+    focus: ['Glutes', 'Quads', 'Hamstrings'] },
+  { k: 'legs',    name: 'Legs and ankles',   mins: 15, ico: 'area-Calves',
+    blurb: 'After a long walk, a run, or a day standing on concrete.',
+    focus: ['Hamstrings', 'Quads', 'Calves', 'Glutes'] },
+  { k: 'hands',   name: 'Wrists and forearms', mins: 5, ico: 'hands',
+    blurb: 'For hands that grip, type or hold a camera all day.',
+    focus: ['Biceps', 'Triceps'] },
+  { k: 'posttrain', name: 'After training',  mins: 15, ico: 'ms-tonne',
+    blurb: 'Built from what you actually trained in the last two days.',
+    focus: null, trainedOnly: true },
+  { k: 'fullhalf', name: 'Full body',        mins: 30, ico: 'env-bw',
+    blurb: 'Everything, once. A half-hour that leaves nothing out.',
+    focus: null },
+  { k: 'fullhour', name: 'The long one',     mins: 60, ico: 'summit',
+    blurb: 'An hour, spread across the whole body. Nothing repeated.',
+    focus: null }
+];
+
+function presetById(k) { return STRETCH_PRESETS.find(p => p.k === k) || null; }
+
+/* The same builder, with the pool narrowed and the length overridden. Nothing
+   about injuries, equipment, region spread or hold length changes — a preset
+   that bypassed those would be a second, worse stretch tool. */
+function presetStretch(k) {
+  const p = presetById(k);
+  if (!p) return [];
+  const focus = p.focus ? new Set(p.focus) : null;
+  const trained = p.trainedOnly ? recentlyTrained(2) : null;
+
+  return dailyStretch(null, {
+    mins: p.mins,
+    filter: ex => {
+      if (focus) {
+        /* Primary only. Letting a secondary muscle qualify puts a hamstring
+           stretch in a shoulder preset because its secondary is the back. */
+        if (!focus.has(ex.primary)) return false;
+      }
+      if (trained) {
+        const hit = [ex.primary].concat(ex.sec || []).some(m => trained[m]);
+        if (!hit) return false;
+      }
+      /* "Wake up" wants movement, not long holds — see the research note: a
+         held stretch before anything is the wrong tool. */
+      if (p.prefer === 'reps' && ex.load === 'time') return false;
+      return true;
+    }
+  });
+}
+
+/* Whether a preset can actually be built right now. "After training" needs
+   something trained; a focus preset needs movements left after your injuries
+   are taken out. A preset that produces two movements is not a preset. */
+function presetReady(k) {
+  return presetStretch(k).length >= 3;
 }

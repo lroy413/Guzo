@@ -92,3 +92,173 @@ const ICO = {
 /* An occupation or an area whose icon is missing must not render "undefined" —
    the dot is a placeholder that reads as deliberate rather than broken. */
 function ico(k) { return ICO[k] || svgIco('<circle cx="12" cy="12" r="3.4"/>'); }
+
+/* ============================================================
+   THE REST OF THE SET
+   ------------------------------------------------------------
+   Everything below replaces an emoji that was in the app. The house style is
+   one thing repeated: a 24-unit grid, a single 1.7 stroke, round caps and
+   joins, `currentColor`, and no fill unless the shape is genuinely solid.
+
+   Where the app has a metaphor already, the icon uses it rather than inventing
+   a second one. Session sizes are lengths of trail, not traffic lights.
+   Experience is foothill, ridge, summit. Milestones are things you pass on a
+   walk. The brand is a journey on foot; the icon set should not be a sticker
+   sheet stapled to it.
+   ============================================================ */
+
+/* Terrain, at three scales. Used for anything that is "how much" — the trail
+   ahead, how far in you are, how hard the day is. */
+function ridgeIco(peaks, extra) { return svgIco(peaks, extra); }
+
+Object.assign(ICO, {
+
+  /* ---- priority areas: the same figure, a region lit ---- */
+  'area-Back':      bodyIco('<path d="M12 8v6.2"/><path d="M9.2 9.6h5.6M9.4 12.4h5.2"/>'),
+  'area-Shoulders': bodyIco('<path d="M8.2 8.3h7.6"/><circle cx="8.2" cy="8.4" r="1.7"/><circle cx="15.8" cy="8.4" r="1.7"/>'),
+  'area-Chest':     bodyIco('<path d="M8.8 9.4h6.4v3.1H8.8z"/>'),
+  'area-Core':      bodyIco('<path d="M9.6 11.2h4.8M9.5 13.2h5"/><path d="M12 10.4v4"/>'),
+  'area-Quads':     bodyIco('<path d="M9.6 14.6L9.1 18.2M14.4 14.6l.5 3.6"/><circle cx="9.3" cy="16.4" r="1.5"/><circle cx="14.7" cy="16.4" r="1.5"/>'),
+  'area-Glutes':    bodyIco('<path d="M9.4 14.2h5.2"/><path d="M9.6 13.6a2.6 2.6 0 004.8 0"/>'),
+  'area-Arms':      bodyIco('<path d="M8.2 8.5L6 13M15.8 8.5L18 13"/><circle cx="6.6" cy="11.6" r="1.5"/><circle cx="17.4" cy="11.6" r="1.5"/>'),
+  'area-Calves':    bodyIco('<path d="M9.2 18.6l.1 2.4M14.8 18.6l-.1 2.4"/><circle cx="9.2" cy="19.6" r="1.4"/><circle cx="14.8" cy="19.6" r="1.4"/>'),
+
+  /* ---- how much cardio: trail underfoot, getting steeper ---- */
+  'cardio-light': svgIco('<path d="M2.5 17h19"/><path d="M6 17l3.4-2.6L13 17"/>'),
+  'cardio-some':  svgIco('<path d="M2.5 18.5h19"/><path d="M4 18.5l4.6-5.4 3.2 3.4L16 11l5.5 7.5"/>'),
+  'cardio-lots':  svgIco('<path d="M2.5 19.5h19"/><path d="M2.8 19.5l5-9.4 3.4 4.6L15.6 5l5.6 14.5"/><path d="M14.4 8.2l2.4 1.1"/>'),
+
+  /* ---- cardio modes ---- */
+  'car-treadmill-run': svgIco('<path d="M3 18.5h13a3 3 0 003-3V9"/><path d="M3 18.5v-2.2M19 6.4h2"/><circle cx="11.4" cy="4.6" r="1.5"/><path d="M11 6.2l-1.6 3 2.6 1.9-.6 3.4"/><path d="M9.4 9.2L7 10.4M12 10.1l2.4.6"/>'),
+  'car-incline-walk':  svgIco('<path d="M2.5 19h19"/><path d="M3 19L15.5 6.5"/><circle cx="10.6" cy="9.4" r="1.5"/><path d="M10.2 11l-1.6 2.6 2.2 1.6-.4 2.6"/><path d="M8.6 13.6L6.6 14.6"/>'),
+  'car-bike':          svgIco('<circle cx="5.4" cy="16.6" r="3.4"/><circle cx="18.6" cy="16.6" r="3.4"/><path d="M5.4 16.6l4-6.4h4.2l2.4 6.4"/><path d="M9.4 10.2h5.2"/><path d="M13.6 10.2L15 6.6h2"/>'),
+  'car-rower':         svgIco('<path d="M3 6.5l7.6 7.6"/><path d="M12.4 15.9l7.6 -7.6"/><path d="M2.4 5.4L4.6 3.2M20.8 9.6L18.6 7.4"/><circle cx="11.5" cy="15" r="2.4"/><path d="M6 20.5h13"/>'),
+  'car-stair':         svgIco('<path d="M3 20h4v-4h4.5v-4H16V8h5"/><path d="M3 20v-1"/>'),
+  'car-jump-rope':     svgIco('<circle cx="12" cy="4.6" r="1.7"/><path d="M12 6.4v4.4"/><path d="M9.6 8.2h4.8"/><path d="M12 10.8l-1.8 4.2M12 10.8l1.8 4.2"/><path d="M9.6 8.2C4.6 9 3.4 14 6.6 18.4M14.4 8.2c5 .8 6.2 5.8 3 10.2"/>'),
+  'car-run':           svgIco('<circle cx="14.4" cy="4.6" r="1.7"/><path d="M13.6 6.6l-2.4 3.4 3 2.2-.8 4"/><path d="M11.2 10l-3.4 1M14.2 12.2l2.8 1.2 1.4 3"/><path d="M3 8.6h3.4M2.4 12.4h3M4 16.2h2.6"/>'),
+  'car-walk':          svgIco('<circle cx="13" cy="4.4" r="1.7"/><path d="M12.4 6.4l-1.8 4 2.6 2-.6 4"/><path d="M10.6 10.4L8 12M13.2 12.4l2.4 1 .8 2.6"/>'),
+  'car-swim':          svgIco('<circle cx="8" cy="7.4" r="1.7"/><path d="M9.4 8.8l3 1.8 3.4-1.6"/><path d="M2.5 15.4c1.9 0 1.9 1.6 3.8 1.6s1.9-1.6 3.8-1.6 1.9 1.6 3.8 1.6 1.9-1.6 3.8-1.6 1.9 1.6 3.8 1.6"/><path d="M2.5 19.2c1.9 0 1.9 1.6 3.8 1.6"/>'),
+  'car-hike':          svgIco('<path d="M2.5 20h19"/><path d="M3.5 20l5.6-9.6 3 4.2 3.6-6.4L21 20"/><path d="M12.6 8.4l1.8.9"/>'),
+
+  /* ---- gear ---- */
+  'gear-barbell':   svgIco('<path d="M2.5 12h19"/><rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>'),
+  'gear-rack':      svgIco('<path d="M5 3.5v17M19 3.5v17"/><path d="M5 8.5h3M16 8.5h3"/><path d="M8 8.5h8"/>'),
+  'gear-bench':     svgIco('<rect x="3" y="8" width="18" height="3.4" rx="1.4"/><path d="M6 11.4v6M18 11.4v6"/><path d="M4 20h4M16 20h4"/>'),
+  'gear-dumbbell':  svgIco('<path d="M8 12h8"/><rect x="3" y="8.6" width="3" height="6.8" rx="1.2"/><rect x="18" y="8.6" width="3" height="6.8" rx="1.2"/><rect x="6.2" y="7" width="2.2" height="10" rx="1"/><rect x="15.6" y="7" width="2.2" height="10" rx="1"/>'),
+  'gear-kettlebell':svgIco('<path d="M9.4 8.4V7a2.6 2.6 0 015.2 0v1.4"/><path d="M9.6 8.6a6.2 6.2 0 104.8 0z"/>'),
+  'gear-machine':   svgIco('<path d="M4 3.5v17"/><rect x="7.5" y="6" width="6.5" height="3" rx="1"/><rect x="7.5" y="10.4" width="6.5" height="3" rx="1"/><path d="M4 7.5h3.5M4 11.9h3.5"/><path d="M17 6v12M14.4 20h5.2"/>'),
+  'gear-pullup':    svgIco('<path d="M3 5.5h18"/><path d="M6 5.5v3.4M18 5.5v3.4"/><circle cx="12" cy="12.4" r="1.8"/><path d="M9 8.9l2.2 2.2M15 8.9l-2.2 2.2"/><path d="M12 14.2v3.2M12 17.4l-2 3M12 17.4l2 3"/>'),
+  'gear-band':      svgIco('<path d="M5 6.5c8 0 8 11 14 11"/><path d="M3.2 5.2a2.4 2.4 0 103.4 3.4"/><path d="M17.4 15.9a2.4 2.4 0 103.4 3.4"/>'),
+
+  /* ---- how much time today: length of trail ---- */
+  'avail-long':   svgIco('<path d="M2.5 17.5h19"/><path d="M4 17.5v-3M8.4 17.5v-4.6M12.8 17.5v-6.2M17.2 17.5v-7.6M21 17.5v-9"/>'),
+  'avail-normal': svgIco('<path d="M2.5 17.5h19"/><path d="M4 17.5v-3M8.4 17.5v-4.6M12.8 17.5v-6.2"/><path d="M17.2 17.5v-1.6M21 17.5v-1.6" opacity=".35"/>'),
+  'avail-short':  svgIco('<path d="M2.5 17.5h19"/><path d="M4 17.5v-3M8.4 17.5v-4.6"/><path d="M12.8 17.5v-1.6M17.2 17.5v-1.6M21 17.5v-1.6" opacity=".35"/>'),
+  'avail-micro':  svgIco('<path d="M2.5 17.5h19"/><path d="M4 17.5v-3"/><path d="M8.4 17.5v-1.6M12.8 17.5v-1.6M17.2 17.5v-1.6M21 17.5v-1.6" opacity=".35"/>'),
+  'avail-none':   svgIco('<path d="M2.5 17.5h19"/><path d="M4 17.5v-1.6M8.4 17.5v-1.6M12.8 17.5v-1.6M17.2 17.5v-1.6M21 17.5v-1.6" opacity=".35"/>'),
+
+  /* ---- experience: foothill, ridge, summit ---- */
+  'lvl-new':  svgIco('<path d="M2.5 18.5h19"/><path d="M5 18.5l4.4-4.6 4 4.6"/>'),
+  'lvl-some': svgIco('<path d="M2.5 18.5h19"/><path d="M3 18.5l5.4-7.4 3.4 4.2 3-3.8 5.2 7"/>'),
+  'lvl-adv':  svgIco('<path d="M2.5 19h19"/><path d="M2.8 19l6-11.6 3.4 5.2L16 4l5.2 15"/><path d="M14.6 7.4l2.6 1.3M9.4 10.6l2 1"/>'),
+
+  /* ---- milestones: things you pass on a walk ---- */
+  'ms-first':  svgIco('<path d="M2.5 17.5h19"/><path d="M6 17.5a6 6 0 0112 0"/><path d="M12 4.5v2.4M5.6 7.2l1.7 1.7M18.4 7.2l-1.7 1.7"/>'),
+  'ms-pace':   svgIco('<circle cx="12" cy="12" r="8.4"/><path d="M15.4 8.6l-2 5.2-5.2 2 2-5.2z"/>'),
+  'ms-way':    svgIco('<path d="M12 21c4.2-5.2 6.2-8.4 6.2-11A6.2 6.2 0 005.8 10c0 2.6 2 5.8 6.2 11z"/><circle cx="12" cy="10" r="2.2"/>'),
+  'ms-25':     svgIco('<path d="M2.5 19h19"/><path d="M3.4 19l6-10.6L13 14l3-4.6L20.6 19"/>'),
+  'ms-50':     svgIco('<path d="M2.5 19.5h19"/><path d="M2.8 19.5l6.4-12.8 3.6 6.2L16.4 6l4.8 13.5"/><path d="M14.8 9.4l2.6 1.3"/>'),
+  'ms-100':    svgIco('<circle cx="12" cy="9" r="4.6"/><path d="M9.4 13l-1.4 7 4-2.2 4 2.2-1.4-7"/>'),
+  'ms-200':    svgIco('<path d="M4 17.5h16"/><path d="M4 17.5L3 7.4l4.6 3.4L12 4.2l4.4 6.6L21 7.4l-1 10.1z"/>'),
+  'ms-w4':     svgIco('<path d="M18.6 14.4A7.4 7.4 0 019.1 5 7.9 7.9 0 1018.6 14.4z"/>'),
+  'ms-w12':    svgIco('<path d="M12 20.5V12"/><path d="M12 12c0-3.6 2.6-6.4 6.4-6.4 0 3.8-2.8 6.4-6.4 6.4z"/><path d="M12 15c-3.2 0-5.6-2.2-5.6-5.6C9.6 9.4 12 11.8 12 15z"/>'),
+  'ms-w26':    svgIco('<circle cx="12" cy="12" r="8.4"/><path d="M12 3.6a8.4 8.4 0 010 16.8z" fill="currentColor" stroke="none"/>'),
+  'ms-w52':    svgIco('<path d="M12 2.6v3.2M12 18.2v3.2M2.6 12h3.2M18.2 12h3.2"/><path d="M5.4 5.4l2.3 2.3M16.3 16.3l2.3 2.3M18.6 5.4l-2.3 2.3M7.7 16.3l-2.3 2.3"/><circle cx="12" cy="12" r="3.4"/>'),
+  'ms-floor':  svgIco('<circle cx="12" cy="13.4" r="7.2"/><path d="M12 9.8v3.6l2.4 1.6"/><path d="M9.6 2.8h4.8M12 2.8v3.4"/>'),
+  'ms-return': svgIco('<path d="M20.4 12a8.4 8.4 0 11-2.6-6.1"/><path d="M20.8 4.4v4.8h-4.8"/>'),
+  'ms-tonne':  svgIco('<path d="M2.5 12h19"/><rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>'),
+  'ms-burn':   svgIco('<path d="M12 21.2c3.8 0 6.4-2.4 6.4-5.8 0-4.4-4.4-5.6-3.4-11-2.6 1-4.6 3.4-4.6 6 0 1.8-1 2.4-1.8 1.4-.5-.6-.7-1.5-.7-2.3-1.4 1.6-2.3 3.8-2.3 5.9 0 3.4 2.6 5.8 6.4 5.8z"/>'),
+
+  /* ---- environments ---- */
+  'env-full':  svgIco('<path d="M2.5 12h19"/><rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>'),
+  'env-hotel': svgIco('<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V5.4A1.4 1.4 0 0110.4 4h3.2A1.4 1.4 0 0115 5.4v2.1"/><path d="M3.5 13h17"/>'),
+  'env-bw':    svgIco('<circle cx="12" cy="4.2" r="1.9"/><path d="M12 6.2v4.6"/><path d="M12 8.2L6.4 6M12 8.2l5.6-2.2"/><path d="M12 10.8l-3.4 4.4L6 21M12 10.8l3.4 4.4L18 21"/>'),
+
+  /* ---- programmes ---- */
+  'pg-anchor3': svgIco('<circle cx="12" cy="5.2" r="2"/><path d="M12 7.2v12.4"/><path d="M8.4 9.4h7.2"/><path d="M4.4 13.6c0 4 3.4 6.4 7.6 6.4s7.6-2.4 7.6-6.4"/><path d="M2.8 13.6h3.2M18 13.6h3.2"/>'),
+  'pg-ul4':     svgIco('<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 12h17"/>'),
+  'pg-ul5':     svgIco('<rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M3.5 10h17M3.5 15h17"/>'),
+  'pg-bro5':    svgIco('<path d="M12 3.2l7.6 4.4v8.8L12 20.8 4.4 16.4V7.6z"/>'),
+  'pg-ppl6':    svgIco('<path d="M12 3.2l7.6 4.4v8.8L12 20.8 4.4 16.4V7.6z"/><path d="M12 3.2v17.6M4.4 7.6l15.2 8.8M19.6 7.6L4.4 16.4"/>'),
+  'pg-hold2':   svgIco('<path d="M4 12h16"/><path d="M7.4 8.6h9.2M7.4 15.4h9.2" opacity=".4"/>'),
+
+  /* ---- goals ---- */
+  'goal-health':  svgIco('<path d="M12 20.4S3.8 15.4 3.8 9.6A4.6 4.6 0 0112 7.4a4.6 4.6 0 018.2 2.2c0 5.8-8.2 10.8-8.2 10.8z"/>'),
+  'goal-consist': svgIco('<path d="M2.5 18h19"/><path d="M4.6 18v-2.6M8.4 18v-5.2M12.2 18v-4M16 18v-6.8M19.8 18v-5.4"/>'),
+
+  /* ---- meals ---- */
+  'meal-b': svgIco('<circle cx="12" cy="12.6" r="3.6"/><path d="M12 4.8v2M12 18.4v2M4.6 12.6h2M17.4 12.6h2M6.6 7.2l1.4 1.4M16 17l1.4 1.4M17.4 7.2L16 8.6M8 17l-1.4 1.4"/>'),
+  'meal-l': svgIco('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 010 16z" fill="currentColor" stroke="none"/>'),
+  'meal-d': svgIco('<path d="M18.6 14.4A7.4 7.4 0 019.1 5 7.9 7.9 0 1018.6 14.4z"/>'),
+  'meal-s': svgIco('<path d="M12 3.4l2.3 5.6 6 .5-4.6 3.9 1.4 5.9L12 16.2l-5.1 3.1 1.4-5.9L3.7 9.5l6-.5z"/>'),
+
+  /* ---- More screen and settings ---- */
+  routines:  svgIco('<rect x="3.5" y="4.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="4.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="14.5" width="7" height="5" rx="1.6"/><rect x="13.5" y="14.5" width="7" height="5" rx="1.6"/>'),
+  map:       svgIco('<path d="M3 6.4l6-2.2v13.4l-6 2.2z"/><path d="M9 4.2l6 2.2v13.4L9 17.6"/><path d="M15 6.4l6-2.2v13.4l-6 2.2z"/>'),
+  chart:     svgIco('<path d="M3.5 20.5h17"/><path d="M6.6 20.5v-5.2M11 20.5V8.4M15.4 20.5v-8M19.8 20.5V4.6"/>'),
+  ruler:     svgIco('<rect x="2.6" y="8.4" width="18.8" height="7.2" rx="1.6" transform="rotate(-8 12 12)"/><path d="M6.6 9.6v2.6M10.2 9.1v3.6M13.8 8.6v2.6M17.4 8.1v3.6"/>'),
+  clock:     svgIco('<circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3 2"/>'),
+  doc:       svgIco('<path d="M6 3.5h7.4L18.6 8.8V20.5H6z"/><path d="M13.4 3.5v5.3h5.2"/><path d="M8.8 13h6.4M8.8 16.4h4.4"/>'),
+  mobility:  svgIco('<circle cx="12" cy="4.2" r="1.9"/><path d="M12 6.2v3.4"/><path d="M4.8 9.4l3.6 2.4 3.6-2.2 3.6 2.2 3.6-2.4"/><path d="M12 9.6l-2.8 5.2L7 21M12 9.6l2.8 5.2L17 21"/>'),
+  target:    svgIco('<circle cx="12" cy="12" r="8.4"/><circle cx="12" cy="12" r="4.4"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/>'),
+  globe:     svgIco('<circle cx="12" cy="12" r="8.4"/><path d="M3.6 12h16.8"/><path d="M12 3.6c2.2 2.4 3.4 5.3 3.4 8.4S14.2 18 12 20.4C9.8 18 8.6 15.1 8.6 12S9.8 6 12 3.6z"/>'),
+  person:    svgIco('<circle cx="12" cy="8" r="3.6"/><path d="M4.8 20.4a7.2 7.2 0 0114.4 0"/>'),
+  download:  svgIco('<path d="M12 3.6v11.2"/><path d="M7.6 10.6L12 15l4.4-4.4"/><path d="M4.4 18.6h15.2"/>'),
+  upload:    svgIco('<path d="M12 15.4V4.2"/><path d="M7.6 8.6L12 4.2l4.4 4.4"/><path d="M4.4 18.6h15.2"/>'),
+  warn:      svgIco('<path d="M12 3.8L21.2 19.8H2.8z"/><path d="M12 9.8v4.2M12 16.8v.1"/>'),
+  lock:      svgIco('<rect x="4.6" y="10.4" width="14.8" height="9.6" rx="2.2"/><path d="M8 10.4V7.8a4 4 0 018 0v2.6"/>'),
+  science:   svgIco('<path d="M9.6 3.5v6L4.2 18.4a2 2 0 001.7 3h12.2a2 2 0 001.7-3L14.4 9.5v-6"/><path d="M8.2 3.5h7.6"/><path d="M7.2 14.6h9.6"/>'),
+  book:      svgIco('<path d="M3.6 5a5.6 5.6 0 018.4 1.6A5.6 5.6 0 0120.4 5v13a5.6 5.6 0 00-8.4 1.4A5.6 5.6 0 003.6 18z"/><path d="M12 6.6v12.8"/>'),
+  play:      svgIco('<path d="M8 5.4l10 6.6-10 6.6z" fill="currentColor" stroke-linejoin="round"/>'),
+  disk:      svgIco('<path d="M4.6 4.5h11.6l3.2 3.2v11.8H4.6z"/><path d="M8 4.5v5h6.6v-5"/><rect x="7.4" y="13" width="9.2" height="6.5" rx="1"/>'),
+  phone:     svgIco('<rect x="6.4" y="2.6" width="11.2" height="18.8" rx="2.4"/><path d="M10.6 5.4h2.8"/><path d="M12 18.2v.1"/>'),
+  search:    svgIco('<circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.4 20.4"/>'),
+  split:     svgIco('<rect x="3.6" y="4.6" width="16.8" height="14.8" rx="2"/><path d="M3.6 9.4h16.8"/><path d="M9 9.4v10"/>'),
+  repeat:    svgIco('<path d="M4 9.4A5 5 0 019 4.6h11"/><path d="M17 1.8l3 2.8-3 2.8"/><path d="M20 14.6a5 5 0 01-5 4.8H4"/><path d="M7 22.2l-3-2.8 3-2.8"/>'),
+  bag:       svgIco('<rect x="3.5" y="7.5" width="17" height="12" rx="2"/><path d="M9 7.5V5.4A1.4 1.4 0 0110.4 4h3.2A1.4 1.4 0 0115 5.4v2.1"/>'),
+  bolt:      svgIco('<path d="M13.4 2.4L4.6 13.6h6L10.6 21.6l8.8-11.2h-6z"/>'),
+  plaster:   svgIco('<rect x="2.6" y="8.4" width="18.8" height="7.2" rx="3.6" transform="rotate(-40 12 12)"/><path d="M9.4 9.4l5.2 5.2" opacity=".5"/>'),
+  stone:     svgIco('<path d="M4.4 16.6l2.4-7.2 5.6-3.4 6.6 3.2 1 7.4-7.6 3.6z"/>'),
+  fire:      svgIco('<path d="M12 21.2c3.8 0 6.4-2.4 6.4-5.8 0-4.4-4.4-5.6-3.4-11-2.6 1-4.6 3.4-4.6 6 0 1.8-1 2.4-1.8 1.4-.5-.6-.7-1.5-.7-2.3-1.4 1.6-2.3 3.8-2.3 5.9 0 3.4 2.6 5.8 6.4 5.8z"/>'),
+  moon:      svgIco('<path d="M18.6 14.4A7.4 7.4 0 019.1 5 7.9 7.9 0 1018.6 14.4z"/>'),
+  plate:     svgIco('<circle cx="12" cy="13" r="7"/><path d="M4.6 4.6v6M20 4.6v5.2M18 4.6h4"/>'),
+  ban:       svgIco('<circle cx="12" cy="12" r="8.4"/><path d="M6.1 6.1l11.8 11.8"/>'),
+  building:  svgIco('<rect x="4.6" y="3.6" width="14.8" height="16.8" rx="1.8"/><path d="M8.4 7.4h2.2M13.4 7.4h2.2M8.4 11h2.2M13.4 11h2.2"/><path d="M10.4 20.4v-4.2h3.2v4.2"/>'),
+  wrench:    svgIco('<path d="M15.4 3.6a5.4 5.4 0 00-5 8.4L3.6 18.8a2 2 0 002.8 2.8l6.8-6.8a5.4 5.4 0 007.4-6.6l-3 3-2.8-.7-.7-2.8 3-3a5.4 5.4 0 00-2.7-1.1z"/>'),
+
+  /* ---- marks. Stroked, never glyphs — see the note in the handbook. ---- */
+  tick:      svgIco('<path d="M4.4 12.4l5.2 5.2L19.6 7.4" stroke-width="2.2"/>'),
+  cross:     svgIco('<path d="M6.2 6.2l11.6 11.6M17.8 6.2L6.2 17.8" stroke-width="2.1"/>'),
+  arrowL:    svgIco('<path d="M19 12H5.4M11 5.4L4.4 12l6.6 6.6" stroke-width="2"/>'),
+  arrowR:    svgIco('<path d="M5 12h13.6M13 5.4L19.6 12 13 18.6" stroke-width="2"/>'),
+  arrowU:    svgIco('<path d="M12 19V5.4M5.4 12L12 5.4l6.6 6.6" stroke-width="2"/>'),
+  arrowD:    svgIco('<path d="M12 5v13.6M5.4 12l6.6 6.6 6.6-6.6" stroke-width="2"/>'),
+  chevD:     svgIco('<path d="M6 9.6l6 5.4 6-5.4" stroke-width="2"/>'),
+  chevR:     svgIco('<path d="M9.6 5.4l5.4 6.6-5.4 6.6" stroke-width="2"/>'),
+  peakMark:  svgIco('<path d="M12 5.6l7 12.8H5z"/>'),
+  minus:     svgIco('<path d="M5.4 12h13.2" stroke-width="2.1"/>'),
+  link:      svgIco('<path d="M4 8.6h13l-3-3M20 15.4H7l3 3" stroke-width="1.9"/>'),
+  dot:       svgIco('<circle cx="12" cy="12" r="2.6" fill="currentColor" stroke="none"/>')
+});
+
+Object.assign(ICO, {
+  'gear-cable':   svgIco('<path d="M5 3.6v16.8M19 3.6v16.8"/><rect x="7.6" y="5.6" width="8.8" height="3.2" rx="1.2"/><path d="M12 8.8v4.2"/><path d="M9.6 13h4.8l-1.2 5.4h-2.4z"/>'),
+  'lvl-solid':    svgIco('<path d="M2.5 18.8h19"/><path d="M3 18.8l5.6-8.6 3.2 4 3.2-4.6 5.6 9.2"/><path d="M13.4 10.6l2 1"/>'),
+  'goal-strength':svgIco('<path d="M2.5 12h19"/><rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>'),
+  'goal-muscle':  bodyIco('<path d="M8.2 8.5L6 13M15.8 8.5L18 13"/><circle cx="6.6" cy="11.6" r="1.6"/><circle cx="17.4" cy="11.6" r="1.6"/>'),
+  cog:            svgIco('<circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.8M12 18.6v2.8M2.6 12h2.8M18.6 12h2.8"/><path d="M5.4 5.4l2 2M16.6 16.6l2 2M18.6 5.4l-2 2M7.4 16.6l-2 2"/>'),
+  summit:         svgIco('<path d="M2 20h20"/><path d="M2.4 20l6.6-13 3.6 5.6L16.2 4 21.6 20z"/><path d="M14.6 7.6l2.8 1.4M7.6 11.4l2.4 1.2"/>'),
+  half:           svgIco('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 010 16z" fill="currentColor" stroke="none"/>'),
+  pin:            svgIco('<path d="M12 21c4.2-5.2 6.2-8.4 6.2-11A6.2 6.2 0 005.8 10c0 2.6 2 5.8 6.2 11z"/><circle cx="12" cy="10" r="2.2"/>'),
+  compass:        svgIco('<circle cx="12" cy="12" r="8.4"/><path d="M15.4 8.6l-2 5.2-5.2 2 2-5.2z"/>')
+});

@@ -19,13 +19,13 @@ const OB_DEFAULT = {
 let obDraft = { ...OB_DEFAULT, gear:{ ...GEAR_ALL }, seedOverrides:{}, seedExact:{} };
 
 const GOALS = {
-  strength: { k:'strength', ico:'🏋️', label:'Get stronger',
+  strength: { k:'strength', ico:'goal-strength', label:'Get stronger',
               note:'Heavier main lifts, lower reps, longer rests, real progression on the bar.' },
-  muscle:   { k:'muscle',   ico:'💪', label:'Build muscle',
+  muscle:   { k:'muscle',   ico:'goal-muscle', label:'Build muscle',
               note:'More volume in the 8–12 range, more accessory work, and a protein target that means something.' },
-  health:   { k:'health',   ico:'🫀', label:'Stay healthy and durable',
+  health:   { k:'health',   ico:'goal-health', label:'Stay healthy and durable',
               note:'Balanced work and joint-friendly progression. Built to survive long days on your feet.' },
-  consist:  { k:'consist',  ico:'📿', label:'Just be consistent',
+  consist:  { k:'consist',  ico:'goal-consist', label:'Just be consistent',
               note:'Simpler programming. The app spends its effort removing friction rather than optimising.' }
 };
 
@@ -413,7 +413,7 @@ OB_RENDER.env = () => {
     hotel: 'Dumbbells, maybe a cable stack and a treadmill. Hotel gyms, unit gyms, anything sparse.',
     bw:    'Floor space and nothing else. A hotel room, a location trailer, the back of a van.'
   };
-  const icos = { full:'🏋️', hotel:'🧳', bw:'🧘' };
+  const icos = { full:'env-full', hotel:'env-hotel', bw:'env-bw' };
   return obShell(`
     <h1 class="ob-q">Where does training actually happen?</h1>
     <p class="ob-sub">Pick every place that comes up in a normal month. You'll assign one to each day of the week, and the app swaps exercises to match.</p>
@@ -429,9 +429,9 @@ OB_RENDER.gear = () => obShell(`
   <h1 class="ob-q">What's your main gym like?</h1>
   <p class="ob-sub">This decides what the app is allowed to programme. Getting told to do lat pulldowns in a garage with two dumbbells is exactly the kind of thing that makes people quit an app.</p>
   <div class="opts">
-    ${opt({ act:'ob-gearmode', v:'commercial', on:obDraft.gearMode==='commercial', ico:'🏢',
+    ${opt({ act:'ob-gearmode', v:'commercial', on:obDraft.gearMode==='commercial', ico:ico('building'),
             title:'A full commercial gym', desc:'Racks, barbells, a full dumbbell range, cables and machines. Everything is available.' })}
-    ${opt({ act:'ob-gearmode', v:'custom', on:obDraft.gearMode==='custom', ico:'🔧',
+    ${opt({ act:'ob-gearmode', v:'custom', on:obDraft.gearMode==='custom', ico:ico('wrench'),
             title:'A home or limited setup', desc:'Tell it exactly what you have and it will only ever use that.' })}
   </div>
 `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>` });
@@ -459,7 +459,7 @@ OB_RENDER.geardetail = () => {
 /* ---------- 13. structure ---------- */
 OB_RENDER.structure = () => {
   const tags = { anchor3:'Recommended', ul4:null, ul5:'Popular', bro5:null, ppl6:null, hold2:null };
-  const icos = { anchor3:'⚓️', ul4:'◧', ul5:'✦', bro5:'⬡', ppl6:'⬢', hold2:'➖' };
+  const icos = { anchor3:'pg-anchor3', ul4:'pg-ul4', ul5:'pg-ul5', bro5:'pg-bro5', ppl6:'pg-ppl6', hold2:'pg-hold2' };
   const plain = {
     anchor3:'Three full-body sessions a week. Every session works everything, so no single missed day leaves a gap. The most forgiving structure there is, and the right default for changing hours.',
     ul4:'Four sessions alternating upper and lower. More volume per muscle group, which builds size faster, but a missed day leaves half your body untrained that week.',
@@ -515,9 +515,9 @@ OB_RENDER.nutrition = () => {
     <h1 class="ob-q">Track protein and calories too?</h1>
     <p class="ob-sub">Entirely optional, and it can never block or interrupt a workout. If you're training to build muscle, protein is the one number outside the gym that genuinely moves the needle.</p>
     <div class="opts">
-      ${opt({ act:'ob-nutrition', v:'yes', on:obDraft.nutrition===true, ico:'🍽',
+      ${opt({ act:'ob-nutrition', v:'yes', on:obDraft.nutrition===true, ico:ico('plate'),
               title:'Yes, turn it on', desc:'A protein and calorie target on the home screen, with quick-add for the things you eat repeatedly.' })}
-      ${opt({ act:'ob-nutrition', v:'no', on:obDraft.nutrition===false, ico:'🚫',
+      ${opt({ act:'ob-nutrition', v:'no', on:obDraft.nutrition===false, ico:ico('ban'),
               title:'Not for now', desc:'Strength tracking only. You can switch this on at any point without losing anything.' })}
     </div>
     ${t && obDraft.nutrition ? `<div class="card accent" style="margin-top:20px">
@@ -626,7 +626,7 @@ OB_RENDER.ready = () => {
   const prog = PROGRAMS[obDraft.programId];
   return obShell(`
     <div style="padding-top:14px">
-      <div style="font-size:42px">🏔️</div>
+      <div class="ob-mark">${ICO.summit}</div>
       <h1 class="ob-q" style="margin-top:16px">One last thing, and it's the important one.</h1>
       <p class="ob-sub">Now you'll set out what your week actually looks like — which days you can train, how long you'll have, and where you'll be.</p>
       <p class="ob-sub" style="margin-top:14px">This is the step that makes everything else work. Guzo places your ${prog.target} sessions into the days that can genuinely hold them, rather than putting them on a fixed schedule and letting you fail it.</p>

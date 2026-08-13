@@ -480,19 +480,19 @@ function baseMins() {
 function r5(n) { return Math.max(5, Math.round(n / 5) * 5); }
 
 const AVAIL = {
-  long:   { k:'long',   label:'Plenty of time', short:'Plenty', lvl:3, ico:'🟢',
+  long:   { k:'long',   label:'Plenty of time', short:'Plenty', lvl:3, ico:'avail-long',
             mins: b => Math.min(105, r5(b * 1.35)),
             note: m => `${m} minutes or more. A day off, or a light call sheet.` },
-  normal: { k:'normal', label:'A normal day',   short:'Normal', lvl:2, ico:'🟡',
+  normal: { k:'normal', label:'A normal day',   short:'Normal', lvl:2, ico:'avail-normal',
             mins: b => b,
             note: m => `Your usual ${m} minutes. Work, then the gym.` },
-  short:  { k:'short',  label:'Short window',   short:'Short',  lvl:1, ico:'🟠',
+  short:  { k:'short',  label:'Short window',   short:'Short',  lvl:1, ico:'avail-short',
             mins: b => Math.max(15, r5(b * 0.4)),
             note: m => `About ${m} minutes. Squeezed in somewhere.` },
-  micro:  { k:'micro',  label:'Minutes only',   short:'Minutes',lvl:1, ico:'🔴',
+  micro:  { k:'micro',  label:'Minutes only',   short:'Minutes',lvl:1, ico:'avail-micro',
             mins: () => 5,
             note: () => 'Three to five minutes. On location, between setups.' },
-  none:   { k:'none',   label:'Not happening',  short:'Off',    lvl:0, ico:'⚪️',
+  none:   { k:'none',   label:'Not happening',  short:'Off',    lvl:0, ico:'avail-none',
             mins: () => 0,
             note: () => 'Travel, a fourteen-hour day, or you just need the rest.' }
 };
@@ -540,16 +540,16 @@ function setDayAvail(k, avail) {
    corrects upward far more comfortably than it corrects down.
    ============================================================ */
 const LEVELS = {
-  new:  { k:'new',  label:'New to lifting', ico:'🌱',
+  new:  { k:'new',  label:'New to lifting', ico:'lvl-new',
           note:'Never trained with weights, or it was years ago and you are starting again.',
           f:{ 'bb-back-squat':0.45, 'bb-bench':0.35, 'bb-deadlift':0.55, 'bb-ohp':0.22, 'bb-row':0.32 } },
-  some: { k:'some', label:'Some experience', ico:'🪨',
+  some: { k:'some', label:'Some experience', ico:'lvl-some',
           note:'You have trained on and off. The main lifts are familiar but nothing is dialled in.',
           f:{ 'bb-back-squat':0.75, 'bb-bench':0.58, 'bb-deadlift':0.95, 'bb-ohp':0.37, 'bb-row':0.50 } },
-  solid:{ k:'solid',label:'Trained consistently', ico:'⛰️',
+  solid:{ k:'solid',label:'Trained consistently', ico:'lvl-solid',
           note:'A year or more of steady lifting. You know your working weights.',
           f:{ 'bb-back-squat':1.10, 'bb-bench':0.82, 'bb-deadlift':1.35, 'bb-ohp':0.50, 'bb-row':0.68 } },
-  adv:  { k:'adv',  label:'Advanced', ico:'🏔️',
+  adv:  { k:'adv',  label:'Advanced', ico:'lvl-adv',
           note:'Several years in. Progress comes slowly and you plan for it.',
           f:{ 'bb-back-squat':1.45, 'bb-bench':1.05, 'bb-deadlift':1.75, 'bb-ohp':0.63, 'bb-row':0.86 } }
 };
