@@ -1937,6 +1937,78 @@ try {
   check('...and it is silent for someone the evidence does not cover',
     gap.young === false);
 
+  /* ---- a marker is something you have, not something you were given ----
+     milestonesReached() read the stored flags alone, which made three things
+     possible and the third permanent: a session logged by any path that does
+     not call checkMilestones() leaves the flag unset and the ascent says
+     "nothing behind you yet" over a stats row reading fourteen; a restore
+     brings the sessions and not the flags; and a milestone ADDED in a later
+     release is unreachable by everyone who already passed it, because the
+     recorder only ever looks forward. Every milestone already carries a test
+     against journeyStats(), so asking it is the whole fix. */
+  console.log('\nthe journey\n');
+
+  const marks = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const mk = () => ({ exId: 'bb-bench', name: 'Bench', load: 'wt', targetR: 5,
+      sets: [{ w: 60, r: 5, done: true }] });
+    /* Sessions pushed the way a restore or an import would: history and no
+       flags anywhere. */
+    for (let i = 1; i <= 12; i++) {
+      S.sessions.push({ id: 'j' + i, date: dk(addDays(fromKey(today()), -i * 2)),
+        type: 'full', ended: Date.now(), dur: 40, exercises: [mk()] });
+    }
+    S.journey = { reached: {} };
+    save(true);
+    const derived = milestonesReached().map(m => m.k);
+    const nxt = nextMilestone();
+    /* And a milestone recorded the moment it happened still says when. */
+    S.journey.reached.first = dk(addDays(fromKey(today()), -24));
+    save(true);
+    const dated = milestonesReached().find(m => m.k === 'first');
+    /* The ascent must not list one both behind you and ahead of you. */
+    go('progress');
+    const names = [...document.querySelectorAll('#progress-body .asc-t, #progress-body .asc-summit-t')]
+      .map(e => e.textContent.trim());
+    const dupes = names.filter((n, i2) => names.indexOf(n) !== i2);
+    /* A derived marker has no date, and printing one anyway gave four of them
+       "Today" — all claiming to have landed this morning. */
+    /* Scoped to the rows behind you. .asc-when is also how the next marker
+       prints its progress ("12/25"), which is a different thing wearing the
+       same class. */
+    const whens = [...document.querySelectorAll('#progress-body .asc-row.done .asc-when')]
+      .map(e => e.textContent.trim());
+    return { derived, next: nxt && nxt.k, dated: dated && dated.on, dupes, whens, names };
+  });
+  check('a marker is reached because you passed it, not because it was recorded',
+    marks.derived.includes('first') && marks.derived.includes('s5') && marks.derived.includes('s10'),
+    marks.derived.join(', '));
+  check('...and the next one is the first you have not', marks.next === 's25', String(marks.next));
+  check('...while one recorded as it happened still says when',
+    !!marks.dated, String(marks.dated));
+  check('no marker is both behind you and ahead of you', marks.dupes.length === 0,
+    marks.dupes.join(', '));
+  check('...and a marker with no date claims none',
+    marks.whens.length === 1, marks.whens.join(', '));
+
+  /* Day one is the earlier of when the app was opened and when you first
+     trained — they differ after a restore, an import, or a backdated session,
+     and a journey starting after its own first session is a bug in the
+     simplest number on the screen. */
+  const dayOne = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    S.meta.created = Date.now();
+    save(true);
+    const fresh = journeyDay();
+    S.sessions.push({ id: 'old', date: dk(addDays(fromKey(today()), -40)), type: 'full',
+      ended: Date.now(), dur: 40, exercises: [] });
+    save(true);
+    return { fresh, restored: journeyDay() };
+  });
+  check('a new profile is on day one', dayOne.fresh === 1, String(dayOne.fresh));
+  check('...and a restored history starts the journey where it started',
+    dayOne.restored === 41, String(dayOne.restored));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

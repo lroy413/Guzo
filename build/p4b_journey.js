@@ -90,8 +90,14 @@ function totalKcal() {
    in distance covered rather than boxes ticked, and it should
    say something when you reach a marker.
    ============================================================ */
+/* Day one is the earlier of when the app was opened and when you first
+   trained. They are usually the same day; they are not after a restore, an
+   import, or a session backdated to before you installed anything — and a
+   journey that starts after its own first session reads as a bug in the one
+   number on the screen that is meant to be the simplest. */
 function journeyDay() {
-  const start = S.meta && S.meta.created ? dk(new Date(S.meta.created)) : today();
+  let start = S.meta && S.meta.created ? dk(new Date(S.meta.created)) : today();
+  (S.sessions || []).forEach(s => { if (s.ended && s.date && s.date < start) start = s.date; });
   return Math.max(1, daysBetween(start, today()) + 1);
 }
 
@@ -202,14 +208,31 @@ function checkMilestones() {
   });
   return fresh;
 }
+/* Reached is derived, and the stored date only says *when*.
+   ---------------------------------------------------------
+   This read the flags alone, which made a marker something you could only ever
+   be given rather than something you had. Three ways that goes wrong, and the
+   third is the one that would have been permanent:
+
+   - a session logged by any path that does not call checkMilestones() leaves
+     the flag unset, and the ascent says "nothing behind you yet" over a stats
+     row reading fourteen sessions;
+   - a restore or an import brings the sessions and not the flags;
+   - and a milestone ADDED in a later release is unreachable by everyone who
+     already passed it, because checkMilestones() only ever looks forward.
+
+   Every milestone already carries a test against journeyStats(). Asking it is
+   the whole fix, and it is the same rule the fold on Train and the frontier on
+   the range follow: derive it, and store only what cannot be derived — which
+   here is the date. */
 function milestonesReached() {
   const r = (S.journey && S.journey.reached) || {};
-  return MILESTONES.filter(m => r[m.k]).map(m => ({ ...m, on: r[m.k] }));
+  const st = journeyStats();
+  return MILESTONES.filter(m => r[m.k] || m.test(st)).map(m => ({ ...m, on: r[m.k] || null }));
 }
 function nextMilestone() {
-  const r = (S.journey && S.journey.reached) || {};
   const st = journeyStats();
-  const m = MILESTONES.find(x => !r[x.k] && !x.test(st));
+  const m = MILESTONES.find(x => !x.test(st));
   if (!m) return null;
   // describe how far away it is, in the unit that milestone counts
   let left = null, unit = '';

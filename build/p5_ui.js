@@ -2367,7 +2367,11 @@ function journeyAscentHTML() {
   const st = journeyStats();
   const reached = milestonesReached();
   const next = nextMilestone();
-  const upcoming = MILESTONES.filter(m => !(S.journey && S.journey.reached && S.journey.reached[m.k]));
+  /* Against the same derived list the trail behind you is built from, not
+     against the stored flags. Two sources for "have I passed this" put
+     The first step on the ascent twice — once behind you and once ahead. */
+  const has = new Set(reached.map(m => m.k));
+  const upcoming = MILESTONES.filter(m => !has.has(m.k));
 
   /* Four behind and three ahead keeps the whole ascent on one screen without
      scrolling past it. What is cut is counted at the trailhead and at the
@@ -2392,7 +2396,11 @@ function journeyAscentHTML() {
     rows.push({
       m, state: 'done', cls: 'walked', xIn, xOut, first: rows.length === 0 && !hiddenBack, last: false,
       content: `<div class="row between gap-s"><div class="asc-t">${h(m.title)}</div>
-          <div class="asc-when">${h(relDate(m.on))}</div></div>
+          ${/* Only where the date is actually known. A marker derived from
+                 your counts rather than recorded as it happened has no date,
+                 and printing relDate(null) gave every one of them "Today" —
+                 four milestones all claiming to have landed this morning. */''}
+          ${m.on ? `<div class="asc-when">${h(relDate(m.on))}</div>` : ''}</div>
         ${isLatest ? `<p class="asc-body-t">${h(m.body)}</p>`
                    : `<div class="asc-d">${h((need && need.t) || 'Reached')}</div>`}`
     });

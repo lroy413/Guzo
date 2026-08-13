@@ -1038,3 +1038,45 @@ reach for first are the ones with no evidence behind them at all.
 
 The onboarding screen says all of this in three sentences, because a number
 collected without a stated reason is a number people give wrong.
+
+---
+
+## A marker is something you have, not something you were given
+
+Found by looking at Progress with a seeded history and noticing the hero said
+**"Day 1 · nothing behind you yet"** directly above a stats row reading
+**fourteen sessions**. It looked like a fixture artefact. It was not.
+
+`milestonesReached()` read `S.journey.reached` — a map of flags written by
+`checkMilestones()` when a session completes. Three ways that breaks, and the
+third is permanent:
+
+1. **A session logged by any path that does not call `checkMilestones()`** leaves
+   the flag unset. The ascent then says nothing is behind you while every other
+   number on the screen disagrees.
+2. **A restore or an import** brings the sessions and not the flags.
+3. **A milestone added in a later release is unreachable by everyone who has
+   already passed it**, because the recorder only ever looks forward. Ship a
+   300-session marker in a future version and the person with 400 sessions never
+   gets it — for good.
+
+Every milestone already carries a `test(st)` against `journeyStats()`. Asking it
+is the whole fix, and it is the rule this codebase applies everywhere else:
+**derive it, and store only what cannot be derived.** Here that is the date — so
+a marker recorded as it happened still says when, and one derived from your
+counts says nothing rather than guessing.
+
+Fixing it surfaced two more, both of which had been sitting behind the first:
+
+- **The ascent listed one marker twice**, once behind you and once ahead, because
+  the "behind" list was now derived and the "ahead" list was still reading flags.
+  Two sources for *have I passed this* will always eventually disagree.
+- **Four markers all claimed "Today"**, because `relDate(null)` renders as today
+  and every derived marker has a null date.
+
+And one more of the same family: **`journeyDay()` counted from `meta.created`
+alone**, so a restored or imported history produced a journey that started after
+its own first session. It takes the earlier of the two now.
+
+`engine.mjs` at 277. All four go red on their reverts — including the one that
+matters most, where a marker only counts if it was recorded.
