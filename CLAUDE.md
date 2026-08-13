@@ -117,7 +117,7 @@ There is no virtual DOM and no reactive binding. **Everything is a full innerHTM
 What exists instead is one JSON blob in `localStorage`.
 
 - **Key:** `guzo.v1` (`KEY` in `p3_data.js`)
-- **Schema version:** `VERSION = '1.3.0'` — now matching the root `package.json` and `guzo-native/package.json`. Bump all three together; the service worker keys its cache off this one, so a release rotates the cache cleanly
+- **Schema version:** `VERSION = '1.4.0'` — now matching the root `package.json` and `guzo-native/package.json`. Bump all three together; the service worker keys its cache off this one, so a release rotates the cache cleanly
 - **Legacy migration:** `LEGACY_KEYS = ['fittrek.v1']` — on load, if the current key is missing *or holds an empty state*, a meaningful legacy blob is copied across. The "or holds an empty state" part is deliberate: opening the app once before restoring would otherwise orphan the old save behind a blank one.
 
 ### State shape (`blank()` in `p4_engine.js`)
