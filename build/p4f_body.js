@@ -97,17 +97,51 @@ const AGE_BANDS = [
   { from: 65, k: 'older',  protein: 1.8, gap: 48 }
 ];
 
-function ageBand() {
-  const a = ageYears();
+/* Split so onboarding can ask the same question of a draft that has not been
+   saved yet. Everything in the running app goes through ageBand(). */
+function ageBandAt(a) {
   if (a == null) return AGE_BANDS[0];
   let out = AGE_BANDS[0];
   AGE_BANDS.forEach(b => { if (a >= b.from) out = b; });
   return out;
 }
+function ageBand() { return ageBandAt(ageYears()); }
 
 /* The gap the evidence supports between two hard sessions, in hours, or 0 when
    age says nothing about it. */
 function recoveryGapHours() { return ageBand().gap; }
+
+/* ---------- protein per kilo: one function, two callers ----------
+   energyTargets() reads the saved profile and suggestedTargets() reads the
+   onboarding draft, but the multiplier is the same judgement and it was
+   written out twice. Two call sites that can disagree eventually will.
+
+   Cutting is the highest of the three because that is what the evidence says:
+   under an energy deficit with training, 1.8–2.7 g/kg is the supported range
+   and 2.4 g/kg beat 1.2 g/kg for holding lean mass. 2.2 sits deliberately
+   mid-range — this is a number an app hands to someone unsupervised, so it
+   should be defensible rather than maximal.
+
+   The age band is a floor, not an alternative. It only ever raises the
+   number, and it is why an older lifter who did not tick "build muscle" no
+   longer gets the same 1.6 as a twenty-year-old — which is what the age
+   screen has been promising all along while nothing implemented it. */
+function proteinPerKg(goals, band) {
+  const g = goals || [];
+  const wantsLean = g.includes('lean') || g.includes('fatloss');
+  const goalP = wantsLean ? 2.2 : g.includes('muscle') ? 1.9 : 1.6;
+  return Math.max(goalP, (band || ageBand()).protein);
+}
+
+/* The daily energy move, as a signed number. A deficit and a bulking surplus
+   are mutually exclusive answers to the same question, so picking both does
+   not average them: fat loss wins, because it is the one with a floor under
+   it and the one somebody is more likely to be hurt by getting wrong. */
+function energyDelta(goals) {
+  const g = goals || [];
+  if (g.includes('lean') || g.includes('fatloss')) return -400;
+  return g.includes('muscle') ? 250 : 0;
+}
 
 /* Whether the week has two hard days touching, and which. Says it, never fixes
    it — a plan quietly rebuilt around a number you gave for the energy equation
@@ -205,21 +239,26 @@ function energyTargets() {
   const kg = bodyKg();
   if (!kg) return null;
   const goals = S.profile.goals || [];
-  const wantsMuscle = goals.includes('muscle');
-  const wantsLean = goals.includes('lean') || goals.includes('fatloss');
 
-  const p = Math.round(kg * (wantsMuscle ? 1.9 : 1.6));
+  const p = Math.round(kg * proteinPerKg(goals));
   const maint = tdee();
   let kcal;
   let basis;
   if (maint) {
-    kcal = maint + (wantsMuscle ? 250 : 0) - (wantsLean ? 400 : 0);
+    kcal = maint + energyDelta(goals);
     basis = 'from your resting rate';
   } else {
-    kcal = Math.round(kg * 33) + (wantsMuscle ? 250 : 0);
+    kcal = Math.round(kg * 33) + energyDelta(goals);
     basis = 'estimated from bodyweight alone';
   }
-  kcal = Math.max(1200, Math.round(kcal / 10) * 10);
+  /* Never under the resting rate. A deficit taken off a low maintenance can
+     land below what the body burns lying still, and that is the point where an
+     unsupervised target stops being a diet and starts being a problem — the
+     flat 1200 alone does not catch it, because a small sedentary person can
+     have a maintenance under 1600 and clear 1200 comfortably on the way down. */
+  const rest = bmr();
+  kcal = Math.max(1200, rest || 0, Math.round(kcal / 10) * 10);
+  kcal = Math.round(kcal / 10) * 10;
   const f = Math.round((kcal * 0.27) / 9);
   const c = Math.max(0, Math.round((kcal - p * 4 - f * 9) / 4));
   return { kcal, p, c, f, basis, maint, bmr: bmr() };

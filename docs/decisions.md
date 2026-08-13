@@ -1314,3 +1314,121 @@ property of flexbox, not of this app.
 The counter, the icons, the titles and the emoji were all on the one surface no
 instrument had ever rendered. That is not a coincidence — it is what unswept
 means.
+
+---
+
+## Losing weight was not on the list, and goals did almost nothing
+
+Asked why there is no weight-loss option. There is now, and answering the
+question turned up something larger: **goals barely existed.**
+
+An exhaustive trace found exactly five reads of `S.profile.goals` in the whole
+app, and only one of them mattered — a protein multiplier and a calorie offset
+in `energyTargets()`, keyed on `'muscle'`. `'strength'`, `'health'` and
+`'consist'` were read by **nothing**. Picking or unpicking them changed not one
+byte of behaviour. Meanwhile the screen said:
+
+> This sets rep ranges, accessory volume, and how the app talks to you.
+
+False on all three counts. Rep targets come from `targetFor(exId)`, which takes
+an exercise id and nothing else; slot counts come from `SLOTS` adjusted by rung,
+priorities, warm-up and the time budget; and there is no goal-conditional copy
+anywhere in the running app. A promise made on the screen where somebody tells
+you what they want is the worst possible place to keep one you are not keeping.
+
+And `energyTargets()` had been testing `goals.includes('lean')` since before
+this work — a −400 kcal branch keyed on a value no code path could produce. The
+machinery for fat loss was already there, waiting for an option that did not
+exist.
+
+### What fat loss actually does
+
+Calories come off maintenance, and protein goes to **2.2 g/kg**. The evidence
+puts the useful range at 1.8–2.7 g/kg under a deficit with training, with
+2.4 g/kg beating 1.2 g/kg for holding lean mass; 2.2 sits deliberately
+mid-range, because this is a number handed to somebody unsupervised and it
+should be defensible rather than maximal.
+
+Picking it pre-selects Fuel, because a deficit you cannot see is not a plan.
+Pre-selected, not forced — the Fuel screen still asks and "not for now" still
+works.
+
+**Asking to bulk and cut at once resolves to cutting.** A surplus and a deficit
+are opposite answers to one question, and averaging them silently produces a
+number that serves neither while looking deliberate.
+
+**A deficit never lands under the resting rate.** The existing flat 1200 floor
+does not catch this: a small sedentary person can have a maintenance under 1600
+and clear 1200 comfortably on the way down.
+
+### What goals now change, and what they deliberately do not
+
+Three real levers: protein, calories, and rest length (three minutes on
+compounds when strength is the goal and size is not — "longer rests" is that
+option's own wording). Plus leftover minutes going into accessory sets.
+
+**Volume is governed by time in this app, by design**, and that is the honest
+answer to "more accessory work". The first implementation inflated the
+accessory slots on the way in, and it was *net negative*: the earlier
+accessories ate the budget, a later slot was dropped whole, and a 75-minute
+session went from 8 movements and 20 sets to 7 and 19. Losing three sets to
+gain one is not more accessory work. It spends the **slack after the session is
+built** instead — strictly additive, invisible on a tight day, and never on a
+main lift. A check that only asked "did the sets go up" would have passed the
+broken version; the checks assert movements never drop, sets never drop, and
+main-lift sets never move.
+
+Selection bias by goal was considered and rejected: `pickExercise` sorts
+least-recently-done first, which is deliberate variety, and overriding it for a
+goal would trade a real property for a cosmetic one.
+
+Every option's note now describes something the code does.
+
+### Age: the evidence says the intuitive change is wrong
+
+Asked for age to change reps or intensity. The NSCA position statement puts
+adults over 60 at **70–85% of 1RM** — so automatically de-loading older lifters
+is not supported, and was not done. What is supported is recovery spacing
+between hard sessions, which the app already had, and a higher protein floor,
+which it claimed and did not have.
+
+`AGE_BANDS[].protein` (1.6 / 1.7 / 1.8) was inert. An earlier note in
+`proteinTarget()` said the floor was dead code and was *correct at the time* —
+the model gave 1.9 g/kg to everyone, which cleared the highest guideline. That
+stopped being true the moment the base became goal-dependent: anyone not
+choosing "build muscle" now starts at 1.6, and for a seventy-year-old the band
+is the only thing between them and a twenty-year-old's number. It binds now,
+and the check asserts it **raises** the target rather than merely clears it —
+the old check could not fail, because the default goals include "build muscle"
+so the band never had to do anything.
+
+### The age you gave was being thrown away
+
+`ob-finish` wrote `birthYear` inside `if (obDraft.nutrition)`. That was right
+when height, age and sex were all collected on the measure screen. The age step
+is its own question in the "You" chapter now and `obSkip()` never skips it — so
+**answering it and then declining Fuel deleted it**, silently, along with the
+band and the back-to-back-hard notice that same screen had just promised.
+Proven before fixing: born 1958, Fuel off, `birthYear` null, `ageYears()` null,
+gap 0.
+
+### Two things found by reverting
+
+A check on the sub-resting-rate floor **passed with the floor removed**. The
+fixture was a 48 kg, 152 cm, 76-year-old whose resting rate is about 890 — the
+flat 1200 already covered it, so the case the floor exists for was never
+reached. The window has to be aimed at: with the lowest activity factor the app
+has, a deficit only breaks the resting rate between about 1200 and 1600.
+
+And the privacy page printed the literal characters **`Guzo Fit v${VERSION}.`**
+— the `${` had been escaped in the source, so the substitution never ran. It is
+the same class as an "undefined" reaching a screen, and it slips past that
+sweep completely, because what it leaves behind is neither empty nor any of the
+words that pattern knows. Now swept across every help page.
+
+That page also still claimed *"The app makes no network requests except to load
+its own two files"* and *"There is no third party in this app to share anything
+with"*. Both stopped being true when the opt-in Open Food Facts lookup shipped.
+A privacy policy that under-declares is worse than one that over-declares, and
+this one is written to be the actual policy. It now names the lookup, says what
+it sends, and shows whether it is currently on.

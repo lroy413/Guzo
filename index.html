@@ -3419,14 +3419,15 @@ const SESSION_LENGTHS = {
 };
 
 /* ---------- nutrition targets derived from bodyweight ---------- */
+/* The multiplier and the energy move come from p4f_body.js so this and
+   energyTargets() cannot drift — this one runs against the onboarding draft
+   before anything is saved, which is the only reason it exists separately. */
 function suggestedTargets(bwKg, goals) {
   if (!bwKg || bwKg <= 0) return null;
-  const wantsMuscle = (goals || []).includes('muscle');
   const kgs = S.profile && S.profile.units === 'lb' ? bwKg * 0.4536 : bwKg;
-  const p = Math.round(kgs * (wantsMuscle ? 1.9 : 1.6));
-  let kcal = Math.round(kgs * 33);
-  if (wantsMuscle) kcal += 250;
-  kcal = Math.round(kcal / 10) * 10;
+  const p = Math.round(kgs * proteinPerKg(goals));
+  let kcal = Math.round(kgs * 33) + energyDelta(goals);
+  kcal = Math.max(1200, Math.round(kcal / 10) * 10);
   const f = Math.round((kcal * 0.27) / 9);
   const c = Math.max(0, Math.round((kcal - p * 4 - f * 9) / 4));
   return { kcal, p, c, f };
@@ -4511,6 +4512,12 @@ Object.assign(ICO, {
   'lvl-solid':    svgIco('<path d="M2.5 18.8h19"/><path d="M3 18.8l5.6-8.6 3.2 4 3.2-4.6 5.6 9.2"/><path d="M13.4 10.6l2 1"/>'),
   'goal-strength':svgIco('<path d="M2.5 12h19"/><rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>'),
   'goal-muscle':  bodyIco('<path d="M8.2 8.5L6 13M15.8 8.5L18 13"/><circle cx="6.6" cy="11.6" r="1.6"/><circle cx="17.4" cy="11.6" r="1.6"/>'),
+  /* A trend coming down, deliberately not a weighing scale: a scale is the
+     object people who have had a bad time with this associate with being
+     judged, and nothing in this app is allowed to read that way. It is the
+     mirror of goal-consist's rising bars, in the same chart vocabulary the
+     rest of the app already speaks. */
+  'goal-lean':    svgIco('<path d="M3.4 7.2l5.4 5.6 3.4-2.9 7.4 7.1"/><path d="M15.4 19.1h4.6v-4.6"/>'),
   cog:            svgIco('<circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.8M12 18.6v2.8M2.6 12h2.8M18.6 12h2.8"/><path d="M5.4 5.4l2 2M16.6 16.6l2 2M18.6 5.4l-2 2M7.4 16.6l-2 2"/>'),
   summit:         svgIco('<path d="M2 20h20"/><path d="M2.4 20l6.6-13 3.6 5.6L16.2 4 21.6 20z"/><path d="M14.6 7.6l2.8 1.4M7.6 11.4l2.4 1.2"/>'),
   half:           svgIco('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 010 16z" fill="currentColor" stroke="none"/>'),
@@ -4539,7 +4546,7 @@ toneIcons('teal', [
   'shoulder', 'lowback', 'knee', 'elbow', 'wrist', 'neck', 'hip', 'ankle',
   'area-Back', 'area-Shoulders', 'area-Chest', 'area-Core',
   'area-Quads', 'area-Glutes', 'area-Arms', 'area-Calves',
-  'stretch', 'mobility', 'env-bw', 'goal-health', 'goal-muscle',
+  'stretch', 'mobility', 'env-bw', 'goal-health', 'goal-muscle', 'goal-lean',
   'person', 'plaster', 'science', 'ruler'
 ]);
 
@@ -6003,6 +6010,61 @@ function prioritySlot() {
   return pat ? { pattern:pat, tier:[3], sets:3, priority:muscle } : null;
 }
 
+/* An extra set on every accessory when the goal is size.
+
+   "More accessory work" is what the Build muscle option has always promised,
+   and until this existed the only thing any goal changed anywhere in the app
+   was a protein multiplier — 'strength', 'health' and 'consist' were read by
+   nothing at all.
+
+   A set rather than a whole extra movement, and this is the second attempt.
+   Appending an eighth slot did nothing whatsoever: the full template is
+   already seven slots and a 60-minute budget only fits six, so the addition
+   was cut every single time and the feature was inert — the exact shape of
+   dead code it was written to replace. A goal must not buy you time you did
+   not say you had; it changes what fills the time you did. One extra set is a
+   third of the cost of a movement, so it survives the budget, and where it
+   does not the budget removes it for the same reason it removes anything.
+
+   Main lifts are untouched — tier 1 appears only in the compound slots, and
+   adding a fourth set of squats to chase size is how a session becomes
+   seventy minutes and a recovery problem. */
+function wantsSize() { return (S.profile.goals || []).includes('muscle'); }
+
+/* Spends whatever minutes are left over after the session is built, one set at
+   a time, on the accessories. Mutates items and returns how many it added.
+
+   Strictly additive, and that is the whole design. Inflating the slots on the
+   way in — the obvious version, and the one written first — is net *negative*
+   under a real budget: the earlier accessories eat the minutes, a later slot
+   is then dropped whole, and a 75-minute session went from 8 movements and 20
+   sets to 7 and 19. Losing three sets to gain one is not more accessory work.
+
+   Taking the slack afterwards cannot remove anything, because by then every
+   movement is already placed. On a tight day there is no slack and nothing
+   happens, which is right — a goal must not buy you time you did not say you
+   had. Main lifts are left alone: a fourth set of squats to chase size is how
+   a session becomes a recovery problem. */
+function spendSlackOnAccessories(items, spent, budget) {
+  if (!wantsSize()) return 0;
+  const room = () => budget - spent;
+  let added = 0;
+  /* Two passes at most, so one movement cannot absorb all the slack. */
+  for (let pass = 0; pass < 2; pass++) {
+    for (const it of items) {
+      const ex = EX[it.exId];
+      if (!ex || it.warmup || it.cardio || ex.tier <= 1 || it.sets.length >= 6) continue;
+      const per = costOf(ex, it.sets.length + 1) - costOf(ex, it.sets.length);
+      if (per > room()) continue;
+      spent += per;
+      const seed = it.sets[it.sets.length - 1];
+      it.sets.push({ w: seed ? seed.w : '', r: '', rpe: '', done: false });
+      added++;
+    }
+  }
+  return added;
+}
+
 /* Cardio finisher, spread across the week to hit the chosen dose */
 function cardioSlot(weekCount) {
   const c = S.profile.cardio || { amount:'none' };
@@ -6074,6 +6136,10 @@ function generateSession(type, envKey, rung, minutes) {
       note: ''
     });
   });
+
+  /* Before the cardio finisher, whose minutes were reserved out of the budget
+     above and are therefore not slack. */
+  spendSlackOnAccessories(items, spent, budget);
 
   // cardio finisher
   {
@@ -7913,17 +7979,51 @@ const AGE_BANDS = [
   { from: 65, k: 'older',  protein: 1.8, gap: 48 }
 ];
 
-function ageBand() {
-  const a = ageYears();
+/* Split so onboarding can ask the same question of a draft that has not been
+   saved yet. Everything in the running app goes through ageBand(). */
+function ageBandAt(a) {
   if (a == null) return AGE_BANDS[0];
   let out = AGE_BANDS[0];
   AGE_BANDS.forEach(b => { if (a >= b.from) out = b; });
   return out;
 }
+function ageBand() { return ageBandAt(ageYears()); }
 
 /* The gap the evidence supports between two hard sessions, in hours, or 0 when
    age says nothing about it. */
 function recoveryGapHours() { return ageBand().gap; }
+
+/* ---------- protein per kilo: one function, two callers ----------
+   energyTargets() reads the saved profile and suggestedTargets() reads the
+   onboarding draft, but the multiplier is the same judgement and it was
+   written out twice. Two call sites that can disagree eventually will.
+
+   Cutting is the highest of the three because that is what the evidence says:
+   under an energy deficit with training, 1.8–2.7 g/kg is the supported range
+   and 2.4 g/kg beat 1.2 g/kg for holding lean mass. 2.2 sits deliberately
+   mid-range — this is a number an app hands to someone unsupervised, so it
+   should be defensible rather than maximal.
+
+   The age band is a floor, not an alternative. It only ever raises the
+   number, and it is why an older lifter who did not tick "build muscle" no
+   longer gets the same 1.6 as a twenty-year-old — which is what the age
+   screen has been promising all along while nothing implemented it. */
+function proteinPerKg(goals, band) {
+  const g = goals || [];
+  const wantsLean = g.includes('lean') || g.includes('fatloss');
+  const goalP = wantsLean ? 2.2 : g.includes('muscle') ? 1.9 : 1.6;
+  return Math.max(goalP, (band || ageBand()).protein);
+}
+
+/* The daily energy move, as a signed number. A deficit and a bulking surplus
+   are mutually exclusive answers to the same question, so picking both does
+   not average them: fat loss wins, because it is the one with a floor under
+   it and the one somebody is more likely to be hurt by getting wrong. */
+function energyDelta(goals) {
+  const g = goals || [];
+  if (g.includes('lean') || g.includes('fatloss')) return -400;
+  return g.includes('muscle') ? 250 : 0;
+}
 
 /* Whether the week has two hard days touching, and which. Says it, never fixes
    it — a plan quietly rebuilt around a number you gave for the energy equation
@@ -8021,21 +8121,26 @@ function energyTargets() {
   const kg = bodyKg();
   if (!kg) return null;
   const goals = S.profile.goals || [];
-  const wantsMuscle = goals.includes('muscle');
-  const wantsLean = goals.includes('lean') || goals.includes('fatloss');
 
-  const p = Math.round(kg * (wantsMuscle ? 1.9 : 1.6));
+  const p = Math.round(kg * proteinPerKg(goals));
   const maint = tdee();
   let kcal;
   let basis;
   if (maint) {
-    kcal = maint + (wantsMuscle ? 250 : 0) - (wantsLean ? 400 : 0);
+    kcal = maint + energyDelta(goals);
     basis = 'from your resting rate';
   } else {
-    kcal = Math.round(kg * 33) + (wantsMuscle ? 250 : 0);
+    kcal = Math.round(kg * 33) + energyDelta(goals);
     basis = 'estimated from bodyweight alone';
   }
-  kcal = Math.max(1200, Math.round(kcal / 10) * 10);
+  /* Never under the resting rate. A deficit taken off a low maintenance can
+     land below what the body burns lying still, and that is the point where an
+     unsupervised target stops being a diet and starts being a problem — the
+     flat 1200 alone does not catch it, because a small sedentary person can
+     have a maintenance under 1600 and clear 1200 comfortably on the way down. */
+  const rest = bmr();
+  kcal = Math.max(1200, rest || 0, Math.round(kcal / 10) * 10);
+  kcal = Math.round(kcal / 10) * 10;
   const f = Math.round((kcal * 0.27) / 9);
   const c = Math.max(0, Math.round((kcal - p * 4 - f * 9) / 4));
   return { kcal, p, c, f, basis, maint, bmr: bmr() };
@@ -8888,21 +8993,24 @@ function proteinTarget() {
   const tg = S.nutrition.targets || {};
   if (tg.p > 0) return tg.p;
   const e = energyTargets();
-  /* No age adjustment here, and that is a finding rather than an omission.
+  /* No age adjustment *here*, because it belongs one level down: the floor
+     lives in proteinPerKg() and this reads it through energyTargets().
 
      Older muscle is anabolically resistant — the same dose produces a smaller
      synthesis response — so every age-adjusted guideline puts the floor for an
      older adult above the 1.6 g/kg that Morton's plateau gives a trained
-     twenty-something. The obvious move is to raise the target with age.
+     twenty-something.
 
-     It was written, and it never once bound: energyTargets() lands around
-     1.9 g/kg for anyone it can compute for, which is already above the highest
-     of those guidelines. A floor that can never be reached is dead code with a
-     comment on it, so it is gone and the guarantee moved to engine.mjs, which
-     asserts the target still clears the older-adult floor at every band. If
-     someone lowers the protein model one day, that is what catches it.
+     This note used to say the floor was dead code, and at the time it was:
+     the model gave 1.9 g/kg to everyone it could compute for, which already
+     cleared the highest of those guidelines. That stopped being true when the
+     base became goal-dependent. Anyone who does not choose "build muscle" now
+     starts at 1.6, and for them the age band is the only thing standing
+     between a seventy-year-old and a twenty-year-old's number — so it binds,
+     and engine.mjs asserts it does at every band rather than merely that the
+     result clears the floor by luck.
 
-     What age does change is on the training side — see backToBackHard(). */
+     What age also changes is on the training side — see backToBackHard(). */
   return e ? e.p : Math.round(kg * 1.6);
 }
 
@@ -11314,14 +11422,25 @@ const OB_DEFAULT = {
 let obDraft = { ...OB_DEFAULT, gear:{ ...GEAR_ALL }, seedOverrides:{}, seedExact:{} };
 
 const GOALS = {
+  /* Every note here describes something the code does. They used to promise
+     rep ranges, accessory volume and a change of tone, and the truth was that
+     only 'muscle' was read anywhere in the app, by one line of nutrition
+     arithmetic — 'strength', 'health' and 'consist' changed not one byte. A
+     promise on the screen where somebody tells you what they want is the worst
+     possible place to keep one you are not keeping. */
   strength: { k:'strength', ico:'goal-strength', label:'Get stronger',
-              note:'Heavier main lifts, lower reps, longer rests, real progression on the bar.' },
+              note:'Three-minute rests on the main lifts instead of two and a half, so a heavy set is actually heavy.' },
   muscle:   { k:'muscle',   ico:'goal-muscle', label:'Build muscle',
-              note:'More volume in the 8–12 range, more accessory work, and a protein target that means something.' },
+              note:'Protein at 1.9 g per kg instead of 1.6, and any minutes left over at the end of a session go into extra accessory sets.' },
+  /* The reason most people install a training app, and it was not on the list.
+     energyTargets() had been testing for it since before this option existed —
+     a -400 kcal branch keyed on 'lean' that nothing could ever set. */
+  lean:     { k:'lean',     ico:'goal-lean', label:'Lose fat',
+              note:'Calories set below maintenance and protein at 2.2 g per kg to hold the muscle you have. Training stays as it is — in a deficit you keep muscle by still lifting heavy, not by doing more.' },
   health:   { k:'health',   ico:'goal-health', label:'Stay healthy and durable',
-              note:'Balanced work and joint-friendly progression. Built to survive long days on your feet.' },
+              note:'The balanced default — nothing added, nothing cut. Your injuries, priorities and hours still shape every session.' },
   consist:  { k:'consist',  ico:'goal-consist', label:'Just be consistent',
-              note:'Simpler programming. The app spends its effort removing friction rather than optimising.' }
+              note:'Nothing extra on top. The app spends its effort on fitting the day you actually got, which it does for you either way.' }
 };
 
 const tick = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>`;
@@ -11620,8 +11739,8 @@ OB_RENDER.age = () => {
                    .find(x => (now - obDraft.birthYear) >= x.from) || AGE_BANDS[0];
                  return b.gap
                    ? `The app will say when two hard days land back to back, and your
-                      protein target is held above ${b.protein} g/kg.`
-                   : `Your protein target is held above ${b.protein} g/kg.`; })()}</p>` : ''}
+                      protein target is held at ${b.protein} g/kg or above.`
+                   : `Your protein target is held at ${b.protein} g/kg or above.`; })()}</p>` : ''}
     <p class="ob-why">The evidence on recovery is genuinely split &mdash; some studies
       find older lifters worse off after hard work, some find the opposite. What it does
       support is the practical end: three sessions a week, 48 to 72 hours apart. So the
@@ -11681,7 +11800,7 @@ OB_RENDER.diet = () => obShell(`
 /* ---------- 3. goals ---------- */
 OB_RENDER.goals = () => obShell(`
   <h1 class="ob-q">What are you actually training for?</h1>
-  <p class="ob-sub">Pick everything that applies — they are not exclusive. This sets rep ranges, accessory volume, and how the app talks to you.</p>
+  <p class="ob-sub">Pick everything that applies &mdash; they are not exclusive. This sets your protein target, your calories, how much accessory work you get and how long you rest between heavy sets.</p>
   <div class="opts">
     ${Object.values(GOALS).map(g => opt({ act:'ob-goal', v:g.k, on:obDraft.goals.includes(g.k), ico:g.ico, title:g.label, desc:g.note })).join('')}
   </div>
@@ -11875,7 +11994,9 @@ OB_RENDER.nutrition = () => {
   const t = obDraft.bodyweight ? suggestedTargets(obDraft.bodyweight, obDraft.goals) : null;
   return obShell(`
     <h1 class="ob-q">Track protein and calories too?</h1>
-    <p class="ob-sub">Entirely optional, and it can never block or interrupt a workout. If you're training to build muscle, protein is the one number outside the gym that genuinely moves the needle.</p>
+    <p class="ob-sub">${obDraft.goals.includes('lean')
+      ? 'You said you want to lose fat, and that is the one goal on that list this decides. Training changes your shape; the deficit is what moves the number. It can never block or interrupt a workout.'
+      : 'Entirely optional, and it can never block or interrupt a workout. If you\'re training to build muscle, protein is the one number outside the gym that genuinely moves the needle.'}</p>
     <div class="opts">
       ${opt({ act:'ob-nutrition', v:'yes', on:obDraft.nutrition===true, ico:ico('plate'),
               title:'Yes, turn it on', desc:'A protein and calorie target on the home screen, with quick-add for the things you eat repeatedly.' })}
@@ -11890,10 +12011,20 @@ OB_RENDER.nutrition = () => {
         <div class="tile"><div class="v">${t.c}</div><div class="k">carbs</div></div>
         <div class="tile"><div class="v">${t.f}</div><div class="k">fat</div></div>
       </div>
-      <p class="small mt">${obDraft.goals.includes('muscle')
-        ? 'About 1.9 g of protein per kg, with calories slightly above maintenance for gaining. Adjustable later.'
-        : 'About 1.6 g of protein per kg at roughly maintenance calories. Adjustable later.'}</p>
-      <span class="src">1.6–2.2 g/kg is the range with the strongest evidence for muscle gain in trained lifters</span>
+      <p class="small mt">${(() => {
+        /* Read off the same function that computes the target, rather than
+           written out again here. This sentence said "1.9 g" or "1.6 g" and
+           nothing else, so it was already wrong for anyone cutting and for
+           anyone the age floor lifts. */
+        const g = proteinPerKg(obDraft.goals, ageBandAt(obDraft.birthYear
+          ? new Date().getFullYear() - obDraft.birthYear : null));
+        const move = energyDelta(obDraft.goals);
+        return `About ${g} g of protein per kg, with calories ${
+          move < 0 ? 'set below maintenance for steady fat loss'
+          : move > 0 ? 'slightly above maintenance for gaining'
+          : 'at roughly maintenance'}. Adjustable later.`;
+      })()}</p>
+      <span class="src">1.6–2.2 g/kg is the range with the strongest evidence for muscle gain in trained lifters; 1.8–2.7 g/kg is what holds lean mass through a deficit</span>
     </div>` : ''}
   `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>` });
 };
@@ -15464,7 +15595,7 @@ const HELP_BODY = {
   privacy: () => `
     ${helpBack()}
     <h2 class="h1 mt-s">Privacy</h2>
-    <p class="small mt-s">The short version: nothing you enter here leaves this device, because there is nowhere for it to go.</p>
+    <p class="small mt-s">The short version: nothing you enter here leaves this device. There is one thing the app can send, it is off unless you switch it on, and it is a barcode.</p>
 
     <div class="card mt">
       <div class="h3">There is no account and no server</div>
@@ -15472,8 +15603,13 @@ const HELP_BODY = {
     </div>
 
     <div class="card mt">
-      <div class="h3">Nothing is collected, sent or sold</div>
-      <p class="small mt-s">No analytics, no crash reporting, no advertising identifiers, no tracking of any kind. The app makes no network requests except to load its own two files. There is no third party in this app to share anything with.</p>
+      <div class="h3">Nothing is collected, tracked or sold</div>
+      <p class="small mt-s">No analytics, no crash reporting, no advertising identifiers, no tracking of any kind, and nothing you type is ever transmitted. Apart from the barcode lookup below, the app makes no network requests except to load its own two files.</p>
+    </div>
+
+    <div class="card mt">
+      <div class="h3">Barcode lookup &mdash; ${S.settings && S.settings.off ? 'currently <strong>on</strong>' : 'currently <strong>off</strong>'}</div>
+      <p class="small mt-s">Scanning a packet the app does not recognise can ask <strong>Open Food Facts</strong>, a public food database, what it is. That request contains the barcode and nothing else &mdash; no identifier, no account, no cookies, nothing about you or your log &mdash; and the answer is stored on this device so the same packet is never asked about twice. It is off until you turn it on in Settings, and with it off an unknown packet simply asks you to name it.</p>
     </div>
 
     <div class="card mt">
@@ -15491,7 +15627,7 @@ const HELP_BODY = {
       <p class="small mt-s">Guzo does not currently read Apple Health. If a future version does, it will ask first, read only what it names, keep it on the device under exactly these terms, and never write it anywhere else. Nothing in this app is medical advice — calorie and protein targets are estimates from published equations, and the food library holds generic reference foods rather than products with labels.</p>
     </div>
 
-    <p class="tiny center mt-l">Guzo Fit v\${VERSION}. Questions: the developer is the only person with access to anything, and that access is your own phone.</p>`,
+    <p class="tiny center mt-l">Guzo Fit v${VERSION}. Questions: the developer is the only person with access to anything, and that access is your own phone.</p>`,
 
   why: () => `
     ${helpBack()}
@@ -19284,6 +19420,12 @@ document.addEventListener('click', ev => {
     case 'ob-goal': {
       const ix = obDraft.goals.indexOf(v);
       if (ix >= 0) obDraft.goals.splice(ix, 1); else obDraft.goals.push(v);
+      /* Choosing fat loss pre-selects Fuel, because a deficit you cannot see is
+         not a plan — it is a guess with a number attached. Pre-selected, not
+         forced: the Fuel screen still asks, and answering "not for now" there
+         still works and still keeps the goal. Only ever turned on, never off,
+         so unticking the goal does not silently undo a choice made later. */
+      if (v === 'lean' && obDraft.goals.includes('lean')) obDraft.nutrition = true;
       renderOnboard(); break;
     }
     case 'ob-level': obDraft.level = v; renderOnboard(); break;
@@ -19337,12 +19479,30 @@ document.addEventListener('click', ev => {
       P.gear = obDraft.envs.includes('full') ? { ...obDraft.gear } : { ...GEAR_ALL };
       P.programId = obDraft.programId;
       S.settings.nutrition = obDraft.nutrition;
-      /* Only written when Fuel is on — the measure screens are skipped
-         otherwise, so the draft still holds its defaults and writing them
-         would fabricate a height nobody gave. */
+      /* "Longer rests" is the Get stronger option's own wording, so it has to
+         mean something. Three minutes on compounds is the range the strength
+         literature actually uses; the 150s default is a hypertrophy rest.
+         Only when strength is the goal and size is not — asking for both is
+         asking for the middle, which is where the default already sits. And
+         only ever set here, at first setup, because it is a Settings row the
+         user owns from that point on. */
+      if (obDraft.goals.includes('strength') && !obDraft.goals.includes('muscle')) {
+        S.settings.restMain = 180;
+      }
+      /* Age is asked of everyone, so it is kept by everyone.
+
+         It used to live behind this gate with height and sex, which was right
+         when all three were only asked on the measure screen. It is its own
+         step in the "You" chapter now and obSkip() never skips it — so gating
+         the write threw away an answer the user had just given, on a screen
+         that promises it changes how hard sessions are spaced. Declining Fuel
+         silently deleted the year, the band, and the notice. */
+      if (obDraft.birthYear) P.birthYear = obDraft.birthYear;
+      /* These three genuinely are only asked when Fuel is on — the measure and
+         activity screens are skipped otherwise, so the draft still holds its
+         defaults and writing them would fabricate a height nobody gave. */
       if (obDraft.nutrition) {
         if (obDraft.heightCm) P.heightCm = obDraft.heightCm;
-        if (obDraft.birthYear) P.birthYear = obDraft.birthYear;
         P.sex = obDraft.sex;
         P.activity = obDraft.activity;
         S.nutrition.prefs = {

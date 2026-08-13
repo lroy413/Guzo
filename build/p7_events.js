@@ -396,6 +396,12 @@ document.addEventListener('click', ev => {
     case 'ob-goal': {
       const ix = obDraft.goals.indexOf(v);
       if (ix >= 0) obDraft.goals.splice(ix, 1); else obDraft.goals.push(v);
+      /* Choosing fat loss pre-selects Fuel, because a deficit you cannot see is
+         not a plan — it is a guess with a number attached. Pre-selected, not
+         forced: the Fuel screen still asks, and answering "not for now" there
+         still works and still keeps the goal. Only ever turned on, never off,
+         so unticking the goal does not silently undo a choice made later. */
+      if (v === 'lean' && obDraft.goals.includes('lean')) obDraft.nutrition = true;
       renderOnboard(); break;
     }
     case 'ob-level': obDraft.level = v; renderOnboard(); break;
@@ -449,12 +455,30 @@ document.addEventListener('click', ev => {
       P.gear = obDraft.envs.includes('full') ? { ...obDraft.gear } : { ...GEAR_ALL };
       P.programId = obDraft.programId;
       S.settings.nutrition = obDraft.nutrition;
-      /* Only written when Fuel is on — the measure screens are skipped
-         otherwise, so the draft still holds its defaults and writing them
-         would fabricate a height nobody gave. */
+      /* "Longer rests" is the Get stronger option's own wording, so it has to
+         mean something. Three minutes on compounds is the range the strength
+         literature actually uses; the 150s default is a hypertrophy rest.
+         Only when strength is the goal and size is not — asking for both is
+         asking for the middle, which is where the default already sits. And
+         only ever set here, at first setup, because it is a Settings row the
+         user owns from that point on. */
+      if (obDraft.goals.includes('strength') && !obDraft.goals.includes('muscle')) {
+        S.settings.restMain = 180;
+      }
+      /* Age is asked of everyone, so it is kept by everyone.
+
+         It used to live behind this gate with height and sex, which was right
+         when all three were only asked on the measure screen. It is its own
+         step in the "You" chapter now and obSkip() never skips it — so gating
+         the write threw away an answer the user had just given, on a screen
+         that promises it changes how hard sessions are spaced. Declining Fuel
+         silently deleted the year, the band, and the notice. */
+      if (obDraft.birthYear) P.birthYear = obDraft.birthYear;
+      /* These three genuinely are only asked when Fuel is on — the measure and
+         activity screens are skipped otherwise, so the draft still holds its
+         defaults and writing them would fabricate a height nobody gave. */
       if (obDraft.nutrition) {
         if (obDraft.heightCm) P.heightCm = obDraft.heightCm;
-        if (obDraft.birthYear) P.birthYear = obDraft.birthYear;
         P.sex = obDraft.sex;
         P.activity = obDraft.activity;
         S.nutrition.prefs = {

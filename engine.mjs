@@ -1908,6 +1908,178 @@ try {
     JSON.stringify(age.perKg));
   check('age changes nothing it has no evidence for', age.untouched === true);
 
+  /* Clearing the floor and being *raised* by it are different claims, and the
+     check above only ever made the first. It passed for years because the
+     model handed 1.9 g/kg to everybody — the default goals include "build
+     muscle", so the age band never had to do anything. The moment the base
+     became goal-dependent, an older lifter who did not tick that box dropped
+     to a twenty-year-old's 1.6, which is precisely what the age screen
+     promises will not happen. Probed without the muscle goal, or the floor is
+     invisible again. */
+  const floor = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.heightCm = 176; S.profile.sex = 'm'; S.profile.activity = 'light';
+    S.profile.bodyweight = [{ d: today(), w: 70 }];
+    const at = (y, goals) => {
+      S.profile.birthYear = y; S.profile.goals = goals;
+      S.nutrition.targets = {}; save(true);
+      return +(proteinTarget() / bodyKg()).toFixed(2);
+    };
+    return { young: at(1996, ['health']), mid: at(1970, ['health']), old: at(1955, ['health']),
+             oldMuscle: at(1955, ['health', 'muscle']) };
+  });
+  check('the age floor actually raises the target, not just clears it',
+    floor.old > floor.young, `${floor.young} → ${floor.old} g/kg`);
+  check('...at every band the app defines',
+    floor.young === 1.6 && floor.mid === 1.7 && floor.old === 1.8,
+    JSON.stringify(floor));
+  check('...and a goal that asks for more still wins',
+    floor.oldMuscle === 1.9, String(floor.oldMuscle));
+
+  /* ---- the age you gave survives the question after it ----
+     The age step sits in the "You" chapter and is asked of everyone, but
+     ob-finish wrote birthYear inside the Fuel branch — where it used to belong,
+     back when height, age and sex were all collected on the measure screen.
+     So answering it and then declining Fuel deleted it, silently, along with
+     the band and the back-to-back notice that screen had just promised. */
+  const kept = await page.evaluate(() => {
+    const run = (fuel) => {
+      S = blank(); S.onboarded = false;
+      obDraft = { ...OB_DEFAULT, gear: { ...GEAR_ALL }, seedOverrides: {}, seedExact: {} };
+      obDraft.birthYear = 1955; obDraft.bodyweight = 80; obDraft.nutrition = fuel;
+      let btn = document.getElementById('zz-fin');
+      if (!btn) {
+        document.body.insertAdjacentHTML('beforeend',
+          '<button id="zz-fin" data-act="ob-finish"></button>');
+        btn = document.getElementById('zz-fin');
+      }
+      btn.click();
+      return { year: S.profile.birthYear || null, age: ageYears(), gap: recoveryGapHours() };
+    };
+    return { on: run(true), off: run(false) };
+  });
+  check('the age you gave is kept whether or not you turn Fuel on',
+    kept.on.year === 1955 && kept.off.year === 1955,
+    `fuel on ${kept.on.year}, fuel off ${kept.off.year}`);
+  check('...so the spacing it promises can still fire',
+    kept.off.gap === 48, `${kept.off.age} years old, gap ${kept.off.gap}`);
+
+  /* ---- losing fat is a goal you can pick, and it does something ----
+     It was not on the list at all, which for the single most common reason
+     anyone installs a training app is a strange omission — and energyTargets()
+     had been testing for a 'lean' key since before the option existed, so the
+     -400 kcal branch was unreachable code waiting for a goal nobody could
+     choose. */
+  console.log('\nlosing fat\n');
+  const cut = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    /* Age included, or bmr() returns null, tdee() with it, and the whole thing
+       silently falls back to bodyweight × 33 — which still moves by 400 and
+       would let this pass while testing the estimate rather than the model. */
+    S.profile.heightCm = 178; S.profile.sex = 'm'; S.profile.activity = 'light';
+    S.profile.birthYear = 1990;
+    S.profile.bodyweight = [{ d: today(), w: 82 }];
+    const at = (goals) => {
+      S.profile.goals = goals; S.nutrition.targets = {}; save(true);
+      const e = energyTargets();
+      return { kcal: e.kcal, perKg: +(e.p / bodyKg()).toFixed(2), maint: e.maint, bmr: e.bmr };
+    };
+    const base = at(['health']);
+    const lean = at(['lean']);
+    const both = at(['lean', 'muscle']);
+    const bulk = at(['muscle']);
+    /* Where a flat deficit goes somewhere it should not: maintenance close
+       enough to the resting rate that taking 400 off it lands underneath.
+
+       The window is narrow and has to be aimed at. With the lowest activity
+       factor the app has (1.25), a deficit only breaks the resting rate when
+       BMR × 0.25 < 400, i.e. under 1600 — and the flat 1200 floor already
+       covers everything below 1200. So the case lives between the two, and
+       the first fixture written here (48 kg, 152 cm, 76) had a resting rate of
+       about 890 and never reached it: the check passed with the floor removed,
+       which is the only reason it was found. */
+    S.profile.heightCm = 165; S.profile.sex = 'f'; S.profile.activity = 'desk';
+    S.profile.bodyweight = [{ d: today(), w: 60 }];
+    S.profile.birthYear = new Date().getFullYear() - 45;
+    const small = at(['lean']);
+    return { base, lean, both, bulk, small };
+  });
+  check('fat loss is a goal, and it takes calories off maintenance',
+    cut.lean.kcal < cut.base.kcal && cut.base.kcal === cut.lean.maint,
+    `${cut.base.kcal} → ${cut.lean.kcal} (maintenance ${cut.lean.maint})`);
+  check('...with protein raised into the range that holds lean mass',
+    cut.lean.perKg >= 1.8 && cut.lean.perKg <= 2.7, `${cut.lean.perKg} g/kg`);
+  check('...well clear of what the same person gets for maintenance',
+    cut.lean.perKg > cut.base.perKg, `${cut.base.perKg} → ${cut.lean.perKg}`);
+  /* Both at once is a contradiction, not an average: a surplus and a deficit
+     are opposite answers to one question, and quietly splitting the difference
+     gives somebody a number that serves neither goal while looking deliberate. */
+  check('...and asking to bulk and cut at once resolves to cutting',
+    cut.both.kcal === cut.lean.kcal && cut.bulk.kcal > cut.base.kcal,
+    `both ${cut.both.kcal}, cut ${cut.lean.kcal}, bulk ${cut.bulk.kcal}`);
+  check('a deficit never lands under the resting rate',
+    cut.small.kcal >= cut.small.bmr && cut.small.bmr > 0,
+    `${cut.small.kcal} kcal against a resting rate of ${cut.small.bmr}`);
+
+  /* ---- the goals screen's promises, against what the code does ----
+     It claimed to set "rep ranges, accessory volume, and how the app talks to
+     you" and set none of the three: goals reached exactly one line of
+     nutrition arithmetic, and only through the 'muscle' key. 'strength',
+     'health' and 'consist' were read by nothing at all. */
+  const goalFx = await page.evaluate(() => {
+    const gen = (goals, rung, mins) => {
+      S = blank(); S.onboarded = true; S.profile.goals = goals; save(true);
+      const s = generateSession('full', 'full', rung, mins);
+      const main = s.exercises.filter(i => EX[i.exId] && EX[i.exId].tier <= 1);
+      return { mv: s.exercises.length,
+               sets: s.exercises.reduce((a, i) => a + i.sets.length, 0),
+               mainSets: main.reduce((a, i) => a + i.sets.length, 0) };
+    };
+    const out = {};
+    [['full', 60], ['full', 75], ['full', 45], ['trim', 35], ['short', 20]].forEach(([r, m]) => {
+      out[r + m] = { without: gen(['health'], r, m), with: gen(['health', 'muscle'], r, m) };
+    });
+    /* And the rest length the Get stronger option names in its own copy. */
+    const rest = (goals) => {
+      S = blank(); S.onboarded = false;
+      obDraft = { ...OB_DEFAULT, gear: { ...GEAR_ALL }, seedOverrides: {}, seedExact: {} };
+      obDraft.goals = goals; obDraft.bodyweight = 80;
+      let b = document.getElementById('zz-fin2');
+      if (!b) {
+        document.body.insertAdjacentHTML('beforeend', '<button id="zz-fin2" data-act="ob-finish"></button>');
+        b = document.getElementById('zz-fin2');
+      }
+      b.click();
+      return S.settings.restMain;
+    };
+    return { out, restStrength: rest(['strength']), restBoth: rest(['strength', 'muscle']),
+             restNeither: rest(['health']) };
+  });
+  const rows = Object.values(goalFx.out);
+  /* Strictly additive is the whole point. The first implementation inflated
+     the slots on the way in, which under a real budget dropped a later
+     movement whole — 8 movements and 20 sets became 7 and 19. Gaining one set
+     by losing three is not more accessory work, and a check that only asked
+     "did the sets go up" would have called it a pass. */
+  check('the size goal never costs a movement',
+    rows.every(r => r.with.mv === r.without.mv),
+    rows.map(r => `${r.without.mv}→${r.with.mv}`).join(' '));
+  check('...never a set',
+    rows.every(r => r.with.sets >= r.without.sets),
+    rows.map(r => `${r.without.sets}→${r.with.sets}`).join(' '));
+  check('...and never adds one to a main lift',
+    rows.every(r => r.with.mainSets === r.without.mainSets),
+    rows.map(r => `${r.without.mainSets}→${r.with.mainSets}`).join(' '));
+  check('...but does add accessory work where the day has room',
+    rows.some(r => r.with.sets > r.without.sets),
+    rows.map(r => `${r.without.sets}→${r.with.sets}`).join(' '));
+  check('asking to get stronger buys longer rests on the main lifts',
+    goalFx.restStrength > goalFx.restNeither,
+    `${goalFx.restNeither}s → ${goalFx.restStrength}s`);
+  check('...and asking for both leaves it in the middle',
+    goalFx.restBoth === goalFx.restNeither,
+    `${goalFx.restBoth}s`);
+
   /* Said, never done. A week rebuilt around a number given for the energy
      equation is not something anyone asked for, and the functional recovery
      evidence is not strong enough to spend someone's Tuesday on. */

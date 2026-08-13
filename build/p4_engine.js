@@ -892,6 +892,61 @@ function prioritySlot() {
   return pat ? { pattern:pat, tier:[3], sets:3, priority:muscle } : null;
 }
 
+/* An extra set on every accessory when the goal is size.
+
+   "More accessory work" is what the Build muscle option has always promised,
+   and until this existed the only thing any goal changed anywhere in the app
+   was a protein multiplier — 'strength', 'health' and 'consist' were read by
+   nothing at all.
+
+   A set rather than a whole extra movement, and this is the second attempt.
+   Appending an eighth slot did nothing whatsoever: the full template is
+   already seven slots and a 60-minute budget only fits six, so the addition
+   was cut every single time and the feature was inert — the exact shape of
+   dead code it was written to replace. A goal must not buy you time you did
+   not say you had; it changes what fills the time you did. One extra set is a
+   third of the cost of a movement, so it survives the budget, and where it
+   does not the budget removes it for the same reason it removes anything.
+
+   Main lifts are untouched — tier 1 appears only in the compound slots, and
+   adding a fourth set of squats to chase size is how a session becomes
+   seventy minutes and a recovery problem. */
+function wantsSize() { return (S.profile.goals || []).includes('muscle'); }
+
+/* Spends whatever minutes are left over after the session is built, one set at
+   a time, on the accessories. Mutates items and returns how many it added.
+
+   Strictly additive, and that is the whole design. Inflating the slots on the
+   way in — the obvious version, and the one written first — is net *negative*
+   under a real budget: the earlier accessories eat the minutes, a later slot
+   is then dropped whole, and a 75-minute session went from 8 movements and 20
+   sets to 7 and 19. Losing three sets to gain one is not more accessory work.
+
+   Taking the slack afterwards cannot remove anything, because by then every
+   movement is already placed. On a tight day there is no slack and nothing
+   happens, which is right — a goal must not buy you time you did not say you
+   had. Main lifts are left alone: a fourth set of squats to chase size is how
+   a session becomes a recovery problem. */
+function spendSlackOnAccessories(items, spent, budget) {
+  if (!wantsSize()) return 0;
+  const room = () => budget - spent;
+  let added = 0;
+  /* Two passes at most, so one movement cannot absorb all the slack. */
+  for (let pass = 0; pass < 2; pass++) {
+    for (const it of items) {
+      const ex = EX[it.exId];
+      if (!ex || it.warmup || it.cardio || ex.tier <= 1 || it.sets.length >= 6) continue;
+      const per = costOf(ex, it.sets.length + 1) - costOf(ex, it.sets.length);
+      if (per > room()) continue;
+      spent += per;
+      const seed = it.sets[it.sets.length - 1];
+      it.sets.push({ w: seed ? seed.w : '', r: '', rpe: '', done: false });
+      added++;
+    }
+  }
+  return added;
+}
+
 /* Cardio finisher, spread across the week to hit the chosen dose */
 function cardioSlot(weekCount) {
   const c = S.profile.cardio || { amount:'none' };
@@ -963,6 +1018,10 @@ function generateSession(type, envKey, rung, minutes) {
       note: ''
     });
   });
+
+  /* Before the cardio finisher, whose minutes were reserved out of the budget
+     above and are therefore not slack. */
+  spendSlackOnAccessories(items, spent, budget);
 
   // cardio finisher
   {

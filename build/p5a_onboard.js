@@ -19,14 +19,25 @@ const OB_DEFAULT = {
 let obDraft = { ...OB_DEFAULT, gear:{ ...GEAR_ALL }, seedOverrides:{}, seedExact:{} };
 
 const GOALS = {
+  /* Every note here describes something the code does. They used to promise
+     rep ranges, accessory volume and a change of tone, and the truth was that
+     only 'muscle' was read anywhere in the app, by one line of nutrition
+     arithmetic — 'strength', 'health' and 'consist' changed not one byte. A
+     promise on the screen where somebody tells you what they want is the worst
+     possible place to keep one you are not keeping. */
   strength: { k:'strength', ico:'goal-strength', label:'Get stronger',
-              note:'Heavier main lifts, lower reps, longer rests, real progression on the bar.' },
+              note:'Three-minute rests on the main lifts instead of two and a half, so a heavy set is actually heavy.' },
   muscle:   { k:'muscle',   ico:'goal-muscle', label:'Build muscle',
-              note:'More volume in the 8–12 range, more accessory work, and a protein target that means something.' },
+              note:'Protein at 1.9 g per kg instead of 1.6, and any minutes left over at the end of a session go into extra accessory sets.' },
+  /* The reason most people install a training app, and it was not on the list.
+     energyTargets() had been testing for it since before this option existed —
+     a -400 kcal branch keyed on 'lean' that nothing could ever set. */
+  lean:     { k:'lean',     ico:'goal-lean', label:'Lose fat',
+              note:'Calories set below maintenance and protein at 2.2 g per kg to hold the muscle you have. Training stays as it is — in a deficit you keep muscle by still lifting heavy, not by doing more.' },
   health:   { k:'health',   ico:'goal-health', label:'Stay healthy and durable',
-              note:'Balanced work and joint-friendly progression. Built to survive long days on your feet.' },
+              note:'The balanced default — nothing added, nothing cut. Your injuries, priorities and hours still shape every session.' },
   consist:  { k:'consist',  ico:'goal-consist', label:'Just be consistent',
-              note:'Simpler programming. The app spends its effort removing friction rather than optimising.' }
+              note:'Nothing extra on top. The app spends its effort on fitting the day you actually got, which it does for you either way.' }
 };
 
 const tick = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>`;
@@ -325,8 +336,8 @@ OB_RENDER.age = () => {
                    .find(x => (now - obDraft.birthYear) >= x.from) || AGE_BANDS[0];
                  return b.gap
                    ? `The app will say when two hard days land back to back, and your
-                      protein target is held above ${b.protein} g/kg.`
-                   : `Your protein target is held above ${b.protein} g/kg.`; })()}</p>` : ''}
+                      protein target is held at ${b.protein} g/kg or above.`
+                   : `Your protein target is held at ${b.protein} g/kg or above.`; })()}</p>` : ''}
     <p class="ob-why">The evidence on recovery is genuinely split &mdash; some studies
       find older lifters worse off after hard work, some find the opposite. What it does
       support is the practical end: three sessions a week, 48 to 72 hours apart. So the
@@ -386,7 +397,7 @@ OB_RENDER.diet = () => obShell(`
 /* ---------- 3. goals ---------- */
 OB_RENDER.goals = () => obShell(`
   <h1 class="ob-q">What are you actually training for?</h1>
-  <p class="ob-sub">Pick everything that applies — they are not exclusive. This sets rep ranges, accessory volume, and how the app talks to you.</p>
+  <p class="ob-sub">Pick everything that applies &mdash; they are not exclusive. This sets your protein target, your calories, how much accessory work you get and how long you rest between heavy sets.</p>
   <div class="opts">
     ${Object.values(GOALS).map(g => opt({ act:'ob-goal', v:g.k, on:obDraft.goals.includes(g.k), ico:g.ico, title:g.label, desc:g.note })).join('')}
   </div>
@@ -580,7 +591,9 @@ OB_RENDER.nutrition = () => {
   const t = obDraft.bodyweight ? suggestedTargets(obDraft.bodyweight, obDraft.goals) : null;
   return obShell(`
     <h1 class="ob-q">Track protein and calories too?</h1>
-    <p class="ob-sub">Entirely optional, and it can never block or interrupt a workout. If you're training to build muscle, protein is the one number outside the gym that genuinely moves the needle.</p>
+    <p class="ob-sub">${obDraft.goals.includes('lean')
+      ? 'You said you want to lose fat, and that is the one goal on that list this decides. Training changes your shape; the deficit is what moves the number. It can never block or interrupt a workout.'
+      : 'Entirely optional, and it can never block or interrupt a workout. If you\'re training to build muscle, protein is the one number outside the gym that genuinely moves the needle.'}</p>
     <div class="opts">
       ${opt({ act:'ob-nutrition', v:'yes', on:obDraft.nutrition===true, ico:ico('plate'),
               title:'Yes, turn it on', desc:'A protein and calorie target on the home screen, with quick-add for the things you eat repeatedly.' })}
@@ -595,10 +608,20 @@ OB_RENDER.nutrition = () => {
         <div class="tile"><div class="v">${t.c}</div><div class="k">carbs</div></div>
         <div class="tile"><div class="v">${t.f}</div><div class="k">fat</div></div>
       </div>
-      <p class="small mt">${obDraft.goals.includes('muscle')
-        ? 'About 1.9 g of protein per kg, with calories slightly above maintenance for gaining. Adjustable later.'
-        : 'About 1.6 g of protein per kg at roughly maintenance calories. Adjustable later.'}</p>
-      <span class="src">1.6–2.2 g/kg is the range with the strongest evidence for muscle gain in trained lifters</span>
+      <p class="small mt">${(() => {
+        /* Read off the same function that computes the target, rather than
+           written out again here. This sentence said "1.9 g" or "1.6 g" and
+           nothing else, so it was already wrong for anyone cutting and for
+           anyone the age floor lifts. */
+        const g = proteinPerKg(obDraft.goals, ageBandAt(obDraft.birthYear
+          ? new Date().getFullYear() - obDraft.birthYear : null));
+        const move = energyDelta(obDraft.goals);
+        return `About ${g} g of protein per kg, with calories ${
+          move < 0 ? 'set below maintenance for steady fat loss'
+          : move > 0 ? 'slightly above maintenance for gaining'
+          : 'at roughly maintenance'}. Adjustable later.`;
+      })()}</p>
+      <span class="src">1.6–2.2 g/kg is the range with the strongest evidence for muscle gain in trained lifters; 1.8–2.7 g/kg is what holds lean mass through a deficit</span>
     </div>` : ''}
   `, { foot:`<button class="btn primary block lg" data-act="ob-next">Continue</button>` });
 };

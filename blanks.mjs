@@ -1746,6 +1746,40 @@ try {
   check('no emoji is painted on any screen or sheet',
     emojiSweep.n === 0, emojiSweep.hits.join(' | '));
 
+  /* ---- an unevaluated placeholder is a blank with extra steps ----
+     The privacy page printed "Guzo Fit v${VERSION}." — the literal characters,
+     because the `${` had been escaped in the source, so the substitution never
+     ran. It is the same class as an "undefined" reaching a screen and it slips
+     past that sweep entirely, since the text it leaves behind is neither empty
+     nor any of the words that pattern knows.
+
+     Swept over the help pages because that is where the long-form prose lives,
+     and the privacy page in particular is the one somebody screenshots for an
+     App Store review. */
+  const placeholders = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const hits = [];
+    let looked = 0;
+    Object.keys(HELP_BODY).forEach(k => {
+      let html;
+      try { html = HELP_BODY[k](); } catch (e) { hits.push(k + ': threw'); return; }
+      const box = document.createElement('div');
+      box.innerHTML = html;
+      const t = box.innerText || box.textContent || '';
+      looked += t.length;
+      /* Both halves of a template literal that never ran, and a bare backtick,
+         which only ever reaches prose the same way. */
+      const m = t.match(/\$\{[^}]*\}|`/);
+      if (m) hits.push(k + ': ' + m[0]);
+    });
+    return { hits, n: hits.length, looked, pages: Object.keys(HELP_BODY).length };
+  });
+  check('the placeholder sweep read the help pages',
+    placeholders.pages >= 5 && placeholders.looked > 2000,
+    `${placeholders.pages} pages, ${placeholders.looked} chars`);
+  check('no help page prints a placeholder it forgot to evaluate',
+    placeholders.n === 0, placeholders.hits.join(' | '));
+
   /* ---- onboarding paints icons, not the names of icons ----
      Nothing in this file had ever rendered an onboarding screen, and the first
      screens a new user sees were painting "goal-strength", "lvl-new",

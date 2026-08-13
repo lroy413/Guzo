@@ -144,14 +144,15 @@ const SESSION_LENGTHS = {
 };
 
 /* ---------- nutrition targets derived from bodyweight ---------- */
+/* The multiplier and the energy move come from p4f_body.js so this and
+   energyTargets() cannot drift — this one runs against the onboarding draft
+   before anything is saved, which is the only reason it exists separately. */
 function suggestedTargets(bwKg, goals) {
   if (!bwKg || bwKg <= 0) return null;
-  const wantsMuscle = (goals || []).includes('muscle');
   const kgs = S.profile && S.profile.units === 'lb' ? bwKg * 0.4536 : bwKg;
-  const p = Math.round(kgs * (wantsMuscle ? 1.9 : 1.6));
-  let kcal = Math.round(kgs * 33);
-  if (wantsMuscle) kcal += 250;
-  kcal = Math.round(kcal / 10) * 10;
+  const p = Math.round(kgs * proteinPerKg(goals));
+  let kcal = Math.round(kgs * 33) + energyDelta(goals);
+  kcal = Math.max(1200, Math.round(kcal / 10) * 10);
   const f = Math.round((kcal * 0.27) / 9);
   const c = Math.max(0, Math.round((kcal - p * 4 - f * 9) / 4));
   return { kcal, p, c, f };

@@ -206,7 +206,7 @@ const HELP_BODY = {
   privacy: () => `
     ${helpBack()}
     <h2 class="h1 mt-s">Privacy</h2>
-    <p class="small mt-s">The short version: nothing you enter here leaves this device, because there is nowhere for it to go.</p>
+    <p class="small mt-s">The short version: nothing you enter here leaves this device. There is one thing the app can send, it is off unless you switch it on, and it is a barcode.</p>
 
     <div class="card mt">
       <div class="h3">There is no account and no server</div>
@@ -214,8 +214,13 @@ const HELP_BODY = {
     </div>
 
     <div class="card mt">
-      <div class="h3">Nothing is collected, sent or sold</div>
-      <p class="small mt-s">No analytics, no crash reporting, no advertising identifiers, no tracking of any kind. The app makes no network requests except to load its own two files. There is no third party in this app to share anything with.</p>
+      <div class="h3">Nothing is collected, tracked or sold</div>
+      <p class="small mt-s">No analytics, no crash reporting, no advertising identifiers, no tracking of any kind, and nothing you type is ever transmitted. Apart from the barcode lookup below, the app makes no network requests except to load its own two files.</p>
+    </div>
+
+    <div class="card mt">
+      <div class="h3">Barcode lookup &mdash; ${S.settings && S.settings.off ? 'currently <strong>on</strong>' : 'currently <strong>off</strong>'}</div>
+      <p class="small mt-s">Scanning a packet the app does not recognise can ask <strong>Open Food Facts</strong>, a public food database, what it is. That request contains the barcode and nothing else &mdash; no identifier, no account, no cookies, nothing about you or your log &mdash; and the answer is stored on this device so the same packet is never asked about twice. It is off until you turn it on in Settings, and with it off an unknown packet simply asks you to name it.</p>
     </div>
 
     <div class="card mt">
@@ -233,7 +238,7 @@ const HELP_BODY = {
       <p class="small mt-s">Guzo does not currently read Apple Health. If a future version does, it will ask first, read only what it names, keep it on the device under exactly these terms, and never write it anywhere else. Nothing in this app is medical advice — calorie and protein targets are estimates from published equations, and the food library holds generic reference foods rather than products with labels.</p>
     </div>
 
-    <p class="tiny center mt-l">Guzo Fit v\${VERSION}. Questions: the developer is the only person with access to anything, and that access is your own phone.</p>`,
+    <p class="tiny center mt-l">Guzo Fit v${VERSION}. Questions: the developer is the only person with access to anything, and that access is your own phone.</p>`,
 
   why: () => `
     ${helpBack()}

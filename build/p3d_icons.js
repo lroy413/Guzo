@@ -308,6 +308,12 @@ Object.assign(ICO, {
   'lvl-solid':    svgIco('<path d="M2.5 18.8h19"/><path d="M3 18.8l5.6-8.6 3.2 4 3.2-4.6 5.6 9.2"/><path d="M13.4 10.6l2 1"/>'),
   'goal-strength':svgIco('<path d="M2.5 12h19"/><rect x="4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="17.4" y="8.6" width="2.6" height="6.8" rx="1"/><rect x="7.2" y="6.8" width="2.6" height="10.4" rx="1"/><rect x="14.2" y="6.8" width="2.6" height="10.4" rx="1"/>'),
   'goal-muscle':  bodyIco('<path d="M8.2 8.5L6 13M15.8 8.5L18 13"/><circle cx="6.6" cy="11.6" r="1.6"/><circle cx="17.4" cy="11.6" r="1.6"/>'),
+  /* A trend coming down, deliberately not a weighing scale: a scale is the
+     object people who have had a bad time with this associate with being
+     judged, and nothing in this app is allowed to read that way. It is the
+     mirror of goal-consist's rising bars, in the same chart vocabulary the
+     rest of the app already speaks. */
+  'goal-lean':    svgIco('<path d="M3.4 7.2l5.4 5.6 3.4-2.9 7.4 7.1"/><path d="M15.4 19.1h4.6v-4.6"/>'),
   cog:            svgIco('<circle cx="12" cy="12" r="3.2"/><path d="M12 2.6v2.8M12 18.6v2.8M2.6 12h2.8M18.6 12h2.8"/><path d="M5.4 5.4l2 2M16.6 16.6l2 2M18.6 5.4l-2 2M7.4 16.6l-2 2"/>'),
   summit:         svgIco('<path d="M2 20h20"/><path d="M2.4 20l6.6-13 3.6 5.6L16.2 4 21.6 20z"/><path d="M14.6 7.6l2.8 1.4M7.6 11.4l2.4 1.2"/>'),
   half:           svgIco('<circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 010 16z" fill="currentColor" stroke="none"/>'),
@@ -336,7 +342,7 @@ toneIcons('teal', [
   'shoulder', 'lowback', 'knee', 'elbow', 'wrist', 'neck', 'hip', 'ankle',
   'area-Back', 'area-Shoulders', 'area-Chest', 'area-Core',
   'area-Quads', 'area-Glutes', 'area-Arms', 'area-Calves',
-  'stretch', 'mobility', 'env-bw', 'goal-health', 'goal-muscle',
+  'stretch', 'mobility', 'env-bw', 'goal-health', 'goal-muscle', 'goal-lean',
   'person', 'plaster', 'science', 'ruler'
 ]);
 
