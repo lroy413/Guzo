@@ -250,9 +250,16 @@ input[type=number]{-moz-appearance:textfield}
 /* An 11px unit suffix is one or two thin glyphs; --muted measures 5.5:1 on
    paper and lands at 4.5 once antialiased, so the token is lifted here. */
 .dm-u{font-size:11px;font-weight:600;color:#98a2ae;margin-left:2px;letter-spacing:0}
-.dm-k{height:14px;font-size:10px;font-weight:700;letter-spacing:.14em;
-  text-transform:uppercase;color:var(--muted);margin-top:2px;line-height:14px;
-  overflow:hidden;white-space:nowrap}
+.dm-k{height:16px;font-size:10px;font-weight:700;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--muted);margin-top:3px;line-height:16px;
+  overflow:hidden;white-space:nowrap;
+  display:flex;align-items:center;justify-content:center;gap:5px}
+/* The icon takes its category colour here rather than the label's grey — the
+   strip is not a tile, so the scoped tone rules do not reach it and the colour
+   is asked for explicitly. */
+.dm-i{display:flex;flex:none;color:var(--sky);opacity:.85}
+.dm-i .ico-svg{width:13px;height:13px}
+.dm-cell:last-child .dm-i{color:var(--teal)}
 
 /* Seven days. A missing day is a stub rather than a gap, because "I did not
    log it" and "it was zero" are different things and the strip should not
@@ -620,12 +627,11 @@ button.recall:active{transform:scale(.97)}
 .home-day{font:inherit;color:var(--ember);text-decoration:underline;
   text-decoration-color:var(--ember-line);text-underline-offset:3px;
   padding:11px 6px;margin:-11px -6px;min-height:44px;display:inline-flex;align-items:center}
-.week-chip{display:flex;align-items:center;gap:9px;padding:9px 13px;min-height:44px;
-  border-radius:14px;background:var(--surface-2);border:1px solid var(--line);
-  transition:transform .12s ease}
-.week-chip:active{transform:scale(.96)}
-.week-chip-n{font-family:var(--fm);font-size:15px;color:var(--muted);letter-spacing:-.02em}
-.week-chip-n b{font-size:21px;font-weight:700;color:var(--ember);letter-spacing:-.03em}
+.week-chip{display:flex;align-items:center;gap:10px;padding:7px 13px 7px 8px;min-height:44px;
+  border-radius:16px;background:linear-gradient(160deg,var(--surface-2),rgba(16,20,26,.7));
+  border:1px solid var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.045);
+  transition:transform .14s var(--ease-spring),border-color .18s ease}
+.week-chip:active{transform:scale(.96);border-color:var(--ember-line)}
 .week-chip-l{font-size:10.5px;font-weight:650;letter-spacing:.09em;text-transform:uppercase;
   color:var(--muted);line-height:1.25;text-align:left}
 
@@ -751,28 +757,92 @@ button.recall:active{transform:scale(.97)}
 .card.rose{border-color:rgba(242,114,111,.28);background:linear-gradient(180deg,rgba(242,114,111,.06),transparent)}
 .card.sky{border-color:rgba(107,168,245,.28);background:linear-gradient(180deg,rgba(107,168,245,.06),transparent)}
 
-/* ---------- buttons ---------- */
+/* ---------- buttons ----------
+   A button is a physical object or it is a coloured rectangle, and the whole
+   set was the latter: one flat gradient, one hairline, and a 2.5% scale on
+   press. Three things give it a body, and none of them is a bigger shadow.
+
+   **A lit top edge and a dark bottom one.** Light in this app comes from above
+   — the cards say so, the ridge says so — so a control has a bright inner line
+   at its top and a dark one at its foot. That single pair does more than any
+   amount of drop shadow, because it is what an object under a light actually
+   looks like.
+
+   **A specular over the top half**, falling off before the middle. A gradient
+   that runs the full height reads as a colour; one that stops reads as a
+   surface catching light.
+
+   **Two shadows, not one.** A tight dark one for contact and a wide tinted one
+   for lift, and both collapse on press while the button moves down a pixel —
+   pressing it should look like pressing it, not like it briefly got smaller. */
 .btn{
+  position:relative;overflow:hidden;
   display:inline-flex;align-items:center;justify-content:center;gap:8px;
   padding:13px 18px;border-radius:var(--r);font-weight:650;font-size:15px;
-  background:var(--surface-3);color:var(--text);border:1px solid var(--line);
-  transition:transform .12s ease, filter .15s ease, background .15s ease;
+  background:linear-gradient(180deg,var(--surface-3),#1a2028);
+  color:var(--text);border:1px solid var(--line);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.055),0 1px 2px rgba(0,0,0,.28);
+  transition:transform .16s var(--ease-spring),box-shadow .16s ease,
+             filter .15s ease,background .15s ease;
   letter-spacing:-.01em;
 }
-.btn:active{transform:scale(.975)}
-.btn.primary{background:linear-gradient(180deg,#F2C468,#DCA236);color:#1F1704;border-color:transparent;
-  box-shadow:0 8px 24px rgba(233,180,76,.26),inset 0 1px 0 rgba(255,255,255,.22)}
-.btn.ghost{background:transparent;border-color:var(--line)}
-.btn.quiet{background:transparent;border-color:transparent;color:var(--muted);padding:12px;min-width:44px;min-height:46px}
+.btn:active{transform:translateY(1px) scale(.985);
+  box-shadow:inset 0 1px 2px rgba(0,0,0,.34)}
+
+.btn.primary{
+  background:linear-gradient(180deg,#F7D083 0%,#EFBE5E 46%,#D99C2C 100%);
+  color:#1E1603;border-color:transparent;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.42),
+             inset 0 -1px 0 rgba(122,80,4,.30),
+             0 2px 5px rgba(0,0,0,.34),
+             0 12px 28px -10px rgba(233,180,76,.62);
+}
+.btn.primary:active{box-shadow:inset 0 1px 0 rgba(255,255,255,.24),
+  inset 0 2px 6px rgba(122,80,4,.28),0 1px 3px rgba(0,0,0,.3)}
+.btn.teal{
+  background:linear-gradient(180deg,#6ee2bd 0%,#4fd1a5 46%,#33b98c 100%);
+  color:#03201a;border-color:transparent;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4),
+             inset 0 -1px 0 rgba(2,70,54,.3),
+             0 2px 5px rgba(0,0,0,.34),
+             0 12px 28px -10px rgba(79,209,165,.5);
+}
+.btn.teal:active{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),
+  inset 0 2px 6px rgba(2,70,54,.3),0 1px 3px rgba(0,0,0,.3)}
+/* The specular. Half the height, so it reads as a surface catching light
+   rather than as a second colour. */
+.btn.primary::before,.btn.teal::before{content:'';position:absolute;
+  left:0;right:0;top:0;height:52%;pointer-events:none;border-radius:inherit;
+  background:linear-gradient(180deg,rgba(255,255,255,.26),rgba(255,255,255,0))}
+/* And the sweep of light when you press it. Driven by a transient class from a
+   pointerdown listener rather than by :active — :active only holds while the
+   finger is down, so the animation would stop mid-sweep on a quick tap, which
+   is every tap. */
+.btn.primary::after,.btn.teal::after{content:'';position:absolute;top:0;bottom:0;
+  width:36%;left:-45%;pointer-events:none;opacity:0;
+  background:linear-gradient(100deg,rgba(255,255,255,0),rgba(255,255,255,.45),rgba(255,255,255,0))}
+@media (prefers-reduced-motion: no-preference){
+  .btn.sheen::after{animation:btnSheen .6s var(--ease-out)}
+}
+@keyframes btnSheen{from{left:-45%;opacity:1}to{left:112%;opacity:0}}
+
+.btn.ghost{background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.012));
+  border-color:var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.btn.ghost:active{background:var(--surface-3);box-shadow:inset 0 1px 3px rgba(0,0,0,.3)}
+/* Quiet is the one that must not look like an object — it is the way out of a
+   screen, not the way through it. It gets its affordance on press instead. */
+.btn.quiet{background:none;border-color:transparent;color:var(--text-dim);
+  box-shadow:none;padding:12px;min-width:44px;min-height:46px}
+.btn.quiet:active{background:var(--surface-2);box-shadow:none;transform:scale(.99)}
 /* A back control drawn as a stroked path rather than a “←” glyph: at 12px a
    text arrow antialiases down to roughly half the contrast of the colour it
    was given, which is how it was failing a pixel-sampled check while passing
    an inspection of the CSS. */
-.btn.back{background:var(--surface-3);border-color:var(--line);color:var(--text);
+.btn.back{background:linear-gradient(180deg,var(--surface-3),#1a2028);border-color:var(--line);color:var(--text);
   padding:0;width:38px;min-width:38px;height:38px;min-height:38px;border-radius:12px}
 .btn.back svg{width:18px;height:18px}
-.btn.teal{background:linear-gradient(180deg,#5bdcb0,#38bd90);color:#03201a;border-color:transparent}
-.btn.danger{background:transparent;border-color:rgba(242,114,111,.4);color:var(--rose)}
+.btn.danger{background:none;border-color:rgba(242,114,111,.34);color:var(--rose);box-shadow:none}
+.btn.danger:active{background:var(--rose-dim);box-shadow:none}
 .btn.block{display:flex;width:100%}
 .btn.sm{padding:9px 13px;font-size:13.5px;border-radius:11px;min-height:44px}
 .btn.xs{padding:11px 12px;font-size:12.5px;border-radius:10px;min-height:44px}
@@ -785,7 +855,7 @@ button.recall:active{transform:scale(.97)}
 .vid-box{background:var(--surface-2);border:1px solid var(--line-soft);
   border-radius:var(--r-lg);padding:15px 16px}
 .vid-box a.btn{text-decoration:none}
-.btn.lg{padding:17px 22px;font-size:16.5px;border-radius:16px}
+.btn.lg{padding:18px 22px;font-size:17px;border-radius:17px;letter-spacing:-.02em}
 .btn[disabled]{opacity:.4;pointer-events:none}
 .btn-row{display:flex;gap:10px}
 .btn-row .btn{flex:1}
@@ -1753,6 +1823,13 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .hero.done{border-color:rgba(79,209,165,.26);background:linear-gradient(165deg,#152220,#0f1318)}
 .hero-glow{position:absolute;inset:-40% -20% auto -20%;height:70%;pointer-events:none;
   background:radial-gradient(60% 100% at 50% 0%,rgba(233,180,76,.18),transparent 70%)}
+/* The range stands behind the day's session the way it stands behind the
+   ascent on Progress. Shorter and softer here than on Train, because there is
+   34px type sitting on top of it. */
+.hero .ridge{height:132px;opacity:.72}
+.hero .ridge svg{opacity:.9}
+.hero.done .ridge-line{stroke:var(--teal-soft)}
+.hero.quiet .ridge{opacity:.4}
 .hero-in{position:relative;padding:20px 20px 18px}
 .hero-eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:var(--ember-2);
   display:inline-flex;align-items:center;gap:7px}
@@ -1964,6 +2041,34 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .ridge{position:absolute;left:0;right:0;top:0;height:104px;pointer-events:none}
 .ridge svg{display:block;width:100%;height:100%}
 .tr-ridge{height:96px;opacity:.9}
+/* The skyline catching the sun. It draws itself on when you arrive on the
+   screen — off .entering, which go() adds and a timer removes, and never off
+   .screen.on: every render replaces the body's innerHTML and the line would
+   redraw itself every time you logged anything. Arriving is the only thing
+   that should feel like arriving. */
+.ridge-line{fill:none;stroke:var(--ember-2);stroke-width:1.4;opacity:.55;
+  stroke-dasharray:1;stroke-dashoffset:0}
+.ridge-line.far{stroke:var(--ember);opacity:.30;stroke-width:1.2}
+@media (prefers-reduced-motion: no-preference){
+  .screen.entering .ridge-line{animation:ridgeDraw 1.05s var(--ease-out) both}
+  .screen.entering .ridge-line.far{animation-delay:.12s}
+}
+@keyframes ridgeDraw{from{stroke-dashoffset:1;opacity:0}
+  55%{opacity:.55}to{stroke-dashoffset:0}}
+
+/* ---------- the week, as an arc ---------- */
+.wk-ring{position:relative;width:40px;height:40px;flex:none;display:flex;
+  align-items:center;justify-content:center}
+.wk-ring svg{position:absolute;inset:0;width:40px;height:40px;transform:rotate(-90deg)}
+.wk-ring-t{fill:none;stroke:var(--surface-3);stroke-width:3}
+.wk-ring-i{fill:none;stroke:var(--ember);stroke-width:3;stroke-linecap:round;
+  transition:stroke-dashoffset var(--t-slow) var(--ease-out)}
+.wk-ring b{position:relative;font-family:var(--fm);font-size:17px;font-weight:700;
+  color:var(--ember);letter-spacing:-.03em;line-height:1}
+@media (prefers-reduced-motion: no-preference){
+  .screen.entering .wk-ring-i{animation:ringFill .9s var(--ease-out) both}
+}
+@keyframes ringFill{from{stroke-dashoffset:1}}
 /* Decoration that is position:absolute paints over static content unless the
    content is given a stacking position of its own — the same trap the ridge on
    Progress fell into, where it drew straight over the empty-state paragraph. */

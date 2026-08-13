@@ -1789,7 +1789,7 @@ try {
   /* Every animation added has to be inside a no-preference guard. Someone who
      has asked their phone to stop moving things has asked this app too. */
   const reduced = await page.evaluate(() => {
-    const wanted = ['riseIn', 'tickPop', 'tickDraw'];
+    const wanted = ['riseIn', 'tickPop', 'tickDraw', 'btnSheen', 'ridgeDraw', 'ringFill'];
     const guarded = {};
     wanted.forEach(k => { guarded[k] = false; });
     for (const sheet of document.styleSheets) {
@@ -1803,9 +1803,138 @@ try {
     }
     return guarded;
   });
+  /* Being inside the guard is not the same as being bound to arrival. The
+     skyline drawing itself on has to hang off .entering — bound to .screen or
+     .screen.on it would replay every time anything on Today re-rendered, which
+     is every set you log, and the reduced-motion check above would stay green
+     the whole time because the animation name never moved. */
+  const arrivalOnly = await page.evaluate(async () => {
+    go('progress'); go('today');
+    await new Promise(r => setTimeout(r, 60));
+    const line = () => document.querySelector('#today-body .ridge-line');
+    if (!line()) return { missing: 'no skyline' };
+    const during = getComputedStyle(line()).animationName;
+    await new Promise(r => setTimeout(r, 900));
+    render();
+    const after = getComputedStyle(line()).animationName;
+    return { during, after };
+  });
+  check('the skyline draws itself on when you arrive',
+    arrivalOnly.during === 'ridgeDraw', arrivalOnly.missing || arrivalOnly.during);
+  check('...and not on every render after it',
+    arrivalOnly.after === 'none', arrivalOnly.after);
+
   check('the screen arrival is behind reduced-motion', reduced.riseIn === true);
   check('the set tick flourish is behind reduced-motion', reduced.tickPop === true);
   check('...including its mark', reduced.tickDraw === true);
+  check('the button sweep is behind reduced-motion', reduced.btnSheen === true);
+  check('...the skyline drawing itself on', reduced.ridgeDraw === true);
+  check('...and the week ring filling', reduced.ringFill === true);
+
+  /* ---- a button is an object ----
+     The whole set was a coloured rectangle with a 2.5% scale on press. What is
+     asserted is the part that can silently stop being true and would look
+     merely "flat" rather than broken: the press moves it, the sweep plays and
+     then cleans up after itself, and the specular exists. Read off the
+     rendered element, because every one of these is a pseudo-element or a
+     shadow and none of them changes the markup. */
+  const press = await page.evaluate(async () => {
+    S = blank(); S.onboarded = true; S.profile.name = 'Probe';
+    save(true); buildWeekPlan(true); go('today');
+    await new Promise(r => setTimeout(r, 900));
+    const b = document.querySelector('#today-body .btn.primary');
+    if (!b) return { missing: 'no primary button' };
+    const rest = getComputedStyle(b);
+    const spec = getComputedStyle(b, '::before');
+    const before = { t: rest.transform, sh: rest.boxShadow };
+    /* The real event, not a class set by hand: the listener is what has to
+       still be wired, and a check that adds .sheen itself proves the CSS and
+       nothing else. */
+    b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+    const swept = b.classList.contains('sheen');
+    /* And it has to come off, or the second tap cannot replay it. */
+    await new Promise(r => setTimeout(r, 800));
+    const cleared = b.classList.contains('sheen');
+    return { before, swept, cleared,
+             specular: spec.backgroundImage,
+             shadows: (before.sh.match(/rgba?\(/g) || []).length };
+  });
+  check('the button probe found a primary button', !press.missing, press.missing);
+  check('a solid button catches the light', /gradient/.test(press.specular || ''),
+    press.specular);
+  check('...and sits on more than one shadow', press.shadows >= 3, String(press.shadows));
+  check('pressing it sweeps light across it', press.swept === true);
+  check('...and the sweep clears itself for the next tap', press.cleared === false);
+
+  /* The press physics, driven through a real pointer so :active actually
+     applies — a computed style read without one reports the resting state and
+     would pass whatever the press does. */
+  const btnBox = await page.evaluate(`(() => {
+    /* A button of its own, pinned where the pointer can certainly reach it.
+       Pressing the real one would start a session on release and leave every
+       check after this running against a live one — and a button that has
+       scrolled below the fold takes the press on whatever is at those
+       coordinates instead, which reports "no movement" for the wrong reason. */
+    const b = document.createElement('button');
+    b.className = 'btn primary lg probe-btn';
+    b.textContent = 'Press';
+    b.style.cssText = 'position:fixed;left:40px;top:40px;width:200px;z-index:9999';
+    document.body.appendChild(b);
+    const r = b.getBoundingClientRect();
+    return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+  })()`);
+  await page.mouse.move(btnBox.x, btnBox.y);
+  await page.mouse.down();
+  /* After the transition has settled. Read in the same turn as the press and
+     the transform is still at its resting value, which passes a
+     "did it change" comparison against the released state for the wrong
+     reason — the released state is `none` and the mid-flight one is an
+     identity matrix. */
+  await page.waitForTimeout(320);
+  const held = await page.evaluate(`(() => {
+    const m = getComputedStyle(document.querySelector('.probe-btn')).transform;
+    const n = (m.match(/matrix\\(([^)]+)\\)/) || [0, ''])[1].split(',').map(Number);
+    return { m, scale: n[0], dy: n[5] };
+  })()`);
+  await page.mouse.up();
+  await page.waitForTimeout(320);
+  const let_go = await page.evaluate(`(() => {
+    const t = getComputedStyle(document.querySelector('.probe-btn')).transform;
+    document.querySelector('.probe-btn').remove();
+    return t;
+  })()`);
+  check('holding it presses it down',
+    held.m !== 'none' && held.m !== let_go && held.scale < 1, `${held.m} vs ${let_go}`);
+  /* Down as well as in: a control that only shrinks reads as receding rather
+     than as being pushed. */
+  check('...downward, not only smaller', held.dy > 0, String(held.dy));
+
+  /* ---- the week, as an arc ----
+     "0/3 THIS WEEK" was three characters of monospace pretending to be a
+     status. The arc has to encode the fraction rather than decorate it, and
+     it has to draw nothing at all when nothing is done — a dash pattern
+     offset to its own full length still paints a subpixel sliver at twelve
+     o'clock, which reads as a session done when none are. */
+  const ring = await page.evaluate(() => {
+    const at = n => {
+      const el = document.createElement('div');
+      el.innerHTML = weekRingHTML(n, 3);
+      const arc = el.querySelector('.wk-ring-i');
+      return { arc: !!arc, off: arc ? +arc.getAttribute('stroke-dashoffset') : null,
+               n: (el.querySelector('b') || {}).textContent };
+    };
+    /* More done than planned is a real state — an extra session on a day that
+       was already discharged — and an arc past full would wrap onto itself. */
+    return { zero: at(0), one: at(1), all: at(3), over: at(5) };
+  });
+  check('nothing done draws no arc at all', ring.zero.arc === false && ring.zero.n === '0',
+    JSON.stringify(ring.zero));
+  check('...one of three fills a third of it', ring.one.arc === true
+    && Math.abs(ring.one.off - 2 / 3) < 0.005, JSON.stringify(ring.one));
+  check('...three of three fills it', Math.abs(ring.all.off) < 0.005, JSON.stringify(ring.all));
+  check('...and more than planned does not wrap past full',
+    Math.abs(ring.over.off) < 0.005 && ring.over.n === '5', JSON.stringify(ring.over));
+  await page.evaluate(`closeSheet && document.querySelectorAll('.sheet.on').length && closeSheet()`);
 
   /* The sky is ambient only. Every surface, line and text colour was measured
      for contrast; the light in the room may change, the room may not. */

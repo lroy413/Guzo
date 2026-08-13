@@ -42,19 +42,24 @@ function dayStripHTML() {
      whatever combination of them you have filled in. The first version let
      each column size itself and an unlogged Steps pushed its label 65px below
      the other two — see .day-v.empty in docs/status.md. */
-  const cell = (val, unitLbl, key, field) => `
+  /* The label carries the icon rather than a row of its own above it. Three
+     em-dashes over three uppercase words was the whole strip before anything
+     was logged, and it is a third of the height of the tallest thing on the
+     screen — the icons are what make it read as three different things rather
+     than as three empty boxes. */
+  const cell = (val, unitLbl, key, field, icon) => `
     <div class="dm-cell">
       <div class="dm-v${val == null ? ' none' : ''}">${val == null ? '&mdash;' : val
         }${val != null && unitLbl ? `<span class="dm-u">${unitLbl}</span>` : ''}</div>
-      <div class="dm-k">${key}</div>
+      <div class="dm-k"><span class="dm-i">${icon}</span>${key}</div>
       ${bars(field)}
     </div>`;
 
   return `<button class="dm" data-act="daily">
     <div class="dm-row">
-      ${cell(st != null ? fmtSteps(st) : null, '', 'Steps', 'steps')}
-      ${cell(sl != null ? sl : null, 'h', 'Sleep', 'sleepH')}
-      ${cell(bw != null ? fmtW(bw) : null, unit(), 'Weight', 'weight')}
+      ${cell(st != null ? fmtSteps(st) : null, '', 'Steps', 'steps', ICO['car-walk'])}
+      ${cell(sl != null ? sl : null, 'h', 'Sleep', 'sleepH', ICO.moon)}
+      ${cell(bw != null ? fmtW(bw) : null, unit(), 'Weight', 'weight', ICO.ruler)}
     </div>
     <div class="dm-note">${read ? h(read.t) : 'Tap to log the day around it'}</div>
   </button>`;

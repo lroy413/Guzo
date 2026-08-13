@@ -275,9 +275,10 @@ function renderToday() {
             bug unless the app explains itself. */
         inLateWindow() ? `<button class="home-late" data-act="day-start">Still ${DAYNAMES[fromKey(today()).getDay()]} until ${dayStartHour()}am</button>` : ''}
     </div>
-    ${wk.planned ? `<button class="week-chip" data-act="open-week">
-      <span class="week-chip-n"><b>${wk.done}</b>/${wk.planned}</span>
-      <span class="week-chip-l">this<br>week</span>
+    ${wk.planned ? `<button class="week-chip" data-act="open-week"
+        aria-label="${wk.done} of ${wk.planned} sessions this week">
+      ${weekRingHTML(wk.done, wk.planned)}
+      <span class="week-chip-l">of ${wk.planned}<br>this week</span>
     </button>` : ''}
   </div>`;
 
@@ -292,6 +293,7 @@ function renderToday() {
     const pct = allSets ? Math.round(doneSets/allSets*100) : 0;
     html += `<div class="hero live">
       <div class="hero-glow"></div>
+      ${ridgeHTML('hero', true)}
       <div class="hero-in">
         <div class="row between"><span class="hero-eyebrow"><span class="live-dot"></span>${S.active.backdated ? 'Logging ' + h(prettyDate(S.active.date)) : 'In progress'}</span><span class="pill em">${doneSets}/${allSets} sets</span></div>
         <h1 class="hero-title">${S.active.backdated ? 'A day you already did' : h(sessionTitle(S.active))}</h1>
@@ -301,6 +303,7 @@ function renderToday() {
     </div>`;
   } else if (c.avail === 'none') {
     html += `<div class="hero quiet">
+      ${ridgeHTML('hero', true)}
       <div class="hero-in">
         <span class="hero-eyebrow">Today</span>
         <h1 class="hero-title">Rest day</h1>
@@ -316,6 +319,7 @@ function renderToday() {
     const sess = sessionsOn(today()).filter(x => !x.extra).slice(-1)[0] || sessionsOn(today()).slice(-1)[0];
     const v = sessionVolume(sess);
     html += `<div class="hero done">
+      ${ridgeHTML('hero', true)}
       <div class="hero-in">
         <span class="hero-eyebrow tl">${ICO.tick} Logged today</span>
         <h1 class="hero-title">${h(sessionTitle(sess))}</h1>
@@ -338,6 +342,7 @@ function renderToday() {
     const preview = recoverySession(c.env || (S.profile.envs && S.profile.envs[0]) || 'full', 'full');
     html += `<div class="hero">
       <div class="hero-glow"></div>
+      ${ridgeHTML('hero', true)}
       <div class="hero-in">
         <div class="row between">
           <span class="hero-eyebrow">Today</span>
@@ -366,6 +371,7 @@ function renderToday() {
     const title = rt ? rt.name : typeLabel(type);
     html += `<div class="hero">
       <div class="hero-glow"></div>
+      ${ridgeHTML('hero', true)}
       <div class="hero-in">
         <div class="row between">
           <span class="hero-eyebrow">Today${plan ? '' : ' <span class="hero-tag">unplanned</span>'}</span>
@@ -384,9 +390,22 @@ function renderToday() {
           <span class="strip-chev">›</span>
         </button>`}
         ${rt ? `<button class="btn primary block lg mt" data-act="routine-start" data-v="${h(rt.id)}" data-planned="1">Start</button>`
-             : `<button class="btn primary block lg mt" data-act="start-session" data-type="${type}" data-rung="${suggested}">Start</button>
-        <button class="btn quiet block" data-act="open-ladder" data-type="${type}">Choose a different size</button>`}
-        ${plan ? `<button class="btn quiet block" data-act="plan-day" data-k="${today()}">Doing something else today?</button>` : ''}
+             : `<button class="btn primary block lg mt" data-act="start-session" data-type="${type}" data-rung="${suggested}">Start</button>`}
+        ${/* Two controls, side by side, that look like controls. They were
+              stacked lines of centred grey text under the Start button —
+              indistinguishable from captions, and taking two full rows to say
+              so. A quiet button is the right shape for the way out of a screen
+              and the wrong one for the second and third things you might do
+              on it. Built as a list because either one can be absent: a
+              routine has no size ladder and an unplanned day has nothing to
+              swap, and a btn-row with one child in it is a full-width button
+              that reads as a second primary. */''}
+        ${(() => {
+          const alt = [];
+          if (!rt) alt.push(`<button class="btn ghost sm" data-act="open-ladder" data-type="${type}">Different size</button>`);
+          if (plan) alt.push(`<button class="btn ghost sm" data-act="plan-day" data-k="${today()}">Something else</button>`);
+          return alt.length ? `<div class="btn-row mt-s">${alt.join('')}</div>` : '';
+        })()}
         ${note ? `<button class="hero-note" data-act="coach-note" data-v="${note.k}">
           <span class="grow">${note.short}</span>
           <span class="hero-note-a">Why ›</span>
@@ -1009,7 +1028,9 @@ function paintTrainStates() {
 
    It is decoration — aria-hidden, and every sibling that can sit under it is
    position:relative so it paints below the words rather than over them. */
-function ridgeHTML(ns) {
+function ridgeHTML(ns, lit) {
+  const far = 'M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58';
+  const near = 'M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90';
   return `<div class="ridge ${h(ns)}-ridge" aria-hidden="true">
     <svg viewBox="0 0 320 104" preserveAspectRatio="none">
       <defs>
@@ -1018,11 +1039,38 @@ function ridgeHTML(ns) {
           <stop offset="100%" stop-color="#E9B44C" stop-opacity=".02"/>
         </linearGradient>
       </defs>
-      <path fill="url(#${h(ns)}-ridge-l1)" d="M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58 L320 104 L0 104 Z"/>
+      <path fill="url(#${h(ns)}-ridge-l1)" d="${far} L320 104 L0 104 Z"/>
       <path fill="#1b222b" fill-opacity=".72" d="M0 104 L28 74 L62 90 L104 58 L138 82 L178 60 L214 86 L252 66 L292 88 L320 72 L320 104 Z"/>
-      <path fill="#12161c" fill-opacity=".92" d="M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90 L320 104 Z"/>
+      <path fill="#12161c" fill-opacity=".92" d="${near} L320 104 L0 104 Z"/>
+      ${/* The skyline catching the sun, drawn on when you arrive. pathLength="1"
+            so the dash maths is the same whatever width the phone is — the
+            range is preserveAspectRatio="none" and its real path length is not
+            a number this code can know. */''}
+      ${lit ? `<path class="ridge-line" pathLength="1" vector-effect="non-scaling-stroke" d="${near}"/>
+        <path class="ridge-line far" pathLength="1" vector-effect="non-scaling-stroke" d="${far}"/>` : ''}
     </svg>
   </div>`;
+}
+
+/* The week as an arc rather than a fraction in a box.
+   ---------------------------------------------------
+   "0/3 THIS WEEK" was three characters of monospace pretending to be a status.
+   The ring says the same thing at a glance and fills as the week does, which is
+   the same language the exercise nodes and the milestones already speak. */
+function weekRingHTML(done, planned) {
+  const r = 16, pct = planned ? Math.min(1, done / planned) : 0;
+  /* Nothing done draws no arc at all. A dash pattern offset to its own full
+     length still paints a subpixel sliver where the two ends meet — measured,
+     and at the top of the ring it reads as one session done when none are.
+     A round cap would have painted a whole dot there. */
+  return `<span class="wk-ring">
+    <svg viewBox="0 0 40 40" aria-hidden="true">
+      <circle class="wk-ring-t" cx="20" cy="20" r="${r}"/>
+      ${pct ? `<circle class="wk-ring-i" cx="20" cy="20" r="${r}" pathLength="1"
+        stroke-dasharray="1" stroke-dashoffset="${(1 - pct).toFixed(3)}"/>` : ''}
+    </svg>
+    <b>${done}</b>
+  </span>`;
 }
 
 /* The brand mark, used as a progress ring toward the next milestone */

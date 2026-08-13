@@ -1823,6 +1823,22 @@ $('#sheet-x').addEventListener('click', () => closeSheet());
 $('#rest-skip').addEventListener('click', stopRest);
 $('#rest-add').addEventListener('click', () => { restEnd += 30000; restTotal += 30; tickRest(); });
 
+/* ---- the sweep of light across a solid button ----
+   On pointerdown rather than on :active, because :active only holds while the
+   finger is down: on a real tap it is released after about eighty milliseconds
+   and a CSS animation bound to it stops a seventh of the way across. Transient
+   class, removed on a timer, exactly as .tick.pop is — and the reflow between
+   remove and add is what lets a second tap replay it. */
+document.addEventListener('pointerdown', ev => {
+  const t = ev.target;
+  const b = t && t.closest ? t.closest('.btn.primary,.btn.teal') : null;
+  if (!b) return;
+  b.classList.remove('sheen');
+  void b.offsetWidth;
+  b.classList.add('sheen');
+  setTimeout(() => b.classList.remove('sheen'), 620);
+}, true);
+
 /* ---- keep the elapsed clock moving (in place, never a re-render) ---- */
 setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress(); }, 20000);
 

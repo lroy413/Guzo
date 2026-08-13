@@ -710,3 +710,88 @@ That last one was written wrong first and passed a revert. It sampled a single
 icon, so unscoping a *different* tone left it green. It samples one icon per
 tone now — the same lesson as the spread check that could not fail on a fresh
 profile, arriving from a different direction.
+
+---
+
+## A button is an object, and Today opens on one
+
+### The buttons
+
+The whole set was a coloured rectangle with a 2.5% scale on press. Three things
+give a control a body, and none of them is a bigger drop shadow:
+
+1. **A lit top edge and a dark bottom one.** Light in this app comes from above
+   — the cards say so, the ridge says so — so a control gets a bright inner line
+   at its top and a dark one at its foot. That single pair does more than any
+   amount of shadow, because it is what an object under a light actually looks
+   like.
+2. **A specular over the top half**, falling off before the middle. A gradient
+   running the full height reads as a colour; one that stops reads as a surface
+   catching light.
+3. **Two shadows.** A tight dark one for contact and a wide tinted one for lift,
+   both collapsing on press while the button moves **down** a pixel. A control
+   that only shrinks reads as receding rather than as being pushed.
+
+And a sweep of light across a solid button when you press it — **on
+`pointerdown`, not on `:active`**. A real tap releases after about eighty
+milliseconds, so a CSS animation bound to `:active` stops a seventh of the way
+across. Transient class, removed on a timer, exactly as the set tick's flourish
+already worked.
+
+`.btn.quiet` is the one variant that deliberately gets none of this. It is the
+way *out* of a screen, not the way through it, and it earns its affordance on
+press instead. What it should never have been used for was the second and third
+things you might do on Today — "Choose a different size" and "Doing something
+else today?" were stacked lines of centred grey text under the Start button,
+indistinguishable from captions and costing two full rows to say so. They are a
+pair of ghost buttons side by side now, built from a list because either can be
+absent: a routine has no size ladder and an unplanned day has nothing to swap,
+and a `btn-row` with one child in it is a full-width button that reads as a
+second primary.
+
+### Today
+
+The range stands behind the day's session the way it stands behind the ascent on
+Progress — and its skyline **draws itself on when you arrive**, off `.entering`
+rather than `.screen.on`. That distinction is the whole difference between
+motion that explains something and motion that is just movement: bound to the
+screen being visible it would redraw every time you logged a weight. The done
+hero's skyline is teal, because that day is a summit.
+
+`pathLength="1"` on the drawn line, so the dash arithmetic is the same at any
+width. The range is `preserveAspectRatio="none"` and its real path length is not
+a number the code can know.
+
+The week went from "0/3 THIS WEEK" — three characters of monospace pretending to
+be a status — to an arc that fills as the week does, which is the language the
+exercise nodes and the milestones already speak. Two edge cases, both measured
+rather than assumed: **nothing done draws no arc at all**, because a dash
+pattern offset to its own full length still paints a subpixel sliver where the
+two ends meet, and at twelve o'clock that reads as a session done when none are;
+and **more done than planned does not wrap past full**, which is a real state —
+an extra session on a day already discharged.
+
+The daily strip's three labels carry their icons now. Three em-dashes over three
+uppercase words was the whole strip before anything was logged, and the icons
+are what make it read as three different things rather than three empty boxes.
+
+### What is asserted
+
+A button's press physics are a pseudo-element and a shadow — nothing about them
+changes the markup, so all of it is read off the rendered element with a real
+pointer held down. Two versions of that check passed for the wrong reason before
+it worked: read in the same turn as the press, the transform is still at its
+resting value, and the released state is `none` while the mid-flight one is an
+identity matrix — so "did it change" was true whatever the press did. It waits
+for the transition on both sides now.
+
+The sweep is driven through a real `pointerdown` event rather than by setting
+the class by hand, because the listener is the part that has to still be wired;
+a check that adds `.sheen` itself proves the CSS and nothing else.
+
+And the skyline's arrival needed its own check. Being inside a
+`prefers-reduced-motion: no-preference` block is not the same as being bound to
+arrival — moving the selector from `.screen.entering` to `.screen` keeps the
+animation name inside the guard and leaves that check green while the line
+redraws on every render. The new one reads `animationName` off the element with
+`.entering` present and again after an ordinary render.
