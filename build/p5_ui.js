@@ -810,7 +810,11 @@ function renderTrain() {
       <div class="list mb">
         <div class="lrow" data-act="open-typepick"><div class="ico">${ICO.swap}</div><div class="grow"><div class="h3">Something else entirely</div><div class="tiny mt-s">Pick any session type</div></div></div>
       </div>`;
-    })() : `<div class="card accent">
+    })() : `<div class="card accent tr-ready">
+        ${/* The same range that stands behind the ascent on Progress. The
+              session about to start and the journey it belongs to are the same
+              picture, and this screen said nothing about that at all. */''}
+        ${ridgeHTML('tr')}
         <div class="eyebrow em">Ready when you are</div>
         <div class="h1 mt-s">${typeLabel(type)}</div>
         <p class="small mt">Suggested size: <strong>${RUNGS.find(r=>r.k===suggested).label}</strong> · ${ENVS[c.env]?ENVS[c.env].label:'Full gym'}</p>
@@ -851,20 +855,28 @@ function renderTrain() {
   ${/* One flat bar told you how much of the session was left and nothing about
         where you were in it. The rail is a segment per movement, filling as its
         sets are ticked — the session as ground to cover, which is what the rest
-        of the app already says it is. Tapping a segment goes to that movement. */''}
-  <div class="card tight mb">
-    ${trainRailHTML(A)}
-    <div class="row between mt-s">
-      <span class="small" id="tp-where">${h(trainWhere(A))}</span>
-      <span class="row gap-s"><span class="small mono" id="tp-count">${doneSets}/${allSets}</span>
-      <span class="small mono em" id="tp-kcal">${sessionKcal(A)} kcal</span>
-      <!-- A running clock on a session you are typing in after the fact would
-           be measuring the wrong thing entirely. -->
-      ${/* Tappable, because a clock you cannot stop is a clock you have to
-             trust. Paused it says so rather than quietly freezing. */''}
-      <button class="tp-clock ${A.paused ? 'paused' : ''}" id="tp-time" data-act="train-pause"
-              aria-label="${A.paused ? 'Resume the session clock' : 'Pause the session clock'}">${
-        A.backdated ? sessionMinsEstimate(A) + ' min' : sessionActiveMins(A) + ' min'}</button></span>
+        of the app already says it is. Tapping a segment goes to that movement.
+
+        Pinned, because it is the answer to the question you have while you are
+        scrolling. It is painted with the page's own gradient at
+        background-attachment:fixed rather than a flat colour, for the reason
+        the header band is: --bg-grad shifts across four data-sky bands and a
+        veil guessing at it would be visible in three of them. */''}
+  <div class="tr-pin">
+    <div class="card tight">
+      ${trainRailHTML(A)}
+      <div class="row between mt-s">
+        <span class="small" id="tp-where">${h(trainWhere(A))}</span>
+        <span class="row gap-s"><span class="small mono" id="tp-count">${doneSets}/${allSets}</span>
+        <span class="small mono em" id="tp-kcal">${sessionKcal(A)} kcal</span>
+        <!-- A running clock on a session you are typing in after the fact would
+             be measuring the wrong thing entirely. -->
+        ${/* Tappable, because a clock you cannot stop is a clock you have to
+               trust. Paused it says so rather than quietly freezing. */''}
+        <button class="tp-clock ${A.paused ? 'paused' : ''}" id="tp-time" data-act="train-pause"
+                aria-label="${A.paused ? 'Resume the session clock' : 'Pause the session clock'}">${
+          A.backdated ? sessionMinsEstimate(A) + ' min' : sessionActiveMins(A) + ' min'}</button></span>
+      </div>
     </div>
   </div>`;
 
@@ -919,15 +931,97 @@ function renderTrain() {
     });
   }
 
+  /* The end of the route drawn as one, rather than as a stack of four buttons
+     the same width as each other. The peak is the same glyph the ascent on
+     Progress summits with — a session and a milestone are the same shape of
+     thing, and the app should not have two ideas about what the top looks
+     like. */
+  const left = allSets - doneSets;
   html += `
     ${A.circuit ? '' : '<button class="btn ghost block mt" data-act="add-exercise">+ Add an exercise</button>'}
-    <button class="btn primary block lg mt" data-act="finish">Finish session</button>
-    <p class="tiny center mt-s">Partial sessions save exactly as they are. There's no penalty for stopping early.</p>
+    <div class="tr-summit ${left ? '' : 'reached'}">
+      ${/* The ascent's own peak, at the ascent's own coordinates. Redrawing it
+            here would give the app two ideas about what the top of something
+            looks like, and they would drift the first time either was
+            touched. */''}
+      <svg class="tr-peak" viewBox="0 0 40 26" aria-hidden="true">
+        <path class="tr-peak-f" d="M1 25 L13 7 L20 16 L28 2 L39 25 Z"/>
+        <path class="tr-peak-s" d="M28 2 L33 12 L28 14.5 L23.5 9 Z"/>
+      </svg>
+      <div class="tr-summit-t">${left
+        ? left + ' set' + (left === 1 ? '' : 's') + ' to the top'
+        : 'Every set ticked'}</div>
+      <button class="btn primary block lg" data-act="finish">Finish session</button>
+      <p class="tiny center mt-s">Partial sessions save exactly as they are. There's no penalty for stopping early.</p>
+    </div>
     <div class="divide"></div>
     <button class="btn quiet block" data-act="leave-session">Leave and come back later</button>
     <button class="btn quiet block" data-act="abandon" style="color:var(--faint)">Discard this session</button>`;
 
   body.innerHTML = html;
+}
+
+/* Where you are, repainted in place.
+   ----------------------------------
+   The card you are on is a full card and the rest are lines, so finishing a
+   movement moves the boundary — the one below has to become the hero and the
+   one above has to fold. Done by class rather than by re-rendering, for the
+   reason updateTrainProgress() exists at all: a re-render mid-session closes
+   the keyboard and loses your caret. Cards whose folded-ness actually changes
+   are rebuilt one at a time. */
+function paintTrainStates() {
+  const A = S.active;
+  if (!A) return;
+  document.querySelectorAll('#train-body .ex-card').forEach(card => {
+    const ei = +card.dataset.ei;
+    const item = A.exercises[ei];
+    if (!item) return;
+    const stand = exStand(ei);
+    const wantFold = exFolded(item, stand);
+    if (card.dataset.stand !== stand || card.classList.contains('fold') !== wantFold) {
+      replaceExCard(ei);
+      return;
+    }
+    /* Same shape, so only the ring needs moving. */
+    const done = item.sets.filter(s => s.done).length;
+    const all = item.sets.length || 1;
+    const ring = card.querySelector('.ex-ring-i');
+    if (ring) {
+      const c = 2 * Math.PI * 15;
+      ring.setAttribute('stroke-dashoffset', (c * (1 - Math.min(1, done / all))).toFixed(1));
+    }
+  });
+}
+
+/* ------------------------------------------------------------
+   THE RIDGE
+
+   Three layers, back to front, each darker and lower — aerial perspective is
+   the whole reason a range reads as distance rather than as a zigzag. The far
+   one is lit warm because the light in this app comes from the top of a card.
+
+   One copy, because it is drawn on two screens now and two copies of a path
+   drift the first time either is touched. The gradient's id is namespaced per
+   caller: every screen's markup stays in the document (a screen is hidden,
+   never removed), so two ridges with one id would be two elements answering to
+   the same name and whichever rendered first would win.
+
+   It is decoration — aria-hidden, and every sibling that can sit under it is
+   position:relative so it paints below the words rather than over them. */
+function ridgeHTML(ns) {
+  return `<div class="ridge ${h(ns)}-ridge" aria-hidden="true">
+    <svg viewBox="0 0 320 104" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="${h(ns)}-ridge-l1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#E9B44C" stop-opacity=".17"/>
+          <stop offset="100%" stop-color="#E9B44C" stop-opacity=".02"/>
+        </linearGradient>
+      </defs>
+      <path fill="url(#${h(ns)}-ridge-l1)" d="M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58 L320 104 L0 104 Z"/>
+      <path fill="#1b222b" fill-opacity=".72" d="M0 104 L28 74 L62 90 L104 58 L138 82 L178 60 L214 86 L252 66 L292 88 L320 72 L320 104 Z"/>
+      <path fill="#12161c" fill-opacity=".92" d="M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90 L320 104 Z"/>
+    </svg>
+  </div>`;
 }
 
 /* The brand mark, used as a progress ring toward the next milestone */
@@ -1335,24 +1429,162 @@ function badgeRowHTML(item, max) {
     `<span class="badge ${BADGE_TONE[b] || 'plain'}">${h(b)}</span>`).join('')}</div>`;
 }
 
+/* ------------------------------------------------------------
+   WHERE YOU ARE IN THE SESSION, AND WHAT THAT MEANS FOR A CARD
+
+   Reported as "bulky, and hate to say it, boring", and the measurement agreed:
+   a three-movement session was 1,716px of identical grey boxes on an 844px
+   screen, with one exercise filling the whole viewport. Nine of every ten
+   pixels were about a movement you were not doing.
+
+   So a session is a route with a position on it, the same as the ascent on
+   Progress: what you have covered, the one you are standing on, and what is
+   still ahead. Only the movement you are on is a full card. Everything else is
+   a line — and every one of those lines opens on a tap, so nothing is hidden,
+   it is folded.
+   ------------------------------------------------------------ */
+function exStand(ei) {
+  const A = S.active;
+  if (!A || !A.exercises[ei]) return 'now';
+  if (isComplete(A.exercises[ei])) return 'walked';
+  const cur = sessionOrder(A).find(i => !isComplete(A.exercises[i]));
+  return (cur == null || cur === ei) ? 'now' : 'ahead';
+}
+
+/* Folded by position, opened by hand — and `collapsed` is tri-state so the two
+   can disagree. Stored `true` or `false` is a choice you made about this
+   movement and outranks everything; absent means "do the sensible thing",
+   which is to fold what you are not on. Deriving the default rather than
+   writing it means undoing a set unfolds the movement again on its own. */
+function exFolded(item, stand) {
+  if (item.collapsed === true) return true;
+  if (item.collapsed === false) return false;
+  return stand !== 'now';
+}
+
+const TICK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>';
+
+/* The number is a node on the route now, with a ring that fills as the sets are
+   ticked. It costs the same thirty pixels the flat "01" square cost and answers
+   "how far into this movement am I" without a fraction to read — which is the
+   whole argument for the ascent on Progress, applied to the movement you are
+   standing in. */
+function exNodeHTML(item, num, complete) {
+  const done = (item.sets || []).filter(s => s.done).length;
+  const all = (item.sets || []).length || 1;
+  const r = 15, c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(1, done / all));
+  return `<span class="ex-node ${complete ? 'ok' : ''}">
+    <svg class="ex-ring" viewBox="0 0 36 36" aria-hidden="true">
+      <circle cx="18" cy="18" r="${r}" class="ex-ring-t"/>
+      ${/* Always drawn, even at zero — paintTrainStates() moves this element
+            rather than rebuilding the card, and a ring that only exists once
+            you are part-way through is a ring it cannot find on the tick that
+            starts you. */''}
+      <circle cx="18" cy="18" r="${r}" class="ex-ring-i"
+        stroke-dasharray="${c.toFixed(1)}" stroke-dashoffset="${(c * (1 - pct)).toFixed(1)}"/>
+    </svg>
+    <span class="ex-node-t">${complete ? TICK_SVG : h(num)}</span>
+  </span>`;
+}
+
+/* Whether a weight is a thing this movement has.
+   ----------------------------------------------
+   A plank offered a box reading "— lb" and a bicycle crunch one reading
+   "0 +lb": a third of every set row given over to a question the movement does
+   not ask, on the one screen you use one-handed. So the column appears where a
+   weight is part of the movement, or where you have ever actually added one —
+   a weighted pull-up keeps it the moment you log a plate, and the exercise menu
+   turns it on for the first time. */
+function wantsLoad(item, prev) {
+  if (!item) return true;
+  if (item.load !== 'bw' && item.load !== 'time' && item.load !== 'min') return true;
+  /* Explicitly off outranks the history below it. Without this branch, turning
+     the column off on a movement you once did with a plate would let the old
+     weight switch it straight back on at the next render. */
+  if (item.addLoad === false) return false;
+  if (item.addLoad) return true;
+  if (+item.targetW > 0) return true;
+  if ((item.sets || []).some(s => +s.w > 0)) return true;
+  return (prev || prevSets(item.exId) || []).some(p => +p.w > 0);
+}
+
+/* The prescription and last time, on one line.
+   --------------------------------------------
+   These were two full-width bars stacked: "Target 20" centred in its own
+   padded row, then "LAST 20 · 3 days ago" in a bordered one under it, above set
+   rows already offering 20 in the placeholder. Eighty pixels of chrome to print
+   one number three times.
+
+   Chips on a single wrapping line instead. They read as annotations on the
+   movement rather than as furniture, and on a bodyweight movement with no
+   history there is nothing to draw, so nothing is drawn. */
+function exStripHTML(item) {
+  const isTime = item.load === 'time' || item.load === 'min';
+  const chips = [];
+  if (item.targetR) {
+    const w = (item.targetW != null && item.targetW !== '') ? fmtW(item.targetW) + unit() + ' × ' : '';
+    chips.push(`<span class="ex-chip${item.deloaded ? ' down' : ''}">
+      <span class="ex-chip-k">Target</span>
+      <span class="ex-chip-v mono">${h(w)}${item.targetR}${isTime ? 's' : ''}</span>
+      ${item.deloaded ? '<span class="ex-chip-x">−10%</span>' : ''}</span>`);
+  }
+  const L = lastLine(item.exId, 3);
+  if (L) {
+    chips.push(`<span class="ex-chip">
+      <span class="ex-chip-k">Last</span>
+      <span class="ex-chip-v mono">${h(L.text)}</span>
+      <span class="ex-chip-x">${h(L.ago)}</span></span>`);
+  }
+  const kc = exerciseKcal(item);
+  if (kc) chips.push(`<span class="ex-chip lit"><span class="ex-chip-v mono">${kc}</span><span class="ex-chip-k">kcal</span></span>`);
+  return chips.join('');
+}
+
+/* Which badges are worth the row they sit on.
+   -------------------------------------------
+   "Bicycle Crunch / Core / CORE" — the subtitle already said it, in the same
+   word, one line above. A badge that repeats the line above it is not a badge,
+   it is noise with a border on it, so anything matching a muscle already named
+   is dropped. Matched token by token rather than by substring: "Arms" is inside
+   "Forearms" and that badge is the one case where it genuinely says something
+   the muscle line does not. */
+function exTrainBadges(item, ex) {
+  const named = new Set([ex.primary || '', ...(ex.sec || [])]
+    .map(s => String(s).trim().toLowerCase()).filter(Boolean));
+  const list = exBadges(item).filter(b => !named.has(b.toLowerCase())).slice(0, 2);
+  if (!list.length) return '';
+  return `<span class="ex-tags">${list.map(b =>
+    `<span class="badge ${BADGE_TONE[b] || 'plain'}">${h(b)}</span>`).join('')}</span>`;
+}
+
 function exCardHTML(item, ei) {
   const ex = EX[item.exId] || { name:item.name, primary:'', sec:[], load:'wt', rl:8, rh:12 };
   const complete = isComplete(item);
-  const collapsed = item.collapsed;
+  const stand = exStand(ei);
   const sup = supFor(ei);
   /* Inside a superset the position in the session stops being the useful
      number — which of the pair you are on is. */
   const num = sup ? sup.letter : String(ei + 1).padStart(2, '0');
 
-  if (collapsed) {
-    return `<div class="ex-card done" data-ei="${ei}">
-      <button class="ex-collapsed" data-act="toggle-collapse" data-i="${ei}">
-        <div class="ex-num ${complete?'ok':''}">${complete ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : num}</div>
-        <div class="grow" style="text-align:left">
-          <div class="ex-name">${h(item.name)}</div>
-          <div class="ex-sum">${setSummary(item) || 'Not started'}${exerciseKcal(item) ? ` · ${exerciseKcal(item)} kcal` : ''}</div>
-        </div>
-        <span class="ex-chev">⌄</span>
+  if (exFolded(item, stand)) {
+    /* Walked movements report what they were. Ones still ahead report what they
+       will ask for — "Not started" was a whole line spent saying nothing, on
+       every movement you had not reached yet. */
+    const sum = complete
+      ? setSummary(item) + (exerciseKcal(item) ? ' · ' + exerciseKcal(item) + ' kcal' : '')
+      : item.sets.length + ' × ' + (item.targetR || '?')
+        + (item.load === 'time' ? 's' : item.load === 'min' ? 'min' : '')
+        + (item.targetW != null && item.targetW !== '' ? ' · ' + fmtW(item.targetW) + unit() : '');
+    return `<div class="ex-card fold ${stand}" data-ei="${ei}" data-stand="${stand}">
+      <button class="ex-collapsed" data-act="toggle-collapse" data-i="${ei}"
+              aria-expanded="false" aria-label="Open ${h(item.name)}">
+        ${exNodeHTML(item, num, complete)}
+        <span class="grow ex-fold-t">
+          <span class="ex-name">${h(item.name)}</span>
+          <span class="ex-sum">${h(sum)}</span>
+        </span>
+        <span class="ex-chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
       </button>
     </div>`;
   }
@@ -1368,16 +1600,22 @@ function exCardHTML(item, ei) {
      extra field — the weight one was never answerable here. See
      tracksDistance(). */
   const dist = tracksDistance(item, ex);
+  /* Whether the first column is a question this movement asks. See wantsLoad()
+     — on a plank it is not, and the row is three columns rather than four. */
+  const load = dist || wantsLoad(item, prev);
 
-  return `<div class="ex-card" data-ei="${ei}">
+  return `<div class="ex-card ${stand}" data-ei="${ei}" data-stand="${stand}">
     <div class="ex-head">
-      <button class="ex-num-btn" data-act="toggle-collapse" data-i="${ei}">
-        <div class="ex-num ${complete?'ok':''}">${complete ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l5 5L20 6"/></svg>' : num}</div>
+      <button class="ex-num-btn" data-act="toggle-collapse" data-i="${ei}"
+              aria-expanded="true" aria-label="Fold ${h(item.name)} away">
+        ${exNodeHTML(item, num, complete)}
       </button>
-      <button class="grow ex-title" data-act="toggle-collapse" data-i="${ei}">
-        <div class="ex-name">${h(item.name)}</div>
-        <div class="ex-meta">${h(ex.primary)}${ex.sec && ex.sec.length ? ' · ' + h(ex.sec.join(', ')) : ''}</div>
-        ${badgeRowHTML(item)}
+      <button class="grow ex-title" data-act="toggle-collapse" data-i="${ei}" tabindex="-1">
+        <span class="ex-name">${h(item.name)}</span>
+        ${/* The badges ride on the muscle line rather than in a row of their
+              own under it. A third line of text under every exercise name was
+              a third of the card head spent on labels. */''}
+        <span class="ex-meta">${h(ex.primary)}${ex.sec && ex.sec.length ? ' · ' + h(ex.sec.join(', ')) : ''}${exTrainBadges(item, ex)}</span>
       </button>
       ${/* One control, not three. A form guide, a swap and a menu on every card
             made the header a toolbar with an exercise name in it — and the
@@ -1390,8 +1628,11 @@ function exCardHTML(item, ei) {
       </button>
     </div>
     <div class="ex-body">
-      ${item.targetR ? `<div class="ex-target"><span>Target</span> <strong>${item.targetW != null && item.targetW !== '' ? fmtW(item.targetW) + unit() + ' × ' : ''}${item.targetR}${isTime?'s':''}</strong>${item.deloaded ? '<span class="ex-target-sub">−10%</span>' : ''}${exerciseKcal(item) ? `<span class="ex-kcal">${exerciseKcal(item)} kcal</span>` : ''}</div>` : ''}
-      ${recallRowHTML(item)}
+      ${/* The plate line sits on the same wrapping line as the target and last
+            time. It is a button rather than a chip because it opens the plate
+            maths, and it keeps the ember because loading the wrong side of the
+            bar is the one mistake on this screen with a weight on it. */''}
+      <div class="ex-strip">${exStripHTML(item)}${recallRowHTML(item)}</div>
       ${/* The column header is gone. Four uppercase labels repeated above every
             exercise was a spreadsheet header on a screen you use one-handed
             between sets; the unit now sits inside the field it belongs to,
@@ -1403,7 +1644,7 @@ function exCardHTML(item, ei) {
            that offers nothing. */
         const g = ghostFor(item, si, prev);
         return `
-        <div class="set-row ${st.done?'done':''}${st.pr?' pr':''}${rpeOn?'':' norpe'}">
+        <div class="set-row ${st.done?'done':''}${st.pr?' pr':''}${rpeOn?'':' norpe'}${load?'':' noload'}">
           ${/* A filled star rather than a glyph or an outline: hairline marks
                 at this size antialias to about half the contrast their colour
                 promises, pass a CSS reading and fail the pixel check. The
@@ -1418,6 +1659,13 @@ function exCardHTML(item, ei) {
                 runner has had this since it was built; the ordinary list did
                 not. The set is ticked by the timer *finishing*, never by
                 starting it. */''}
+          ${/* The row is a flex line, not a fixed grid, and this is why: the run
+                button was a sixth child of a five-column grid, so the tick
+                wrapped onto a line of its own and a timed set stood 105px tall
+                against everyone else's 54. A row whose children vary — a hold
+                with a button, a run with a distance, a bodyweight movement with
+                no load at all — cannot have its columns counted out in advance,
+                and every time someone tried, one combination broke. */''}
           ${isTime && !st.done ? `<button class="set-run" data-act="set-timer" data-i="${ei}" data-s="${si}"
                   aria-label="Start ${item.targetR}${item.load === 'min' ? ' minute' : ' second'} hold, set ${si+1}">
             ${ICO.play}<span class="set-run-t mono">${item.load === 'min' ? item.targetR + 'm' : item.targetR + 's'}</span>
@@ -1425,10 +1673,10 @@ function exCardHTML(item, ei) {
           ${dist ? `<label class="set-f">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Distance, set ${si+1}" placeholder="${h(g.d === '' ? '–' : fmtDist(g.d))}" value="${st.d==null||st.d===''?'':h(st.d)}" data-set="d" data-i="${ei}" data-s="${si}">
             <span class="set-u">${distUnit()}</span>
-          </label>` : `<label class="set-f">
+          </label>` : load ? `<label class="set-f">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Weight, set ${si+1}" placeholder="${h(ghostW(item, g))}" value="${st.w===''?'':h(st.w)}" data-set="w" data-i="${ei}" data-s="${si}">
             <span class="set-u">${item.load==='bw' ? '+' + unit() : unit()}</span>
-          </label>`}
+          </label>` : ''}
           <label class="set-f">
             <input class="set-in" type="text" inputmode="numeric" enterkeyhint="next" autocomplete="off" aria-label="${unitLbl==='REPS'?'Reps':unitLbl==='SECS'?'Seconds':'Minutes'}, set ${si+1}" placeholder="${h(g.r === '' ? '' : String(g.r))}" value="${st.r===''?'':h(st.r)}" data-set="r" data-i="${ei}" data-s="${si}">
             <span class="set-u">${unitLbl==='REPS'?'reps':unitLbl==='SECS'?'sec':'min'}</span>
@@ -1442,9 +1690,15 @@ function exCardHTML(item, ei) {
           </button>
         </div>`; }).join('')}
       ${dist ? `<div class="pace-row" data-pace="${ei}">${paceLineHTML(item)}</div>` : ''}
-      <div class="row gap-s" style="padding:8px 6px 0">
-        <button class="btn xs ghost grow" data-act="add-set" data-i="${ei}">+ Set</button>
-        ${item.sets.length>1?`<button class="btn xs quiet" data-act="del-set" data-i="${ei}">− Set</button>`:''}
+      ${/* One stepper, not a full-width button and a smaller one beside it.
+            "+ Set" spanning the card was as loud as the tick column and got
+            tapped by accident; changing how many sets a movement has is a rare
+            correction and reads as one now. */''}
+      <div class="ex-sets">
+        <button class="ex-step" data-act="del-set" data-i="${ei}"${item.sets.length > 1 ? '' : ' disabled'}
+                aria-label="One set fewer">&minus;</button>
+        <span class="ex-sets-n">${item.sets.length} set${item.sets.length === 1 ? '' : 's'}</span>
+        <button class="ex-step" data-act="add-set" data-i="${ei}" aria-label="One set more">+</button>
       </div>
     </div>
   </div>`;
@@ -1535,34 +1789,25 @@ function refreshGhosts(ei) {
   });
 }
 
-/* What you actually did last time, and what to hang on the bar today.
-   Both sit directly above the set rows, because that is where you look
-   between racking the weight and starting the set. */
+/* What to hang on the bar today.
+   ------------------------------
+   Last time used to be a second bar stacked above this one. It is a chip in
+   exStripHTML() now — the plate line stays a row of its own because it is the
+   only thing here you act on rather than read, and because getting it wrong
+   sends you to the wrong side of the rack. */
 function recallRowHTML(item) {
-  const bits = [];
-
-  const L = lastLine(item.exId);
-  if (L) {
-    bits.push(`<div class="recall"><span class="recall-k">Last</span>
-      <span class="recall-v mono">${h(L.text)}</span>
-      <span class="recall-ago">${h(L.ago)}</span></div>`);
-  }
-
-  if (usesPlates(item.exId)) {
-    const w = plateWeightFor(item);
-    if (!(w > 0)) return bits.join('');
-    const line = plateLine(w);
-    const r = platesFor(w);
-    if (line) {
-      bits.push(`<button class="recall plates" data-act="plate-calc" data-v="${w}">
-        <span class="recall-k">Bar</span>
-        <span class="recall-v mono">${h(line)}</span>
-        <span class="recall-ago">${r && !r.exact ? fmtP(r.achieved) + unit() : 'per side'}</span>
-        <span class="recall-chev">›</span>
-      </button>`);
-    }
-  }
-  return bits.join('');
+  if (!usesPlates(item.exId)) return '';
+  const w = plateWeightFor(item);
+  if (!(w > 0)) return '';
+  const line = plateLine(w);
+  if (!line) return '';
+  const r = platesFor(w);
+  return `<button class="recall plates" data-act="plate-calc" data-v="${w}">
+    <span class="recall-k">Bar</span>
+    <span class="recall-v mono">${h(line)}</span>
+    <span class="recall-ago">${r && !r.exact ? fmtP(r.achieved) + unit() : 'per side'}</span>
+    <span class="recall-chev" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"/></svg></span>
+  </button>`;
 }
 
 function updateTrainProgress() {
@@ -1599,6 +1844,16 @@ function updateTrainProgress() {
   }
   const kc = document.getElementById('tp-kcal');
   if (kc) kc.textContent = sessionKcal(A) + ' kcal';
+  /* The hero moves down the list as movements are finished. Last, so the cards
+     it rebuilds are rebuilt from state everything above has already settled. */
+  paintTrainStates();
+  const sm = document.querySelector('#train-body .tr-summit');
+  if (sm) {
+    const left = all - done;
+    sm.classList.toggle('reached', !left);
+    const t = sm.querySelector('.tr-summit-t');
+    if (t) t.textContent = left ? left + ' set' + (left === 1 ? '' : 's') + ' to the top' : 'Every set ticked';
+  }
 }
 
 function recentSessionsHTML(n) {
@@ -1925,23 +2180,7 @@ function journeyAscentHTML() {
     ${/* The ridge sits behind the header text and nowhere near a set of set
           rows. It is decoration and carries no number — see the note above on
           why there are no altitudes on this screen. */''}
-    <div class="asc-ridge" aria-hidden="true">
-      <svg viewBox="0 0 320 104" preserveAspectRatio="none">
-        <defs>
-          ${/* Three layers, back to front, each darker and lower — aerial
-                perspective is the whole reason a range reads as distance
-                rather than as a zigzag. The far one is lit warm because the
-                light in this app comes from the top of the card. */''}
-          <linearGradient id="asc-l1" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#E9B44C" stop-opacity=".17"/>
-            <stop offset="100%" stop-color="#E9B44C" stop-opacity=".02"/>
-          </linearGradient>
-        </defs>
-        <path fill="url(#asc-l1)" d="M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58 L320 104 L0 104 Z"/>
-        <path fill="#1b222b" fill-opacity=".72" d="M0 104 L28 74 L62 90 L104 58 L138 82 L178 60 L214 86 L252 66 L292 88 L320 72 L320 104 Z"/>
-        <path fill="#12161c" fill-opacity=".92" d="M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90 L320 104 Z"/>
-      </svg>
-    </div>
+    ${ridgeHTML('asc')}
 
     <div class="asc-head">
       <div>

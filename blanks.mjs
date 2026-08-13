@@ -1784,16 +1784,26 @@ try {
       segs: rail ? rail.querySelectorAll('.rail-seg').length : -1,
       nowSegs: rail ? rail.querySelectorAll('.rail-seg.now').length : -1,
       where: (body.querySelector('#tp-where') || {}).textContent || '',
-      /* The spreadsheet header is gone and the units moved into the fields. */
+      /* The spreadsheet header is gone and the units moved into the fields —
+         one unit per field, whichever fields this movement has. Counting three
+         of them was right until a movement with no weight in it stopped
+         drawing the weight column. */
       headers: body.querySelectorAll('.set-head').length,
       units: firstRow ? [...firstRow.querySelectorAll('.set-u')].map(u => u.textContent) : [],
-      /* Every input the old row had is still there and still addressed the
-         same way, or the input listener and the progression silently stop. */
+      /* Every input the old row had is still addressed the same way, or the
+         input listener and the progression silently stop. Which of them a row
+         carries depends on the movement, so the assertion is on the order and
+         the vocabulary rather than on a fixed list. */
       fields: firstRow ? [...firstRow.querySelectorAll('.set-in')].map(i => i.dataset.set) : [],
       labelled: firstRow ? [...firstRow.querySelectorAll('.set-in')].every(i => (i.getAttribute('aria-label') || '').length > 3) : false,
       tick: firstRow ? !!firstRow.querySelector('[data-act="toggle-set"]') : false,
-      /* One control in the card header, and everything it replaced inside it. */
+      /* One control in the card header, and everything it replaced inside it.
+         Counted against the cards that are open rather than against every
+         movement in the session: the ones you are not on are folded to a line
+         and a line has no header to put a menu in. */
       headerActs: [...body.querySelectorAll('.ex-card .ex-head [data-act]')].map(e => e.dataset.act),
+      open: body.querySelectorAll('.ex-card:not(.fold)').length,
+      folded: body.querySelectorAll('.ex-card.fold').length,
       more: body.querySelectorAll('.ex-card .ex-head [data-act="ex-menu"]').length,
       text: body.innerText || ''
     };
@@ -1804,20 +1814,34 @@ try {
   check('...with exactly one marked as where you are', train.nowSegs === 1, String(train.nowSegs));
   check('...and it names the movement and its position', /·\s*1 of \d+/.test(train.where), train.where);
   check('the spreadsheet header is gone', train.headers === 0, String(train.headers));
-  check('...and the units are in the fields instead', train.units.length === 3,
-    train.units.join(', '));
-  check('every input survived the redesign', train.fields.join(',') === 'w,r,rpe',
+  check('...and every field carries its own unit instead',
+    train.units.length === train.fields.length && train.units.every(u => u.trim().length > 0),
+    `${train.fields.length} fields / ${train.units.join(', ')}`);
+  check('every input survived the redesign',
+    train.fields.length > 0
+    && train.fields.every(f => ['w', 'd', 'r', 'rpe'].includes(f))
+    && train.fields.includes('r')
+    && train.fields.join(',') === [...train.fields].sort(
+         (a, b) => ['w', 'd', 'r', 'rpe'].indexOf(a) - ['w', 'd', 'r', 'rpe'].indexOf(b)).join(','),
     train.fields.join(','));
   check('...still announced to a screen reader', train.labelled === true);
   check('...and the set still ticks', train.tick === true);
+  /* Only the movement you are on is a full card. Everything else is a line —
+     and the lines have to add up, or a movement has quietly stopped being on
+     the screen at all. */
+  check('only the movement you are on is a full card', train.open === 1,
+    `${train.open} open / ${train.folded} folded`);
+  check('...and every other one is still there as a line',
+    train.open + train.folded === train.exercises,
+    `${train.open}+${train.folded} vs ${train.exercises}`);
   /* The toolbar in every card header became one menu. The form guide and the
      swap have to still exist somewhere, or this is a feature deletion wearing
      a tidier screen. */
   check('the toolbar is gone from the card header',
     train.headerActs.filter(a => a === 'swap-ex' || a === 'ex-form').length === 0,
     train.headerActs.join(', '));
-  check('...replaced by one menu per movement', train.more === train.exercises,
-    `${train.more} menus / ${train.exercises} movements`);
+  check('...replaced by one menu per open movement', train.more === train.open,
+    `${train.more} menus / ${train.open} open`);
   check('no placeholder text on the session screen', !BAD.test(train.text));
 
   const trainMenu = await page.evaluate(() => {
@@ -1839,20 +1863,34 @@ try {
   const railLive = await page.evaluate(() => {
     closeSheet();
     const body = document.getElementById('train-body');
-    const eiPre = S.active.exercises.findIndex(x => x.sets.length > 1);
-    const segOf = () => document.querySelectorAll('#train-body .rail-seg')[eiPre].firstElementChild.style.width;
+    /* The open card, not the first one in the array. Only the movement you are
+       on is a full card now, so a set row to tick exists in exactly one place —
+       and reaching into a folded movement finds no input at all, which throws
+       rather than fails. A probe that throws has not run. */
+    const openCard = body.querySelector('.ex-card:not(.fold)');
+    if (!openCard) return { missing: 'no open card' };
+    const ei = +openCard.dataset.ei;
+    /* More than one set: ticking the last one legitimately folds the movement
+       away and rebuilds it, so a single-set movement would fail this for the
+       right reason and tell you nothing about the wrong one. */
+    while (S.active.exercises[ei].sets.length < 2) {
+      S.active.exercises[ei].sets.push({ w: '', r: '', rpe: '', done: false });
+    }
+    renderTrain();
+    const card = document.querySelector('#train-body .ex-card[data-ei="' + ei + '"]');
+    /* By name, not by position: the rail is in display order and the array is
+       not, so indexing one with the other lines up only by luck. */
+    const segOf = () => {
+      const seg = [...document.querySelectorAll('#train-body .rail-seg')].find(s =>
+        (s.getAttribute('aria-label') || '').indexOf(S.active.exercises[ei].name) === 0);
+      return seg ? seg.firstElementChild.style.width : null;
+    };
     const before = segOf();
     const beforeCount = (body.querySelector('#tp-count') || {}).textContent;
     /* The input node itself, not the container: renderTrain() rewrites the
        body's innerHTML but never replaces the body element, so comparing the
        container proves nothing — which is what the first version of this
        check did. If this node survives, so does your caret and your keyboard. */
-    /* And from a movement with more than one set: ticking the last set of an
-       exercise legitimately folds the card away and rebuilds it, so a
-       single-set movement would fail this for the right reason and tell you
-       nothing about the wrong one. */
-    const ei = eiPre;
-    const card = body.querySelector('.ex-card[data-ei="' + ei + '"]');
     const inputBefore = card.querySelector('.set-in');
     card.querySelector('[data-act="toggle-set"]').click();
     const after = segOf();
@@ -1862,11 +1900,149 @@ try {
     return { before, after, beforeCount, afterCount,
              sameNode: inputBefore === inputAfter };
   });
+  check('the rail probe found a movement to tick', !railLive.missing, railLive.missing);
   check('ticking a set fills the rail', railLive.after !== railLive.before,
     `${railLive.before} → ${railLive.after}`);
   check('...and moves the count', railLive.afterCount !== railLive.beforeCount,
     `${railLive.beforeCount} → ${railLive.afterCount}`);
   check('...in place, without re-rendering the screen', railLive.sameNode === true);
+
+  /* ---- a set row asks only what the movement asks ----
+     Reported from a screenshot: a plank offering a box reading "— lb" and a
+     bicycle crunch offering "0 +lb". A third of every row given to a question
+     the movement does not have — and on the plank the run button was a sixth
+     child of a five-column grid, so the tick wrapped to a line of its own and
+     the row stood 105px tall against everyone else's 54.
+
+     Both are asserted from the rendered row rather than from the stylesheet:
+     the grid was legible as five columns right up until a sixth child arrived,
+     which is exactly the reading that missed it. */
+  const rowShape = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.profile.units = 'lb'; save(true);
+    const mk = (exId, name, load, targetW, targetR) => ({
+      exId, name, load, targetW, targetR,
+      sets: [{ w: '', r: '', rpe: '', done: false }, { w: '', r: '', rpe: '', done: false }]
+    });
+    S.active = { id: 'rs', date: today(), type: 'full', rung: 'full',
+      started: Date.now(), activeMs: 0, tickAt: Date.now(),
+      exercises: [ mk('bb-back-squat', 'Back Squat', 'wt', 100, 5),
+                   mk('bw-plank', 'Plank', 'time', null, 45),
+                   mk('bw-bicycle', 'Bicycle Crunch', 'bw', null, 20) ] };
+    go('train');
+    /* Each in turn, because only the one you are on is a full card. */
+    const read = ei => {
+      S.active.exercises.forEach((x, n) => { x.collapsed = n !== ei ? true : false; });
+      renderTrain();
+      const card = document.querySelector('#train-body .ex-card[data-ei="' + ei + '"]');
+      const row = card && card.querySelector('.set-row');
+      if (!row) return { missing: true };
+      const r = row.getBoundingClientRect();
+      const kids = [...row.children];
+      return {
+        fields: kids.filter(k => k.classList.contains('set-f'))
+                    .map(k => (k.querySelector('.set-in') || {}).dataset.set),
+        run: kids.filter(k => k.classList.contains('set-run')).length,
+        h: Math.round(r.height),
+        /* One line: every child's centre sits on the row's centre. A wrapped
+           child is the bug, and its height alone would not say so on a row
+           that had grown for another reason. */
+        oneLine: kids.every(k => {
+          const b = k.getBoundingClientRect();
+          return Math.abs((b.top + b.bottom) / 2 - (r.top + r.bottom) / 2) < 6;
+        })
+      };
+    };
+    return { squat: read(0), plank: read(1), crunch: read(2) };
+  });
+  check('a loaded lift still asks for a weight',
+    !rowShape.squat.missing && rowShape.squat.fields.join(',') === 'w,r,rpe',
+    (rowShape.squat.fields || []).join(','));
+  check('a hold asks for no weight, and offers a button that runs it',
+    rowShape.plank.fields.join(',') === 'r,rpe' && rowShape.plank.run === 1,
+    `${rowShape.plank.fields.join(',')} · ${rowShape.plank.run} run`);
+  check('a bodyweight movement asks for no weight either',
+    rowShape.crunch.fields.join(',') === 'r,rpe', rowShape.crunch.fields.join(','));
+  check('...and every row is one line, whatever it carries',
+    rowShape.squat.oneLine && rowShape.plank.oneLine && rowShape.crunch.oneLine,
+    `squat ${rowShape.squat.oneLine} plank ${rowShape.plank.oneLine} crunch ${rowShape.crunch.oneLine}`);
+  check('...and the same height',
+    rowShape.plank.h === rowShape.squat.h && rowShape.crunch.h === rowShape.squat.h,
+    `squat ${rowShape.squat.h} plank ${rowShape.plank.h} crunch ${rowShape.crunch.h}`);
+
+  /* A movement you open by hand stays open when the screen repaints around it.
+     `collapsed` is tri-state for exactly this — absent means "fold what I am
+     not on", and an explicit false has to outrank it or the tap undoes
+     itself on the next tick. */
+  const heldOpen = await page.evaluate(() => {
+    S.active.exercises.forEach(x => { delete x.collapsed; });
+    renderTrain();
+    const ahead = document.querySelector('#train-body .ex-card.fold.ahead');
+    if (!ahead) return { missing: 'nothing ahead' };
+    const ei = +ahead.dataset.ei;
+    ahead.querySelector('[data-act="toggle-collapse"]').click();
+    const openedNow = !document.querySelector('#train-body .ex-card[data-ei="' + ei + '"]').classList.contains('fold');
+    /* The repaint that used to close it: ticking anything anywhere. */
+    updateTrainProgress();
+    const stillOpen = !document.querySelector('#train-body .ex-card[data-ei="' + ei + '"]').classList.contains('fold');
+    return { openedNow, stillOpen };
+  });
+  check('a movement you open by hand opens', heldOpen.openedNow === true, heldOpen.missing);
+  check('...and stays open when the screen repaints', heldOpen.stillOpen === true);
+
+  /* ---- the rail stays where the question is ----
+     "Where am I" is what you want while you are scrolling, and the answer was
+     scrolling away with you. Faked notch, because env(safe-area-inset-top) is
+     0px in a desktop browser and both halves of the offset that puts the band
+     over the notch cancel to nothing there. */
+  /* After the arrival stagger has finished. go() adds .entering and the
+     screen's children animate in on a translateY — measure into that and every
+     rectangle on the screen is a few pixels out, which reads as a layout bug
+     that is not there. */
+  await page.waitForTimeout(700);
+  const pinnedRail = await page.evaluate(async () => {
+    /* Two frames after the scroll before anything is measured. Chrome updates a
+       sticky element's offset on the scroll it belongs to, not on the layout a
+       getBoundingClientRect() forces — read in the same turn as the scroll and
+       the bar is measured at its old position, which reads as a 12px miss that
+       is not there. */
+    const settle = () => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const root = document.documentElement;
+    const was = root.style.getPropertyValue('--safe-t');
+    root.style.setProperty('--safe-t', '47px');
+    const scr = document.getElementById('s-train');
+    const pin = document.querySelector('#train-body .tr-pin');
+    if (!pin) { root.style.setProperty('--safe-t', was); return { missing: 'no pinned rail' }; }
+    const inner = pin.querySelector('.card');
+    /* All the way down, not a fixed 400: a short session clamps the scroll
+       before the bar has caught, and the check then measures a bar that simply
+       has not stuck yet — which is a pass or a fail decided by how many
+       movements the fixture happened to have. */
+    scr.scrollTop = scr.scrollHeight;
+    await settle();
+    const stuck = scr.scrollTop > 0;
+    const sb = scr.getBoundingClientRect();
+    const band = pin.getBoundingClientRect().top - sb.top;
+    const card = inner.getBoundingClientRect().top - sb.top;
+    /* Both layers are hittable, so hit-test order IS paint order here: what
+       elementFromPoint reports in the strip above the card is what is drawn
+       there. A pointer-events:none band would report the row underneath and
+       pass this check while showing straight through — see the ridge on
+       Progress for that mistake made in full. */
+    const covered = [4, card / 2, card - 4].map(y =>
+      (document.elementFromPoint(Math.round(sb.left + sb.width / 2), Math.round(sb.top + y)) || {}).className || '');
+    scr.scrollTop = 0;
+    await settle();
+    root.style.setProperty('--safe-t', was);
+    return { band: Math.round(band), card: Math.round(card), covered, stuck };
+  });
+  check('the session scrolled far enough to pin anything', pinnedRail.stuck === true);
+  check('the session rail pins to the top of the screen',
+    pinnedRail.band === 0, pinnedRail.missing || String(pinnedRail.band));
+  check('...clearing the notch by exactly one notch', pinnedRail.card === 61,
+    String(pinnedRail.card));
+  check('...over a band nothing scrolls through',
+    (pinnedRail.covered || []).every(c => String(c).indexOf('tr-pin') >= 0),
+    (pinnedRail.covered || []).join(' | '));
 
   /* ---- the session reads like a written programme ----
      A real plan groups its movements and the heading tells you how to treat
@@ -2070,30 +2246,39 @@ try {
     save(true); go('train');
     const body = document.getElementById('train-body');
     const heads = [...body.querySelectorAll('.sup-head .sup-tag')].map(e => e.textContent.trim());
-    const nums = [...body.querySelectorAll('.ex-card .ex-num')].map(e => e.textContent.trim());
+    const nums = [...body.querySelectorAll('.ex-card .ex-node-t')].map(e => e.textContent.trim());
 
     /* The behaviour, driven through the real handler rather than described:
-       tick A and no clock starts; tick B and one does. */
-    const tickAt = ei => {
-      const b = document.querySelector(`.ex-card[data-ei="${ei}"] .tick`);
+       tick A and no clock starts; tick B and one does.
+
+       A movement you are not on is folded to a line, so B has no tick to press
+       until A is finished — which is also how you would reach it. Ticking
+       through A is therefore part of the fixture, not part of the assertion:
+       every one of those ticks is on the first half of the pair and must start
+       nothing. */
+    const tickOne = ei => {
+      const b = document.querySelector(`.ex-card[data-ei="${ei}"]:not(.fold) .set-row:not(.done) .tick`);
       if (!b) return null;
       b.click();
-      return document.getElementById('rest-bar').classList.contains('on');
+      const on = document.getElementById('rest-bar').classList.contains('on');
+      stopRest();
+      return on;
     };
     stopRest();
-    const afterA = tickAt(0);
+    const aTicks = [];
+    for (let n = 0; n < 8 && !isComplete(S.active.exercises[0]); n++) aTicks.push(tickOne(0));
+    const afterA = aTicks.length ? aTicks.every(x => x === false) : null;
+    const afterB = tickOne(1);
     stopRest();
-    const afterB = tickAt(1);
-    stopRest();
-    return { heads, nums, afterA, afterB, text: body.innerText || '' };
+    return { heads, nums, afterA, afterB, aTicks, text: body.innerText || '' };
   });
   check('a session names its superset once, over the pair',
     supTrain.heads.length === 1 && /Superset A/i.test(supTrain.heads[0]), supTrain.heads.join(' / '));
   check('...and numbers the pair A, B rather than 01, 02',
     supTrain.nums[0] === 'A' && supTrain.nums[1] === 'B', supTrain.nums.join(','));
   /* This is the entire behaviour of a superset. Everything else is labelling. */
-  check('ticking the first of a pair starts no rest', supTrain.afterA === false,
-    String(supTrain.afterA));
+  check('ticking the first of a pair starts no rest', supTrain.afterA === true,
+    JSON.stringify(supTrain.aTicks));
   check('...and ticking the second does', supTrain.afterB === true, String(supTrain.afterB));
   check('no placeholder text on a session with a superset in it', !BAD.test(supTrain.text));
 

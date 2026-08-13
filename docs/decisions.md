@@ -504,3 +504,110 @@ off, including the scanner, and no other part of the app gained a request. The
 offline promise now reads: *the app works entirely offline; one optional
 feature asks one question of one server, and degrades to what it did before
 when it cannot.*
+
+---
+
+## Train is a route, not a list of boxes
+
+**Reported as:** "This screen still feels bulky and hate to say it boring."
+
+**Measured before touching anything.** A three-movement session on a 390×844
+screen came to **1,716px** — twice the viewport — with a single exercise filling
+the whole of it. The back squat card was 417px, of which 255px was chrome and
+162px was the three set rows anyone had come to log. Nine pixels in ten were
+about a movement you were not doing.
+
+The redundancy was as bad as the height. A bicycle crunch read `Bicycle Crunch
+/ Core / CORE` — the muscle line and a badge saying the same word, one line
+apart. Its target said `20`, the recall bar under it said `LAST 20 · 3 days
+ago`, and every set row's placeholder offered `20`. Three copies of one number
+in eighty pixels of stacked full-width bars.
+
+**What the good ones do.** Hevy logs a set in two taps. Strong auto-populates
+last time's weight and expects a tap, not typing. Fitbod is the cautionary one
+and is described as cluttered for showing recommendations and muscle-group data
+alongside the logging interface. The governing constraint is the same in every
+review of the category: the logger has to be fast enough to update between sets
+without losing your rest period to tapping and scrolling.
+
+**The decision: a session has a position on it.** The same three states the
+ascent on Progress uses — `walked`, `now`, `ahead`. Only the movement you are on
+is a full card. The others are 58px lines, and every one of them opens on a tap,
+so nothing is hidden; it is folded. The whole session fits on one screen and the
+one thing you are actually doing is the one thing that is drawn.
+
+- **The fold is derived, never stored.** `exFolded()` reads where you are, so
+  undoing a set unfolds the movement again on its own and nothing has to
+  remember that it did. `collapsed` is tri-state: absent means "fold what I am
+  not on", and an explicit `true`/`false` is a choice you made and outranks it.
+- **The number became a node.** A ring that fills with the sets you have ticked,
+  in the same thirty pixels the flat "01" square spent on a number.
+- **Two bars became one line of chips.** Target, last time and the plate line
+  wrap on one row and disappear individually when there is nothing to say.
+- **A badge that repeats the line above it was dropped**, matched token by token
+  against the muscles already named — `Core` goes, `Arms` stays, because
+  "Arms" is a substring of "Forearms" and a substring test would have taken the
+  one badge that says something the muscle line does not.
+- **The rail is pinned.** "Where am I" is the question you have while you are
+  scrolling, and the answer was scrolling away with you.
+- **The end of the route is a summit**, drawn with the ascent's own peak at the
+  ascent's own coordinates — a session and a milestone are the same shape of
+  thing and the app should not hold two ideas about what the top looks like.
+
+**Measured after:** 1,716px → 1,132px, and the back squat card 417px → 323px
+with every set row it had. The rest of the session went from "scroll to find it"
+to three lines under your thumb.
+
+### Two bugs the redesign was standing on
+
+**A set row cannot be a fixed grid.** `.set-row` named five columns and its
+children varied: a hold adds a run button, a run swaps distance for weight, a
+bodyweight movement has no load column at all. The run button — shipped one
+release earlier — was a *sixth* child, so the tick wrapped to a line of its own
+and a timed set stood **105px** tall against everyone else's 54. Every previous
+attempt at this row counted columns out in advance and every one of them broke
+on a combination nobody had drawn. It is a flex line now, and there is no
+combination left to get wrong.
+
+**A weight box on a movement with no weight in it.** A plank offered a field
+reading `— lb`; a bicycle crunch offered `0 +lb`. A third of every row given to
+a question the movement does not ask. `wantsLoad()` shows the column where a
+weight is part of the movement, or where you have ever actually logged one, and
+the exercise menu turns it on for a weighted pull-up — with an explicit `false`
+outranking the history, or turning it off on a movement you once did with a
+plate would let the old weight switch it straight back on.
+
+Neither bug reproduces the other's symptom, and **neither one alone reproduces
+the 105px row** — restoring the grid on its own leaves five children on a plank
+because the weight column is gone, and restoring the weight column on its own
+leaves a flex line that simply gets narrower. `blanks.mjs` asserts both, and the
+combined revert is what puts the plank back to 100px against the squat's 50.
+
+### What a desktop browser could not have told you
+
+The pinned rail sticks at `top: calc(-1 * (var(--safe-t) + 14px))` with a
+matching padding and margin. All three cancel to nothing when
+`env(safe-area-inset-top)` is `0px`, which is what a desktop browser reports —
+so the check fakes a 47px inset and asserts the band reaches the scroller's top
+edge while the card inside it clears the notch by exactly one notch.
+
+Three things had to be got right, and each was found by measuring rather than by
+reading the CSS:
+
+1. **A sticky `top:0` sits at the top of the scroller's *content* box**, not its
+   padding box. The bar stopped 14px down and `185 lb reps rpe` from the row
+   above stayed legible in the strip over it.
+2. **Padding alone moves where the card lands when stuck but not where it
+   starts**, so the card jumps the moment you scroll. The negative `top` is what
+   cancels it; the negative margin is what cancels the padding at rest. A probe
+   walking the last two pixels before the catch is what proves there is no step.
+3. **A taller band paints over the screen title at rest** — the first attempt
+   clipped the descender of "Full body".
+
+And the check itself had to be measured twice. `elementFromPoint` is a valid
+proxy for "what is drawn here" only because both layers are hittable; the ridge
+on Progress is the counter-example, where a `pointer-events:none` decoration
+passed a hit-test check while painting straight over the words. The first
+version of the pinned-band check also failed for a reason that was not there:
+it measured into the screen-arrival stagger, where every rectangle on the screen
+is a few pixels out.

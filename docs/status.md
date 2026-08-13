@@ -1,6 +1,6 @@
 # Status
 
-Verified against the build at **948,710 bytes**, `VERSION = '1.7.0'`.
+Verified against the build at **972,184 bytes**, `VERSION = '1.8.0'`.
 Last sweep: `dupes` + `blanks` (377) + `engine` (263) + `fuel` (108) + `stretch` (87) + `sw` (17) + `native` (23) + `import` (68) + `scan` (61) all green. Nothing known is broken.
 
 ---

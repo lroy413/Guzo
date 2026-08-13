@@ -277,7 +277,8 @@ document.addEventListener('click', ev => {
   const si = t.dataset.s != null ? +t.dataset.s : null;
 
   const NEEDS_ACTIVE = ['toggle-set','add-set','del-set','swap-ex','add-exercise','ex-menu',
-                        'save-note','remove-ex','finish','abandon','toggle-collapse','pick-ex','leave-session'];
+                        'save-note','remove-ex','finish','abandon','toggle-collapse','pick-ex','leave-session',
+                        'ex-load'];
   if (a === 'help-form-session' && !S.active) { sheetForm(v, false); return; }
   if (a === 'ex-form' && !S.active) { if (v) sheetExerciseGuide(v, false); return; }
   /* Building a routine is a multi-select job. Throwing the sheet away after
@@ -685,10 +686,12 @@ document.addEventListener('click', ev => {
          set on set 2 of 4 is still a record, and that branch only runs on the
          last one. */
       if (st.pr) toast('Personal best — ' + item.name, true);
-      // Last set ticked → fold the exercise away and move on to the next one.
-      if (st.done && isComplete(item) && !item.collapsed) {
-        item.collapsed = true;
-        replaceExCard(i);
+      /* Last set ticked → move on to the next one. The fold itself is no longer
+         written down: exFolded() derives it from where you are, so
+         paintTrainStates() (below, via updateTrainProgress) folds this card and
+         opens the next in the same pass — and undoing the set puts both back
+         without anything having to remember it did that. */
+      if (st.done && isComplete(item)) {
         const doneEx = S.active.exercises.filter(isComplete).length;
         const totalEx = S.active.exercises.length;
         /* A record outranks encouragement. Both fire into the same toast
@@ -697,8 +700,12 @@ document.addEventListener('click', ev => {
         if (!st.pr && doneEx < totalEx) toast(encouragement(doneEx, totalEx), true);
         setTimeout(() => {
           if (!S.active || SCREEN !== 'train') return;   // session may have ended in the meantime
-          const nextIdx = S.active.exercises.findIndex(x => !isComplete(x));
-          const el = nextIdx >= 0 ? document.querySelector('.ex-card[data-ei="' + nextIdx + '"]') : null;
+          /* Display order, not array order — a movement added mid-session lands
+             at the end of the array and the raw findIndex would send you to it
+             past everything you had not done yet. */
+          const nextIdx = sessionOrder(S.active).find(x => !isComplete(S.active.exercises[x]));
+          if (nextIdx == null) return;
+          const el = document.querySelector('.ex-card[data-ei="' + nextIdx + '"]');
           if (el) el.scrollIntoView({ behavior:'smooth', block:'start' });
         }, 260);
       }
@@ -716,9 +723,13 @@ document.addEventListener('click', ev => {
       if (item.sets.length > 1) item.sets.pop();
       save(); renderTrain(); break;
     }
+    /* Explicitly, in both directions. `collapsed` is tri-state — see
+       exFolded() — so opening a movement you are not on has to write `false`
+       rather than delete the key, or the next repaint folds it straight back
+       up because it is still ahead of you. */
     case 'toggle-collapse': {
       const item = S.active.exercises[i];
-      item.collapsed = !item.collapsed;
+      item.collapsed = !exFolded(item, exStand(i));
       replaceExCard(i); save(); break;
     }
     case 'swap-ex': sheetExercisePicker('swap', i); break;
@@ -792,7 +803,7 @@ document.addEventListener('click', ev => {
     case 'rail-go': {
       const it = S.active && S.active.exercises[i];
       if (!it) break;
-      if (it.collapsed) { it.collapsed = false; replaceExCard(i); }
+      if (exFolded(it, exStand(i))) { it.collapsed = false; replaceExCard(i); }
       const el = document.querySelector('.ex-card[data-ei="' + i + '"]');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       buzz();
@@ -839,12 +850,34 @@ document.addEventListener('click', ev => {
               <div class="tiny mt-s">Something else that trains the same thing</div></div>
             <span class="chev">&rsaquo;</span>
           </div>
+          ${/* The weight column is hidden on a movement that has no weight in it
+                — see wantsLoad(). This is how a weighted pull-up or a plank with
+                a plate on your back gets it back, and it stays once there is a
+                weight logged, so it is asked for once. */''}
+          ${(item.load === 'bw' || item.load === 'time' || item.load === 'min')
+            && !tracksDistance(item, ex) ? `<div class="lrow" data-act="ex-load" data-i="${i}">
+            <div class="ico">${ICO['gear-dumbbell']}</div>
+            <div class="grow"><div class="h3">${wantsLoad(item) ? 'Bodyweight only' : 'Add weight to this'}</div>
+              <div class="tiny mt-s">${wantsLoad(item)
+                ? 'Hide the weight column again'
+                : 'A vest, a plate or a belt — shows the weight column'}</div></div>
+          </div>` : ''}
         </div>
         <div class="field mb"><div class="label">Note</div><textarea class="input" id="ex-note" placeholder="Left shoulder tight, used neutral grip…">${h(item.note||'')}</textarea></div>
         <button class="btn ghost block mb-s" data-act="save-note" data-i="${i}">Save note</button>
         <button class="btn danger block" data-act="remove-ex" data-i="${i}">Remove from session</button>`,
         { key: 'ex-menu:' + i });
       break;
+    }
+    /* Turning it off has to clear what is already logged, or wantsLoad() reads
+       those weights back and the column returns on the next render — a switch
+       that undoes itself is worse than no switch. */
+    case 'ex-load': {
+      const item = S.active.exercises[i];
+      const on = wantsLoad(item);
+      item.addLoad = !on;
+      if (on) { item.sets.forEach(s => { s.w = ''; }); delete item.targetW; }
+      save(); closeSheet(); renderTrain(); break;
     }
     case 'save-note': {
       S.active.exercises[i].note = ($('#ex-note')||{}).value || '';
