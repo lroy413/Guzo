@@ -656,6 +656,118 @@ try {
   check('...and every region has enough for a focused session on its own',
     depth.thinnest >= 3 && depth.regions >= 9, JSON.stringify(depth.byRegion));
 
+  /* ---- the body map ----
+     A figure you point at. What is asserted is the part that can go quietly
+     wrong and would still look like a body: that every region sits inside the
+     silhouette, that the ten muscles the engine reasons about are all
+     reachable across the two views, that a tap resolves to a muscle from
+     anywhere on the figure, and that the male and female figures are actually
+     different shapes rather than the same one with a different label. */
+  console.log('\nthe body map\n');
+
+  const geom = await page.evaluate(() => {
+    /* Every authored point of every region, against the silhouette at the same
+       height. A pectoral drawn to the shoulder's width hangs in mid-air beside
+       the ribcage — which is exactly what the first version did, and it reads
+       as a rendering fault rather than as bad anatomy. */
+    const edgeAt = (y, shape) => {
+      let best = null;
+      for (let i = 0; i < BODY_OUTLINE.length - 1; i++) {
+        const a = BODY_OUTLINE[i], b = BODY_OUTLINE[i + 1];
+        if ((y >= a[1] && y <= b[1]) || (y >= b[1] && y <= a[1])) {
+          const t = b[1] === a[1] ? 0 : (y - a[1]) / (b[1] - a[1]);
+          const x = a[0] + (b[0] - a[0]) * t;
+          if (best === null || x > best) best = x;
+        }
+      }
+      return best;
+    };
+    const shape = BODY_SHAPE.m;
+    const out = [];
+    ['front', 'back'].forEach(v => {
+      BODY_REGIONS[v].forEach(r => {
+        r.pts.forEach(p => {
+          const e = edgeAt(p[1], shape);
+          if (e !== null && p[0] > e + 0.6) out.push(`${v}/${r.m} ${p[0]}>${e.toFixed(1)}@${p[1]}`);
+        });
+      });
+    });
+    /* Every muscle the engine reasons about has to be somewhere on the figure,
+       or tapping is not an alternative to the list — it is a worse one. */
+    const drawn = new Set([...bodyMuscles('front'), ...bodyMuscles('back')]);
+    const modelled = new Set(Object.keys(STRETCH_REGIONS));
+    const missing = [...modelled].filter(m => !drawn.has(m));
+    return { outside: out.slice(0, 6), n: out.length, drawn: [...drawn], missing };
+  });
+  check('every muscle sits inside the body it is drawn on', geom.n === 0,
+    `${geom.n} points outside: ${geom.outside.join(', ')}`);
+  check('...and every muscle the engine reasons about is on it',
+    geom.missing.length === 0, geom.missing.join(', '));
+
+  const pick = await page.evaluate(() => {
+    /* A tap anywhere on the figure has to land on something. Swept over the
+       whole box rather than sampled at a few points — the gaps between regions
+       are exactly where a hit test stops answering, and they are not where you
+       would think to look for them. */
+    const miss = [];
+    let hits = 0;
+    for (let x = 4; x < BODY_W; x += 4) {
+      for (let y = 4; y < BODY_H; y += 6) {
+        hits++;
+        if (!bodyPick('front', 'm', x, y)) miss.push(`${x},${y}`);
+      }
+    }
+    /* Turning the figure round must offer a different set, or the back view is
+       decoration. */
+    const f = bodyMuscles('front').join(','), b = bodyMuscles('back').join(',');
+    return { hits, miss: miss.length, front: f, back: b, same: f === b };
+  });
+  check('the sweep actually probed the figure', pick.hits > 400, String(pick.hits));
+  check('a tap anywhere on the figure resolves to a muscle', pick.miss === 0, String(pick.miss));
+  check('turning it round offers a different set', pick.same === false,
+    `${pick.front} / ${pick.back}`);
+
+  const sexes = await page.evaluate(() => {
+    const w = sex => {
+      const s = BODY_SHAPE[sex];
+      /* Shoulder span and hip span, measured through the same transform the
+         figure is drawn with — not read off the table, which would only prove
+         the table has different numbers in it. */
+      return { sh: bodyPt([97.8, 76], s, false)[0] - bodyPt([97.8, 76], s, true)[0],
+               hip: bodyPt([87, 119.4], s, false)[0] - bodyPt([87, 119.4], s, true)[0] };
+    };
+    return { m: w('m'), f: w('f'), na: w('na') };
+  });
+  check('the female figure is narrower at the shoulder', sexes.f.sh < sexes.m.sh - 2,
+    `${sexes.f.sh.toFixed(1)} vs ${sexes.m.sh.toFixed(1)}`);
+  check('...and wider at the hip', sexes.f.hip > sexes.m.hip + 1,
+    `${sexes.f.hip.toFixed(1)} vs ${sexes.m.hip.toFixed(1)}`);
+  check('...and "rather not say" is between them, not either of them',
+    sexes.na.sh < sexes.m.sh && sexes.na.sh > sexes.f.sh,
+    `${sexes.na.sh.toFixed(1)}`);
+
+  /* The heat is a share of your own busiest muscle, not a share of an invented
+     target — so a week with nothing in it lights nothing rather than dividing
+     by zero, and the muscle you trained most is always the brightest. */
+  const heat = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; save(true);
+    const cold = bodyHeat(7);
+    const mk = (exId, n) => ({ exId, name: EX[exId].name, load: 'wt', targetR: 8,
+      sets: Array.from({ length: n }, () => ({ w: 60, r: 8, done: true })) });
+    S.sessions.push({ id: 'h1', date: today(), type: 'full', ended: Date.now(), dur: 40,
+      exercises: [mk('bb-bench', 6), mk('bb-back-squat', 2)] });
+    save(true);
+    const warm = bodyHeat(7);
+    const top = Object.keys(warm).sort((a, b) => warm[b] - warm[a])[0];
+    return { coldN: Object.keys(cold).length, top, topV: warm[top],
+             quads: warm.Quads, chest: warm.Chest };
+  });
+  check('a week with nothing in it lights nothing', heat.coldN === 0, String(heat.coldN));
+  check('...and the muscle you trained most is the brightest',
+    heat.topV === 1 && heat.chest === 1, `${heat.top} ${heat.topV}`);
+  check('...with everything else in proportion to it',
+    heat.quads > 0 && heat.quads < 1, String(heat.quads));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

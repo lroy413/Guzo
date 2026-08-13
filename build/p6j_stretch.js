@@ -37,6 +37,17 @@ function sheetStretch() {
 
     ${/* Why these, in one line, before the list rather than buried under it.
           A recommendation you cannot interrogate is a horoscope. */''}
+    ${/* Point at it instead of reading a list. The figure is the only thing on
+          this screen that answers "I know exactly what hurts" in one tap. */''}
+    <button class="lrow mb" data-act="body-map" style="width:100%;text-align:left">
+      <div class="ico">${ICO['area-Back']}</div>
+      <div class="grow">
+        <div class="h3">Stretch one thing</div>
+        <div class="tiny mt-s">Point at a muscle on the body map</div>
+      </div>
+      <span class="chev">&rsaquo;</span>
+    </button>
+
     <div class="str-why mb">
       <span class="str-why-k">Built from</span>
       ${st.areas.length ? `<span class="str-chip sore">${st.areas.length} area${st.areas.length === 1 ? '' : 's'} you flagged</span>` : ''}
@@ -261,4 +272,75 @@ function sheetStretchPreset(k) {
       Start it &mdash; ${Math.round(secs / 60)} min</button>
     <button class="btn ghost block" data-act="stretch-preset-save" data-v="${h(p.k)}">Save as a routine</button>
   `, { key: 'stretch-preset-' + k });
+}
+
+/* ============================================================
+   THE BODY MAP
+   ------------------------------------------------------------
+   Point at what you want to stretch. The figure is lit by where your week
+   actually went — see bodyHeat() — so the thing you have hammered is the
+   thing that catches your eye before you have decided to look for it.
+
+   Draft state rather than stored state: which way the figure is facing and
+   which muscle is chosen are questions about *this* visit to the sheet, and
+   writing them to S would mean the app remembering that you once looked at
+   your hamstrings.
+   ============================================================ */
+let bodyMapView = 'front';
+let bodyMapSel = null;
+
+function sheetBodyMap(m) {
+  if (m !== undefined) bodyMapSel = m;
+  const sex = (S.profile && S.profile.sex) || 'na';
+  const heat = bodyHeat(7);
+  const vol = (() => { try { return muscleVolume(7) || {}; } catch (e) { return {}; } })();
+  const sel = bodyMapSel;
+  /* Everything the catalogue has for the chosen muscle, not the day's list —
+     you came here to work on one thing, which is a different question from
+     "what should I do today". */
+  const picks = sel ? dailyStretch(6, { filter: ex =>
+    ex.primary === sel || (ex.sec || []).indexOf(sel) >= 0 }) : [];
+
+  openSheet(`
+    <div class="row between mb-s" style="padding-right:44px">
+      <h2 class="h1">Where does it need it?</h2>
+    </div>
+    <p class="small mb">Tap a muscle. It is lit by what you have trained in the last seven days.</p>
+
+    <div class="bmap mb">
+      <div class="bmap-fig">${bodyFigureHTML({ sex, view: bodyMapView, lit: heat, sel })}</div>
+      ${/* Turning it round, not rotating it in space — see the handbook. Front
+            and back is every muscle the catalogue targets; a side view would
+            be drawing for no new tap target. */''}
+      <button class="bmap-turn" data-act="body-turn"
+              aria-label="Turn the figure to show the ${bodyMapView === 'front' ? 'back' : 'front'}">
+        ${ICO.repeat}<span>${bodyMapView === 'front' ? 'Back' : 'Front'}</span>
+      </button>
+    </div>
+
+    ${sel ? `<div class="bmap-head">
+        <div class="grow">
+          <div class="h3">${h(sel)}</div>
+          <div class="tiny mt-s">${vol[sel]
+            ? Math.round(vol[sel]) + ' set' + (Math.round(vol[sel]) === 1 ? '' : 's') + ' in the last 7 days'
+            : 'Nothing logged for it this week'}</div>
+        </div>
+        <button class="btn quiet sm" data-act="body-clear">Clear</button>
+      </div>
+      ${picks.length ? `<div class="list mb">${picks.map(s => `
+        <button class="lrow" data-act="stretch-info" data-v="${h(s.ex.id)}" style="width:100%;text-align:left">
+          <div class="ico">${ICO.mobility}</div>
+          <div class="grow">
+            <div class="h3">${h(s.ex.name)}</div>
+            <div class="tiny mt-s">${s.ex.load === 'time'
+              ? stretchSets(s.ex) + ' × ' + s.ex.rh + 's' : '×' + s.ex.rh} &middot; ${h(s.ex.primary)}</div>
+          </div>
+          <span class="chev">&rsaquo;</span>
+        </button>`).join('')}</div>`
+        : `<p class="small blankstate mb">Nothing in the catalogue targets that one directly.
+           Tap somewhere else, or use today's list.</p>`}`
+      : `<p class="small center mb" style="color:var(--faint)">Nothing selected yet</p>`}
+
+    <button class="btn ghost block" data-act="stretch">Today's stretch instead</button>`,
+    { key: 'bodymap' });
 }

@@ -797,6 +797,24 @@ document.addEventListener('click', ev => {
       break;
     }
 
+    /* ---- the body map ----
+       The hit paths in the figure answer most taps. This catches the rest:
+       a tap between two regions, or on the silhouette itself, which on a
+       figure the size of a phone screen is a lot of the surface. Resolved to
+       the nearest region rather than to nothing, because a body map that
+       sometimes ignores you reads as broken rather than as precise. */
+    case 'body-pick': sheetBodyMap(v); break;
+    case 'body-clear': sheetBodyMap(null); break;
+    case 'body-turn': {
+      bodyMapView = bodyMapView === 'front' ? 'back' : 'front';
+      /* The chosen muscle is dropped if it is not drawn on the side you turned
+         to — a selection you cannot see is a selection you cannot undo. */
+      if (bodyMapSel && bodyViewOf(bodyMapSel) !== bodyMapView) bodyMapSel = null;
+      sheetBodyMap(bodyMapSel);
+      break;
+    }
+    case 'body-map': sheetBodyMap(null); break;
+
     /* Tapping a segment of the rail goes to that movement — and opens it if it
        had folded itself away, because scrolling to a collapsed card would look
        like nothing happened. */

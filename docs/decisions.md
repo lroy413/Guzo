@@ -795,3 +795,109 @@ arrival — moving the selector from `.screen.entering` to `.screen` keeps the
 animation name inside the guard and leaves that check green while the line
 redraws on every render. The new one reads `animationName` off the element with
 `.entering` present and again after an ordinary render.
+
+---
+
+## The body is data, not a picture
+
+Asked for as a glowing anatomical figure you can rotate and touch. The honest
+answer was: yes to a figure, yes to touching it, yes to male and female, and no
+to true 3D — a rigged mesh is megabytes plus a loader, and both break the
+single-file, zero-request, works-on-a-plane promise the whole app bends around.
+"Rotate" is front ↔ back, which costs nothing real: no muscle in the catalogue
+is only reachable from the side.
+
+### Why it is authored as points
+
+The obvious way is a traced illustration and it is wrong twice over. A raster
+would be the first binary asset in a file that has never had one, and would
+need a copy per view, sex and density. A traced SVG would be one frozen
+drawing — the proportions could not change, a region could not be lit by how
+hard it was trained, and the female figure would be a second drawing rather
+than the same anatomy.
+
+So it follows `p3c_form.js`, which has drawn 45 form diagrams from four joints
+and inverse kinematics since long before this. Every region is a short list of
+coordinates on a 132 × 240 grid, smoothed into a closed path at render time.
+Three things fall out of that:
+
+- **One anatomy, two bodies.** The male/female difference is four numbers — the
+  horizontal scale at shoulder, waist, hip and thigh — applied to every point as
+  it is emitted, blended along a ramp so no boundary puts a kink in the
+  silhouette. `Rather not say` sits between them rather than defaulting to
+  either, which is the same answer the energy equation already gives that
+  choice.
+- **One half, drawn once.** Everything left of centre is the right half
+  mirrored into the same closed path, so the figure cannot come out lopsided
+  and there is no seam down the middle where two strokes would meet.
+- **Regions are addressable.** A muscle is a named shape, so it can be lit,
+  dimmed, tapped, or coloured by seven days of volume.
+
+### The proportions took three passes
+
+The first figure was 100 units wide and everything in it was wrong for one
+reason: with the arms hanging clear of the body — which they must, because
+biceps and triceps are two of the ten regions and neither is reachable on a
+figure with its arms pinned to its sides — a realistic shoulder span does not
+fit in a box as wide as the body is at the hip. It is 132 wide now, on a 7.5-head
+figure: head height 32, shoulders two head-heights across, crotch at four heads,
+knee at five and a half.
+
+The second pass fixed the thing that reads as a rendering fault rather than as
+bad anatomy: **the ribcage is a good deal narrower than the shoulders**, so a
+pectoral authored to the shoulder's width hangs in mid-air beside the body. And
+a `Core` as wide as the torso at every height draws a belly rather than a
+midsection — obliques taper towards the hip and the silhouette does the work of
+saying where the body ends.
+
+### The heat is your own week, not a target
+
+`bodyHeat()` normalises seven days of `muscleVolume()` against the busiest
+muscle rather than against a fixed ceiling, because there is no honest fixed
+ceiling: twenty sets is a heavy week for one person and a Tuesday for another.
+What the figure says is *this is where your week went*, which is true of any
+week. It is emphatically not *you are 60% of the way to enough*, which would be
+inventing a target the app has never had and does not want.
+
+A week with nothing in it lights nothing, and draws itself cold. That is the
+honest picture of a week with no sessions in it.
+
+### Two constraints that shaped the interaction
+
+**Touch targets.** The floor is 44px, and at a figure ~460px tall a biceps is
+about 26 × 60. Each region carries an invisible twin with a 13-unit transparent
+stroke and `pointer-events: all`, which makes fill *and* stroke hittable whether
+or not either is painted — a 26px muscle with a 39px target and no 39px muscle
+drawn. That is not enough on its own, so a tap the region paths miss falls
+through to the nearest region by centroid. A body map that sometimes ignores you
+reads as broken rather than as precise.
+
+**Teal is absent from the heat.** It already means *done* in this app. A body
+map where teal meant "trained hard" would be one colour saying two things one
+screen apart, so the heat runs through ember and the selection is the brightest
+thing on the screen.
+
+### What the checks caught
+
+The geometry check found a real defect on its first run — the hamstring's outer
+edge poked 0.8 units outside the leg at the knee, which at phone size is a
+visible sliver of muscle floating beside the silhouette. It compares every
+authored point against the silhouette at the same height, through the same
+transform the figure is drawn with.
+
+The tap check sweeps the whole 132 × 240 box rather than sampling a few points,
+because the gaps between regions are exactly where a hit test stops answering
+and they are not where you would think to look. And the sex check measures
+shoulder and hip span *through* `bodyPt()` rather than reading the table, which
+would only prove the table has different numbers in it.
+
+One revert passed that should not have: renaming `Calves` to something else on
+the back view left the check green, because Calves is also on the front. Proving
+it needed a muscle that appears on one view only.
+
+### Not done yet
+
+The stretch setup still picks sore areas from eight chips rather than by
+pointing at the figure, and the onboarding sex question is untouched — see the
+note above on why a BMR coefficient with a "rather not say" option is the
+weakest place for a body-picker, not the strongest.
