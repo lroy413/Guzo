@@ -2450,3 +2450,49 @@ every object and asks what answers, and it measures each target: the membership
 pill came back at 36px against a 44px floor. **Reverting `pointer-events` prints
 "the mountain hit nothing", and none of the other seventeen camp checks
 notice** — which is the whole argument for having it.
+
+---
+
+## Stop guessing at the strip: make the app say what the screen is
+
+Reported four times, from four screenshots, and diagnosed wrong three times —
+first as the canvas not being painted, then as an over-constrained `html/body`,
+then as a missing manifest. Each fix was defensible on its own and none of them
+was the answer, because the numbers that settle it are not in a picture: the
+*resolved* safe-area insets, whether iOS considers this a standalone app, and
+how big it believes the window is.
+
+So Settings prints them. Window, screen, visual viewport, `body`, `#app`, the
+four insets, `display-mode` and `navigator.standalone`. It is seven lines in a
+card and it converts an argument into a reading.
+
+**The insets have to be measured, not read.** `getPropertyValue('--safe-t')`
+hands back the literal text `env(safe-area-inset-top,0px)` — it looks exactly
+like a working readout and tells you nothing about the device. The only way to
+see the length iOS substituted is to make an element use it and read the
+computed padding back off that. The check asserts no `env(` reaches the output,
+and reverting the `parseFloat` prints the expression.
+
+**And the check asserts the numbers are about THIS window**, matched against
+the viewport the instrument set — a diagnostic that prints `screen.width` looks
+entirely correct and describes the wrong box. That particular revert cannot be
+proved red here, because headless Chromium reports `screen` and `window`
+identically; the hardcoded-size revert proves the same property.
+
+### The part of it that was real, and fixable without knowing the cause
+
+`.camp-head` reserved 150px of bottom padding to hold the range clear of the
+type. The scrim does that job now, so it was 150px of nothing that the camp
+still had to find room for — with a long name and a two-line subtitle the scene
+overflowed and the bottom row of tents finished behind the nav. It is 34px now,
+and the camp fits without scrolling on every size from 375×667 up; at 320×568
+it scrolls, and nothing is left under the nav once you reach the foot.
+
+**The scrim moved with it, and moving it broke it silently.** Hung off
+`.camp-head` it shifted whenever that padding changed, and the stats — which
+are placed against the camp's own floor — slid out from under it. Re-anchored
+to `.camp`, with the fade over a fixed 80px rather than a percentage so it does
+not stretch with the box. **As a pseudo-element it is the first child**, so at
+the same z-index as `.camp-bg` the backdrop painted straight over it and the
+scrim did nothing at all — text back to 3.69:1 with the CSS still present and
+looking correct.

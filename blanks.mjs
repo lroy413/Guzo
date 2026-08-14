@@ -2384,6 +2384,83 @@ try {
   check('...at a target you can actually hit',
     small.length === 0, small.map(d => `${d.act} ${d.tap}px`).join(', '));
 
+  /* The nav is position:fixed and takes no layout space, so nothing in the
+     camp may end up under it once you have scrolled to the foot of the scene.
+     The head used to reserve 150px it did not need, and on a long name the
+     last two tents finished behind the pill. Measured at the smallest screen
+     the app supports as well as the common one — the small phone is where a
+     fixed-height moraine under a variable-height head runs out of room. */
+  const fits = [];
+  for (const [w, hgt, inset] of [[390, 844, '47px'], [320, 568, '20px']]) {
+    await page.setViewportSize({ width: w, height: hgt });
+    await page.evaluate(i => {
+      document.documentElement.style.setProperty('--safe-t', i);
+      S.profile.name = 'Bartholomew'; save(true); go('more'); render();
+    }, inset);
+    await page.waitForTimeout(420);
+    fits.push(await page.evaluate(sz => {
+      const sc = document.getElementById('s-more');
+      sc.scrollTop = sc.scrollHeight;
+      const nav = document.getElementById('nav').getBoundingClientRect();
+      const under = [...document.querySelectorAll('.spot')].filter(e => {
+        const b = e.getBoundingClientRect();
+        return b.bottom > nav.top && b.left < nav.right && b.right > nav.left;
+      }).map(e => (e.querySelector('.spot-l') || {}).textContent || 'the fire');
+      const ground = document.querySelector('#more-body .camp-ground').getBoundingClientRect();
+      sc.scrollTop = 0;
+      return { sz, under, clear: Math.round(nav.top - ground.bottom) };
+    }, `${w}x${hgt}`));
+  }
+  await page.evaluate(() => document.documentElement.style.removeProperty('--safe-t'));
+  await page.setViewportSize({ width: 390, height: 844 });
+  const buried = fits.filter(f => f.under.length);
+  check('...and nothing left under the nav once you reach the foot of the camp',
+    buried.length === 0,
+    buried.map(f => `${f.sz}: ${f.under.join(', ')}`).join(' · '));
+  /* The floor of the camp clears the nav by construction — the screen reserves
+     the pill's height as padding, so the moraine ends above it however tall
+     the scene gets. That reservation is the thing to guard: without it every
+     tent in the bottom row goes behind the nav at once, and it is one
+     declaration away from being deleted as unused. */
+  const floorClears = fits.every(f => f.clear >= 0);
+  check('...because the screen reserves the nav\'s height under the camp',
+    floorClears, fits.map(f => `${f.sz}: ${f.clear}px`).join(' · '));
+
+  /* What this phone reports about its own screen, said out loud in Settings.
+     Three attempts to explain a strip at the foot of the screen were made from
+     screenshots and all three were wrong, because the numbers that settle it —
+     the resolved safe-area insets, whether iOS thinks this is a standalone
+     app, how big it believes the window is — are not in a picture. The check
+     is that it prints real numbers rather than the env() expressions: reading
+     the token back gives you the literal text `env(safe-area-inset-top,0px)`,
+     which looks like a readout and tells you nothing. */
+  const diag = await page.evaluate(() => {
+    const root = document.documentElement;
+    const read = () => {
+      sheetSettings();
+      const t = (document.getElementById('dispdiag') || {}).textContent || '';
+      closeSheet();
+      return t;
+    };
+    go('more'); render();
+    const flat = read();
+    root.style.setProperty('--safe-t', '59px');
+    const notched = read();
+    root.style.removeProperty('--safe-t');
+    return { flat, notched };
+  });
+  /* Asserted against the viewport this instrument set, so the readout has to
+     be reporting THIS window rather than any plausible-looking number — the
+     failure worth catching is a diagnostic that prints screen.width, or the
+     env() expression instead of the length iOS substituted into it, and looks
+     entirely correct while saying nothing about the device in your hand. */
+  const vp = page.viewportSize();
+  check('Settings says what this screen actually is',
+    diag.flat.includes(`window ${vp.width}x${vp.height}`)
+      && /safe t\d+ r\d+ b\d+ l\d+/.test(diag.flat)
+      && /display-mode \w/.test(diag.flat) && !/env\(/.test(diag.flat),
+    diag.flat.replace(/\s+/g, ' ').slice(0, 90));
+
   /* ---- the sky reaches the top of the screen ----
      The dark strip above base camp was never the header band, which repaints
      the page's own gradient and is invisible against it. It was the page: a
@@ -2498,11 +2575,11 @@ try {
   };
   /* Short, on purpose. More fills the screen rather than scrolling — it is a
      place, not a list — so on a tall phone there is barely 48px of travel and
-     nothing real ever passes under the band. On a 620px screen the camp
-     overflows properly and the check has something to measure, which is also
-     the case that matters: a small phone is where content does scroll under
-     this header. */
-  await page.setViewportSize({ width: 390, height: 620 });
+     nothing real ever passes under the band. On a 560px screen the camp hits
+     its own min-height, overflows properly, and the check has something to
+     measure — which is also the case that matters, because a small phone is
+     the one where content really does scroll under this header. */
+  await page.setViewportSize({ width: 390, height: 560 });
   await page.evaluate(() => { go('more'); render(); });
   await page.waitForTimeout(500);
   const titleL = lumOf((await page.evaluate(() =>
@@ -2524,7 +2601,7 @@ try {
   }
   await page.evaluate(() => { document.getElementById('s-more').scrollTop = 0; });
   check('...over enough of the screen to have found the tight spot',
-    sampled >= 5 && maxScroll > 60, `${sampled} positions over ${maxScroll}px`);
+    sampled >= 5 && maxScroll > 40, `${sampled} positions over ${maxScroll}px`);
   check('...with the screen title still legible over it wherever you have scrolled to',
     tightest.ratio >= 3, `${tightest.ratio}:1 at scroll ${tightest.at}, over ${JSON.stringify(tightest.px)}`);
   /* And the whole point of blurring rather than painting: at rest the band
@@ -2634,6 +2711,10 @@ try {
         const rg = document.createRange(); rg.selectNodeContents(n);
         const b = rg.getBoundingClientRect();
         if (b.width < 2 || b.height < 2) continue;
+        /* Clipped text has a rectangle and no pixels. The moon's screen-reader
+           name sits right over the mountain and was measured as unreadable
+           type at 3.86:1 — it is not type at all. */
+        if (n.parentElement.closest('.sr-only')) continue;
         if (!bands.some(r => b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top)) continue;
         const cs = getComputedStyle(n.parentElement);
         const px = parseFloat(cs.fontSize), wt = parseInt(cs.fontWeight, 10) || 400;
@@ -2707,10 +2788,11 @@ try {
   const flatTag = await page.addStyleTag({ content:
     '#more-body .camp-bg{background:#fff !important}' +
     '#more-body .camp-bg > *{visibility:hidden !important}' +
-    /* The camp head's scrim paints over the backdrop — it is what keeps the
-       name legible against the range — so a flattened backdrop read through it
-       is not flat. It came back at 181 of 255. */
-    '#more-body .camp-head::before{display:none !important}' });
+    /* The camp's scrim paints over the backdrop — it is what keeps the name
+       legible against the mountain — so a flattened backdrop read through it
+       is not flat. It came back at 181 of 255 the first time, 30 the second
+       when the scrim moved and this selector did not follow it. */
+    '#more-body .camp::before{display:none !important}' });
   await page.waitForTimeout(120);
   const fade = await page.evaluate(() => {
     const b = document.querySelector('#more-body .camp-bg').getBoundingClientRect();

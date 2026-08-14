@@ -813,6 +813,53 @@ function sheetSettings() {
       </div>
     </div>
 
+    ${/* What this device actually reports. Three separate attempts to explain
+          a strip at the foot of the screen were made from screenshots and all
+          three were wrong, because the numbers that decide the answer — the
+          safe-area insets, whether iOS thinks this is a standalone app, and
+          how big it believes the window is — are not visible in a picture and
+          cannot be measured from here. So the app says them out loud. Cheap,
+          harmless, and it turns an argument into a reading. */''}
+    <div class="sec-head"><span class="sec-t">This screen</span></div>
+    <div class="card mb">
+      <div class="tiny mono" id="dispdiag">measuring…</div>
+      <p class="tiny mt-s" style="color:var(--faint)">What this phone reports about its own screen. Useful only for chasing a layout bug.</p>
+    </div>
+
     <p class="tiny center">Guzo Fit v${VERSION} · build ${VERSION}<br>All data stored locally on this device.</p>
   `, { key: 'settings' });
+  paintDisplayDiag();
+}
+
+/* Resolved insets, not the env() expressions. getPropertyValue on the token
+   hands back the literal text `env(safe-area-inset-top,0px)`; the only way to
+   see the number iOS actually substituted is to make an element use it and
+   read the computed length back off that. */
+function paintDisplayDiag() {
+  const el = document.getElementById('dispdiag');
+  if (!el) return;
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;left:-9999px;top:0;'
+    + 'padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) '
+    + 'env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)';
+  document.body.appendChild(probe);
+  const c = getComputedStyle(probe);
+  const inset = [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft]
+    .map(v => Math.round(parseFloat(v) || 0));
+  probe.remove();
+  const app = document.getElementById('app').getBoundingClientRect();
+  const body = document.body.getBoundingClientRect();
+  const vv = window.visualViewport;
+  const mode = ['standalone', 'fullscreen', 'minimal-ui', 'browser']
+    .find(m => window.matchMedia(`(display-mode: ${m})`).matches) || '?';
+  const nav = navigator.standalone === true ? 'yes' : (navigator.standalone === false ? 'no' : '—');
+  el.innerHTML = [
+    `window ${window.innerWidth}x${window.innerHeight} · dpr ${window.devicePixelRatio}`,
+    `screen ${screen.width}x${screen.height}`,
+    vv ? `visual ${Math.round(vv.width)}x${Math.round(vv.height)} @${Math.round(vv.offsetTop)}` : 'visual —',
+    `body ${Math.round(body.width)}x${Math.round(body.height)} @${Math.round(body.top)}`,
+    `#app ${Math.round(app.width)}x${Math.round(app.height)} @${Math.round(app.top)}`,
+    `safe t${inset[0]} r${inset[1]} b${inset[2]} l${inset[3]}`,
+    `display-mode ${mode} · apple standalone ${nav}`
+  ].map(h).join('<br>');
 }
