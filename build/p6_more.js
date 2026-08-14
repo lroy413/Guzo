@@ -28,6 +28,84 @@ function sheetNutrition() {
 /* ============================================================
    MORE
    ============================================================ */
+/* A dome tent, lit from a lantern on its floor.
+   ---------------------------------------------
+   Authored once in a 120x82 box and sized by CSS, so every tent in the camp is
+   the same drawing at a different width — the alternative is five hand-tuned
+   copies that drift the first time one is edited.
+
+   Two details do the work. The fabric is brightest at the BOTTOM, which is the
+   opposite of a sphere lit from outside and the whole reason a lit tent reads
+   as lit rather than as an orange dome. And the silhouette is not a
+   semicircle: it rises steeply, turns over a short flat at the apex and pulls
+   in, which is what poles do to fabric. Drawn as a half-circle it reads as an
+   igloo, which is exactly what the first version looked like. */
+function tentSVG(hue, hot) {
+  const id = 'tent' + (tentSVG.n = (tentSVG.n || 0) + 1);
+  return `<svg class="tent" viewBox="0 0 120 82" aria-hidden="true" focusable="false">
+    <defs>
+      <radialGradient id="${id}-f" cx="50%" cy="96%" r="86%">
+        <stop offset="0%" stop-color="${hot}"/>
+        <stop offset="30%" stop-color="${hue}"/>
+        <stop offset="100%" stop-color="#93400F"/>
+      </radialGradient>
+      <radialGradient id="${id}-p">
+        <stop offset="0%" stop-color="${hot}" stop-opacity=".34"/>
+        <stop offset="100%" stop-color="${hue}" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <ellipse class="tent-pool" cx="60" cy="76" rx="58" ry="10" fill="url(#${id}-p)"/>
+    <ellipse cx="60" cy="75" rx="55" ry="5" fill="#04060A" opacity=".55"/>
+    <path class="tent-body" fill="url(#${id}-f)"
+      d="M4 74 C4.6 39.2 20.6 14.6 52.7 14 L67.3 14 C99.4 14.6 115.4 39.2 116 74 Z"/>
+    <g stroke="#7E3C13" stroke-width="1.7" fill="none" opacity=".6" stroke-linecap="round">
+      <path d="M4.3 73 C20.3 16.4 99.7 16.4 115.7 73"/>
+      <path d="M25.3 74 C31.3 30.6 45.4 14.4 60 14.3"/>
+      <path d="M94.7 74 C88.7 30.6 74.6 14.4 60 14.3"/>
+    </g>
+    <path d="M45.4 74 C45.4 36.8 74.6 36.8 74.6 74 Z" fill="${hot}" opacity=".6"/>
+    <path d="M4 74 C24.8 67 95.2 67 116 74 L116 77 L4 77 Z" fill="#3A1B08" opacity=".78"/>
+  </svg>`;
+}
+
+/* The fire. A bed of embers, two logs across it, and the flame in three
+   tongues on three different timings — one silhouette reads as a leaf, because
+   fire is several things moving at different rates. */
+function fireSVG() {
+  return `<svg class="tent fire" viewBox="0 0 120 82" aria-hidden="true" focusable="false">
+    <defs>
+      <radialGradient id="fire-f" cx="50%" cy="92%" r="80%">
+        <stop offset="0%" stop-color="#FFF3C4"/>
+        <stop offset="34%" stop-color="#FFC24A"/>
+        <stop offset="72%" stop-color="#F4762A"/>
+        <stop offset="100%" stop-color="#C7391A" stop-opacity=".55"/>
+      </radialGradient>
+      <radialGradient id="fire-p">
+        <stop offset="0%" stop-color="#FFC978" stop-opacity=".5"/>
+        <stop offset="100%" stop-color="#FF8A2B" stop-opacity="0"/>
+      </radialGradient>
+    </defs>
+    <ellipse class="tent-pool" cx="60" cy="72" rx="56" ry="16" fill="url(#fire-p)"/>
+    <path class="tent-body flick" fill="url(#fire-f)"
+      d="M60 12 C67 28 76 36 76 49 C76 61 69 68 60 68 C51 68 44 61 44 49
+         C44 37 52 31 56 20 C58 29 59 33 60 36 Z"/>
+    <path class="flick-b" fill="#FFB33F" opacity=".85"
+      d="M51 24 C55 34 58 39 57 47 C56 54 51 58 47 56 C43 54 42 46 44 39 C46 33 49 30 51 24 Z"/>
+    <path class="flick-b" fill="#FFF0BE"
+      d="M60 34 C64 43 67 47 67 54 C67 61 64 65 60 65 C56 65 53 61 53 54 C53 48 57 44 60 34 Z"/>
+    <g fill="#FF9B34" opacity=".85">
+      <circle cx="44" cy="64" r="2.2"/><circle cx="73" cy="65" r="1.8"/>
+      <circle cx="54" cy="67" r="1.5"/><circle cx="80" cy="62" r="1.4"/>
+      <circle cx="38" cy="62" r="1.6"/><circle cx="66" cy="68" r="1.9"/>
+    </g>
+    <g stroke-linecap="round" fill="none">
+      <path d="M41 66 L75 58" stroke="#4A3222" stroke-width="6.5"/>
+      <path d="M45 58 L79 66" stroke="#382514" stroke-width="6.5"/>
+      <path d="M41 66 L75 58" stroke="#8A6038" stroke-width="2" opacity=".55"/>
+    </g>
+  </svg>`;
+}
+
 function renderMore() {
   const p = S.profile;
   const st = totalStats();
@@ -49,7 +127,10 @@ function renderMore() {
   <div class="camp-bg" aria-hidden="true">
     <div class="camp-sky"></div>
     ${starsHTML()}
-    ${moonHTML(34)}
+    ${/* The moon is Settings. Everything on the ground is yours; the sky is
+          the app's, which is the whole of why this is where that lives. It is
+          outside .camp-bg's aria-hidden because it is a control, not
+          scenery. */''}
     ${/* The last of the light, low and behind the massif. Its own element and
           not a shape inside the range, because the range's box is the bottom
           168px and every layer in it fills to the floor — a glow in there is
@@ -60,75 +141,76 @@ function renderMore() {
     ${ridgeHTML('camp', true, true)}
   </div>
 
-  ${/* The fire is a sibling of .camp-bg, not a child of it, and that is the
-        whole placement decision. .camp-bg is masked out at its foot so the
-        range can dissolve into the page instead of ending on a rule — which
-        also means anything drawn down there where a camp actually sits is
-        faded to nothing. Outside the mask it keeps its light, and the dark
-        foreground it stands in is the reason it reads at all. */''}
-  <div class="camp-fire" aria-hidden="true">
-    <div class="camp-fire-glow"></div>
-    <svg class="camp-fire-svg" viewBox="0 0 40 30" aria-hidden="true" focusable="false">
-      <path class="cf-log" d="M11 28 L28.5 24.2 M11.5 24.2 L29 28"/>
-      <path class="cf-out" d="M20 2.5 C22 8.5 26 11 26 17 C26 21.9 23.4 25.4 20 25.4
-        C16.6 25.4 14 21.9 14 17 C14 12.6 17 10 18.6 6.2 C18.8 10 19.4 12 20 13 Z"/>
-      <path class="cf-in" d="M20 11.5 C21.4 14.4 22.5 15.8 22.5 18.6
-        C22.5 21.4 21.4 23.4 20 23.4 C18.6 23.4 17.5 21.4 17.5 18.6
-        C17.5 16.2 19 14.8 20 11.5 Z"/>
-    </svg>
-  </div>
+  <button class="camp-moon-btn" data-act="open-settings">
+    <span class="sr-only">Settings — ${h(settingsSummary())}</span>
+    ${moonHTML(42)}
+  </button>
 
+  ${/* The camp's fire is a destination now — it is Fuel, and it is drawn
+        with the tents below rather than tucked into the backdrop. */''}
   <div class="camp-head">
     ${/* No "Base camp" eyebrow: the screen header already says it, and a
           block that repeats the title above it is a label doing nothing. */''}
     <span class="camp-eyebrow">Day ${jst.day} on the route</span>
     <h1 class="camp-name">${h(p.name || 'Traveller')}</h1>
-    <p class="camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything below is here when you want it.</p>
+    <p class="camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything you might want is pitched here.</p>
     <div class="camp-stats">
       <div><span class="hs-v">${st.count}</span><span class="hs-k">session${st.count === 1 ? '' : 's'}</span></div>
       <div><span class="hs-v">${marks}<span class="hs-of">/${MILESTONES.length}</span></span><span class="hs-k">markers</span></div>
       ${st.tonnage ? `<div><span class="hs-v">${(st.tonnage / 1000).toFixed(1)}k</span><span class="hs-k">${unit()} moved</span></div>` : ''}
       ${st.mins ? `<div><span class="hs-v">${Math.round(st.mins / 60)}</span><span class="hs-k">hours in</span></div>` : ''}
     </div>
-  </div>
   </div>`;
 
-  /* More is a list of places to go. Everything you tune rather than visit now
-     lives behind one Settings row — the screen used to carry four lists, and
-     "Modules" had become a drawer holding two actual modules, two
-     destinations and two settings.
+  /* ---- the camp itself ----
+     More used to be four lists of rows. It is a place now: the tents are the
+     destinations, the fire is Fuel, the range is the route and the moon is
+     Settings. Nothing was dropped — every data-act below is the one its row
+     carried, so the whole event layer is untouched by this.
 
-     "Shape this week" is not here any more. It was never a setting, and Today
-     and Plan already offer it in five places. */
-  html += `<div class="sec-head"><span class="sec-t">Your journey</span></div><div class="list mb">
-    <div class="lrow" data-act="open-journey"><div class="ico">${ICO.compass}</div><div class="grow"><div class="h3">Day ${jst.day} of your guzo</div><div class="tiny mt-s">${milestonesReached().length} of ${MILESTONES.length} markers reached · ${(jst.kcal/1000).toFixed(1)}k kcal estimated</div></div><span class="chev">${ICO.chevR}</span></div>
-    <div class="lrow" data-act="stretch"><div class="ico">${ICO.mobility}</div><div class="grow"><div class="h3">Stretch</div><div class="tiny mt-s">${stretchOnboarded() ? (stretchStreak() ? stretchStreak() + ' day' + (stretchStreak() === 1 ? '' : 's') + ' running · built from what you trained' : 'A daily stretch, built from what you trained') : 'Daily stretches for your training and your working day'}</div></div><span class="chev">${ICO.chevR}</span></div>
-    <div class="lrow" data-act="routines"><div class="ico">${ICO.routines}</div><div class="grow"><div class="h3">Your routines</div><div class="tiny mt-s">${ensureRoutines().length ? ensureRoutines().length + ' built · run any of them alongside the plan' : 'Build a session of your own'}</div></div><span class="chev">${ICO.chevR}</span></div>
-    ${fuelOn() ? `<div class="lrow" data-go="plan"><div class="ico">${ICO.map}</div><div class="grow"><div class="h3">The route</div><div class="tiny mt-s">Shape the week and see the whole plan</div></div><span class="chev">${ICO.chevR}</span></div>` : ''}
-    ${fuelOn() ? `<div class="lrow" data-act="open-nutrition"><div class="ico">${ICO.chart}</div><div class="grow"><div class="h3">Today's fuel</div><div class="tiny mt-s">${nutTotals().kcal} kcal · ${nutTotals().p}g protein logged</div></div><span class="chev">${ICO.chevR}</span></div>` : ''}
+     What the camp shows is exactly the destinations that are NOT already one
+     tap away in the nav. The route and Fuel swap places in the tab bar
+     (syncNav hides one to show the other), so whichever is missing from the
+     nav is the one that gets an object here. That rule is why the fire and the
+     mountain come and go, and it is the whole of the logic.
+
+     Labels are HTML, not SVG text. Scaled inside the drawing they would shrink
+     with the tent — the back of the camp would be printing 8px type on a 320px
+     phone, under a floor this app sets at 11. The tents carry the depth; the
+     words stay the size words have to be. */
+  const spots = [
+    { act: 'open-journey', k: 'Your journey', w: 78,  l: '21%', b: 182, hue: '#F0A23E', hot: '#FFE0A8' },
+    { act: 'open-help',    k: 'Guides',       w: 84,  l: '79%', b: 166, hue: '#FF7A3C', hot: '#FFD6A0' },
+    { act: 'stretch',      k: 'Stretch',      w: 100, l: '30%', b: 104, hue: '#FFB24E', hot: '#FFE8BC' },
+    { act: 'routines',     k: 'Your routines', w: 112, l: '73%', b: 46, hue: '#FF8A3D', hot: '#FFDCA8' }
+  ];
+
+  html += `<div class="camp-ground" aria-hidden="true"></div>
+  <div class="camp-spots">
+    ${spots.map(t => `<button class="spot" data-act="${t.act}" style="--l:${t.l};--b:${t.b}px;--w:${t.w}px;--lit:${t.hot}">
+      ${tentSVG(t.hue, t.hot)}
+      <span class="spot-l">${t.k}</span>
+    </button>`).join('')}
+    ${/* The fire is Fuel, and only when Fuel is a thing you have turned on —
+          otherwise it is the camp's fire and nothing more. A destination that
+          leads somewhere switched off is worse than no destination. */''}
+    ${fuelOn()
+      ? `<button class="spot spot-fire" data-act="open-nutrition" style="--l:50%;--b:122px;--w:78px;--lit:#FFC24A">
+          ${fireSVG()}<span class="spot-l">Fuel</span>
+        </button>`
+      : `<div class="spot spot-fire spot-quiet" aria-hidden="true" style="--l:50%;--b:122px;--w:78px">${fireSVG()}</div>`}
   </div>`;
 
-  html += `<div class="sec-head"><span class="sec-t">Guides</span></div><div class="list mb">
-    <div class="lrow" data-act="open-help"><div class="ico">${ICO.book}</div><div class="grow"><div class="h3">Help &amp; guides</div><div class="tiny mt-s">How it works, form diagrams, terms, backups</div></div><span class="chev">${ICO.chevR}</span></div>
-    <div class="lrow" data-act="help-form-list"><div class="ico">${ICO.ruler}</div><div class="grow"><div class="h3">Form guides</div><div class="tiny mt-s">${Object.keys(FORMS).length} lifts with diagrams and cues</div></div><span class="chev">${ICO.chevR}</span></div>
-  </div>`;
-
-  html += `<div class="sec-head"><span class="sec-t">App</span></div><div class="list mb">
-    <div class="lrow" data-act="open-settings"><div class="ico">${ICO.cog}</div><div class="grow"><div class="h3">Settings</div><div class="tiny mt-s">${settingsSummary()}</div></div><span class="chev">${ICO.chevR}</span></div>
-  </div>`;
-
-  html += `<div class="sec-head"><span class="sec-t">Membership</span></div>
-  <div class="card accent mb">
-    <div class="row between"><div class="h3">Guzo Pro</div><div class="pill em">Beta — unlocked</div></div>
-    <p class="small mt-s">Everything is on while this is in testing. Nothing charges, nothing phones home, and there is no account to make.</p>
-    ${SHOW_PAYWALL ? `<button class="btn ghost block mt" data-act="open-paywall">Preview the paywall</button>` : ''}
-  </div>`;
-
-  /* The evidence card that used to sit here was a shorter, worse copy of the
-     "why" help page, which carries all five studies rather than three. Two
-     copies of the same prose drift; one of them gets updated and the other
-     quietly starts lying. It is linked from the bottom of Settings instead. */
-  html += `  <p class="tiny center mt-l">Guzo Fit v${VERSION} · beta build<br>ጉዞ · Amharic for “journey”<br>guzofit.app · all data stored locally on this device</p>`;
+  /* The mountain is the route. It is the one object here that was already a
+     metaphor for the thing it now opens, and it only takes the tap when the
+     nav has given the Route tab away to Fuel. */
+  if (fuelOn()) {
+    html += `<button class="camp-route" data-go="plan">
+      <span class="sr-only">The route — shape the week and see the whole plan</span>
+      <span class="camp-route-l">The route</span>
+    </button>`;
+  }
+  html += `</div>`;
 
   $('#more-body').innerHTML = html;
 }

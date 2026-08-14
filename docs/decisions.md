@@ -2326,3 +2326,74 @@ screens; putting the ember skylines back on Plan prints two.
 **Set thresholds with margin, not at them.** One candidate tuning put Progress
 at exactly 4.50 against a 4.50 bar. It passed, and it would have gone red on
 any change to that card's type. Backed off a notch to 4.69.
+
+---
+
+## Base camp became a camp
+
+More was four lists of rows. It is a place now: four lit tents are the
+destinations, the fire is Fuel, the range is the route and the moon is
+Settings. Every `data-act` is the one its row carried, so the event layer is
+untouched by the whole change — `ev.target.closest('[data-act]')` already
+worked on SVG, and the drawings inherit routing for free.
+
+**What the camp shows is exactly the destinations the nav is not already
+offering.** Fuel and the route swap places in the tab bar — `syncNav` hides one
+to show the other — so whichever is missing from the nav is the one that gets
+an object here. That single rule is why the fire and the mountain come and go,
+and it is checked in both states: a rule asserted in one state is half a rule.
+When Fuel is off the fire is still *drawn*, because a camp has a fire; it just
+is not a door.
+
+**Labels are HTML, not SVG text.** Scaled inside the drawing they shrink with
+the tent, and the back of the camp would be setting 8px type on a 320px phone
+under a floor this app puts at 11. The tents carry the depth; the words stay
+the size words have to be.
+
+**The scrim, not a smaller range.** At 250px the range reaches up behind the
+name, the date and the stats, and measured, "Set out Fri 14 Aug" fell to
+1.68:1. Shrinking the range to clear the type gives back the thing the screen
+exists to be, and dimming it hits the far peaks hardest — which is the part
+worth looking at. A gradient behind the head instead: opaque where the words
+are, gone before the summits, costing the scene nothing because there is
+nothing to see that high. Removing it prints five failures.
+
+**`flex:1` needed a floor.** The camp fills the screen rather than scrolling —
+a list grows, a place does not. But `flex:1 1 auto` also lets it *shrink*, and
+the moraine is absolutely positioned at a fixed height, so on a short phone the
+ground climbed over the name. `min-height:560px` makes it overflow and scroll
+instead, which is the right answer on a 4-inch screen even though this is a
+place.
+
+**Nothing may sit under the floating nav.** The nav is `position:fixed` and
+takes no layout space, so the camp's floor is 32px above its top edge and every
+tent's *label* — not its drawing — has to clear that. "Your routines" ended
+6px under it, and the probe that should have caught it compared `rect.bottom`
+against `nav.top` where the helper had already flattened the rect to `t`. A
+comparison against `undefined` is always false, and a check that cannot fail
+reported a pass.
+
+**A fixed sleep is a flake waiting for the app to get heavier.** The rest-timer
+probe measured its floaters after a hard-coded 340ms and went red the day More
+became a full-screen scene — reporting a 10px overlap that does not exist and
+could not be reproduced in isolation. It waits for two identical frames now.
+
+### And a real bug the camp uncovered, which was not what it first looked like
+
+Tapping the new mountain threw `k.split is not a function` out of `stripRange`,
+and the first diagnosis — "the Plan screen crashes for every new user" — was
+wrong in a way worth recording. It came from a *test fixture* setting
+`meta.created` to a timestamp. The app stores an ISO string.
+
+The real defect is quieter and survived because of it. `fromKey()` wants
+`'YYYY-MM-DD'`; handed an ISO string it does not throw — it splits on the
+dashes, hands `"05T20:51:56.901Z"` to the Date constructor, and comes back
+Invalid, which `dk()` renders as `"NaN-NaN-NaN"`. `daysBetween` then returns
+NaN and the strip's reach back through your own history collapses to zero. The
+user-visible symptom is a dead back arrow on the week strip for anyone who has
+not finished a session yet.
+
+Every other reader of `meta.created` already does `dk(new Date(...))`. This one
+did not, and **the first check written for it passed against the bug** — it
+asserted "no error was thrown", and nothing ever throws. It asserts the range
+itself now; reverting prints `min 0` where six weeks of history should be.

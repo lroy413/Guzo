@@ -2183,7 +2183,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    Anchored to the foot, the fade sits over the same 115px of the range at any
    height. */
 .camp-bg{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
-  top:calc((var(--safe-t) + 104px) * -1);
+  top:calc((var(--safe-t) + 104px) * -1);bottom:250px;
   -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 calc(100% - 115px),rgba(0,0,0,.55) calc(100% - 50px),transparent 100%);
   mask-image:linear-gradient(180deg,#000 0%,#000 calc(100% - 115px),rgba(0,0,0,.55) calc(100% - 50px),transparent 100%)}
 /* Night, fading out rather than stopping. A hard edge would put a horizon line
@@ -2220,7 +2220,10 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    horizon instead of a header decoration. The room it needs is padding under
    the stats — see .camp-head — so the mountains are drawn in open sky and the
    first list starts below them rather than on top of them. */
-.camp-bg .ridge{top:auto;bottom:0;height:168px;opacity:.9}
+/* Taller here than anywhere else in the app, and that is the point: this is
+   the one place the range is the subject rather than a band behind a heading.
+   Its foot lands on the moraine the camp stands on. */
+.camp-bg .ridge{top:auto;bottom:0;height:250px;opacity:.92}
 /* The camp's fire. Sits at the foot of the range, off to one side of the
    centre line so it does not read as a bullet under the name.
 
@@ -2284,8 +2287,96 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 
    z-index 0 with .camp-head at 1: it is scenery, and the name stands in front
    of it the way the name stands in front of the range. */
-.camp-moon{position:absolute;z-index:0;pointer-events:none;
-  right:26px;top:calc(var(--safe-t) + 118px)}
+/* Reachable by a screen reader, painted for nobody. The camp's controls are
+   drawings — a tent, a moon, a mountain — so the only name they have is this
+   one. Clipped rather than display:none, which would take them out of the
+   accessibility tree along with the pixels. */
+.sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+  overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+
+/* ---- base camp is a camp ----
+   The screen fills rather than scrolls. A list grows; a place does not, and
+   the moment this scrolled it went back to being a picture at the top of a
+   menu. #more-body is a flex column that fills the scroller's content box, so
+   the camp's floor is the bottom of the phone whatever the phone is. */
+#more-body{min-height:100%;display:flex;flex-direction:column}
+/* min-height, so a short phone scrolls instead of crushing the camp. flex:1
+   alone lets the block shrink below what the scene needs, and the moraine —
+   which is absolutely positioned at a fixed 250px — then climbs up over the
+   name. Given a floor it overflows and the screen scrolls, which is the right
+   answer on a 4-inch phone even though More is a place rather than a list. */
+.camp{flex:1 1 auto;min-height:560px;display:flex;flex-direction:column}
+/* The words stand in the sky, and the sky now has a mountain range in it.
+   Everything in .camp-head — the name, the day, the stats — used to sit over
+   flat night; with the range at 250px it sits over peaks and snow, and
+   measured, "Set out Fri 14 Aug" fell to 1.68:1.
+
+   A scrim rather than a shorter range or a dimmer one: the range is the
+   subject on this screen and shrinking it to clear the type gives back the
+   thing the camp exists to be. Dark where the words are, gone before the
+   summits, and it costs the scene nothing because there is nothing to see
+   that high up anyway. */
+.camp-head::before{content:'';position:absolute;z-index:-1;
+  left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
+  top:calc((var(--safe-t) + 120px) * -1);bottom:64px;
+  background:linear-gradient(180deg,rgba(8,10,15,.93) 0%,rgba(8,10,15,.90) 74%,rgba(8,10,15,0) 100%);
+  pointer-events:none}
+/* The moraine the camp stands on: below the range, above the nav. */
+/* Transparent at its own top edge. Given a colour there it draws a rule
+   across the screen where the range's foot meets it — the same seam the
+   backdrop's mask exists to avoid, reintroduced by the thing in front of it. */
+.camp-ground{position:absolute;left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
+  bottom:0;height:250px;z-index:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(18,22,31,0) 0%,#0C0F16 24%,#080A10 62%,#06070C 100%)}
+.camp-spots{position:absolute;left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
+  bottom:0;height:250px;z-index:1}
+/* Each destination stands on the ground at its own place and its own size.
+   left/bottom put it there; --w is how big the tent is drawn. The label is
+   NOT scaled with it — see the note in renderMore(). */
+.spot{position:absolute;left:var(--l);bottom:var(--b);transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  background:none;border:0;padding:6px 8px 2px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform var(--t) var(--ease-spring)}
+.spot-quiet{pointer-events:none}
+.spot .tent{width:var(--w);height:calc(var(--w) * .683);display:block;
+  transition:filter .3s ease}
+.spot-l{font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--text-dim);white-space:nowrap;
+  text-shadow:0 1px 4px rgba(4,6,10,.95);transition:color var(--t) ease}
+/* Pressed, focused or just arrived-at: the object grows and glows in its own
+   colour. No outline anywhere — the browser draws its ring round the whole
+   button box, and at these sizes that is a rectangle across the camp. The glow
+   IS the focus indicator, which is why it is on :focus-visible too. */
+.spot:focus,.spot:focus-visible,.spot:active{outline:none}
+.spot:active{transform:translateX(-50%) scale(1.07)}
+.spot:focus-visible .tent,.spot:active .tent{
+  filter:drop-shadow(0 0 10px var(--lit,#FFB24E)) drop-shadow(0 0 24px var(--lit,#FFB24E))}
+.spot:focus-visible .spot-l,.spot:active .spot-l{color:#FFF3DC}
+@media (prefers-reduced-motion: reduce){ .spot,.spot .tent{transition:none} }
+/* The mountain, when it is the route. A target over the range rather than a
+   shape in it: the range is one flat SVG and carving a hit area out of its
+   silhouette would tie the tap to the artwork. */
+.camp-route{position:absolute;left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
+  bottom:250px;height:160px;z-index:1;background:none;border:0;padding:0;
+  display:flex;align-items:flex-end;justify-content:center;
+  cursor:pointer;-webkit-tap-highlight-color:transparent}
+.camp-route:focus,.camp-route:focus-visible,.camp-route:active{outline:none}
+.camp-route-l{font-size:11px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;
+  color:var(--faint);text-shadow:0 1px 4px rgba(4,6,10,.95);
+  padding-bottom:6px;transition:color var(--t) ease}
+.camp-route:focus-visible .camp-route-l,.camp-route:active .camp-route-l{color:#FFF3DC}
+/* The moon: a control, so it gets a real target rather than the disc's own
+   size. 42px of moon inside a 56px tap area. */
+.camp-moon-btn{position:absolute;right:12px;top:calc(var(--safe-t) + 26px);
+  z-index:2;width:56px;height:56px;display:grid;place-items:center;
+  background:none;border:0;padding:0;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;transition:transform var(--t) var(--ease-spring)}
+.camp-moon-btn:focus,.camp-moon-btn:focus-visible,.camp-moon-btn:active{outline:none}
+.camp-moon-btn:active{transform:scale(1.1)}
+.camp-moon-btn:focus-visible .moon-lit,.camp-moon-btn:active .moon-lit{
+  filter:drop-shadow(0 0 9px rgba(233,241,255,.9)) drop-shadow(0 0 20px rgba(200,220,255,.55))}
+.camp-moon{display:block;pointer-events:none}
 /* On the lit shapes, not on the <svg> — see moonHTML(). A filter on the
    element blurs the unlit disc too and paints a one-percent crescent as a
    third-lit moon. */

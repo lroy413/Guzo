@@ -582,7 +582,19 @@ let stripOffset = 0;
    an old one has everywhere. */
 function stripRange() {
   const dates = S.sessions.filter(s => s.ended).map(s => s.date).sort();
-  const earliest = dates[0] || (S.meta && S.meta.created) || today();
+  /* meta.created is an ISO STRING; every store in this app is keyed
+     'YYYY-MM-DD'. Handed to fromKey() straight it does not throw — it splits
+     on the dashes, hands "05T20:51:56.901Z" to the Date constructor and comes
+     back Invalid, which dk() renders as "NaN-NaN-NaN". daysBetween() then
+     returns NaN and this function's `min` becomes -NaN, so the week strip
+     silently loses the ability to say how far back your own history goes.
+
+     Every other reader of meta.created already does dk(new Date(...)); this
+     was the one that did not. Normalised at the boundary, which is the rule it
+     broke — and the failure mode is exactly why that rule exists: nothing
+     throws, nothing logs, the number is just quietly wrong. */
+  const created = S.meta && S.meta.created;
+  const earliest = dates[0] || (created ? dk(new Date(created)) : today());
   const backWeeks = Math.max(0, Math.ceil(daysBetween(dk(weekStart(fromKey(earliest))), dk(weekStart())) / 7));
   return { min: -Math.min(backWeeks, 52), max: 1 };
 }

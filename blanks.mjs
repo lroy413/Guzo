@@ -279,7 +279,19 @@ try {
       const rest = document.querySelector('.rest');
       if (t) t.classList.add('on');
       if (rest) rest.classList.add('on');
-      await new Promise(r => setTimeout(r, 340));
+      /* Wait for both to STOP moving rather than sleeping a fixed 340ms. Both
+         slide in on a transition, and a fixed wait is only long enough until
+         the app gets heavier — this went red the day More became a full-screen
+         scene, reporting a 10px overlap that does not exist and cannot be
+         reproduced on its own. Two identical frames in a row is settled. */
+      const rects = () => [t, rest].map(e => e ? Math.round(e.getBoundingClientRect().bottom) : 0).join(',');
+      let last = '', same = 0;
+      for (let i = 0; i < 90 && same < 3; i++) {
+        await new Promise(r => requestAnimationFrame(r));
+        const now = rects();
+        same = now === last ? same + 1 : 0;
+        last = now;
+      }
       const nav = document.getElementById('nav').getBoundingClientRect();
       return {
         toast: t ? Math.round(nav.top - t.getBoundingClientRect().bottom) : null,
@@ -1985,6 +1997,7 @@ try {
       const b = el.getBoundingClientRect();
       return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), b: Math.round(b.bottom) }; };
     const sc = R('#s-more');
+    const ground = R('#more-body .camp-ground');
     const starEls = [...document.querySelectorAll('#more-body .camp-stars circle')];
     /* Measured against the sky — the backdrop above the ridgeline — and not
        against the star layer's own box. Against its own box the ratio is high
@@ -2005,12 +2018,43 @@ try {
       .map(c => c.getAttribute('cx') + ',' + c.getAttribute('cy')).join(';');
     const first = sig(); render(); const second = sig();
     return { screen: sc, bg: R('#more-body .camp-bg'), ridge: R('#more-body .camp-bg .ridge'),
-             list: R('#more-body .list'), stars: starEls.length,
+             list: R('#more-body .list'), ground, stars: starEls.length,
              starSpan: ys.length && skyH > 0 ? (Math.max(...ys) - Math.min(...ys)) / skyH : 0,
              starsStable: first === second && first.length > 0,
              /* No card shell around it — the point of the change. */
              boxed: !!document.querySelector('#more-body .camp.hero, #more-body .camp.card') };
   });
+  /* ---- Plan, with nothing logged yet ----
+     stripRange() falls back to meta.created when no session has been finished,
+     and meta.created is a timestamp while every store in this app is keyed
+     'YYYY-MM-DD'. fromKey() threw on it and took the whole screen down. Nobody
+     noticed because every other probe seeds a history first — the one state
+     that breaks is the one a new user is in. */
+  const freshPlan = await page.evaluate(() => {
+    S = blank(); S.onboarded = true;
+    /* Six weeks old, and nothing finished. The range has to come from
+       meta.created, which is the branch that was reading it raw. */
+    S.meta.created = new Date(Date.now() - 41 * 864e5).toISOString();
+    save(true); buildWeekPlan(true);
+    let err = null, range = null;
+    try { range = stripRange(); go('plan'); render(); } catch (e) { err = String(e); }
+    const body = (document.getElementById('plan-body').textContent || '').trim().length;
+    go('more'); render();
+    return { err, range, body };
+  });
+  check('the route opens for someone who has finished nothing yet',
+    freshPlan.err === null && freshPlan.body > 40,
+    freshPlan.err || `${freshPlan.body} characters`);
+  /* The real subject. Nothing throws either way — fromKey() on an ISO string
+     returns an Invalid Date, dk() renders that "NaN-NaN-NaN", and the strip's
+     reach back through your own history comes out NaN. A check that only
+     asserted "no error" passed against the bug, which is what this one did
+     first. */
+  check('...knowing how far back its history goes, rather than NaN weeks',
+    freshPlan.range && Number.isFinite(freshPlan.range.min) && freshPlan.range.min <= -5
+      && freshPlan.range.min >= -8,
+    freshPlan.range ? `min ${freshPlan.range.min}, max ${freshPlan.range.max}` : 'no range');
+
   /* ---- what makes it a night, not a shape ----
      Four separate subjects, all of them decoration and therefore all of them
      the kind of thing a later change breaks without anything noticing:
@@ -2079,7 +2123,7 @@ try {
     const moonSvg = document.querySelector('#more-body .camp-moon');
     const moonLit = moonSvg && moonSvg.querySelector('.moon-lit');
 
-    const fire = document.querySelector('#more-body .camp-fire');
+    const fire = document.querySelector('#more-body .spot-fire');
     const bg = document.querySelector('#more-body .camp-bg');
     const flame = document.querySelector('#more-body .camp-fire-svg');
     /* Where the near ridge's own outline sits under the flame. Read off the
@@ -2114,13 +2158,35 @@ try {
       svgFilter: moonSvg ? getComputedStyle(moonSvg).filter : 'absent',
       litFilter: moonLit ? getComputedStyle(moonLit).filter : 'absent',
       /* The phase is named in the moon's <title>, not painted anywhere. */
-      moonNamed: (document.querySelector('#more-body .camp-moon > title')?.textContent || '').trim(),
-      moonPainted: !!document.querySelector('#more-body .camp-moon-n'),
-      moonInSky: !!document.querySelector('#more-body .camp-bg .camp-moon'),
-      fireDrawn: !!fire && !!fire.querySelector('.cf-log') && !!fire.querySelector('.cf-out'),
+      /* The moon is the way into Settings now — scenery that does something.
+         So what is asserted is that it is a real control with a real target
+         and a name a screen reader can read, sitting in the sky above the
+         range rather than in the header with a caption under it. */
+      moonBtn: (() => {
+        const b = document.querySelector('#more-body .camp-moon-btn');
+        if (!b) return null;
+        const r = b.getBoundingClientRect();
+        const range = document.querySelector('#more-body .camp-bg .ridge').getBoundingClientRect();
+        return { act: b.dataset.act, tap: Math.round(Math.min(r.width, r.height)),
+          inSky: r.bottom < range.top,
+          named: (b.querySelector('.sr-only')?.textContent || '').trim().length > 6,
+          /* textContent includes the screen-reader name, which is the whole
+             point of it — so this asks the structural question instead: is
+             there anything in here that is neither the drawing nor the name? */
+          painted: b.querySelector(':scope > :not(.sr-only):not(svg)') ? 'yes' : '' };
+      })(),
+      fireDrawn: !!fire && fire.querySelectorAll('svg.fire path').length >= 5,
       fireOutsideMask: !!fire && !!bg && !bg.contains(fire),
       fireMask: fire ? getComputedStyle(fire).maskImage + '|' + getComputedStyle(fire).webkitMaskImage : 'absent',
-      standsOn: ridgeYUnderFlame === null ? null : Math.round(flameFoot - ridgeYUnderFlame),
+      fireIsFuel: fire ? fire.dataset.act : 'absent',
+      /* It stands on the moraine now, not on the near ridge — the camp has a
+         floor of its own. Off the ground it floats; below it, it is buried. */
+      fireOnGround: (() => {
+        if (!fire) return null;
+        const f = fire.getBoundingClientRect();
+        const g = document.querySelector('#more-body .camp-ground').getBoundingClientRect();
+        return f.bottom > g.top && f.bottom <= g.bottom;
+      })(),
     };
   });
 
@@ -2160,9 +2226,15 @@ try {
     camp.bg && camp.bg.l === camp.screen.l && camp.bg.r === camp.screen.r,
     camp.bg ? `${camp.bg.l}–${camp.bg.r} vs ${camp.screen.l}–${camp.screen.r}` : 'no backdrop');
   check('...and no card shell around it', camp.boxed === false);
-  check('...with the range drawn in open sky rather than behind the first list',
-    camp.ridge && camp.list && camp.ridge.b <= camp.list.t,
-    camp.ridge && camp.list ? `ridge ends ${camp.ridge.b}, list starts ${camp.list.t}` : 'missing');
+  /* There is no list to be behind any more. More is a camp: the range stands
+     over the moraine and the destinations are pitched on it. The invariant
+     that replaces "above the first list" is "the range's foot reaches the
+     ground the tents stand on" — a gap there is a range floating in the air. */
+  check('...with the range standing on the ground the camp is pitched on',
+    camp.ridge && camp.ground && Math.abs(camp.ridge.b - camp.ground.t) <= 24,
+    camp.ridge && camp.ground ? `range ends ${camp.ridge.b}, ground starts ${camp.ground.t}` : 'missing');
+  check('...and no list left on it at all',
+    camp.list === null, 'a list is still rendered on More');
 
   check('...snow on more than one summit', night.caps >= 3, `${night.caps} caps`);
   check('...painted rather than left to fill black',
@@ -2189,11 +2261,12 @@ try {
     night.dimPeak > night.dimRest + .05 && night.dimPeak < .99,
     `${night.dimRest} → ${night.dimPeak}`);
 
-  check('...a moon in the sky rather than in the header',
-    night.moonInSky === true && night.moonPainted === false);
-  check('...named for a screen reader without being printed on it',
-    /^(New moon|Waxing crescent|First quarter|Waxing gibbous|Full moon|Waning gibbous|Last quarter|Waning crescent)$/
-      .test(night.moonNamed), night.moonNamed || 'unnamed');
+  check('...a moon in the sky above the range, and it opens Settings',
+    night.moonBtn && night.moonBtn.act === 'open-settings' && night.moonBtn.inSky,
+    night.moonBtn ? `${night.moonBtn.act}, in the sky: ${night.moonBtn.inSky}` : 'no moon');
+  check('...with a target you can hit and a name, and nothing printed under it',
+    night.moonBtn && night.moonBtn.tap >= 44 && night.moonBtn.named && night.moonBtn.painted === '',
+    night.moonBtn ? `${night.moonBtn.tap}px, named ${night.moonBtn.named}, paints "${night.moonBtn.painted}"` : 'no moon');
   check('...its glow on the lit limb, not on the whole disc',
     night.svgFilter === 'none' && night.litFilter.startsWith('drop-shadow'),
     `svg ${night.svgFilter}, lit ${night.litFilter}`);
@@ -2206,7 +2279,35 @@ try {
     limbWrong.length === 0, `${limbWrong.length} of ${moon.length} on the wrong side`);
 
   check('...a fire at the foot of the range, drawn rather than a glow',
-    night.fireDrawn === true && night.standsOn !== null);
+    night.fireDrawn === true, `${night.fireDrawn}`);
+  /* The camp shows exactly the destinations that are not already one tap away
+     in the nav. Fuel and the route swap places in the tab bar, so the fire and
+     the mountain are objects here only while the nav is not offering them —
+     and when the nav is, the fire is still drawn, because a camp has a fire.
+     Both states measured: a rule asserted in one state is half a rule. */
+  const fireRule = await page.evaluate(() => {
+    const read = () => {
+      const f = document.querySelector('#more-body .spot-fire');
+      const m = document.querySelector('#more-body .camp-route');
+      return { drawn: !!f, act: f ? (f.dataset.act || null) : null,
+        tappable: f ? f.tagName.toLowerCase() === 'button' : null,
+        route: m ? m.dataset.go : null };
+    };
+    S.settings.nutrition = false; save(true); go('more'); render();
+    const off = read();
+    S.settings.nutrition = true; save(true); render();
+    const on = read();
+    return { off, on };
+  });
+  check('...which is Fuel while the nav is not offering Fuel',
+    fireRule.on.act === 'open-nutrition' && fireRule.on.tappable === true,
+    `${fireRule.on.act}, button ${fireRule.on.tappable}`);
+  check('...and still a fire when it is not a destination',
+    fireRule.off.drawn === true && fireRule.off.act === null && fireRule.off.tappable === false,
+    `drawn ${fireRule.off.drawn}, act ${fireRule.off.act}`);
+  check('...with the range taking the route on exactly the same terms',
+    fireRule.on.route === 'plan' && fireRule.off.route === null,
+    `on: ${fireRule.on.route}, off: ${fireRule.off.route}`);
 
   /* ---- the sky reaches the top of the screen ----
      The dark strip above base camp was never the header band, which repaints
@@ -2320,12 +2421,25 @@ try {
       return best;
     }, 'data:image/png;base64,' + b64);
   };
+  /* Short, on purpose. More fills the screen rather than scrolling — it is a
+     place, not a list — so on a tall phone there is barely 48px of travel and
+     nothing real ever passes under the band. On a 620px screen the camp
+     overflows properly and the check has something to measure, which is also
+     the case that matters: a small phone is where content does scroll under
+     this header. */
+  await page.setViewportSize({ width: 390, height: 620 });
+  await page.evaluate(() => { go('more'); render(); });
+  await page.waitForTimeout(500);
   const titleL = lumOf((await page.evaluate(() =>
     getComputedStyle(document.querySelector('#s-more .hdr .h1')).color)).match(/\d+/g).map(Number));
   const maxScroll = await page.evaluate(() => {
     const s = document.getElementById('s-more'); return s.scrollHeight - s.clientHeight; });
   let tightest = { ratio: 99, at: 0, px: null }, sampled = 0;
-  for (let y = 0; y <= maxScroll; y += 60) {
+  /* Stepped over whatever travel there is rather than in fixed 60px jumps.
+     More fills the screen instead of scrolling — it is a place, not a list —
+     so a fixed step samples the top twice and calls it a sweep. */
+  const step = Math.max(12, Math.round(maxScroll / 6));
+  for (let y = 0; y <= maxScroll; y += step) {
     await page.evaluate(v => { document.getElementById('s-more').scrollTop = v; }, y);
     await page.waitForTimeout(140);
     const px = await bandBrightest();
@@ -2335,7 +2449,7 @@ try {
   }
   await page.evaluate(() => { document.getElementById('s-more').scrollTop = 0; });
   check('...over enough of the screen to have found the tight spot',
-    sampled >= 6 && maxScroll > 400, `${sampled} positions over ${maxScroll}px`);
+    sampled >= 5 && maxScroll > 60, `${sampled} positions over ${maxScroll}px`);
   check('...with the screen title still legible over it wherever you have scrolled to',
     tightest.ratio >= 3, `${tightest.ratio}:1 at scroll ${tightest.at}, over ${JSON.stringify(tightest.px)}`);
   /* And the whole point of blurring rather than painting: at rest the band
@@ -2517,7 +2631,11 @@ try {
      anything that rebuilds the node. */
   const flatTag = await page.addStyleTag({ content:
     '#more-body .camp-bg{background:#fff !important}' +
-    '#more-body .camp-bg > *{visibility:hidden !important}' });
+    '#more-body .camp-bg > *{visibility:hidden !important}' +
+    /* The camp head's scrim paints over the backdrop — it is what keeps the
+       name legible against the range — so a flattened backdrop read through it
+       is not flat. It came back at 181 of 255. */
+    '#more-body .camp-head::before{display:none !important}' });
   await page.waitForTimeout(120);
   const fade = await page.evaluate(() => {
     const b = document.querySelector('#more-body .camp-bg').getBoundingClientRect();
@@ -2552,9 +2670,8 @@ try {
   await page.setViewportSize({ width: 1280, height: 720 });
   check('...outside the backdrop it stands in front of, so the mask cannot fade it',
     night.fireOutsideMask === true && night.fireMask === 'none|none', night.fireMask);
-  check('...standing on the near ridge rather than in the sky',
-    night.standsOn !== null && night.standsOn >= -2 && night.standsOn <= 22,
-    `${night.standsOn}px below the ridgeline`);
+  check('...standing on the camp floor rather than in the sky',
+    night.fireOnGround === true, `on the ground: ${night.fireOnGround}`);
 
   /* ---- every sheet, not the handful anything else looks at ----
      The emoji sweep reads nine sheets and the blank sweep reads a screen at a
