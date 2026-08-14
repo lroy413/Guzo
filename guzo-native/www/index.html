@@ -1072,11 +1072,32 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    invisible in a desktop browser where the inset is zero. */
 .hdr{position:sticky;top:0;z-index:20;
   display:flex;align-items:flex-start;justify-content:space-between;gap:12px;
-  margin-bottom:18px;padding-bottom:12px}
+  margin-bottom:12px;padding-bottom:8px}
+/* The lead-in only has to reach the top of the viewport, and the header
+   already sits one `--safe-t + 14px` down — so 15px is the whole of it plus a
+   pixel against subpixel rounding. It was 20, which is five pixels of band
+   above the screen that nothing can ever see. */
 .hdr::before{content:'';position:absolute;z-index:-1;
   left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
-  top:calc((var(--safe-t) + 20px) * -1);bottom:0;
+  top:calc((var(--safe-t) + 15px) * -1);bottom:0;
   background:var(--bg);background-image:var(--bg-grad);background-attachment:fixed}
+/* Base camp is the one screen with something behind the band worth seeing, and
+   it is the reason the rule above has an exception rather than a rewrite.
+
+   Everywhere else the band repaints the page's own gradient and is invisible
+   by construction; here the sky runs up behind it (see .camp-bg's lift) and a
+   repaint of the *page* would draw a dark slab across the top of it. So on More
+   the band paints nothing and blurs instead.
+
+   Blur, not a tint. The objection recorded against translucency is that what
+   scrolls underneath stays legible through it — true of a veil, which lowers
+   contrast without destroying structure, and not true of an 18px blur, which
+   leaves no glyph to read. A tint would also have to darken the sky it is
+   standing on, which is the band coming straight back. What this cannot do is
+   hold a brightness floor, so it is scoped to the one screen whose scrolling
+   content is dark cards: put a white sheet under it and it would go white. */
+#s-more .hdr::before{background:none;
+  -webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px)}
 /* Only once something has gone under it. A rule across an unscrolled screen is
    a divider with nothing on the other side of it. */
 .hdr::after{content:'';position:absolute;left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
@@ -2119,17 +2140,41 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 /* Out through the screen's own horizontal padding so the sky reaches the edges
    of the phone, and back in again as padding so the words stay aligned with
    every other line on the screen. */
-.camp{position:relative;overflow:hidden;
+/* overflow is visible on purpose: the backdrop reaches up past this block's
+   own top edge, and the clipping that keeps it off the rest of the screen is
+   the scroller's, one level up. .camp-bg does its own clipping for its own
+   children. */
+.camp{position:relative;
   margin:0 calc(-1 * var(--sp)) 6px;padding:14px var(--sp) 0}
-/* Masked out at the foot rather than clipped there. The ridge fills are
-   opaque and darker than the page, so `overflow:hidden` alone ended the sky on
-   a hard rule across the screen with the mountains sliced off along it — a
-   panel, which is the thing this stopped being. Faded, the range settles into
-   the night instead, and the seam between the backdrop and the page has
-   nowhere to appear. */
+/* Lifted up behind the header, which is the whole of "more sky".
+
+   The dark strip above base camp was never the header band — the band repaints
+   the page's own gradient and is invisible against it. It was the page itself:
+   a notch, a title and a gap, all of them page-coloured, sitting above a sky
+   that only started where this block did. Nothing painted there was wrong;
+   there was simply nothing there.
+
+   The number overshoots the header rather than measuring it. Anything above
+   the scroller's content box is clipped and unreachable, so overshooting costs
+   nothing and a measured value would be one more thing to keep in step with a
+   title's font size. What it must NOT do is fall short — hence a check that
+   asserts the sky reaches y=0 with a notch faked in.
+
+   Masked out at the foot rather than clipped there. The ridge fills are opaque
+   and darker than the page, so `overflow:hidden` alone ended the sky on a hard
+   rule across the screen with the mountains sliced off along it — a panel,
+   which is the thing this stopped being.
+
+   The mask stops are measured from the FOOT, in pixels, not as percentages of
+   the box. They used to be 68% and 86%, which were the same thing while the
+   box was 359px tall — and the lift makes it 500-odd, moving the fade up into
+   the middle of the range and dissolving the mountains this exists to protect.
+   Anchored to the foot, the fade sits over the same 115px of the range at any
+   height. */
 .camp-bg{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
-  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 68%,rgba(0,0,0,.55) 86%,transparent 100%);
-  mask-image:linear-gradient(180deg,#000 0%,#000 68%,rgba(0,0,0,.55) 86%,transparent 100%)}
+  top:calc((var(--safe-t) + 104px) * -1);
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 calc(100% - 115px),rgba(0,0,0,.55) calc(100% - 50px),transparent 100%);
+  mask-image:linear-gradient(180deg,#000 0%,#000 calc(100% - 115px),rgba(0,0,0,.55) calc(100% - 50px),transparent 100%)}
 /* Night, fading out rather than stopping. A hard edge would put a horizon line
    across the screen where there is nothing to see. */
 .camp-sky{position:absolute;inset:0;
@@ -2673,7 +2718,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+4d52657</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+ede3414</div>
     </div>
   </section>
 

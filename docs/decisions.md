@@ -2070,3 +2070,76 @@ strings that two of the assertions accepted. The navigation runs first now.
 Same shape as the leak baseline captured after a render that had already
 leaked: **if a probe moves the page, everything it touches must be read on the
 side of the move it belongs to.**
+
+---
+
+## The long band above base camp was the page, not the band
+
+Reported as "the top band kind of long", with an offer to accept a smaller,
+more translucent one. The band was doing exactly what it was designed to do:
+`.hdr::before` repaints `var(--bg-grad)` at `background-attachment:fixed`, so
+it is invisible against the page at every scroll position and in all four sky
+bands. Nothing painted up there was wrong.
+
+**What was up there was nothing.** A notch, a title and a gap — all
+page-coloured — sitting above a sky that only began where the base camp block
+began. The dark strip was the absence of the picture, and no amount of work on
+the band would have moved it. So the backdrop is lifted behind the header
+instead: `.camp-bg` starts `--safe-t + 104px` above its own block, and the sky
+now runs from the status bar down to the mountains.
+
+**The lift overshoots the header rather than measuring it.** Anything above a
+scroller's content box is clipped and unreachable, so overshooting costs
+nothing, while a measured value would be one more thing to keep in step with a
+title's font size. What it must not do is fall short — and falling short by
+exactly one notch is invisible in a desktop browser, where
+`env(safe-area-inset-top)` is `0px`. The check fakes a 59px inset and asserts
+the sky still reaches `y = 0`; reverting the lift to a flat `-104px` prints
+`sky 29` with the notch in and passes without it.
+
+**The mask stops had to move from shares of the box to pixels off its foot.**
+`68%` and `86%` were the same thing as `100% - 115px` and `100% - 50px` while
+the box was 359px tall. The lift makes it 464, which slides the fade up into
+the middle of the range and dissolves the mountains the mask exists to protect.
+Reverting to percentages prints `fade starts 142px off the foot of a 464px
+box`.
+
+**And then the band did have to change, because now there is something behind
+it.** On More it paints nothing and blurs instead. This reverses the rule
+recorded above for that one screen, and the reversal is narrower than it looks:
+
+- The objection to translucency is that whatever scrolls underneath stays
+  legible through it. That is true of a veil, which lowers contrast without
+  destroying structure, and false of an 18px blur. Measured as edge energy —
+  mean absolute difference between neighbouring pixels along a row, which is
+  what letterforms are made of — text under the band goes from `27.0` to
+  `1.2`. Brightness alone would never have caught a regression here: a blur
+  preserves the mean, so taking the radius to zero leaves the average almost
+  unchanged with every word underneath perfectly sharp.
+- A blur cannot hold a brightness floor, so the guarantee changes from "opaque"
+  to "the title still clears AA over the content this screen actually has".
+  Swept across every scroll position, the tightest point is **3.58:1** — an
+  ember icon tile smearing under the band. The title is 24px at weight 700,
+  which is large-scale text, where AA is 3:1. This is why the exception is
+  scoped to `#s-more` and not made general: put a white sheet under this band
+  and it goes white, and More is the screen whose scrolling content is all dark
+  cards.
+- A veil would also have had to darken the sky it is standing on, which is the
+  band coming straight back.
+
+**Two of the new checks first passed against a picture of a sheet.** The stretch
+sheet from an earlier probe was still open, and its scrim dimmed the whole
+screen — so the title-over-the-band sweep read a dark, uniform surface and
+sailed through, and the "flatten the backdrop and find the fade" probe measured
+the ordinary camp because the fill it asked for was under a scrim it could not
+see. Everything below that point is measured in pixels; it closes the sheet
+first, and asserts `#scrim` is not up before believing any of it. **A pixel
+check inherits every piece of state the probes above it left behind.**
+
+**A threshold in relative luminance has almost no resolution at these values.**
+The first version of "the band adds nothing to the sky" compared relative
+luminance and allowed `0.012`. Down here a 40% black veil moves relative
+luminance by `0.003` and slid straight through. It compares raw channels now,
+against the same pixel with the band's own treatment switched off — not against
+a pixel lower down, because the sky is a gradient and two heights differ by
+several counts on their own.

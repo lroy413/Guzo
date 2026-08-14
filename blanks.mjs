@@ -1949,6 +1949,12 @@ try {
      reports a full-bleed backdrop as inset by three hundred pixels. On the
      device the column is the screen, which is the case worth asserting. */
   await page.setViewportSize({ width: 390, height: 844 });
+  /* The stretch sheet from the fold probe above is still open, and everything
+     from here down is measured in pixels. Left up, its scrim dimmed the whole
+     screen and the title-over-the-band sweep sailed through against a picture
+     of the sheet — the band it thought it was reading was covered. */
+  await page.evaluate(() => { if (typeof closeSheet === 'function') closeSheet(); });
+  await page.waitForTimeout(320);
   const camp = await page.evaluate(() => {
     S = blank(); S.onboarded = true; S.profile.name = 'Lawrence';
     S.profile.bodyweight = [{ d: today(), w: 97 }];
@@ -2142,6 +2148,221 @@ try {
 
   check('...a fire at the foot of the range, drawn rather than a glow',
     night.fireDrawn === true && night.standsOn !== null);
+
+  /* ---- the sky reaches the top of the screen ----
+     The dark strip above base camp was never the header band, which repaints
+     the page's own gradient and is invisible against it. It was the page: a
+     notch, a title and a gap, all page-coloured, above a sky that only started
+     where the block did. The backdrop is lifted behind the header now, and the
+     band on this one screen blurs instead of painting.
+
+     Measured at phone width and with a notch faked in, because the lift is
+     `--safe-t + 104px` and a desktop browser reports the inset as 0 — a lift
+     that fell short by exactly one notch would look perfect here and leave the
+     strip on the phone that reported it. */
+  await page.setViewportSize({ width: 390, height: 844 });
+  const lift = await page.evaluate(() => {
+    go('more'); render();
+    const root = document.documentElement;
+    const read = () => ({
+      sky: Math.round(document.querySelector('#more-body .camp-bg').getBoundingClientRect().top),
+      hdr: Math.round(document.querySelector('#s-more .hdr').getBoundingClientRect().top),
+    });
+    const flat = read();
+    root.style.setProperty('--safe-t', '59px');
+    const notch = read();
+    root.style.removeProperty('--safe-t');
+    const cs = getComputedStyle(document.querySelector('#s-more .hdr'), '::before');
+    const other = getComputedStyle(document.querySelector('#s-progress .hdr'), '::before');
+    return { flat, notch,
+      /* A sheet over the screen makes every pixel below meaningless. */
+      covered: document.getElementById('scrim').classList.contains('on'),
+      moreBlurs: /blur/.test(cs.backdropFilter || cs.webkitBackdropFilter || ''),
+      morePaints: cs.backgroundImage !== 'none',
+      otherPaints: other.backgroundImage !== 'none',
+      otherBlurs: /blur/.test(other.backdropFilter || other.webkitBackdropFilter || '') };
+  });
+  check('...with nothing covering the screen these are measured on',
+    lift.covered === false);
+  check('...its sky reaching the top of the screen rather than starting under the title',
+    lift.flat.sky <= 0, `sky top ${lift.flat.sky}`);
+  check('...still reaching it once the notch is real',
+    lift.notch.sky <= 0 && lift.notch.hdr - lift.flat.hdr === 59,
+    `sky ${lift.notch.sky}, header moved ${lift.notch.hdr - lift.flat.hdr}`);
+  check('...with the band over it blurring rather than painting',
+    lift.moreBlurs === true && lift.morePaints === false,
+    `blurs ${lift.moreBlurs}, paints ${lift.morePaints}`);
+  check('...and every other screen still repainting its own sky',
+    lift.otherPaints === true && lift.otherBlurs === false,
+    `paints ${lift.otherPaints}, blurs ${lift.otherBlurs}`);
+
+  /* The title over that band, at every scroll position this screen has.
+
+     A blur cannot hold a brightness floor — it averages whatever is under it —
+     so the guarantee here is not "opaque" but "the title still clears AA over
+     the content this screen actually has". The bar is 3:1, not 4.5: the title
+     is 24px at weight 700, which is large-scale text by WCAG, and 3:1 is the
+     AA threshold for it. The tightest point measured is 3.58:1, and it is an
+     ember icon tile smearing under the band — not the fire, whose glow was
+     dimmed by a third on the suspicion and moved the number by exactly zero.
+
+     Swept, not sampled at rest: at rest there is nothing under the band at all,
+     so the one position a lazy check would read is the only one that cannot
+     fail. And measured with no sheet open — see the note at the top of this
+     block. */
+  const relL = c => { const s = c / 255; return s <= .03928 ? s / 12.92 : ((s + .055) / 1.055) ** 2.4; };
+  const lumOf = ([r, g, b]) => .2126 * relL(r) + .7152 * relL(g) + .0722 * relL(b);
+  /* Brightest pixel in the band to the right of the title, where no glyph is. */
+  const bandBrightest = async () => {
+    const b64 = (await page.screenshot()).toString('base64');
+    return page.evaluate(async d => {
+      const img = new Image();
+      await new Promise(r => { img.onload = r; img.onerror = r; img.src = d; });
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const dpr = img.width / window.innerWidth;
+      const hdr = document.querySelector('#s-more .hdr').getBoundingClientRect();
+      const x0 = Math.round(window.innerWidth * .58 * dpr), x1 = Math.round(window.innerWidth * .98 * dpr);
+      const px = g.getImageData(x0, 1, x1 - x0, Math.round((hdr.bottom - 2) * dpr) - 1).data;
+      let best = null, bl = -1;
+      for (let i = 0; i < px.length; i += 4) {
+        const l = px[i] * .2126 + px[i + 1] * .7152 + px[i + 2] * .0722;
+        if (l > bl) { bl = l; best = [px[i], px[i + 1], px[i + 2]]; }
+      }
+      return best;
+    }, 'data:image/png;base64,' + b64);
+  };
+  const titleL = lumOf((await page.evaluate(() =>
+    getComputedStyle(document.querySelector('#s-more .hdr .h1')).color)).match(/\d+/g).map(Number));
+  const maxScroll = await page.evaluate(() => {
+    const s = document.getElementById('s-more'); return s.scrollHeight - s.clientHeight; });
+  let tightest = { ratio: 99, at: 0, px: null }, sampled = 0;
+  for (let y = 0; y <= maxScroll; y += 60) {
+    await page.evaluate(v => { document.getElementById('s-more').scrollTop = v; }, y);
+    await page.waitForTimeout(140);
+    const px = await bandBrightest();
+    const r = (Math.max(titleL, lumOf(px)) + .05) / (Math.min(titleL, lumOf(px)) + .05);
+    sampled++;
+    if (r < tightest.ratio) tightest = { ratio: +r.toFixed(2), at: y, px };
+  }
+  await page.evaluate(() => { document.getElementById('s-more').scrollTop = 0; });
+  check('...over enough of the screen to have found the tight spot',
+    sampled >= 6 && maxScroll > 400, `${sampled} positions over ${maxScroll}px`);
+  check('...with the screen title still legible over it wherever you have scrolled to',
+    tightest.ratio >= 3, `${tightest.ratio}:1 at scroll ${tightest.at}, over ${JSON.stringify(tightest.px)}`);
+  /* And the whole point of blurring rather than painting: at rest the band
+     adds nothing to the sky it now stands in.
+
+     Measured against the same pixel with the band's own treatment switched
+     off, not against a pixel lower down — the sky is a gradient, so two
+     different heights differ by several counts on their own and any threshold
+     loose enough to allow that is loose enough to allow a veil. In raw
+     channels, not relative luminance: down here a 0.4 veil moves relative
+     luminance by 0.003, which slid straight through a threshold of 0.012. */
+  await page.evaluate(() => { document.getElementById('s-more').scrollTop = 0; });
+  await page.waitForTimeout(160);
+  const bandOn = await shotPx(Math.round(390 * .72), 6);
+  const bandOff = await page.addStyleTag({ content:
+    '#s-more .hdr::before{background:none !important;' +
+    '-webkit-backdrop-filter:none !important;backdrop-filter:none !important}' });
+  await page.waitForTimeout(160);
+  const bare = await shotPx(Math.round(390 * .72), 6);
+  await bandOff.evaluate(n => n.remove());
+  const bandDrift = Math.max(...bandOn.map((v, i) => Math.abs(v - bare[i])));
+  check('...and adding nothing to that sky when you have not scrolled at all',
+    bandDrift <= 2, `band ${JSON.stringify(bandOn)} vs bare sky ${JSON.stringify(bare)}`);
+
+  /* The guarantee itself, stated as what it actually is. "Opaque" was the old
+     screen's way of saying you cannot read what passes under the title; this
+     band is transparent and says it with blur instead. So the measurement is
+     edge energy — the mean absolute difference between neighbouring pixels
+     along a row — which is what letterforms are made of and what a blur
+     destroys. Brightness alone would not catch it: a blur preserves the mean,
+     so a band with the radius taken to zero sits at almost the same average
+     with every word under it perfectly sharp. */
+  const edgeAt = async y => {
+    const b64 = (await page.screenshot()).toString('base64');
+    return page.evaluate(async ({ d, y }) => {
+      const img = new Image();
+      await new Promise(r => { img.onload = r; img.onerror = r; img.src = d; });
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const dpr = img.width / window.innerWidth;
+      const row = g.getImageData(0, Math.round(y * dpr), img.width, 1).data;
+      const l = [];
+      for (let i = 0; i < row.length; i += 4) l.push(row[i] * .2126 + row[i + 1] * .7152 + row[i + 2] * .0722);
+      let e = 0;
+      for (let i = 1; i < l.length; i++) e += Math.abs(l[i] - l[i - 1]);
+      return +(e / l.length).toFixed(2);
+    }, { d: 'data:image/png;base64,' + b64, y });
+  };
+  /* A notch faked in so the band is deep enough to have a clear row in it, and
+     scrolled so the stats — real text — are sitting under that row. */
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--safe-t', '59px');
+    document.getElementById('s-more').scrollTop = 300;
+  });
+  await page.waitForTimeout(300);
+  const smeared = await edgeAt(25);
+  const noBlur = await page.addStyleTag({ content:
+    '#s-more .hdr::before{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}' });
+  await page.waitForTimeout(200);
+  const sharp = await edgeAt(25);
+  await noBlur.evaluate(n => n.remove());
+  await page.evaluate(() => {
+    document.documentElement.style.removeProperty('--safe-t');
+    document.getElementById('s-more').scrollTop = 0;
+  });
+  check('...the words that pass under it having something to lose',
+    sharp >= 6, `unblurred edge energy ${sharp}`);
+  check('...and losing it — nothing under the band stays readable',
+    sharp >= 6 && smeared < sharp / 4, `${sharp} → ${smeared}`);
+
+  /* The mask, in pixels off the foot rather than as a share of the box.
+     They were 68% and 86%, which were the same thing while the box was 359px
+     tall — and the lift makes it 500-odd, which moves the fade up into the
+     middle of the range and dissolves the mountains the mask exists to protect.
+     Measured by filling the backdrop flat and finding where it starts to go. */
+  /* Flattened with a stylesheet rule rather than inline styles. Inline styles
+     were silently lost between setting them and taking the screenshot — the
+     column came back as the ordinary camp, and the check failed against a
+     picture of the thing it had asked to be painted over. A rule outlives
+     anything that rebuilds the node. */
+  const flatTag = await page.addStyleTag({ content:
+    '#more-body .camp-bg{background:#fff !important}' +
+    '#more-body .camp-bg > *{visibility:hidden !important}' });
+  await page.waitForTimeout(120);
+  const fade = await page.evaluate(() => {
+    const b = document.querySelector('#more-body .camp-bg').getBoundingClientRect();
+    return { top: Math.round(b.top), bottom: Math.round(b.bottom), height: Math.round(b.height) };
+  });
+  const fadeCol = await (async () => {
+    const b64 = (await page.screenshot()).toString('base64');
+    return page.evaluate(async ({ d, box }) => {
+      const img = new Image();
+      await new Promise(r => { img.onload = r; img.onerror = r; img.src = d; });
+      const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+      const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+      const dpr = img.width / window.innerWidth;
+      const x = Math.round(window.innerWidth * .02 * dpr);       // clear of the title, which starts at --sp
+      const out = [];
+      for (let y = Math.max(box.top, 0); y < box.bottom; y++)
+        out.push([y, g.getImageData(x, Math.round(y * dpr), 1, 1).data[0]]);
+      return out;
+    }, { d: 'data:image/png;base64,' + b64, box: fade });
+  })();
+  await flatTag.evaluate(n => n.remove());
+  const solid = Math.max(...fadeCol.map(p => p[1]));
+  /* A column that never went white is a column of the ordinary camp, and
+     "where does it start to fade" answered against that is meaningless. */
+  const flattened = solid > 240;
+  const firstDrop = (fadeCol.find(p => p[1] < solid - 8) || [null])[0];
+  check('...the backdrop actually flattened, so the fade is measurable at all',
+    flattened, `brightest sample ${solid}`);
+  check('...the range not dissolved by a mask that grew with the box',
+    flattened && firstDrop !== null && Math.abs((fade.bottom - firstDrop) - 115) <= 12,
+    firstDrop === null ? 'no fade found' : `fade starts ${fade.bottom - firstDrop}px off the foot of a ${fade.height}px box`);
+  await page.setViewportSize({ width: 1280, height: 720 });
   check('...outside the backdrop it stands in front of, so the mask cannot fade it',
     night.fireOutsideMask === true && night.fireMask === 'none|none', night.fireMask);
   check('...standing on the near ridge rather than in the sky',
