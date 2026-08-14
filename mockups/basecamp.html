@@ -1,0 +1,524 @@
+<title>Base Camp</title>
+<style>
+  /* Guzo's own tokens. This is a mockup of THIS app, so nothing new is
+     introduced that the product does not already speak. */
+  :root{
+    --ember:#E9B44C;
+    --ember-2:#F0C165;
+    --tent:#FF9A3C;
+    --tent-hot:#FFC46B;
+    --snow:#E3EBF7;
+    --rock:#2A3647;
+    --night-0:#0A0F1A;
+    --night-1:#122036;
+    --night-2:#1B3153;
+    --ground:#0B0C10;
+    --text:#E9EDF2;
+    --dim:#93A0B4;
+    --faint:#6B7788;
+    --ff:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  }
+  /* Deliberately single-theme: this is a night scene. It paints its own
+     ground in both host themes rather than borrowing one. */
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%;background:var(--ground);color:var(--text);
+    font-family:var(--ff);-webkit-font-smoothing:antialiased}
+  body{display:flex;align-items:center;justify-content:center;overflow:hidden}
+
+  .stage{position:relative;width:100%;max-width:430px;height:100%;max-height:932px;
+    overflow:hidden;background:var(--night-0);
+    box-shadow:0 40px 120px rgba(0,0,0,.7)}
+  @media (min-width:520px){ .stage{border-radius:34px} }
+  .scene{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  /* ---- the HUD: everything that is words, not scenery ---- */
+  .hud{position:absolute;left:20px;right:20px;top:18px;pointer-events:none;z-index:3}
+  .eyebrow{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--ember-2);margin:0}
+  .who{font-size:29px;font-weight:800;letter-spacing:-.035em;margin:4px 0 0;line-height:1.05}
+  .sub{font-size:12.5px;line-height:1.45;color:var(--dim);margin:6px 0 0;max-width:26ch}
+
+  /* ---- what a tap does ----
+     No panel. The object itself answers: it grows a little and lights up, and
+     its label comes up to full white. A card sliding in over the scene is the
+     thing this design exists to get rid of — the moment a box appears, you are
+     back in a menu that happens to have a photograph behind it.
+
+     The transform lives entirely in CSS so the lit state can override it.
+     Written as an attribute it cannot be, and the scale silently wins. The
+     origin is each object's own base, so a tent grows upward out of the
+     ground instead of drifting off it. */
+  .note{position:absolute;left:0;right:0;bottom:0;z-index:6;
+    padding:9px 16px calc(9px + env(safe-area-inset-bottom,0px));
+    font-size:10.5px;letter-spacing:.05em;color:var(--faint);text-align:center;
+    background:linear-gradient(180deg,transparent,rgba(6,8,12,.92) 55%)}
+
+  /* transform-origin 0 0, and NOT transform-box:fill-box. With the fill box
+     the origin becomes the centre of the object's own bounding box — which
+     here includes a halo more than twice the width of the tent — so every
+     tent scaled about a point well off itself and landed somewhere other than
+     where it was placed. The local origin is the tent's base; scaling about
+     it grows the tent upward out of the ground, which is the whole point. */
+  .hit{cursor:pointer;transform-origin:0 0;
+    transform:translate(var(--x),var(--y)) scale(var(--s,1));
+    transition:transform .34s cubic-bezier(.22,1,.36,1)}
+  .hit[data-lit="1"]{transform:translate(var(--x),var(--y)) scale(calc(var(--s,1) * 1.11))}
+  .hit:focus-visible{outline:none}
+  .tent-glow,.tent-pool,.tent-body{transition:opacity .32s ease}
+  .hit[data-lit="1"] .tent-glow{opacity:1}
+  .hit[data-lit="1"] .tent-pool{opacity:1}
+  .tent-label{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
+    fill:var(--dim);transition:fill .25s ease}
+  .hit[data-lit="1"] .tent-label,.hit:focus-visible .tent-label{fill:#FFF3DC}
+  @media (prefers-reduced-motion: reduce){ .hit{transition:none} }
+
+  @media (prefers-reduced-motion: no-preference){
+    .flick{animation:flick 5.5s ease-in-out infinite}
+    .flick-b{animation:flick 7.3s ease-in-out infinite reverse}
+    @keyframes flick{0%,100%{opacity:.92}38%{opacity:.72}64%{opacity:1}}
+    .star{animation:tw 11s ease-in-out infinite both}
+    @keyframes tw{0%,88%,100%{opacity:var(--o)}94%{opacity:calc(var(--o) * 2.2)}}
+    .glint{animation:gl 9s ease-in-out infinite both}
+    @keyframes gl{0%,80%,100%{opacity:calc(var(--o) * .35);transform:scale(.7)}
+      90%{opacity:var(--o);transform:scale(1.15)}}
+  }
+  .glint{transform-box:fill-box;transform-origin:center}
+</style>
+
+<div class="stage">
+  <svg class="scene" viewBox="0 0 430 900" preserveAspectRatio="xMidYMid slice" aria-label="Base camp">
+    <defs>
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#070B14"/>
+        <stop offset="34%" stop-color="#101D31"/>
+        <stop offset="68%" stop-color="#1B3153"/>
+        <stop offset="100%" stop-color="#2A4468"/>
+      </linearGradient>
+      <radialGradient id="moonglow" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#DDE8FA" stop-opacity=".38"/>
+        <stop offset="45%" stop-color="#BACBEA" stop-opacity=".10"/>
+        <stop offset="100%" stop-color="#BACBEA" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="farrange" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#8FA6C6" stop-opacity=".30"/>
+        <stop offset="100%" stop-color="#8FA6C6" stop-opacity=".05"/>
+      </linearGradient>
+      <linearGradient id="rock" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#3B4B63"/>
+        <stop offset="60%" stop-color="#233043"/>
+        <stop offset="100%" stop-color="#161F2C"/>
+      </linearGradient>
+      <linearGradient id="snow" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#EEF4FF"/>
+        <stop offset="55%" stop-color="#C9D8EE"/>
+        <stop offset="100%" stop-color="#9DB1CE"/>
+      </linearGradient>
+      <linearGradient id="nearridge" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#18243A"/>
+        <stop offset="55%" stop-color="#0E1523"/>
+        <stop offset="100%" stop-color="#090C14"/>
+      </linearGradient>
+      <linearGradient id="moraine" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#141822"/>
+        <stop offset="100%" stop-color="#07090E"/>
+      </linearGradient>
+      <linearGradient id="basehaze" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#16233A" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#16233A" stop-opacity=".85"/>
+      </linearGradient>
+      <radialGradient id="firelight" cx="50%" cy="86%" r="52%">
+        <stop offset="0%" stop-color="#FFB443" stop-opacity=".40"/>
+        <stop offset="42%" stop-color="#E9832C" stop-opacity=".13"/>
+        <stop offset="100%" stop-color="#E9832C" stop-opacity="0"/>
+      </radialGradient>
+      <clipPath id="massif"><path id="massif-path" d="
+        M0 560 L34 512 L62 470 L88 404 L104 418 L128 366 L152 300 L166 316
+        L192 268 L214 200 L230 212 L252 148
+        L272 192 L288 180 L308 236 L332 274 L346 260 L370 316 L396 358
+        L414 344 L430 396 L430 560 Z"/></clipPath>
+    </defs>
+
+    <!-- sky -->
+    <rect x="0" y="0" width="430" height="620" fill="url(#sky)"/>
+    <g id="stars"></g>
+    <!-- moonlight in the sky, behind everything solid -->
+    <circle cx="342" cy="120" r="132" fill="url(#moonglow)"/>
+
+    <!-- the moon: the settings door -->
+    <g id="moon" class="hit" tabindex="0" role="button" aria-label="Settings" data-k="Settings">
+      <circle r="46" fill="transparent"/>
+      <g id="moon-art"></g>
+    </g>
+
+    <!-- the far, hazy range -->
+    <path fill="url(#farrange)" d="M0 452 L38 424 L74 444 L112 402 L148 428 L186 396
+      L226 424 L262 390 L300 420 L340 398 L378 428 L412 408 L430 424 L430 560 L0 560 Z"/>
+
+    <!-- the massif -->
+    <g clip-path="url(#massif)">
+      <rect x="0" y="120" width="430" height="450" fill="url(#rock)"/>
+      <!-- snow lies above a jagged snowline; the clip trims it to the mountain -->
+      <path fill="url(#snow)" d="M0 470 L38 438 L68 462 L98 396 L122 420 L148 366
+        L176 392 L200 336 L226 362 L252 306 L276 344 L300 322 L326 366 L350 342
+        L374 386 L400 362 L430 404 L430 100 L0 100 Z"/>
+      <!-- Rock showing through the snow, down the fall line. Narrow and soft:
+           as hard-edged triangles at full opacity these read as shapes laid on
+           top of the mountain rather than as the mountain's own stone. -->
+      <g fill="#1E2836" opacity=".5">
+        <path d="M252 150 L258 284 L250 300 L245 272 Z"/>
+        <path d="M214 202 L221 344 L214 360 L206 318 Z"/>
+        <path d="M308 238 L316 366 L309 382 L300 342 Z"/>
+        <path d="M128 368 L134 466 L128 478 L120 444 Z"/>
+        <path d="M370 318 L376 430 L370 442 L361 408 Z"/>
+        <path d="M192 270 L187 398 L180 410 L176 382 Z"/>
+        <path d="M346 262 L352 372 L346 384 L339 348 Z"/>
+        <path d="M166 318 L160 428 L154 440 L150 404 Z"/>
+      </g>
+      <!-- The light: the moon is up and to the right, so the right flanks take
+           it and the left ones fall away. Angled with the light rather than
+           ruled down the middle of the peak — a vertical seam at the summit is
+           the one thing that says "two shapes" instead of "one mountain". -->
+      <path fill="#F2F7FF" opacity=".15" d="M252 148 L272 192 L288 180 L308 236
+        L332 274 L346 260 L370 316 L396 358 L414 344 L430 396 L430 560 L296 560 Z"/>
+      <path fill="#050A14" opacity=".34" d="M252 148 L230 212 L214 200 L192 268
+        L166 316 L152 300 L128 366 L104 418 L88 404 L62 470 L34 512 L0 560 L214 560 Z"/>
+      <!-- Haze pooling at the foot, so the base sits back rather than ending. -->
+      <rect x="0" y="440" width="430" height="130" fill="url(#basehaze)"/>
+    </g>
+    <!-- The summit plume. Every photograph of a big peak has one, and it is
+         what stops a white triangle reading as a logo. -->
+    <path fill="#DDE8FA" opacity=".07" d="M222 176 C258 154 320 158 362 174
+      C330 186 300 188 276 186 C252 184 238 180 222 180 Z"/>
+    <path fill="#EAF1FF" opacity=".05" d="M238 162 C270 146 314 150 344 166
+      C314 170 268 168 238 166 Z"/>
+
+    <!-- the dark ridge the camp sits behind -->
+    <path fill="url(#nearridge)" d="M0 556 L48 534 L96 552 L146 528 L196 548
+      L248 524 L300 546 L352 526 L400 548 L430 536 L430 640 L0 640 Z"/>
+
+    <!-- the moraine the tents stand on -->
+    <path fill="url(#moraine)" d="M0 614 C90 596 160 606 214 600 C300 590 366 604 430 596
+      L430 900 L0 900 Z"/>
+
+    <!-- firelight thrown across the camp, under the tents -->
+    <ellipse cx="232" cy="778" rx="215" ry="142" fill="url(#firelight)"/>
+
+    <g id="rocks"></g>
+    <g id="camp"></g>
+    <g id="fire"></g>
+  </svg>
+
+  <div class="hud">
+    <p class="eyebrow">Day 42 on the route</p>
+    <h1 class="who">Base camp</h1>
+    <p class="sub">Everything you might want is pitched here. Tap a tent.</p>
+  </div>
+
+  <p class="note">Mockup — tap a tent, or the fire, or the moon</p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const el = (n, a) => { const e = document.createElementNS(SVGNS, n);
+    for (const k in a) e.setAttribute(k, a[k]); return e; };
+
+  /* ---------- sky ----------
+     Deterministic, so the same sky is drawn every time and a screenshot can be
+     compared. A jittered grid rather than pure random: random clusters, and
+     the fix for clustering is a grid you push each point off. */
+  const rnd = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  const sky = document.getElementById('stars');
+  const COLS = 9, ROWS = 11, W = 430, H = 560;
+  let i = 0;
+  const bright = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++, i++) {
+      const depth = r / (ROWS - 1);
+      if (depth > .5 && rnd(i + 91) < (depth - .5) * 1.5) continue;
+      const x = (c + .12 + rnd(i) * .76) * (W / COLS);
+      const y = (r + .12 + rnd(i + 37) * .76) * (H / ROWS);
+      const mag = rnd(i + 53);
+      const rad = 0.5 + mag * mag * mag * 1.7;
+      const o = (.20 + mag * .70);
+      const s = el('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: rad.toFixed(2), fill: '#F2EFE6' });
+      s.setAttribute('class', 'star');
+      s.style.setProperty('--o', o.toFixed(2));
+      s.style.animationDelay = ((i * 1.37) % 11).toFixed(2) + 's';
+      sky.appendChild(s);
+      /* Glints stay out of the top-left, where the name and the day count are.
+         A four-point spike behind a headline is a smudge on the type. */
+      if (mag > .90 && bright.length < 7 && !(x < 300 && y < 165)) bright.push([x, y, o]);
+    }
+  }
+  /* A handful of stars big enough to throw a spike. This is what "a few more
+     pronounced ones" means: not more dots, a second tier. */
+  bright.forEach(([x, y, o], n) => {
+    const L = 7 + rnd(n + 7) * 4;
+    const g = el('g', { class: 'glint', transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})` });
+    g.style.setProperty('--o', Math.min(1, o + .25).toFixed(2));
+    g.style.animationDelay = (n * 1.9).toFixed(2) + 's';
+    g.appendChild(el('path', { d: `M0 ${-L} L1.1 -1.1 L${L} 0 L1.1 1.1 L0 ${L} L-1.1 1.1 L${-L} 0 L-1.1 -1.1 Z`,
+      fill: '#FFFDF6' }));
+    g.appendChild(el('circle', { r: 1.7, fill: '#FFFFFF' }));
+    sky.appendChild(g);
+  });
+
+  /* ---------- the moon ----------
+     A mean synodic cycle. Accurate to a few hours, never wrong about which way
+     the crescent points — and here it is a door, not an ornament. */
+  const LUNAR = 29.530588853, EPOCH = Date.UTC(2000, 0, 6, 18, 14);
+  const phase = (() => { let p = (((Date.now() - EPOCH) / 864e5) % LUNAR) / LUNAR; return p < 0 ? p + 1 : p; })();
+  const illum = (1 - Math.cos(2 * Math.PI * phase)) / 2;
+  (function moon() {
+    const g = document.getElementById('moon-art');
+    place(document.getElementById('moon'), 342, 120, 1);
+    const R = 30, rx = Math.abs(1 - 2 * illum) * R, waxing = phase < .5;
+    const LIT = '#F8F4E8';
+    /* Earthshine. The unlit disc is not black — it is lit by the Earth, which
+       is why you can see "the old moon in the new moon's arms". It is also the
+       only thing that makes tonight's 1%-lit crescent read as a moon rather
+       than as a hole punched in the sky, and it costs one colour. */
+    const DARK = '#1B2739';
+
+    /* The lit part is ONE path, not a half-disc with an ellipse carved out of
+       it. Both draw the same shape, but only one of them can carry a glow: a
+       filter works off the element's own alpha, so a semicircle glows along
+       its straight edge too and rings the whole disc in light — which reads as
+       an eclipse rather than a crescent. Drawn as a single outline, the light
+       comes off the lit limb and nowhere else.
+
+       The terminator is an ellipse arc of width |1 - 2k|, bowing away from the
+       limb while the moon is a crescent and toward it once it is gibbous —
+       which is the sweep flag, and the whole of the phase. */
+    /* Both arcs run between the same two poles, so the sweep flag is the only
+       thing saying which side of the disc each one bows through — and getting
+       the inner one backwards draws the lit sliver PLUS the whole dark half,
+       i.e. a full moon, on every night of the month. While the moon is a
+       crescent the terminator bows the same way as the limb it hugs; once it
+       is gibbous it bows the other way. */
+    const outer = waxing ? 1 : 0;
+    const inner = (illum < .5) === waxing ? 0 : 1;
+    const litPath = `M0 ${-R} A ${R} ${R} 0 0 ${outer} 0 ${R} `
+                  + `A ${rx.toFixed(2)} ${R} 0 0 ${inner} 0 ${-R} Z`;
+
+    g.appendChild(el('circle', { r: R, fill: DARK, class: 'moon-disc',
+      stroke: 'rgba(226,235,250,.30)', 'stroke-width': '1' }));
+
+    const lit = el('path', { d: litPath, fill: LIT });
+    lit.setAttribute('filter', 'drop-shadow(0 0 6px rgba(240,246,255,.55))');
+    g.appendChild(lit);
+
+    /* Maria, so a 30px disc is a moon and not a chip of paper — clipped to the
+       lit shape, because the near side you can see is the lit side. */
+    const clip = el('clipPath', { id: 'moon-face' });
+    clip.appendChild(el('path', { d: litPath }));
+    g.appendChild(clip);
+    const maria = el('g', { fill: '#B9B3A2', opacity: '.34', 'clip-path': 'url(#moon-face)' });
+    [[-7, -10, 6.5], [5, -14, 4], [10, 3, 8], [-3, 10, 5.5], [14, 13, 3.5]]
+      .forEach(([x, y, r]) => maria.appendChild(el('circle', { cx: x, cy: y, r })));
+    g.appendChild(maria);
+  })();
+
+  /* ---------- the moraine ----------
+     Scattered stone, lit from the fire side. Without it the camp stands on a
+     gradient, and a gradient is not ground. Deterministic like the sky, and
+     lit warmer the closer a rock is to the fire, which is what puts the fire
+     in the scene rather than on top of it. */
+  (function rocks() {
+    const g = document.getElementById('rocks');
+    const FX = 232, FY = 800;
+    for (let n = 0; n < 34; n++) {
+      const x = 8 + rnd(n * 3 + 1) * 414;
+      const y = 632 + rnd(n * 3 + 2) * 258;
+      const w = 3 + rnd(n * 3 + 3) * 13 * (y - 600) / 260;
+      const hh = w * (.42 + rnd(n + 71) * .3);
+      const d = Math.hypot(x - FX, y - FY);
+      const heat = Math.max(0, 1 - d / 300);
+      const base = 16 + heat * 44;
+      const fill = `rgb(${(base * 1.5) | 0},${(base * 1.14) | 0},${(base * .82) | 0})`;
+      const k = el('path', {
+        d: `M${(-w).toFixed(1)} 0 C${(-w * .9).toFixed(1)} ${(-hh * 1.25).toFixed(1)} `
+         + `${(-w * .25).toFixed(1)} ${(-hh * 1.4).toFixed(1)} ${(w * .12).toFixed(1)} ${(-hh).toFixed(1)} `
+         + `C${(w * .6).toFixed(1)} ${(-hh * .8).toFixed(1)} ${w.toFixed(1)} ${(-hh * .3).toFixed(1)} ${w.toFixed(1)} 0 Z`,
+        transform: `translate(${x.toFixed(1)} ${y.toFixed(1)})`, fill
+      });
+      g.appendChild(k);
+    }
+  })();
+
+  /* ---------- the camp ----------
+     Each tent is a destination. Depth is carried by scale and by how much
+     firelight reaches it, so the back of the camp reads as further away
+     rather than merely smaller. */
+  /* Ordered back to front, because that is the order they have to paint in —
+     and scaled with it, so the camp has depth rather than five tents in a row.
+     Nothing sits below y=800: the label hangs under the tent and the strip at
+     the foot of the screen is the mockup's own caption. */
+  /* Four tents and a fire. The fire is Fuel — it is the one thing in a camp
+     that food actually comes from, and making it a destination rather than
+     scenery is what stops the middle of the composition being decoration. */
+  const TENTS = [
+    { x: 108, y: 666, s: .70, hue: '#F0A23E', k: 'Your journey',  hot: '#FFE0A8' },
+    { x: 330, y: 690, s: .78, hue: '#FF7A3C', k: 'Guides',        hot: '#FFD6A0' },
+    { x: 140, y: 744, s: .92, hue: '#FFB24E', k: 'Stretch',       hot: '#FFE8BC' },
+    { x: 348, y: 806, s: 1.00, hue: '#FF8A3D', k: 'Your routines', hot: '#FFDCA8' }
+  ];
+  const camp = document.getElementById('camp');
+
+  function place(g, x, y, s) {
+    g.style.setProperty('--x', x + 'px');
+    g.style.setProperty('--y', y + 'px');
+    g.style.setProperty('--s', s);
+  }
+
+  TENTS.forEach((t, n) => {
+    const g = el('g', { class: 'hit', tabindex: '0', role: 'button', 'aria-label': t.k });
+    g.dataset.k = t.k;
+    place(g, t.x, t.y, t.s);
+
+    const W = 52, H = 46;
+    const gid = 'tg' + n, hid = 'th' + n, pid = 'tp' + n;
+
+    /* Light falls off; it does not stop. Flat-fill ellipses at low opacity
+       paint a hard-edged disc on the moraine around every tent. */
+    const halo = el('radialGradient', { id: hid });
+    halo.appendChild(el('stop', { offset: '0%', 'stop-color': t.hue, 'stop-opacity': '.34' }));
+    halo.appendChild(el('stop', { offset: '45%', 'stop-color': t.hue, 'stop-opacity': '.11' }));
+    halo.appendChild(el('stop', { offset: '100%', 'stop-color': t.hue, 'stop-opacity': '0' }));
+    g.appendChild(halo);
+    const poolg = el('radialGradient', { id: pid });
+    poolg.appendChild(el('stop', { offset: '0%', 'stop-color': t.hot, 'stop-opacity': '.30' }));
+    poolg.appendChild(el('stop', { offset: '100%', 'stop-color': t.hue, 'stop-opacity': '0' }));
+    g.appendChild(poolg);
+
+    /* The fabric is lit from a lantern on the floor, so it is brightest at the
+       bottom and falls off toward the apex — the opposite of a sphere lit from
+       outside, and the whole reason a lit tent reads as lit. */
+    const grad = el('radialGradient', { id: gid, cx: '50%', cy: '96%', r: '86%' });
+    grad.appendChild(el('stop', { offset: '0%', 'stop-color': t.hot }));
+    grad.appendChild(el('stop', { offset: '30%', 'stop-color': t.hue }));
+    grad.appendChild(el('stop', { offset: '100%', 'stop-color': '#93400F' }));
+    g.appendChild(grad);
+
+    g.appendChild(el('ellipse', { cx: 0, cy: -H * .16, rx: W * 2.2, ry: H * 2.2,
+      fill: `url(#${hid})`, opacity: '.6', class: 'tent-glow' }));
+    g.appendChild(el('ellipse', { cx: 0, cy: 5, rx: W * 1.8, ry: 19,
+      fill: `url(#${pid})`, opacity: '.72', class: 'tent-pool' }));
+    g.appendChild(el('ellipse', { cx: 0, cy: 2, rx: W * .96, ry: 6, fill: '#04060A', opacity: '.55' }));
+
+    /* A dome tent is not a half-circle. It rises steeply off the ground, turns
+       over a short flat at the apex, and the flanks pull in — which is what the
+       poles do to the fabric. Drawn as a semicircle it reads as an igloo, and
+       that is what the first pass looked like. */
+    const body = el('path', {
+      class: 'tent-body flick' + (n % 2 ? '-b' : ''),
+      d: `M${-W} 0 C${-W * .99} ${-H * .58} ${-W * .70} ${-H * .99} ${-W * .13} ${-H}
+          L${W * .13} ${-H}
+          C${W * .70} ${-H * .99} ${W * .99} ${-H * .58} ${W} 0 Z`,
+      fill: `url(#${gid})`
+    });
+    g.appendChild(body);
+
+    /* Poles: one hoop over the top and two crossing it, dark against the lit
+       fabric. This is the detail that says "tent" at 50px. */
+    const poles = el('g', { stroke: '#7E3C13', 'stroke-width': '1.5', fill: 'none',
+      opacity: '.62', 'stroke-linecap': 'round' });
+    poles.appendChild(el('path', { d: `M${-W * .995} -1 C${-W * .72} ${-H * .96} ${W * .72} ${-H * .96} ${W * .995} -1` }));
+    poles.appendChild(el('path', { d: `M${-W * .62} 0 C${-W * .48} ${-H * .74} ${-W * .16} ${-H * 1.0} 0 ${-H * 1.005}` }));
+    poles.appendChild(el('path', { d: `M${W * .62} 0 C${W * .48} ${-H * .74} ${W * .16} ${-H * 1.0} 0 ${-H * 1.005}` }));
+    g.appendChild(poles);
+
+    /* The door, and the light getting out of it. */
+    g.appendChild(el('path', {
+      d: `M${-W * .26} 0 C${-W * .26} ${-H * .62} ${W * .26} ${-H * .62} ${W * .26} 0 Z`,
+      fill: t.hot, opacity: '.62'
+    }));
+    /* The groundsheet: a dark band along the foot, so the tent meets the
+       moraine instead of glowing straight into it. */
+    g.appendChild(el('path', {
+      d: `M${-W} 0 C${-W * .55} ${-6} ${W * .55} ${-6} ${W} 0 L${W} 2 L${-W} 2 Z`,
+      fill: '#3A1B08', opacity: '.75'
+    }));
+
+    const label = el('text', { x: 0, y: 25, 'text-anchor': 'middle', class: 'tent-label' });
+    label.textContent = t.k;
+    label.setAttribute('filter', 'drop-shadow(0 1px 3px rgba(4,6,10,.95))');
+    g.appendChild(label);
+
+    camp.appendChild(g);
+  });
+
+  /* ---------- the fire, which is Fuel ----------
+     Built the way the reference is: a bed of embers, two logs across it, and
+     the flame in three tapering tongues rather than one blob. Tongues because
+     a single silhouette reads as a leaf — fire is several things moving at
+     different rates, which is also why each tongue gets its own timing. */
+  (function fire() {
+    const g = document.getElementById('fire');
+    g.setAttribute('class', 'hit');
+    g.setAttribute('tabindex', '0');
+    g.setAttribute('role', 'button');
+    g.setAttribute('aria-label', 'Fuel');
+    g.dataset.k = 'Fuel';
+    place(g, 232, 800, 1.3);
+
+    const grad = el('radialGradient', { id: 'firegrad', cx: '50%', cy: '92%', r: '80%' });
+    grad.appendChild(el('stop', { offset: '0%', 'stop-color': '#FFF3C4' }));
+    grad.appendChild(el('stop', { offset: '34%', 'stop-color': '#FFC24A' }));
+    grad.appendChild(el('stop', { offset: '72%', 'stop-color': '#F4762A' }));
+    grad.appendChild(el('stop', { offset: '100%', 'stop-color': '#C7391A', 'stop-opacity': '.55' }));
+    g.appendChild(grad);
+    const pool = el('radialGradient', { id: 'firepool' });
+    pool.appendChild(el('stop', { offset: '0%', 'stop-color': '#FFC978', 'stop-opacity': '.5' }));
+    pool.appendChild(el('stop', { offset: '100%', 'stop-color': '#FF8A2B', 'stop-opacity': '0' }));
+    g.appendChild(pool);
+
+    g.appendChild(el('ellipse', { cx: 0, cy: 4, rx: 74, ry: 26, fill: 'url(#firepool)', class: 'tent-pool', opacity: '.8' }));
+
+    /* flames first, so the logs sit in front of them */
+    const flame = el('g', { class: 'flick' });
+    flame.appendChild(el('path', { d: 'M0 -46 C7 -30 16 -22 16 -9 C16 3 9 10 0 10 C-9 10 -16 3 -16 -9 C-16 -21 -8 -27 -4 -38 C-2 -29 -1 -25 0 -22 Z',
+      fill: 'url(#firegrad)' }));
+    g.appendChild(flame);
+    const tongueL = el('path', { d: 'M-9 -34 C-5 -24 -2 -19 -3 -11 C-4 -4 -9 0 -13 -2 C-17 -4 -18 -12 -16 -19 C-14 -25 -11 -28 -9 -34 Z',
+      fill: '#FFB33F', opacity: '.85', class: 'flick-b' });
+    g.appendChild(tongueL);
+    const core = el('path', { d: 'M0 -24 C4 -15 7 -11 7 -4 C7 3 4 7 0 7 C-4 7 -7 3 -7 -4 C-7 -10 -3 -14 0 -24 Z',
+      fill: '#FFF0BE', class: 'flick-b' });
+    g.appendChild(core);
+
+    /* embers on the ground, and two logs leaning into the fire */
+    const embers = el('g', { fill: '#FF9B34', opacity: '.85' });
+    [[-16, 6, 2.2], [13, 7, 1.8], [-6, 9, 1.5], [20, 4, 1.4], [-22, 4, 1.6], [6, 10, 1.9]]
+      .forEach(([x, y, r]) => embers.appendChild(el('circle', { cx: x, cy: y, r })));
+    g.appendChild(embers);
+    const logs = el('g', { 'stroke-linecap': 'round', fill: 'none' });
+    logs.appendChild(el('path', { d: 'M-25 8 L21 -1', stroke: '#4B3züA22'.replace('zü','2'), 'stroke-width': '7' }));
+    logs.appendChild(el('path', { d: 'M-21 -1 L25 8', stroke: '#3E2A18', 'stroke-width': '7' }));
+    logs.appendChild(el('path', { d: 'M-25 8 L21 -1', stroke: '#7A5330', 'stroke-width': '2.4', opacity: '.7' }));
+    g.appendChild(logs);
+
+    const label = el('text', { x: 0, y: 27, 'text-anchor': 'middle', class: 'tent-label' });
+    label.textContent = 'Fuel';
+    label.setAttribute('filter', 'drop-shadow(0 1px 3px rgba(4,6,10,.95))');
+    g.appendChild(label);
+  })();
+
+  /* ---------- what a tap does ----------
+     The object grows and lights; nothing slides in over the scene. In the app
+     this is where go() would run. One lit at a time, because two things lit is
+     two things claiming to be where you are. */
+  function choose(node) {
+    document.querySelectorAll('.hit').forEach(n => n.removeAttribute('data-lit'));
+    node.setAttribute('data-lit', '1');
+  }
+  document.querySelectorAll('.hit').forEach(n => {
+    n.addEventListener('click', () => choose(n));
+    n.addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(n); }
+    });
+  });
+})();
+</script>

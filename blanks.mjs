@@ -2106,6 +2106,7 @@ try {
     return {
       snowFill: snow ? getComputedStyle(snow).fill : 'absent',
       caps: caps.length, apexOnPeak: apexOnPeak.filter(Boolean).length, heroSnow,
+      heroLayers: document.querySelectorAll('#today-body .hero-ridge path[fill^="url"]').length,
       restDistinct: new Set(rest.map(v => v.toFixed(3))).size,
       delayDistinct: new Set(stars.map(c => getComputedStyle(c).animationDelay)).size,
       anim: getComputedStyle(stars[0]).animationName,
@@ -2169,8 +2170,16 @@ try {
   check('...every cap sitting on a peak the range actually has',
     night.caps > 0 && night.apexOnPeak === night.caps,
     `${night.apexOnPeak} of ${night.caps} on a vertex`);
-  check('...and a range that asked for none having none',
-    night.heroSnow === 0, `${night.heroSnow} on Today`);
+  /* It is the same range on every screen now — same silhouette, same five
+     layers, same snow. It used to be a reduced version everywhere but here, on
+     the theory that a pale layer under a card heading is a contrast failure
+     waiting to be written. That theory was right; the gate was the wrong fix,
+     because it also meant two ranges in one app that did not look like the
+     same place. What holds the contrast instead is per-band opacity on the
+     LIT layers only, asserted by the sweep below. */
+  check('...the same range drawn on the other screens, snow and all',
+    night.heroSnow === 1 && night.heroLayers >= 5,
+    `${night.heroSnow} snow, ${night.heroLayers} layers on Today`);
 
   check('...the stars shimmering', night.anim === 'starTwinkle', night.anim);
   check('...not all at once', night.delayDistinct >= 8, `${night.delayDistinct} delays`);
@@ -2403,6 +2412,98 @@ try {
     sharp >= 6, `unblurred edge energy ${sharp} at scroll ${sharpAt}`);
   check('...and losing it — nothing under the band stays readable',
     sharp >= 6 && smeared < sharp / 4, `${sharp} → ${smeared} at scroll ${sharpAt}`);
+
+  /* ---- what the range does to the words over it ----
+     Every band except base camp sits behind a card's own type. The range is
+     the same everywhere and its intensity is not: the lit layers are held down
+     per band by CSS, and the near mass — near-black, and the layer carrying
+     the silhouette — is left alone, because dimming the band as a whole takes
+     the shape out before the text clears.
+
+     Measured by DIFFERENCING, not by reading the brightest pixel in each glyph
+     box. A text box shares space with whatever else is near it — an ember ring,
+     a chevron, a card border — and the brightest pixel in it is usually one of
+     those, so a naive sweep blames the mountains for contrast the mountains
+     had nothing to do with. Two screenshots, one with the range and one
+     without, and only the pixels that changed are the range's to answer for.
+
+     This is what the old "Today has no snow" check became. That one asserted a
+     gate that no longer exists; this one asserts the thing the gate was there
+     to protect, on every screen at once, and it is what found "of 15" sitting
+     on a snow cap at 1.08:1. */
+  const ridgeText = [];
+  for (const screen of ['today', 'plan', 'train', 'progress', 'more']) {
+    await page.evaluate(s => { go(s); render(); }, screen);
+    await page.waitForTimeout(420);
+    const nodes = await page.evaluate(() => {
+      const sc = document.querySelector('.screen.on');
+      const bands = [...sc.querySelectorAll('.ridge')].map(r => r.getBoundingClientRect()).filter(r => r.height > 2);
+      if (!bands.length) return [];
+      const out = []; const w = document.createTreeWalker(sc, NodeFilter.SHOW_TEXT); let n;
+      while ((n = w.nextNode())) {
+        if (!n.nodeValue.trim()) continue;
+        const rg = document.createRange(); rg.selectNodeContents(n);
+        const b = rg.getBoundingClientRect();
+        if (b.width < 2 || b.height < 2) continue;
+        if (!bands.some(r => b.left < r.right && b.right > r.left && b.top < r.bottom && b.bottom > r.top)) continue;
+        const cs = getComputedStyle(n.parentElement);
+        const px = parseFloat(cs.fontSize), wt = parseInt(cs.fontWeight, 10) || 400;
+        out.push({ text: n.nodeValue.trim().slice(0, 18), color: cs.color,
+          big: px >= 24 || (px >= 18.66 && wt >= 700),
+          r: { l: Math.round(b.left), t: Math.round(b.top), w: Math.round(b.width), h: Math.round(b.height) } });
+      }
+      return out;
+    });
+    if (!nodes.length) continue;
+    const noInk = await page.addStyleTag({ content: '.screen.on *{color:transparent !important;text-shadow:none !important}' });
+    await page.waitForTimeout(120);
+    const withR = (await page.screenshot()).toString('base64');
+    const noR = await page.addStyleTag({ content: '.ridge{display:none !important}' });
+    await page.waitForTimeout(120);
+    const without = (await page.screenshot()).toString('base64');
+    await noR.evaluate(t => t.remove());
+    await noInk.evaluate(t => t.remove());
+    const backs = await page.evaluate(async ({ a, b, boxes }) => {
+      const load = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(i); i.src = src; });
+      const [ia, ib] = [await load(a), await load(b)];
+      const ctx2 = im => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+        const g = c.getContext('2d'); g.drawImage(im, 0, 0); return g; };
+      const ga = ctx2(ia), gb = ctx2(ib), dpr = ia.width / window.innerWidth;
+      return boxes.map(box => {
+        const x = Math.round(box.l * dpr), y = Math.round(box.t * dpr);
+        const w = Math.max(1, Math.round(box.w * dpr)), h = Math.max(1, Math.round(box.h * dpr));
+        const pa = ga.getImageData(x, y, w, h).data, pb = gb.getImageData(x, y, w, h).data;
+        let best = null, bl = -1, touched = 0;
+        for (let i = 0; i < pa.length; i += 4) {
+          if (Math.abs(pa[i] - pb[i]) + Math.abs(pa[i+1] - pb[i+1]) + Math.abs(pa[i+2] - pb[i+2]) < 6) continue;
+          touched++;
+          const l = pa[i] * .2126 + pa[i+1] * .7152 + pa[i+2] * .0722;
+          if (l > bl) { bl = l; best = [pa[i], pa[i+1], pa[i+2]]; }
+        }
+        return { px: best, share: touched / (w * h) };
+      });
+    }, { a: 'data:image/png;base64,' + withR, b: 'data:image/png;base64,' + without, boxes: nodes.map(n => n.r) });
+    nodes.forEach((n, i) => {
+      if (!backs[i].px || backs[i].share < .04) return;
+      const tl = lumOf(n.color.match(/\d+/g).map(Number)), bl = lumOf(backs[i].px);
+      const ratio = (Math.max(tl, bl) + .05) / (Math.min(tl, bl) + .05);
+      ridgeText.push({ screen, text: n.text, ratio, need: n.big ? 3 : 4.5 });
+    });
+  }
+  /* Back to More, and WAIT. go() adds .entering and a timer removes it; the
+     arrival animation runs the screen up from opacity 0, so a probe that
+     starts immediately measures a dimmed page. The flatten probe below fills
+     the backdrop white and asserts it reads as white — it came back 237. */
+  await page.evaluate(() => { go('more'); render(); });
+  await page.waitForTimeout(1300);
+  const failed = ridgeText.filter(t => t.ratio < t.need);
+  const tight = ridgeText.slice().sort((a, b) => a.ratio / a.need - b.ratio / b.need)[0];
+  check('...with enough text actually over the range to be worth measuring',
+    ridgeText.length >= 8, `${ridgeText.length} text nodes over a band`);
+  check('...and every word of it still legible against the range behind it',
+    ridgeText.length >= 8 && failed.length === 0,
+    failed.map(f => `${f.screen} "${f.text}" ${f.ratio.toFixed(2)}/${f.need}`).join(', ')
+      || (tight ? `tightest ${tight.ratio.toFixed(2)}/${tight.need} on ${tight.screen} "${tight.text}"` : ''));
 
   /* The mask, in pixels off the foot rather than as a share of the box.
      They were 68% and 86%, which were the same thing while the box was 359px

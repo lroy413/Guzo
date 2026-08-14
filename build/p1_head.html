@@ -2374,10 +2374,57 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   box-shadow:var(--shadow),var(--inset);margin-bottom:20px;padding:0 0 4px}
 
 /* Terrain behind the header only. It never sits under a row of text — a
-   silhouette under a paragraph is a contrast problem wearing a nice hat. */
-.ridge{position:absolute;left:0;right:0;top:0;height:104px;pointer-events:none}
+   silhouette under a paragraph is a contrast problem wearing a nice hat.
+
+   Faded out at its own foot, for the reason base camp's backdrop is: every
+   silhouette in the range fills the box to the floor, and these boxes are
+   clipped by the card they sit in. So the mountains ended on a ruled
+   horizontal line with the near mass sliced off along it — visible on Today
+   under the session stats and on Progress under "Day 42", and the single
+   thing that made them read as a graphic pasted into a card rather than as
+   distance behind it. The last 34px carry the fade; the ridgelines are all
+   well above it.
+
+   .camp-bg does its own, over a much taller box, so the camp opts out rather
+   than fading twice. */
+.ridge{position:absolute;left:0;right:0;top:0;height:104px;pointer-events:none;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 calc(100% - 34px),rgba(0,0,0,.45) calc(100% - 12px),transparent 100%);
+  mask-image:linear-gradient(180deg,#000 0%,#000 calc(100% - 34px),rgba(0,0,0,.45) calc(100% - 12px),transparent 100%)}
+.camp-bg .ridge{-webkit-mask-image:none;mask-image:none}
 .ridge svg{display:block;width:100%;height:100%}
 .tr-ridge{height:96px;opacity:.9}
+/* The pale layers, dimmed where a card's own text sits over them.
+
+   The range is the same range on every screen — same silhouette, same five
+   layers, same fade. What is not the same is how much light it can carry: on
+   Plan and Progress a heading and a row of small grey type sit directly on the
+   summits, and at full strength "of 15" landed on a snow cap at 1.08:1.
+
+   Dimming the WHOLE band was the first attempt and it does not work — it takes
+   the dark near mass down with the pale far one, so the range dissolves before
+   the text clears. Giving the band headroom so the skyline drops below the
+   heading was the second, and it only moves the collision onto the row
+   underneath. What actually separates them is that only the top layers are
+   bright: hold the near mass and pull the haze, the far range and the snow. */
+.wk-ridge .ridge-haze{opacity:.34}
+.wk-ridge .ridge-far{opacity:.36}
+.wk-ridge .ridge-midfar{opacity:.56}
+.wk-ridge .ridge-mid{opacity:.74}
+.wk-ridge .ridge-snow{opacity:.24}
+/* Progress carries the least: its card is a dense list from the heading down,
+   so the band has nowhere to sit that is not behind something. Set with margin
+   rather than at the edge — tuned to exactly 4.50 it passed, and a check whose
+   subject sits on its own threshold is a check that goes red on a font tweak. */
+.asc-ridge .ridge-haze{opacity:.13}
+.asc-ridge .ridge-far{opacity:.15}
+.asc-ridge .ridge-midfar{opacity:.30}
+.asc-ridge .ridge-mid{opacity:.55}
+.asc-ridge .ridge-snow{opacity:.08}
+/* The near mass is left alone on purpose. It is #05080C — over a dark card it
+   adds essentially no light, so it costs nothing against the text and it is
+   the layer carrying the silhouette. Dimming the band as a whole takes it out
+   with everything else, which is why that approach dissolved the range before
+   the type cleared. */
 /* The skyline catching the sun. It draws itself on when you arrive on the
    screen — off .entering, which go() adds and a timer removes, and never off
    .screen.on: every render replaces the body's innerHTML and the line would

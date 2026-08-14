@@ -2264,3 +2264,65 @@ star layer`, which stays high however small the layer is; it is measured
 against the sky now. And a clipped SVG child still reports its geometric
 position, so a field squeezed into a band across the top still measured as
 spanning everything — only stars inside the layer's own box are counted.
+
+---
+
+## One range on every screen, and what it cost
+
+Asked for: apply the base camp range everywhere. Doing it naively — deleting
+the `full` gate so every band gets all five layers, the haze and the snow —
+looks right on Today and breaks Progress and Plan. Measured, "of 15" landed on
+a snow cap at **1.08:1**.
+
+**A comment I wrote during this change was wrong and is corrected here.** It
+said the gate "was a guess, and the wrong one". The gate was buying exactly
+what it claimed to; what was wrong was the *shape* of it, not the reason for
+it. A boolean meant two ranges in one app that did not look like the same
+place, when what was needed was one range at different intensities.
+
+Three fixes were tried in order, and the two that failed are the useful part:
+
+**Dimming the band as a whole does not work.** `.ridge{opacity}` takes the
+near mass down with the pale layers, so the silhouette dissolves before the
+type clears — at 0.22 the range is nearly gone and Progress still measured
+3.98 against a 4.5 bar.
+
+**Giving the band headroom does not work either.** Extending the viewBox
+upward so the skyline sits below the card's heading is the right instinct and
+it fixed the heading — and moved the collision onto the row underneath, because
+the ascent card is a dense list from its heading down and there is nowhere in
+it that is not behind something. That parameter was added, measured, and
+removed again.
+
+**What works is dimming only the layers that carry light.** The near mass is
+`#05080C`; over a dark card it adds essentially no luminance, so it is free
+against the text and it is the layer the silhouette lives in. Holding it and
+pulling the haze, the far range, the mid-far and the snow separates the two
+concerns completely.
+
+**And the largest single contributor was not a silhouette at all.** On Plan the
+text failed at 3.36:1 and dimming all five layers moved it by three
+hundredths. The culprit was the two lit skylines — 1.4px ember strokes at .55
+opacity, the brightest thing in the band by a wide margin, and the one element
+none of the layer rules touched. Dropping them took "sessions done" from
+3.36:1 to 4.88:1 on its own. `full` is now `tonal` and means exactly that: the
+range carries itself on tone, no strokes.
+
+**A contrast probe must attribute the light it measures.** The first sweep read
+the brightest pixel in each glyph box, which is usually a neighbour — an ember
+ring, a chevron, a card border — so it blamed the mountains for contrast they
+had nothing to do with, and reported failures on Today that were not real.
+It screenshots twice, with the range and without, and only pixels that changed
+are the range's to answer for. That is what made "6% covered" legible as *a
+snow cap clipping the corner of the box* rather than as noise.
+
+**The check that this replaced was asserting a gate.** "A range that asked for
+none having none" tested that Today had no snow — true, and meaningless the
+moment snow was meant to be everywhere. It is now a sweep over every text node
+on every screen that overlaps a band, which is what the gate existed to
+protect. Reverting the per-band dimming prints five failures across two
+screens; putting the ember skylines back on Plan prints two.
+
+**Set thresholds with margin, not at them.** One candidate tuning put Progress
+at exactly 4.50 against a 4.50 bar. It passed, and it would have gone red on
+any change to that card's type. Backed off a notch to 4.69.

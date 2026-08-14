@@ -757,7 +757,7 @@ function renderPlan() {
     return m;
   })();
   html += `<div class="card accent wk-hero mb">
-    ${ridgeHTML('wk', true)}
+    ${ridgeHTML('wk', true, true)}
     <div class="eyebrow em">This week</div>
     <div class="wk-hero-n">
       <span class="wk-hero-v mono">${wk.done}</span><span class="wk-hero-of">/${wk.planned}</span>
@@ -1164,11 +1164,27 @@ function ridgeSnow(pts) {
    mountain. The points are still points — ridgeSnow() reads them, and a curve
    would have to be sampled to find a summit.
 
-   `full` turns on the pieces that only fit where there is real sky: the haze
-   layer, the glow behind the summits, and the snow. Everywhere else the range
-   is a 104px band sitting behind body text, and a pale layer under a heading
-   is a contrast failure waiting to be written. */
-function ridgeHTML(ns, lit, full) {
+   Every band gets the whole range now, not just base camp. The layers, the
+   haze, the glow and the snow used to be gated behind `full` on the theory
+   that a pale layer under a card heading is a contrast failure waiting to be
+   written — which was a guess, and the wrong one: the smaller bands are
+   already dimmed by their own CSS (`.hero .ridge{opacity:.72}`,
+   `.wk-hero .ridge{opacity:.5}`), so the pale layers arrive there at a third
+   of the strength they have in open sky. What the gate actually bought was
+   two ranges in one app that did not look like the same place.
+
+   `tonal` drops the lit skylines and lets the layers carry it alone. It was
+   called `full` and meant "this band has room for the whole scene", which is
+   no longer what it does — the whole scene is everywhere now.
+
+   Two reasons a band asks for it. In open sky two ember strokes across the
+   full width read as a line chart rather than as mountains. And on a card they
+   are the brightest thing in the band by a long way — measured, the strokes
+   alone took "sessions done" on Plan from 5.16:1 to 3.36:1, which is the whole
+   of that failure: every silhouette behind them is cool and dark, and dimming
+   all five of them moved the number by three hundredths. blanks.mjs measures
+   the text over every one of these bands rather than trusting any of this. */
+function ridgeHTML(ns, lit, tonal) {
   /* One dominant massif right of centre with a shoulder falling off it, a
      secondary summit left, and everything else subordinate. A range of evenly
      spaced equal peaks is a sawtooth; a range with a clear subject is a place.
@@ -1183,9 +1199,7 @@ function ridgeHTML(ns, lit, full) {
                      [246,46],[276,38],[306,50],[320,46]]);
   /* A fifth silhouette between the lit range and the dark one. Distance is
      carried by the *number* of tonal steps as much as by their spread — three
-     layers is a diagram of a mountain range whatever you do to the colours.
-     Only in the full scene: at 104px behind a card heading five overlapping
-     fills is mud. */
+     layers is a diagram of a mountain range whatever you do to the colours. */
   const midFar = path([[0,98],[28,76],[54,88],[78,64],[104,82],[132,70],[160,84],
                        [188,62],[214,76],[242,58],[268,78],[296,68],[320,80]]);
   const mid = path([[0,104],[30,80],[58,90],[84,68],[110,84],[140,72],[168,86],[196,66],
@@ -1212,12 +1226,11 @@ function ridgeHTML(ns, lit, full) {
         ${/* The far range is cool and pale; the warmth is the light *behind*
               it. It used to be an ember fill, which painted the mountain the
               colour of the sunrise and left nothing for the sunrise to be. */''}
-        ${band(1, '#C3D3EA', full ? '.36' : '.13', '.04')}
-        ${band(2, '#1C2942', full ? '.80' : '.55', '.95')}
+        ${band(1, '#C3D3EA', '.36', '.04')}
+        ${band(2, '#1C2942', '.80', '.95')}
         ${band(3, '#05080C', '.90', '1')}
-        ${full ? band(0, '#A6BAD6', '.16', '.02') : ''}
-        ${full ? band(4, '#44597A', '.42', '.66') : ''}
-
+        ${band(0, '#A6BAD6', '.16', '.02')}
+        ${band(4, '#44597A', '.42', '.66')}
       </defs>
       ${/* The light behind the summits is NOT in here. This box is the bottom
             168px of the scene and every silhouette fills it to the floor, so a
@@ -1225,16 +1238,16 @@ function ridgeHTML(ns, lit, full) {
             only part that shows is the sliver above the highest ridgeline.
             Sky belongs in the sky — see .camp-glow, which is a sibling of this
             box and taller than it. */''}
-      ${full ? `<path fill="url(#${id}-rg0)" d="${haze} L320 104 L0 104 Z"/>` : ''}
+      <path class="ridge-haze" fill="url(#${id}-rg0)" d="${haze} L320 104 L0 104 Z"/>
       ${/* Classed, not just filled. Two checks used to find these layers by
             their literal colour — `path[fill="#12161c"]` and "the first path
             with a url() fill" — and both silently pointed at the wrong
             silhouette the moment a layer was added in front. A layer's name is
             stable; its paint is not. */''}
       <path class="ridge-far" fill="url(#${id}-rg1)" d="${far} L320 104 L0 104 Z"/>
-      ${full ? `<path class="ridge-snow" d="${ridgeSnow(farPts)}"/>
-        <path fill="url(#${id}-rg4)" d="${midFar} L320 104 L0 104 Z"/>` : ''}
-      <path fill="url(#${id}-rg2)" d="${mid} L320 104 L0 104 Z"/>
+      <path class="ridge-snow" d="${ridgeSnow(farPts)}"/>
+      <path class="ridge-midfar" fill="url(#${id}-rg4)" d="${midFar} L320 104 L0 104 Z"/>
+      <path class="ridge-mid" fill="url(#${id}-rg2)" d="${mid} L320 104 L0 104 Z"/>
       <path class="ridge-near" fill="url(#${id}-rg3)" d="${near} L320 104 L0 104 Z"/>
       ${/* The skyline catching the sun, drawn on when you arrive. pathLength="1"
             so the dash maths is the same whatever width the phone is — the
@@ -1245,7 +1258,7 @@ function ridgeHTML(ns, lit, full) {
             loudest thing on the screen, and two of them crossing the whole
             width read as a line chart rather than as mountains. Where there is
             room for tone to do the work, tone does it. */''}
-      ${lit && !full ? `<path class="ridge-line" pathLength="1" vector-effect="non-scaling-stroke" d="${near}"/>
+      ${lit && !tonal ? `<path class="ridge-line" pathLength="1" vector-effect="non-scaling-stroke" d="${near}"/>
         <path class="ridge-line far" pathLength="1" vector-effect="non-scaling-stroke" d="${far}"/>` : ''}
     </svg>
   </div>`;
