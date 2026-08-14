@@ -121,7 +121,14 @@ function obAdvance(dir) {
    another silent one. A key never starts with "<", so markup falls through. */
 function opt(o) {
   const ico = o.ico ? (ICO[o.ico] || o.ico) : '';
-  return `<div class="opt ${o.on?'on':''}" data-act="${o.act}" data-v="${o.v}">
+  /* Extra data-* attributes, because without them a caller that needs one has
+     to hand-roll the whole row — and two sheets did exactly that, which is how
+     `avail-long` and `env-hotel` were still being painted as text in the day
+     editor after opt() itself had been fixed. A function is only the single
+     source of a thing if it can express what its callers need. */
+  const data = o.data ? Object.keys(o.data)
+    .map(k => ` data-${k}="${h(String(o.data[k] == null ? '' : o.data[k]))}"`).join('') : '';
+  return `<div class="opt ${o.on?'on':''}" data-act="${o.act}" data-v="${o.v}"${data}>
     ${ico ? `<div class="opt-ico">${ico}</div>` : ''}
     <div class="grow">
       <div class="opt-t">${o.title}${o.tag?`<span class="opt-tag">${o.tag}</span>`:''}</div>
@@ -206,7 +213,15 @@ OB_RENDER.welcome = () => `<div class="ob-wrap">
   </div>
   <div class="ob-foot">
     <button class="btn primary block lg" data-act="ob-next">Begin</button>
-    <p class="tiny center mt-s">Around four minutes. Every answer changes what your sessions look like — none of it is a form for its own sake.</p>
+    <!-- Six, not the four it used to say. Twenty-one questions at a brisk
+         fifteen seconds each is already five and a quarter minutes before the
+         seven-tap week setup and before reading anything, so four was a number
+         nobody was going to hit. Understating it is the one direction that
+         costs trust: somebody who was promised four and is still going at
+         seven has been misled by the first screen in the app. The second
+         sentence now names the payoff, which is the thing actually worth
+         knowing before starting a long form. -->
+    <p class="tiny center mt-s">About six minutes, and it ends on your first session. Every answer changes what that session looks like — none of it is a form for its own sake.</p>
   </div>
 </div>`;
 

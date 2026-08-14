@@ -1541,3 +1541,68 @@ One existing check had to be rewritten rather than retuned. `o.pad >= 90` was a
 constant chosen to match a 96px padding, so changing the nav's offset broke a
 check about scrolling for reasons that had nothing to do with scrolling. It
 compares against the nav's measured footprint now.
+
+---
+
+## Sixty-two sheets, and nothing had ever opened them
+
+The emoji sweep reads nine sheets. The blank sweep reads a screen at a time.
+There are sixty-two sheets. Rendering all of them found three real bugs in
+about a minute, the same way rendering onboarding did.
+
+**The day editor painted `avail-long`, `avail-normal`, `avail-short`,
+`avail-micro`, `avail-none` and `env-hotel` as lowercase text** in the icon
+box. It is the same bug as onboarding, and it survived that fix because the
+sheet hand-rolled `opt()`'s markup rather than calling it — the fix went into
+the function and the copies never saw it.
+
+Which is the actual lesson, and it is not "remember to check the copies". The
+sheet had to hand-roll because `opt()` could not express the extra `data-k` and
+`data-b` attributes it needed. **A function is only the single source of a
+thing if it can express what its callers need**; where it cannot, callers fork
+it, and the fork is invisible until something renders it. `opt()` takes a
+`data` map now and the sheet calls it.
+
+Compounding it: `sheetDayStart` declared a *local* `const opt`, which shadowed
+the global option helper across that whole function. `dupes.mjs` cannot see
+this — it checks top-level declarations — and it is a large part of why this
+file grew its own copies of a row that already had somewhere to live.
+
+**"How big is today?" printed `undefined` where each size's duration goes,
+on all four rows.** It read `r.mins` off `RUNGS`, which has no such field,
+while `rungMinsLabel()` sat two files away being used correctly by the help
+page and the Train screen. Two call sites right, one inventing its own
+accessor, and nothing to notice.
+
+**The units-repair sheet drew its conversion arrow as `&rarr;`.** Fragile area
+#8 has said since it was written that hairline arrow glyphs antialias to about
+half the contrast their colour promises. The arrows in the help pages stay as
+text and that is deliberate: "Settings → Display → Auto-Lock" is a sentence,
+and an inline SVG inside running prose wraps badly and reads worse. The
+distinction is whether the arrow is interface or typography.
+
+### The sweep found a fourth thing that was not a bug
+
+`sheetScanFound` reported an `undefined` — because the fixture passed a raw
+Open Food Facts product instead of the normalised object the sheet takes.
+`offParse()` returns **null** unless the name and all four macros are present,
+so a half-empty product can never reach that sheet. The fixture was wrong, not
+the app. Worth writing down: a sweep this broad will produce findings that are
+its own fault, and each one has to be traced before it is "fixed".
+
+## The welcome screen promised four minutes
+
+Twenty-one questions at a brisk fifteen seconds each is five and a quarter
+minutes before the seven-tap week setup and before reading a word of the 2,700
+on screen. Four was not reachable.
+
+Understating is the one direction that costs trust: somebody promised four and
+still going at seven has been misled by the first screen in the app. It says
+six, and the same sentence now names the payoff — which is the thing actually
+worth knowing before starting a long form.
+
+The check derives the floor from the question count rather than hard-coding it,
+so adding questions without revisiting the claim fails here instead of
+shipping. Its first version read "down to three minutes on a hotel floor" from
+the size ladder — which appears earlier on that screen — and reported no claim
+at all; it is anchored on "about"/"around" now.

@@ -1835,6 +1835,88 @@ try {
   check('no emoji is painted on any screen or sheet',
     emojiSweep.n === 0, emojiSweep.hits.join(' | '));
 
+  /* ---- every sheet, not the handful anything else looks at ----
+     The emoji sweep reads nine sheets and the blank sweep reads a screen at a
+     time. There are sixty-two. The day editor was painting "avail-long",
+     "avail-normal" and "env-hotel" as lowercase text in the icon box — the
+     same bug as onboarding, in a sheet that hand-rolled opt()'s markup instead
+     of calling it, so fixing opt() never reached it. And "How big is today?"
+     printed `undefined` where each size's duration goes, on all four rows,
+     because it read `r.mins` off RUNGS which has no such field while
+     rungMinsLabel() sat there being used correctly by two other call sites.
+
+     Neither is subtle on screen. Both survived because nothing ever opened
+     these sheets and looked.
+
+     Sheets needing arguments get plausible ones; any that still throw are
+     counted and the count is asserted, so this cannot quietly degrade into a
+     sweep that opens four sheets and declares victory. */
+  const sheets = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.heightCm = 178; S.profile.birthYear = 1990; S.profile.sex = 'm';
+    S.profile.activity = 'light'; S.profile.name = 'Sam';
+    S.profile.bodyweight = [{ d: today(), w: 82 }];
+    S.profile.injuries = ['knee']; S.profile.priorities = ['Back'];
+    const ex = EX['bb-back-squat'];
+    S.sessions = [{ id: 's1', date: today(), ended: Date.now(), dur: 45, kcal: 300, type: 'full',
+      exercises: [{ exId: ex.id, name: ex.name, load: ex.load, targetR: 5,
+        sets: [{ w: 100, r: 5, done: true }, { w: 100, r: 5, done: true }] }] }];
+    const rt = newRoutine('Ab Night'); addToRoutine(rt.id, 'bw-crunch');
+    S.stretch = { onboarded: true, occupation: 'camera', areas: ['shoulder'], done: {}, mins: 12 };
+    checkMilestones(); save(true); buildWeekPlan(true); render();
+
+    const ARGS = {
+      sheetDay: [today()], sheetDayEdit: [today()], sheetDayPast: [today()],
+      sheetPlanDay: [today()], sheetCopyDay: [today()], sheetElsewhere: [today()],
+      sheetElsewherePick: [today()], sheetLadder: ['full'],
+      sheetForm: ['bb-back-squat', false], sheetFormList: [''],
+      sheetExerciseGuide: ['bb-back-squat'], sheetVideoLink: ['bb-back-squat'],
+      sheetRoutineEdit: [rt.id], sheetPortion: ['f1'], sheetFixFood: ['f1'],
+      sheetEntryEdit: [0], sheetPlateCalc: [100], sheetExercisePicker: ['add', 0],
+      sheetStretchPreset: ['neck'], sheetStretchInfo: ['mob-cat-cow'],
+      /* The shape offParse() produces, not a raw Open Food Facts product:
+         offParse returns null unless the name and all four macros are present,
+         so a half-empty product never reaches this sheet. Passing one made the
+         sweep report an `undefined` that the app cannot actually produce. */
+      sheetScanFound: [{ n: 'Oat Milk, Brand', u: 'g', per: 100, kcal: 46,
+                         p: 1.1, c: 6.8, f: 1.5, g: 'meal', serving: '250ml',
+                         code: '5000000000000' }],
+      sheetScanNew: ['0000000000000'], sheetCoachNote: ['late'],
+      sheetImportFailed: ['Could not read it', 'The file had no text in it.']
+    };
+    const names = Object.getOwnPropertyNames(window)
+      .filter(k => /^sheet[A-Z]/.test(k) && typeof window[k] === 'function').sort();
+
+    const blanks = [], slugs = [], threw = [];
+    let drew = 0;
+    names.forEach(n => {
+      try { closeSheet(); } catch (e) {}
+      try { window[n].apply(null, ARGS[n] || []); } catch (e) { threw.push(n); return; }
+      const body = document.getElementById('sheet-body');
+      const t = (body && body.innerText) || '';
+      if (!t.trim()) { threw.push(n + ' (drew nothing)'); return; }
+      drew++;
+      const m = t.match(/\bundefined\b|\bNaN\b|\[object Object\]|\$\{[^}]*\}/);
+      if (m) blanks.push(n + ': ' + m[0]);
+      /* An ICO key that reached the screen as text. An icon box holding a
+         lowercase-hyphenated word is never legitimate — every real icon in one
+         is an <svg>, and every real label is prose. */
+      [...body.querySelectorAll('.opt-ico, .ico, .chip, .milestone-ico')].forEach(e => {
+        const s = (e.textContent || '').trim();
+        if (/^[a-z][a-z0-9]*(-[a-z0-9]+)+$/.test(s)) slugs.push(n + ': ' + s);
+      });
+    });
+    return { total: names.length, drew, blanks: blanks.slice(0, 6), nBlank: blanks.length,
+             slugs: slugs.slice(0, 6), nSlug: slugs.length, threw };
+  });
+  check('the sheet sweep opened nearly all of them',
+    sheets.drew >= sheets.total - 4 && sheets.total >= 55,
+    `${sheets.drew} of ${sheets.total}${sheets.threw.length ? ' — could not open ' + sheets.threw.join(', ') : ''}`);
+  check('no sheet paints an undefined, a NaN or an unevaluated placeholder',
+    sheets.nBlank === 0, sheets.blanks.join(' | '));
+  check('no sheet paints the name of an icon instead of the icon',
+    sheets.nSlug === 0, sheets.slugs.join(' | '));
+
   /* ---- an unevaluated placeholder is a blank with extra steps ----
      The privacy page printed "Guzo Fit v${VERSION}." — the literal characters,
      because the `${` had been escaped in the source, so the substitution never
@@ -1947,6 +2029,35 @@ try {
     return { n, wrapped: wrapped.slice(0, 5), bad: wrapped.length };
   });
   await page.setViewportSize({ width: 1280, height: 720 });
+  /* ---- the time it claims is a time the flow can actually take ----
+     The welcome screen said "around four minutes". Twenty-one questions at a
+     brisk fifteen seconds each is five and a quarter before the seven-tap week
+     setup and before reading a word, so four was unreachable. Understating is
+     the one direction that costs trust — somebody promised four and still
+     going at seven was misled by the first screen in the app.
+
+     Derived from the question count rather than hard-coded, so adding
+     questions without revisiting the claim fails here instead of shipping. */
+  const claim = await page.evaluate(() => {
+    S = blank(); S.onboarded = false; save(true);
+    obDraft = { ...OB_DEFAULT, gear: { ...GEAR_ALL }, seedOverrides: {}, seedExact: {} };
+    obStep = 0; go('onboard'); renderOnboard();
+    const t = (document.getElementById('ob-content').innerText || '');
+    const words = { four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10 };
+    /* Anchored on "about"/"around", because the welcome screen also says
+       "down to three minutes on a hotel floor" — and that phrase comes first,
+       so a bare /(\w+) minutes/ reads the size ladder and reports null. */
+    const m = t.match(/(?:about|around)\s+([a-z]+|\d+)\s+minutes/i);
+    const said = m ? (words[m[1].toLowerCase()] || parseInt(m[1], 10) || null) : null;
+    const qs = OB_STEPS.filter(s => s.q).length;
+    return { said, qs, floor: Math.round(((qs * 15) + (7 * 5)) / 60 * 10) / 10 };
+  });
+  check('the welcome screen states how long onboarding takes',
+    claim.said != null, String(claim.said));
+  check('...and it is not less than the flow can be done in',
+    claim.said >= claim.floor,
+    `says ${claim.said} min, ${claim.qs} questions put the floor at ${claim.floor}`);
+
   check('the wrap check read every option title', obWrap.n > 70, String(obWrap.n));
   check('...and none of them wraps at phone width',
     obWrap.bad === 0, obWrap.wrapped.join(' | '));

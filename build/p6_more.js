@@ -234,14 +234,8 @@ function sheetDayEdit(k, back) {
     <div class="opts" style="margin-top:20px">
       ${['long','normal','short','micro','none'].map(a => {
         const A = availOf(a);
-        return `<div class="opt ${c.avail===a?'on':''}" data-act="wk-avail" data-k="${k}" data-v="${a}" data-b="${h(back || '')}">
-          <div class="opt-ico">${A.ico}</div>
-          <div class="grow">
-            <div class="opt-t">${A.label}</div>
-            <div class="opt-d">${A.note}</div>
-          </div>
-          <div class="opt-mark">${tick}</div>
-        </div>`;
+        return opt({ act:'wk-avail', v:a, on:c.avail===a, ico:A.ico,
+                     title:A.label, desc:A.note, data:{ k, b:back || '' } });
       }).join('')}
     </div>
 
@@ -249,15 +243,8 @@ function sheetDayEdit(k, back) {
       <h2 class="h2 mt-l">Where will you be?</h2>
       <p class="small mt-s">This decides which exercises you get. A hotel day gets dumbbell work, a floor day gets bodyweight — same plan, different tools.</p>
       <div class="opts" style="margin-top:16px">
-        ${S.profile.envs.map(e => `
-          <div class="opt ${c.env===e?'on':''}" data-act="wk-env" data-k="${k}" data-v="${e}" data-b="${h(back || '')}">
-            <div class="opt-ico">${envIcos[e]}</div>
-            <div class="grow">
-              <div class="opt-t">${ENVS[e].label}</div>
-              <div class="opt-d">${ENVS[e].note}</div>
-            </div>
-            <div class="opt-mark">${tick}</div>
-          </div>`).join('')}
+        ${S.profile.envs.map(e => opt({ act:'wk-env', v:e, on:c.env===e, ico:envIcos[e],
+                     title:ENVS[e].label, desc:ENVS[e].note, data:{ k, b:back || '' } })).join('')}
       </div>` : ''}
 
     <button class="btn primary block lg mt-l" ${backAct}>Done</button>
@@ -272,11 +259,11 @@ function dayStartLabel() {
 
 function sheetDayStart() {
   const cur = dayStartHour();
-  const opt = (n, t, d) => `<div class="opt ${cur === n ? 'on' : ''}" data-act="set-daystart" data-v="${n}">
-      <div class="opt-ico">${n ? ICO.moon : ICO.clock}</div>
-      <div class="grow"><div class="opt-t">${t}</div><div class="opt-d">${d}</div></div>
-      <div class="opt-mark">${tick}</div>
-    </div>`;
+  /* Named for what it is rather than `opt`, which shadowed the global option
+     helper inside this whole function — the reason this file grew its own
+     copies of a row that already had one place to live. */
+  const hourOpt = (n, t, d) => opt({ act:'set-daystart', v:n, on:cur === n,
+    ico:n ? ICO.moon : ICO.clock, title:t, desc:d });
 
   openSheet(`
     <h2 class="h1 mb">When does your day end?</h2>
@@ -284,12 +271,12 @@ function sheetDayStart() {
     <p class="small mb">This matters most if you train twice. A morning session and a 2am one are the same day to you; on the calendar they are two, so one real day reads as two half-empty ones.</p>
 
     <div class="opts mb">
-      ${opt(0, 'Midnight', 'The ordinary calendar day. Right for almost everyone.')}
-      ${opt(2, '2am', 'A day ends at 2. Anything before that counts as the night before.')}
-      ${opt(3, '3am', 'A day ends at 3.')}
-      ${opt(4, '4am', 'A day ends at 4. Room for a session after a shift that finishes at 2.')}
-      ${opt(5, '5am', 'A day ends at 5. The latest that still leaves an early morning alone.')}
-      ${opt(6, '6am', 'A day ends at 6. Only if your nights really run that long.')}
+      ${hourOpt(0, 'Midnight', 'The ordinary calendar day. Right for almost everyone.')}
+      ${hourOpt(2, '2am', 'A day ends at 2. Anything before that counts as the night before.')}
+      ${hourOpt(3, '3am', 'A day ends at 3.')}
+      ${hourOpt(4, '4am', 'A day ends at 4. Room for a session after a shift that finishes at 2.')}
+      ${hourOpt(5, '5am', 'A day ends at 5. The latest that still leaves an early morning alone.')}
+      ${hourOpt(6, '6am', 'A day ends at 6. Only if your nights really run that long.')}
     </div>
 
     <div class="banner soft mb">Everything moves together &mdash; the week, what is planned, what you logged, your readiness and what you ate. Nothing already saved is rewritten; this changes where the line falls from now on.</div>
@@ -314,7 +301,7 @@ function sheetLadder(type) {
         <div class="rung ${r.k===sug?'on':''}" data-act="pick-rung" data-type="${h(type)}" data-v="${r.k}">
           <div class="n">${r.n}</div>
           <div class="grow">
-            <div class="row between"><div class="h3">${r.label}</div><div class="tiny">${r.mins}</div></div>
+            <div class="row between"><div class="h3">${r.label}</div><div class="tiny">${rungMinsLabel(r.k)}</div></div>
             <div class="tiny mt-s">${r.blurb}</div>
             ${r.k===sug?'<div class="pill em mt-s">Suggested for today</div>':''}
           </div>

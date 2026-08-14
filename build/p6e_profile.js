@@ -201,10 +201,16 @@ function sheetUnitsRepair() {
     .map(id => ({ name: EX[id].name, w: +S.lifts[id].w }))
     .sort((a, b) => b.w - a.w).slice(0, 4);
 
+  /* A drawn arrow, not "&rarr;". This one sits between two numbers as a piece
+     of interface rather than inside a sentence — at this size the glyph
+     antialiases to about half the contrast its colour promises, which is the
+     rule the handbook already gives for chevrons and ticks. The arrows in the
+     help pages stay as text: "Settings &rarr; Display &rarr; Auto-Lock" is a
+     sentence, and an inline SVG in running prose wraps badly and reads worse. */
   const row = (label, from) => `<div class="row between" style="min-height:34px">
     <span class="small">${h(label)}</span>
     <span class="mono small"><span style="color:var(--faint)">${fmtW(from)}</span>
-      &nbsp;&rarr;&nbsp; <strong>${fmtW(from * f)} ${h(u)}</strong></span>
+      <span class="conv-a">${ICO.arrowR}</span><strong>${fmtW(from * f)} ${h(u)}</strong></span>
   </div>`;
 
   openSheet(`
