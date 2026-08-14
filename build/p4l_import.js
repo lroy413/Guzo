@@ -520,6 +520,41 @@ function parsePrescription(line) {
   m = t.match(/^(\d{1,3})\s*(reps?)\b/i);
   if (m) return { sets: 1, reps: +m[1], unit: 'reps', range: null };
 
+  /* Sets with the reps left to the athlete: "5 sets · max strict reps then
+     band-assist to 8". This document's Wednesday is a pull-up progression day
+     and that line is its headline movement — it was dropped whole, because
+     nothing here matched without an explicit rep count.
+
+     Held to a short line with no sentence in it, because the same three words
+     appear in the coaching appendix: "5 sets of 5 strict, 1 short of failure.
+     Add a rep weekly." is prose about a movement, not a prescription for one,
+     and reading it as one invents an exercise out of the paragraph above it.
+     The rep count is left null and filled from the catalogue by the caller,
+     which knows which movement it matched. */
+  if (t.length <= 62 && !/[.]\s/.test(t) && !/\.$/.test(t)) {
+    m = t.match(/^(\d{1,2})\s*sets?\b(?!\s*[×x*])/i);
+    if (m) return { sets: +m[1], reps: null, unit: 'reps', range: null };
+
+    /* "2 rounds · 30 sec each" — a circuit states its rounds first and its
+       work after. Both halves are read: the rounds are the sets, and the first
+       count or duration after them is the work. Friday's warm-up is written
+       this way and was dropped whole, so an arms day imported with no warm-up
+       at all — the same complaint as the one that started this, one day over. */
+    m = t.match(/^(\d{1,2})\s*rounds?\b/i);
+    if (m) {
+      const rest = t.slice(m[0].length);
+      const w = rest.match(/(\d{1,3})\s*(secs?|seconds?|mins?|minutes?|reps?)?/i);
+      const u = w && w[2] ? (/^s/i.test(w[2]) ? 'sec' : /^m/i.test(w[2]) ? 'min' : 'reps') : 'reps';
+      return { sets: +m[1], reps: w ? +w[1] : null, unit: u, range: null };
+    }
+  }
+
+  /* "10 each side", "12 each leg" — one set, and the count is per side. The
+     app has no concept of a per-side count, so it takes the number as written,
+     which is what the plan asks you to do on each side anyway. */
+  m = t.match(/^(\d{1,3})\s+(?:each|per)\b/i);
+  if (m) return { sets: 1, reps: +m[1], unit: 'reps', range: null };
+
   /* A finisher is usually just a duration: "8 min · 60-65% max HR". */
   m = t.match(/^(?:\D{0,12})?(\d{1,3})\s*(mins?|minutes?)\b/i);
   if (m) return { sets: 1, reps: +m[1], unit: 'min', range: null };
@@ -624,7 +659,14 @@ function parsePlan(lines) {
       /* Three letters minimum. A stray "+" or "&" left over by a line break is
          not a movement, and matching it against the catalogue produces
          confident nonsense. */
-      const usable = t => t && t.replace(/[^A-Za-z]/g, '').length >= 3 && !indexFragment(t);
+      /* A leftover unit word is not a movement. "2 rounds · 30 sec each" puts
+         "rounds" in front of the first number this looks for, and it clears the
+         three-letter bar — so Friday's warm-up imported as an exercise called
+         "rounds" instead of falling back to the line above it, which is where
+         its name was. */
+      const UNIT_ONLY = /^(rounds?|sets?|reps?|secs?|seconds?|mins?|minutes?|each|side|per|rest|hold)$/i;
+      const usable = t => t && t.replace(/[^A-Za-z]/g, '').length >= 3
+        && !indexFragment(t) && !UNIT_ONLY.test(t.trim());
       const written = usable(clean) ? clean : (usable(nameLine) ? nameLine : '');
       /* "Quads · Hamstrings · Glutes · Calves ·" followed by "~75 min" is the
          day's summary, not a movement lasting seventy-five minutes. A list of
@@ -633,7 +675,26 @@ function parsePlan(lines) {
          this to fire: a real cue line is prose and would otherwise be thrown
          away along with the movement it belongs to. */
       const parts = written.split('·').map(x => x.trim()).filter(Boolean);
-      if (!written || (parts.length >= 3 && parts.every(x => x.split(/\s+/).length <= 2))) {
+      /* The three-part rule alone is defeated by a line wrap. This document's
+         Wednesday summary is "Pull-Up Progression · Back Thickness ·" and
+         "~65 min" on the NEXT line, which leaves two parts, not three — so it
+         came through as a movement called "Pull-Up Progression" lasting
+         sixty-five minutes, matched to Pull-Up, and clamped by
+         ROUTINE_LIMITS.reps into a pull-up held for three hundred seconds. It
+         was the first thing on the imported session.
+
+         So also: a bare duration, on a middot-separated name, before the day
+         has a single movement in it. All three together, because each alone is
+         something a real plan writes — "Easy run" then "30 min" carries no
+         middot and survives, and a finisher has movements above it.
+
+         Keyed on the day being empty rather than on no heading having been
+         seen: this document's day names arrive split as "WEDNES" and "DAY",
+         and the orphaned "DAY" is all capitals, so it registers as a section
+         heading before the summary line is ever reached. */
+      const summary = (parts.length >= 3 && parts.every(x => x.split(/\s+/).length <= 2))
+        || (presc.sets === 1 && presc.unit === 'min' && day && !day.items.length && parts.length >= 2);
+      if (!written || summary) {
         idx = ''; nameLine = ''; continue;
       }
       if (!day) startDay('Imported');
@@ -659,10 +720,16 @@ function parsePlan(lines) {
       }
 
       const block = blockFrom(idx, heading);
+      const matched = matchExercise(name);
       day.items.push({
         written: name,
         sets: Math.min(ROUTINE_LIMITS.sets, Math.max(1, presc.sets)),
-        reps: Math.min(ROUTINE_LIMITS.reps, Math.max(1, presc.reps)),
+        /* A prescription that stated sets and left the reps open takes them
+           from whatever it matched — clamping a null to 1 would import the
+           plan's headline movement as five sets of one. */
+        reps: presc.reps == null
+          ? ((matched && EX[matched.exId]) ? EX[matched.exId].rl : 8)
+          : Math.min(ROUTINE_LIMITS.reps, Math.max(1, presc.reps)),
         unit: presc.unit,
         block: block,
         /* The plan's own notation for a pair: 4A runs into 4B. Read off the
@@ -671,14 +738,24 @@ function parsePlan(lines) {
         sup: /A$/.test(idx) ? 'A' : (/B$/.test(idx) ? 'B' : null),
         idx: idx,
         note: line.trim(),
-        match: matchExercise(name)
+        match: matched
       });
       idx = ''; nameLine = '';
       continue;
     }
 
     const frag = indexFragment(line);
-    if (frag) { idx = (idx + frag).slice(-3); continue; }
+    if (frag) {
+      /* A letter continues an index, a number starts a new one.
+         Appending unconditionally was right for "5" then "A" and wrong for
+         everything else: when an item's prescription could not be read its
+         index was never consumed, so the next one merged onto it — "1" then
+         "2" became "12", and on the arms day "W" then "1" became "W1", which
+         blockFrom reads as a warm-up. A barbell curl for four sets of eight
+         was filed as a warm-up because the movement above it was dropped. */
+      idx = /^[A-Z]$/i.test(frag) ? (idx + frag).slice(-3) : frag;
+      continue;
+    }
 
     if (isTagLine(line)) continue;
 

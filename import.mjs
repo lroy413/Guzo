@@ -555,6 +555,80 @@ try {
   check('...nor a break in the rail through the middle of it',
     shape.breaks === 2, `${shape.breaks} breaks for 3 blocks`);
 
+  /* ---- the shapes a real exported plan actually arrives in ----
+     Every fixture below is a layout taken from a document that imported
+     wrongly, reproduced rather than the document itself. Each line is its own
+     entry because that is what contentLines() hands parsePlan: a table column
+     arrives as a line of its own, and a heading wrapped by the layout engine
+     arrives as two. */
+  const REAL = await page.evaluate(() => {
+    const run = (lines) => {
+      S = blank(); S.onboarded = true; save(true);
+      const r = parsePlan(lines);
+      return (r.days[0] || { items: [] }).items.map(i => ({
+        idx: i.idx, w: i.written, block: i.block,
+        sets: i.sets, reps: i.reps, unit: i.unit,
+        id: i.match ? i.match.exId : null
+      }));
+    };
+    return {
+      /* A day's own subtitle, wrapped by the layout so the duration lands on
+         the next line. The "list of body parts" guard counts middot-separated
+         parts, and the wrap left two instead of three. */
+      summary: run(['WEDNESDAY', 'Pull — Back Priority',
+        'Pull-Up Progression · Back Thickness ·', '~65 min',
+        'WARM-UP — 8 MIN', 'W', 'Band pull-aparts', '3 × 20',
+        'BACK', '3', 'Barbell bent-over row', '5 sets × 6-8 reps']),
+      /* An index whose movement could not be read leaves the index pending. */
+      merged: run(['MONDAY', 'Legs', 'MAIN LIFTS',
+        '1', 'Pull-up progression — Stage 2-3', 'max strict reps then band-assist',
+        '2', 'Negative pull-ups', '3 sets × 4 reps']),
+      /* Sets stated, reps left to the athlete. */
+      openReps: run(['MONDAY', 'Pull', 'MAIN LIFTS',
+        '1', 'Barbell bent-over row', '5 sets · go heavy · flat back']),
+      /* A circuit warm-up: rounds first, work after. */
+      rounds: run(['FRIDAY', 'Arms', 'WARM-UP — 5 MIN',
+        'W', 'Arm circles + band pull-aparts', '2 rounds · 30 sec each']),
+      /* A per-side count with no "reps" in it. */
+      eachSide: run(['THURSDAY', 'Core', 'CORE CIRCUIT',
+        '1', 'Dead bug', '10 each side · 2-sec hold']),
+      /* And the appendix prose that must NOT become a movement, which is the
+         cost of reading "N sets" without a rep count. */
+      prose: run(['SATURDAY', 'Pull', 'LADDER',
+        'Stage 3', '5-6 strict reps',
+        '5 sets of 5 strict, 1 short of failure. Add a rep weekly.'])
+    };
+  });
+
+  check('a wrapped day summary is not imported as a movement',
+    REAL.summary.length === 2 && !REAL.summary.some(i => i.unit === 'min'),
+    REAL.summary.map(i => `${i.w} ${i.sets}x${i.reps}${i.unit === 'reps' ? '' : ' ' + i.unit}`).join(' | '));
+  check('...so the warm-up is the first thing in the day',
+    (REAL.summary[0] || {}).block === 'warmup', JSON.stringify(REAL.summary[0]));
+  /* 1 then 2 became "12", and blockFrom reads the first character — which is
+     how an arms day filed a barbell curl as a warm-up after "W" merged with
+     the "1" of the movement below it. */
+  check('an index left pending does not merge into the next one',
+    REAL.merged.length >= 1 && REAL.merged[REAL.merged.length - 1].idx === '2',
+    REAL.merged.map(i => i.idx).join(','));
+  check('a prescription that states sets and leaves the reps open is kept',
+    REAL.openReps.length === 1 && REAL.openReps[0].sets === 5,
+    JSON.stringify(REAL.openReps[0]));
+  check('...with the reps taken from the movement it matched',
+    (REAL.openReps[0] || {}).reps > 1, String((REAL.openReps[0] || {}).reps));
+  check('a circuit written as rounds keeps both its rounds and its work',
+    REAL.rounds.length === 1 && REAL.rounds[0].sets === 2
+    && REAL.rounds[0].reps === 30 && REAL.rounds[0].unit === 'sec',
+    JSON.stringify(REAL.rounds[0]));
+  /* The name is the movement above it, not the unit word the prescription
+     line happens to start with. */
+  check('...and is not named after the word "rounds"',
+    /arm circles/i.test((REAL.rounds[0] || {}).w || ''), (REAL.rounds[0] || {}).w);
+  check('a per-side count is read as work', REAL.eachSide.length === 1
+    && REAL.eachSide[0].reps === 10, JSON.stringify(REAL.eachSide[0]));
+  check('and a paragraph about sets is still not a movement',
+    REAL.prose.length === 0, JSON.stringify(REAL.prose));
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

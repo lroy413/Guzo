@@ -1749,3 +1749,71 @@ And the first reproduction used a fixture with the index inline, which is the
 layout the parser did *not* handle — so it showed no supersets at all and made
 the pairing look completely broken rather than broken for one of two layouts.
 The fixture was wrong before the parser was.
+
+---
+
+## Six import bugs, found by reading the actual file
+
+The plan that produced them is a twelve-page export, and every one of these was
+invisible against a hand-written fixture. What follows is what a real document
+does that a reconstruction of it does not.
+
+**The day's own subtitle became the first movement.** Wednesday's header is
+"Pull-Up Progression · Back Thickness · ~65 min", and the layout wrapped it, so
+`~65 min` arrived on its own line. There was already a guard for exactly this —
+a middot-separated list of short parts followed by a duration is a summary, not
+a movement — and the wrap left **two** parts where it wanted three. So the day
+opened with a movement called "Pull-Up Progression" lasting sixty-five minutes,
+matched to Pull-Up, and clamped by `ROUTINE_LIMITS.reps` into **a pull-up held
+for three hundred seconds**. That was the first row on the reported screenshot.
+
+The guard now also fires on a bare duration, on a middot-separated name, before
+the day has a single movement in it. Keyed on the day being empty rather than
+on no heading having been seen, because this document's day names arrive split
+as "WEDNES" and "DAY" — and the orphaned "DAY" is all capitals, so it registers
+as a section heading before the summary line is reached.
+
+**A dropped movement corrupted the next one's index.** Indexes arrive as their
+own lines, and `idx = (idx + frag).slice(-3)` was right for "5" then "A" and
+wrong for everything else. When a prescription could not be read its index was
+never consumed, so the next one merged onto it: `1` + `2` became `12`, `3` + `4`
+became `34`, and on the arms day `W` + `1` became `W1` — which `blockFrom()`
+reads as a warm-up, **filing a barbell curl for four sets of eight as a
+warm-up** because the movement above it had been dropped. A letter continues an
+index; a number starts a new one.
+
+**Three prescription shapes were unreadable, and each one lost a real
+movement.** "5 sets · max strict reps then band-assist to 8" is the headline
+movement of a pull-up-priority day and had no rep count, so it vanished. "2
+rounds · 30 sec each" is Friday's warm-up, so an arms day imported with **no
+warm-up at all** — the same complaint that started this, one day over. "10 each
+side · 2-sec hold" is a dead bug. All three are read now; the open-rep one
+takes its reps from whatever it matched, because clamping a null to 1 would
+import the plan's centrepiece as five sets of one.
+
+Reading "N sets" without a rep count has a cost, and it is the coaching
+appendix: "5 sets of 5 strict, 1 short of failure. Add a rep weekly." is prose
+*about* a movement. It is held to a short line with no sentence in it, and
+there is a check that the paragraph stays out.
+
+**And a unit word is not a movement.** "2 rounds · 30 sec each" puts "rounds"
+in front of the first number the name-finder looks for, and it clears the
+three-letter bar — so Friday's warm-up imported as an exercise called
+**"rounds"** rather than falling back to the line above it, where its name was.
+
+Net on the real document: **53 movements with a phantom among them → 59, with
+every training day carrying its warm-up.** Sunday went from two movements to
+five.
+
+### The fixture was wrong before the parser was
+
+The first reproduction of this was hand-transcribed, and it put each index
+inline with its movement name — the layout the parser did *not* handle. So it
+showed no supersets at all and made the pairing look completely broken, when
+the truth was that it worked for one of two layouts and the reported document
+used the other. Both are handled now, but the lesson is the order: **the
+document was available and I reconstructed it anyway.** Every bug above needed
+the file.
+
+The checks are written as line arrays reproducing each layout rather than by
+committing the document, which is somebody's training plan and not a fixture.
