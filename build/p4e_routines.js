@@ -467,6 +467,10 @@ function buildRoutineSession(id, asPlanned) {
          editing while you train. Never on a circuit — the whole thing already
          runs straight through. */
       supNext: (!r.circuit && it.supNext) ? true : undefined,
+      /* And the block, where the item has one — set only by an import, from a
+         heading the plan actually wrote. exBlock() reads it in preference to
+         the catalogue's tier. */
+      block: it.block || undefined,
       sets: Array.from({ length: n }, () => ({
         w: wTarget != null ? wTarget : '', r: '', rpe: '', done: false
       })),

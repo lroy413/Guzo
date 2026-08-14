@@ -469,6 +469,92 @@ try {
     unsure.rowsAfter === unsure.rowsBefore && unsure.rowsBefore > 1,
     `${unsure.rowsBefore} → ${unsure.rowsAfter}`);
 
+  /* ---- a plan's own structure survives the import ----
+     Reported from a real 5-day split: the warm-up "went somewhere else" and
+     the superset "didn't come together". Both were true, and neither was a
+     parser bug — the parser worked all of it out and nothing carried the
+     answer through.
+
+     Written with the index in front of the name rather than in a column of its
+     own, because a PDF table gives you either and only the column was handled:
+     the other left "7A" glued to the front of the movement and matched the
+     catalogue against it, and lost the superset letter, so no pair ever
+     formed. */
+  const PLAN = [
+    'WEDNESDAY', 'Pull — Back Priority',
+    'WARM-UP — 8 MIN',
+    'W Band pull-aparts', '3 × 20',
+    'BACK — HEAVY LOADABLE THICKNESS',
+    '3 Barbell bent-over row — underhand', '5 sets × 6–8 reps',
+    '4 Lat pulldown — neutral close grip', '4 sets × 8–10 reps',
+    'REAR DELT + BICEPS',
+    'SUPERSET A — 7A THEN 7B · REST 60 SEC',
+    '7A Reverse pec deck', '3 sets × 15 reps',
+    '7B EZ bar curl', '3 sets × 8–10 reps'
+  ];
+  const shape = await page.evaluate((lines) => {
+    S = blank(); S.onboarded = true; save(true); buildWeekPlan(true);
+    IMPORT = parsePlan(lines);
+    const parsed = IMPORT.days[0].items.map(i => ({
+      idx: i.idx, written: i.written, block: i.block, sup: i.sup, supNext: !!i.supNext,
+      id: i.match ? i.match.exId : null
+    }));
+    IMPORT.days.forEach(d => { d.on = true; d.items.forEach(i => {
+      i.on = !!i.match; i.exId = i.match ? i.match.exId : null; }); });
+    commitImport();
+    const r = S.routines[S.routines.length - 1];
+    S.active = buildRoutineSession(r.id, 'full');
+    save(true); go('train'); renderTrain();
+    const body = document.getElementById('train-body');
+    /* Walked in painted order, so a heading landing between two halves of a
+       pair is visible as a sequence rather than inferred from class names. */
+    const seq = [];
+    body.querySelectorAll('.sec-head.blk, .sup-head, .ex-card, .ex-node').forEach(el => {
+      if (el.classList.contains('sec-head')) { seq.push('H:' + el.innerText.split('\n')[0].trim()); return; }
+      if (el.classList.contains('sup-head')) { seq.push('SUP'); return; }
+      /* One entry per movement, named. A card and its node both match the
+         selector, and the second contributed a nameless "X:" — which sat
+         exactly where a wrongly-inserted heading would be, so the adjacency
+         assertion below passed while the heading was there. Take the first
+         line that reads like a name, and drop anything nameless. */
+      const name = (el.innerText || '').split('\n')
+        .map(x => x.trim()).find(x => /[A-Za-z]{3}/.test(x) && !/^\d/.test(x));
+      if (name) seq.push('X:' + name);
+    });
+    return { parsed, seq, routineItems: r.items.map(i => ({ id: i.exId, block: i.block || null })),
+             breaks: body.querySelectorAll('.rail-brk').length };
+  }, PLAN);
+
+  const warm = shape.parsed[0];
+  check('an index in front of the name is read as an index',
+    warm.idx === 'W', `idx=${warm.idx || '(none)'}`);
+  check('...and stripped off the movement it was in front of',
+    /^Band pull-aparts$/i.test(warm.written || ''), warm.written);
+  check('a warm-up heading puts the movement in the warm-up',
+    warm.block === 'warmup', String(warm.block));
+  check('...and it is still a warm-up by the time it reaches the session',
+    (shape.routineItems[0] || {}).block === 'warmup',
+    JSON.stringify(shape.routineItems[0]));
+  /* The whole complaint, stated as the screen: the warm-up is the first thing
+     under the first heading, not four movements down under Accessories. */
+  check('...so it opens the session rather than landing in the accessories',
+    /^H:/.test(shape.seq[0] || '') && /warm/i.test(shape.seq[0] || ''),
+    (shape.seq[0] || '') + ' / ' + (shape.seq[1] || ''));
+
+  const supAt = shape.parsed.findIndex(i => i.supNext);
+  check('7A into 7B is read as a superset', supAt >= 0,
+    shape.parsed.map(i => i.idx + (i.sup || '')).join(' '));
+  /* Nothing between the two halves. sessionOrder() groups supersets before it
+     sorts, but the headings were drawn per item — so a rear-delt fly paired
+     with a curl came out as "Superset A / fly", then a MAIN LIFTS heading, then
+     the curl. The pair moved together and was split by a caption. */
+  const sup = shape.seq.indexOf('SUP');
+  check('...and nothing is drawn between its two halves',
+    sup >= 0 && /^X:/.test(shape.seq[sup + 1] || '') && /^X:/.test(shape.seq[sup + 2] || ''),
+    shape.seq.slice(Math.max(0, sup), sup + 3).join(' | '));
+  check('...nor a break in the rail through the middle of it',
+    shape.breaks === 2, `${shape.breaks} breaks for 3 blocks`);
+
   check('no console errors', consoleErrors.length === 0, consoleErrors.slice(0, 3).join(' | '));
 
 } finally {

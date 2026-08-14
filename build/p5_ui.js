@@ -1012,13 +1012,15 @@ function renderTrain() {
     sessionOrder(A).forEach(ei => {
       const item = A.exercises[ei];
       const sup = supFor(ei);
-      const b = exBlock(item);
+      const b = exBlockShown(A, ei);
       if (b !== block) {
         block = b;
         const [label, hint] = BLOCK_LABEL[b] || [b, ''];
         /* One block is not a structure. A session that is all one thing gets
-           no heading at all rather than a heading over everything. */
-        if (A.exercises.some(x => exBlock(x) !== b)) {
+           no heading at all rather than a heading over everything. Measured the
+           same way as the heading itself, or a session whose only variation is
+           inside a superset draws a heading it then never changes. */
+        if (A.exercises.some((x, xi) => exBlockShown(A, xi) !== b)) {
           html += `<div class="sec-head blk"><span class="sec-t">${h(label)}</span>${
             hint ? `<span class="tiny">${h(hint)}</span>` : ''}</div>`;
         }
@@ -1346,6 +1348,16 @@ function circuitListHTML(A, pos, rounds) {
    ============================================================ */
 function exBlock(item) {
   if (!item) return 'main';
+  /* A block the document stated outranks one derived from the catalogue.
+
+     An imported plan puts its band pull-aparts under "WARM-UP — 8 MIN" for a
+     reason the catalogue cannot see: to the catalogue a band pull-apart is a
+     tier-3 movement, so it was landing in Accessories two-thirds of the way
+     down a session the author had opened with it. The parser worked this out
+     correctly and nothing carried the answer. Only ever set from a stated
+     heading — the parser's fallback is 'accessory', which means "could not
+     tell" and must keep deriving. */
+  if (item.block && BLOCK_RANK[item.block] != null) return item.block;
   if (item.warmup) return 'warmup';
   if (item.recovery) return 'recovery';
   if (item.cardio) return 'finisher';
@@ -1367,6 +1379,28 @@ const BLOCK_LABEL = {
   recovery:  ['Mobility', 'nothing to beat']
 };
 const BLOCK_RANK = { warmup: 0, recovery: 0, main: 1, accessory: 2, core: 3, finisher: 4 };
+
+/* The block a card is DISPLAYED under, which is the group's, not the item's.
+
+   sessionOrder() sorts superset groups by their first movement's block so a
+   pair is never pulled apart — but the render walked the result comparing each
+   item's own block to the last one, and inserted a heading wherever they
+   differed. A rear-delt fly supersetted with an EZ bar curl therefore came out
+   as "Superset A / Reverse Pec Deck" then a "MAIN LIFTS" heading then the
+   curl: the pair moved together and was then split by a caption.
+
+   Two call sites computing the same thing, disagreeing. This is the one they
+   both read. */
+function exBlockShown(A, ei) {
+  const list = (A && A.exercises) || [];
+  /* supersetAt returns { run, pos, letter }, not the run itself. Reading it as
+     an array made `g.length` undefined, which is falsy, which fell through to
+     the item's own block — the exact behaviour this function exists to
+     replace, and silently. */
+  const g = supersetAt(list, ei);
+  const first = (g && g.run && g.run.length) ? g.run[0] : ei;
+  return exBlock(list[first]);
+}
 
 /* The order the session is shown in, as a list of indices into A.exercises.
    ------------------------------------------------------------------------
@@ -1430,7 +1464,10 @@ function trainRailHTML(A) {
   return `<div class="rail">
     ${order.map(i => {
       const it = A.exercises[i];
-      const b = exBlock(it);
+      /* The group's block, matching the headings below — otherwise the rail
+         draws a break through the middle of a superset the headings keep
+         whole, and the two disagree about the same session. */
+      const b = exBlockShown(A, i);
       const brk = (block !== null && b !== block) ? '<span class="rail-brk" aria-hidden="true"></span>' : '';
       block = b;
       const done = it.sets.filter(s => s.done).length;

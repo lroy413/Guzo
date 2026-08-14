@@ -1686,3 +1686,66 @@ the live site is therefore blind — asking whether "Lose fat" appears returned
 was truncated. The boot panel sits inside those first 1,200 characters, so the
 stamp is the one thing about a deployment that can actually be read from
 outside.
+
+---
+
+## An imported plan kept its structure and then lost it on the way to the screen
+
+Reported against a real five-day split: the warm-up "went somewhere else" and
+the superset "didn't come together". Both were true. Neither was a parsing
+failure — `parsePlan` worked all of it out and nothing carried the answer
+through.
+
+**The warm-up.** `blockFrom()` correctly read `WARM-UP — 8 MIN` and returned
+`warmup`, and `applyImportItem()` wrote `sets`, `reps` and `mode` and threw the
+block away. A routine has a whole-routine `warmup` boolean — "prepend a
+generated mobility movement" — and no per-item block, so the plan's own warm-up
+became an ordinary movement and Train re-derived it from the catalogue. A band
+pull-apart is tier 3, so an eight-minute opener landed in **Accessories, below
+four back movements**.
+
+The block now travels: parser → routine item → session item, and `exBlock()`
+reads a stated block in preference to the catalogue's tier. **Only a stated
+one** — `blockFrom()` returns `accessory` when it cannot tell, and storing that
+would pin a barbell row to Accessories on the strength of a shrug. So a plan
+that says warm-up gets a warm-up, and a plan that says nothing keeps deriving.
+
+**The superset.** `sessionOrder()` groups pairs before sorting precisely so the
+block sort cannot pull one apart, and it did its job. The render then walked
+the result comparing **each item's own block** to the previous one and emitted
+a heading wherever they differed — so a rear-delt fly (tier 3, accessory)
+paired with an EZ bar curl (tier 2, main) came out as
+
+    ACCESSORIES / Superset A / Reverse Pec Deck / MAIN LIFTS / EZ Bar Curl
+
+The pair moved together and was then split by a caption. Two call sites
+computing the same thing and disagreeing: `exBlockShown()` is the one they both
+read now, and the rail — which drew its break the same way — reads it too.
+
+**And the index.** A PDF table gives the index either as its own line or in
+front of the name, and only the column was handled. The other left `7A` glued
+to the front of the movement, matched the catalogue against *that*, and lost
+the superset letter entirely — so no pair ever formed from that layout.
+`indexFragment()` also accepted only `A-F`, while `blockFrom()` reads `W`, `C`
+and `F` to mean warm-up, core and finisher: `C` and `F` were inside `A-F` by
+luck and `W` was not, so a plan that indexed its warm-up `W` had that line
+dropped.
+
+### Three of my own mistakes, again worth writing down
+
+`exBlockShown()` read `supersetAt()` as an array. It returns
+`{ run, pos, letter }`, so `g.length` was `undefined`, which is falsy, which
+fell straight through to the item's own block — the exact behaviour the
+function existed to replace, silently, and it took a render to notice.
+
+The check that should have caught the split **passed against the bug**. Its
+sequence walked `.ex-card, .ex-node`, and a movement matches both, so the
+second contributed a nameless `X:` entry — sitting exactly where a wrongly
+inserted heading would be. The adjacency assertion was satisfied by an empty
+string. It takes one named entry per movement now, and the revert prints
+`SUP | X:Reverse Pec Deck | H:MAIN LIFTS`.
+
+And the first reproduction used a fixture with the index inline, which is the
+layout the parser did *not* handle — so it showed no supersets at all and made
+the pairing look completely broken rather than broken for one of two layouts.
+The fixture was wrong before the parser was.

@@ -251,6 +251,15 @@ function commitImportInto(id) {
    the two commit paths cannot disagree about what an imported movement is. */
 function applyImportItem(item, it) {
   if (!item) return;
+  /* The block the document stated, carried onto the routine so the session
+     built from it opens where the author opened it. Only a stated one:
+     blockFrom() returns 'accessory' when it could not tell, and storing that
+     would pin a barbell row to Accessories on the strength of a shrug.
+
+     Without this the plan's warm-up became an ordinary movement and Train
+     re-derived its block from the catalogue — a band pull-apart is tier 3, so
+     an eight-minute warm-up landed in Accessories below four back movements. */
+  if (it.block && it.block !== 'accessory') item.block = it.block;
   item.sets = Math.max(1, Math.min(ROUTINE_LIMITS.sets, it.sets));
   /* The document's unit wins over the catalogue's, the same as anywhere else a
      movement can be counted either way — but only where the app allows the

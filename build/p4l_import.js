@@ -472,7 +472,12 @@ function isFurniture(line) {
 function indexFragment(line) {
   const t = line.trim();
   if (t.length > 3) return null;
-  return /^([A-Fa-f]|\d{1,2}|[A-Fa-f]\d{1,2}|\d{1,2}[A-Fa-f])$/.test(t) ? t.toUpperCase() : null;
+  /* W, C and F are in the set because blockFrom() reads exactly those letters
+     to mean warm-up, core and finisher — and the pattern accepted only A-F, so
+     a plan that indexed its warm-up "W" had that line dropped and the warm-up
+     detected only if a heading happened to say so too. C and F were already
+     inside A-F by luck rather than intent. */
+  return /^([A-FWC]|\d{1,2}|[A-FWC]\d{1,2}|\d{1,2}[A-FWC])$/i.test(t) ? t.toUpperCase() : null;
 }
 
 function isTagLine(line) {
@@ -633,9 +638,29 @@ function parsePlan(lines) {
       }
       if (!day) startDay('Imported');
 
+      /* An index can lead the name instead of arriving as its own line —
+         "7A Reverse pec deck", "W Band pull-aparts". Which one you get is a
+         property of the PDF's table, not of the plan, and only the separate
+         column was handled: the other left "7A" glued to the front of the name
+         (matched against the catalogue that way) and lost the superset letter
+         entirely, so the pair never formed.
+
+         Read only when nothing has been collected already, so a real index
+         column still wins, and only when what follows is long enough to be a
+         movement — otherwise "5 Chest-supported row" and a movement genuinely
+         called "1 Arm Row" are indistinguishable. */
+      let name = written.trim();
+      if (!idx) {
+        const lead = name.match(/^([A-FWC]|\d{1,2}[A-F]?|[A-FWC]\d{1,2})[\s.):\-—]+(.+)$/i);
+        if (lead && lead[2].replace(/[^A-Za-z]/g, '').length >= 4) {
+          idx = lead[1].toUpperCase();
+          name = lead[2].trim();
+        }
+      }
+
       const block = blockFrom(idx, heading);
       day.items.push({
-        written: written.trim(),
+        written: name,
         sets: Math.min(ROUTINE_LIMITS.sets, Math.max(1, presc.sets)),
         reps: Math.min(ROUTINE_LIMITS.reps, Math.max(1, presc.reps)),
         unit: presc.unit,
@@ -646,7 +671,7 @@ function parsePlan(lines) {
         sup: /A$/.test(idx) ? 'A' : (/B$/.test(idx) ? 'B' : null),
         idx: idx,
         note: line.trim(),
-        match: matchExercise(written)
+        match: matchExercise(name)
       });
       idx = ''; nameLine = '';
       continue;
