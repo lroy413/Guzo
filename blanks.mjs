@@ -3588,6 +3588,33 @@ try {
 
   check('the app fills the whole viewport', fills.bodyH === fills.viewH,
     `${fills.bodyH} vs ${fills.viewH}`);
+
+  /* ---- and whatever is outside it is the same colour ----
+     The body is position:fixed; inset:0, so it is exactly the viewport and
+     nothing else — but iOS hands a web view a strip it does not own when a
+     toolbar collapses or an in-call banner resizes it, and that strip is
+     painted by the canvas. The canvas takes its colour by propagation from the
+     body, a rule written for an element in normal flow, and where that does not
+     happen the strip comes out transparent-over-black: a dead band under the
+     nav, reported twice as the app not filling the screen.
+
+     Asserted as "html paints the same thing body does", which is the property
+     that makes the seam invisible wherever it lands. Reading the computed
+     value rather than the rule, because a declaration that loses to another is
+     still a declaration. */
+  const canvas = await page.evaluate(() => {
+    const h = getComputedStyle(document.documentElement);
+    const b = getComputedStyle(document.body);
+    return { hBg: h.backgroundColor, hImg: h.backgroundImage,
+             bBg: b.backgroundColor, bImg: b.backgroundImage,
+             hAtt: h.backgroundAttachment, bAtt: b.backgroundAttachment };
+  });
+  check('the canvas behind the app is painted, not left transparent',
+    canvas.hBg !== 'rgba(0, 0, 0, 0)' && canvas.hImg !== 'none',
+    `${canvas.hBg} / ${canvas.hImg.slice(0, 30)}`);
+  check('...with exactly what the body paints',
+    canvas.hBg === canvas.bBg && canvas.hImg === canvas.bImg && canvas.hAtt === canvas.bAtt,
+    `${canvas.hBg} vs ${canvas.bBg}, ${canvas.hAtt} vs ${canvas.bAtt}`);
   Object.keys(fills.out).forEach(name => {
     const o = fills.out[name];
     check(`${name} reaches the bottom of the screen and no further`,

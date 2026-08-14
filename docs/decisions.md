@@ -1876,3 +1876,67 @@ The revert that shortens the captured list leaves `exercises[1]` undefined, so
 the "can be finished again" step threw and the whole instrument died before
 printing anything — which reads as a hang, not as the red it was meant to be.
 Third time in this project. Guarded now, and the revert prints `1 of 7`.
+
+---
+
+## The dead band at the bottom was the canvas, not the layout
+
+Reported twice, and the second time with the bottom of the screen circled: a
+black strip under the nav that reads as the app failing to fill the phone.
+
+Measured on a device-sized viewport with both insets faked, everything is
+exactly right — `body`, `#app` and the active `.screen` all run 0 to 852 on an
+852px viewport, the nav sits 25px off the bottom, and the last card stops 14px
+clear of it. **The layout was never the problem.**
+
+`html, body` are `position:fixed; inset:0`, so the body *is* the viewport by
+construction. That is deliberate and documented: `#app` used to be `100dvh` and
+on iOS the dynamic viewport and a fixed inset-0 box disagree the moment a
+toolbar collapses, which sliced the bottom off every card. The fix was to stop
+using viewport units — and the consequence is that when iOS hands the web view
+a strip it did not have at layout time (a toolbar collapsing, an in-call banner
+resizing it), the body does not grow into it.
+
+That strip is painted by the **canvas**, and the canvas had no colour.
+`getComputedStyle(document.documentElement).backgroundColor` was
+`rgba(0, 0, 0, 0)` and its image was `none` — the app relied entirely on the
+rule that propagates the body's background to the canvas, which is written for
+an element in normal flow and is exactly the thing to stop assuming about a
+fixed, inset-0 body. Where it does not happen, the strip comes out
+transparent-over-black against a near-black app: a dead band.
+
+`html` now carries the same declarations, the same gradient, the same
+`background-attachment: fixed`, so wherever the seam falls the two sides are
+the same pixels. A desktop browser never leaves a strip, so nothing here could
+have shown it — the check asserts the property that makes the seam invisible
+rather than trying to produce one.
+
+**Honestly stated:** this removes the only mechanism by which that band can be
+a different colour from the app. It does not make the strip usable — content
+still cannot extend into space the fixed body does not own — and if the band
+turns out to be the standalone letterbox rather than a collapsed toolbar, that
+needs a web app manifest with a `background_color`, which would make the deploy
+three files instead of two.
+
+## Base camp is a place now
+
+It is the only screen in the app named after somewhere and it looked like a
+settings index: an identity strip and three lists of rows.
+
+Built out of what the app already speaks — the same ridge as Today and
+Progress, the same hero shell, the same stat row — because a camp assembled
+from new components would be a different app on one screen. Two things are new
+and both of them *are* the camp: a sky with stars in it, and firelight coming
+up off the bottom edge. The glow is what makes it read as somewhere a person is
+sitting rather than a header with a mountain behind it. It breathes on a
+six-and-a-half second cycle, behind `prefers-reduced-motion`, slow enough to be
+noticed only if you look for it — a fire flickering on a UI cadence would be a
+distraction on the screen you come to when you are done.
+
+Two corrections after seeing it rendered. The card carried a "Base camp"
+eyebrow directly under a screen header saying **Base camp** — a label repeating
+the title it sits under is doing nothing, so the eyebrow carries the day count
+instead. And the stat row inherited `--teal`, which in this app means
+*completed*: right over "logged today", wrong over a standing total, where it
+reads as a session you have just finished. The camp's numbers are ember,
+because the journey is ember.

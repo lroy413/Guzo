@@ -32,17 +32,43 @@ function renderMore() {
   const p = S.profile;
   const st = totalStats();
   const jst = journeyStats();
-  /* An identity header rather than a card with inline styles in it. This is
-     the first thing on the screen and it was the least designed thing in the
-     app — a bordered box with a 52px emoji square hand-styled at the call
-     site. */
-  let html = `<div class="who">
-    <div class="who-mark">${ICO.summit}</div>
-    <div class="grow">
-      <div class="who-name">${h(p.name || 'Traveller')}</div>
-      <div class="who-sub">Day ${jst.day} on the route &middot; ${st.count} session${st.count === 1 ? '' : 's'}</div>
+  /* Base camp as a place rather than a page of rows.
+
+     It is the one screen in the app named after somewhere, and it looked like
+     a settings index: an identity strip and three lists. Everything here is
+     drawn from what the app already speaks — the same ridge as Today and
+     Progress, the same hero shell, the same stat row — because a camp built
+     out of new components would be a different app on one screen.
+
+     Two things are new and both are the camp itself: a sky with something in
+     it, and firelight coming up off the bottom edge. The glow is what makes it
+     read as a place somebody is sitting in rather than a header with a
+     mountain behind it. */
+  const marks = milestonesReached().length;
+  let html = `<div class="hero camp">
+    <div class="camp-stars" aria-hidden="true">
+      <svg viewBox="0 0 320 90" preserveAspectRatio="none">
+        ${[[24,18,.9],[58,34,.5],[92,12,.7],[131,28,.45],[168,16,.8],
+           [203,36,.5],[238,20,.65],[271,32,.42],[299,14,.75]]
+          .map(([x, y, o]) => `<circle cx="${x}" cy="${y}" r="1.1" fill="#E9E3D8" opacity="${o}"/>`).join('')}
+      </svg>
     </div>
-    <div class="who-since">since<br><b>${h(prettyDate(dk(new Date(S.meta.created))))}</b></div>
+    ${ridgeHTML('camp', true)}
+    <div class="camp-fire" aria-hidden="true"></div>
+    <div class="hero-in">
+      ${/* No "Base camp" eyebrow: the screen header already says it, and a
+            card that repeats the title it sits under is a label doing nothing.
+            The eyebrow carries the thing you cannot see anywhere else. */''}
+      <span class="hero-eyebrow">Day ${jst.day} on the route</span>
+      <h1 class="hero-title">${h(p.name || 'Traveller')}</h1>
+      <p class="hero-sub camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything below is here when you want it.</p>
+      <div class="hero-stats camp-stats">
+        <div><span class="hs-v">${st.count}</span><span class="hs-k">session${st.count === 1 ? '' : 's'}</span></div>
+        <div><span class="hs-v">${marks}<span class="hs-of">/${MILESTONES.length}</span></span><span class="hs-k">markers</span></div>
+        ${st.tonnage ? `<div><span class="hs-v">${(st.tonnage / 1000).toFixed(1)}k</span><span class="hs-k">${unit()} moved</span></div>` : ''}
+        ${st.mins ? `<div><span class="hs-v">${Math.round(st.mins / 60)}</span><span class="hs-k">hours in</span></div>` : ''}
+      </div>
+    </div>
   </div>`;
 
   /* More is a list of places to go. Everything you tune rather than visit now
