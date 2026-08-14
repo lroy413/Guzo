@@ -63,13 +63,29 @@
     transform:translate(var(--x),var(--y)) scale(var(--s,1));
     transition:transform .34s cubic-bezier(.22,1,.36,1)}
   .hit[data-lit="1"]{transform:translate(var(--x),var(--y)) scale(calc(var(--s,1) * 1.11))}
-  .hit:focus-visible{outline:none}
-  .tent-glow,.tent-pool,.tent-body{transition:opacity .32s ease}
-  .hit[data-lit="1"] .tent-glow{opacity:1}
-  .hit[data-lit="1"] .tent-pool{opacity:1}
+  /* No outline, on any focus state, on any engine. The browser draws its own
+     focus ring around the group's whole bounding box — which here includes a
+     halo more than twice the width of the tent — so a tap put a bright rounded
+     rectangle across a quarter of the screen. Suppressing it is only
+     acceptable because focus gets the same treatment selection does: the
+     object grows, glows in its own colour, and its label goes white. That is a
+     visible focus indicator; it just is not a box. */
+  .hit:focus,.hit:focus-visible,.hit:active{outline:none}
+  .stage,.hit{-webkit-tap-highlight-color:transparent}
+  .tent-glow,.tent-pool,.tent-body{transition:opacity .32s ease,filter .32s ease}
+  .hit[data-lit="1"] .tent-glow,.hit:focus-visible .tent-glow{opacity:1}
+  .hit[data-lit="1"] .tent-pool,.hit:focus-visible .tent-pool{opacity:1}
+  /* The glow itself. In the object's own hue, so a lit tent reads as its
+     lantern turned up rather than as a selection colour laid over it. */
+  .hit[data-lit="1"] .tent-body,.hit:focus-visible .tent-body,
+  .hit[data-lit="1"] .fire-flame,.hit:focus-visible .fire-flame{
+    filter:drop-shadow(0 0 11px var(--lit,#FFB24E)) drop-shadow(0 0 26px var(--lit,#FFB24E))}
+  .hit[data-lit="1"] .moon-lit,.hit:focus-visible .moon-lit{
+    filter:drop-shadow(0 0 9px rgba(233,241,255,.9)) drop-shadow(0 0 22px rgba(200,220,255,.55))}
   .tent-label{font-size:10px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
     fill:var(--dim);transition:fill .25s ease}
   .hit[data-lit="1"] .tent-label,.hit:focus-visible .tent-label{fill:#FFF3DC}
+  @media (prefers-reduced-motion: reduce){ .tent-glow,.tent-pool,.tent-body{transition:none} }
   @media (prefers-reduced-motion: reduce){ .hit{transition:none} }
 
   @media (prefers-reduced-motion: no-preference){
@@ -376,6 +392,7 @@
   TENTS.forEach((t, n) => {
     const g = el('g', { class: 'hit', tabindex: '0', role: 'button', 'aria-label': t.k });
     g.dataset.k = t.k;
+    g.style.setProperty('--lit', t.hot);
     place(g, t.x, t.y, t.s);
 
     const W = 52, H = 46;
@@ -478,7 +495,8 @@
     g.appendChild(el('ellipse', { cx: 0, cy: 4, rx: 74, ry: 26, fill: 'url(#firepool)', class: 'tent-pool', opacity: '.8' }));
 
     /* flames first, so the logs sit in front of them */
-    const flame = el('g', { class: 'flick' });
+    g.style.setProperty('--lit', '#FFC24A');
+    const flame = el('g', { class: 'flick fire-flame' });
     flame.appendChild(el('path', { d: 'M0 -46 C7 -30 16 -22 16 -9 C16 3 9 10 0 10 C-9 10 -16 3 -16 -9 C-16 -21 -8 -27 -4 -38 C-2 -29 -1 -25 0 -22 Z',
       fill: 'url(#firegrad)' }));
     g.appendChild(flame);
@@ -514,8 +532,13 @@
     document.querySelectorAll('.hit').forEach(n => n.removeAttribute('data-lit'));
     node.setAttribute('data-lit', '1');
   }
+  /* Focus and selection are bound together deliberately. They are separate
+     states that render the same way, so left alone a tap lights one object and
+     the next Tab lights a second — two things claiming at once to be where you
+     are. Focusing on click and choosing on focus collapses them into one. */
   document.querySelectorAll('.hit').forEach(n => {
-    n.addEventListener('click', () => choose(n));
+    n.addEventListener('click', () => { choose(n); n.focus({ preventScroll: true }); });
+    n.addEventListener('focus', () => choose(n));
     n.addEventListener('keydown', e => {
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(n); }
     });
