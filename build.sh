@@ -68,10 +68,12 @@ fi
 
 cat "${PARTS[@]}" > GuzoFit.html
 
-# Stamp the build with the one version that already exists, rather than adding a
-# second place to forget to update. __GUZO_BUILD__ lives in the boot panel, which
-# is plain markup — so the deployed version is readable without executing the
-# page, which is what makes "is this host current?" answerable at all.
+# __GUZO_BUILD__ lives in the boot panel, which is plain markup — so what a host
+# is serving is readable without executing the page. That matters more than it
+# sounds: the deployed file is over a megabyte, and fetching it returns roughly
+# the first 1,200 characters, so every other content check against the live site
+# is blind. The boot panel sits inside that window, which makes this stamp the
+# one thing about a deployment that can be verified from outside.
 VERSION_STR=$(sed -n "s/^const VERSION = '\([^']*\)';.*/\1/p" build/p3_data.js | head -1)
 [ -n "$VERSION_STR" ] || { echo "build: could not read VERSION from build/p3_data.js" >&2; exit 1; }
 
@@ -88,11 +90,32 @@ VERSION_STR=$(sed -n "s/^const VERSION = '\([^']*\)';.*/\1/p" build/p3_data.js |
 # because the served artefact is the one Cloudflare rebuilds from the commit
 # it checked out, and that one is exact.
 BUILD_SHA="${WORKERS_CI_COMMIT_SHA:-${CF_PAGES_COMMIT_SHA:-${GITHUB_SHA:-}}}"
+BUILD_SRC="ci"
 if [ -z "$BUILD_SHA" ] && command -v git >/dev/null 2>&1; then
   BUILD_SHA=$(git rev-parse --short=7 HEAD 2>/dev/null || echo "")
+  [ -n "$BUILD_SHA" ] && BUILD_SRC="git"
+fi
+# Last resort: hash the bytes just built. No VCS, no CI variable, no network —
+# it cannot fail, and it answers the real question ("are these the bytes I
+# built?") even better than a commit does. Without it, a host whose environment
+# provides neither git nor a recognised CI variable would silently go back to
+# stamping a bare version, which is the exact failure this whole thing exists
+# to remove — and it would look identical to a deploy that never ran.
+if [ -z "$BUILD_SHA" ]; then
+  for hasher in sha1sum shasum md5sum; do
+    if command -v "$hasher" >/dev/null 2>&1; then
+      BUILD_SHA="c$("$hasher" GuzoFit.html | cut -c1-6)"
+      BUILD_SRC="content"
+      break
+    fi
+  done
 fi
 BUILD_STR="$VERSION_STR"
-[ -n "$BUILD_SHA" ] && BUILD_STR="${VERSION_STR}+$(printf '%s' "$BUILD_SHA" | cut -c1-7)"
+if [ -n "$BUILD_SHA" ]; then
+  BUILD_STR="${VERSION_STR}+$(printf '%s' "$BUILD_SHA" | cut -c1-7)"
+else
+  echo "build: WARNING — no commit or hash available, stamping a bare version" >&2
+fi
 
 grep -q '__GUZO_BUILD__' GuzoFit.html || { echo "build: build stamp placeholder is missing" >&2; exit 1; }
 sed -i "s/__GUZO_BUILD__/${BUILD_STR}/g" GuzoFit.html
@@ -128,4 +151,4 @@ fi
 
 bytes=$(wc -c < GuzoFit.html | tr -d ' ')
 swbytes=$(wc -c < sw.js | tr -d ' ')
-echo "build: ${#PARTS[@]} parts → index.html (${bytes} bytes) + sw.js (${swbytes} bytes) → dist/ · ${BUILD_STR}"
+echo "build: ${#PARTS[@]} parts → index.html (${bytes} bytes) + sw.js (${swbytes} bytes) → dist/ · ${BUILD_STR} (${BUILD_SRC})"
