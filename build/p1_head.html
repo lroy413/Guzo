@@ -104,7 +104,20 @@ body{transition:background-image 1.2s linear}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 /* The page itself never scrolls. Only the active screen does. That keeps the
    nav bar completely still — no drift, no iOS URL-bar jitter, no rubber-band. */
-html,body{margin:0;padding:0;height:100%;overflow:hidden;position:fixed;inset:0;width:100%}
+/* Sized by `inset:0` alone — no height, no width, and that is the point.
+
+   With `top`, `bottom` and `height` all set this box was over-constrained, and
+   CSS resolves that by dropping `bottom` and keeping `height`. So the app was
+   not sized by the insets at all; it was sized by a percentage, and a
+   percentage has to resolve against something. On iOS "something" is a
+   viewport that changes — the same small-versus-large split that made `100dvh`
+   unusable here — so the box could come out shorter than the screen and leave
+   a band along the bottom that no padding could reach, because the app simply
+   was not there.
+
+   `inset:0` is the viewport by definition, whichever one is current, with no
+   percentage in the way. */
+html,body{margin:0;padding:0;overflow:hidden;position:fixed;inset:0}
 /* The canvas is painted here as well as on the body, and that is not a
    duplicate.
 
@@ -2122,30 +2135,89 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .camp-sky{position:absolute;inset:0;
   background:linear-gradient(180deg,rgba(28,40,60,.55) 0%,rgba(20,28,42,.32) 46%,rgba(11,13,16,0) 100%)}
 .camp-stars{position:absolute;left:0;right:0;top:0;height:58%;width:100%;display:block;opacity:.62}
+/* Each star rests at its own --o. The shimmer multiplies that rather than
+   naming a brightness, so a faint star stays faint — a keyframe holding a
+   literal opacity turns twelve depths into one blinking row. */
+.camp-stars circle{opacity:var(--o,.6)}
+@media (prefers-reduced-motion: no-preference){
+  /* Eleven seconds of nothing and about half a second of shimmer, staggered
+     per star. A sky where every star pulses is a screensaver. */
+  .camp-stars circle{animation:starTwinkle 11s var(--ease-in-out) infinite both}
+  @keyframes starTwinkle{
+    0%,88%,100%{opacity:var(--o)}
+    94%{opacity:calc(var(--o) * 2.1)}
+  }
+}
 /* On the floor of the block rather than at its top, which is what makes it a
    horizon instead of a header decoration. The room it needs is padding under
    the stats — see .camp-head — so the mountains are drawn in open sky and the
    first list starts below them rather than on top of them. */
 .camp-bg .ridge{top:auto;bottom:0;height:168px;opacity:.9}
-/* Firelight, off the ground the ridge stands on. Ember, because that is the
-   brand's own warm, and low enough that the copy over it is still read against
-   the page rather than against the glow. */
-.camp-fire{position:absolute;left:50%;transform:translateX(-50%);bottom:-46px;
-  width:84%;height:176px;pointer-events:none;
-  background:radial-gradient(58% 100% at 50% 100%,rgba(233,180,76,.26) 0%,rgba(233,180,76,.09) 46%,transparent 74%)}
+/* The camp's fire. Sits at the foot of the range, off to one side of the
+   centre line so it does not read as a bullet under the name.
+
+   z-index 0 puts it in the same layer as the backdrop while leaving it outside
+   the backdrop's mask — see the note on the markup. .camp-head is z-index 1 and
+   has no background of its own, so its 150px of bottom padding sits over the
+   fire without hiding it. */
+.camp-fire{position:absolute;left:24%;bottom:0;width:150px;height:96px;
+  z-index:0;pointer-events:none}
+/* Firelight, thrown from the base of the flame rather than centred on it —
+   light comes off the fuel, and a glow centred on the middle of the fire
+   halos it like a sticker. Ember, because that is the brand's own warm.
+
+   The three numbers are one equation, not three guesses: the glow is centred
+   on the flame's base (68.75% down a 96px box puts it 30px up from the foot,
+   which is where .camp-fire-svg sits), and its radius stops short of the box.
+   .camp bleeds nothing past its own edge, so a gradient still carrying alpha
+   at the foot of this box is cut off on a rule across the screen — the exact
+   seam .camp-bg's mask exists to avoid, reintroduced by the thing standing in
+   front of it. Move the flame and the radius moves with it. */
+.camp-fire-glow{position:absolute;inset:0;
+  background:radial-gradient(36% 44% at 50% 68.75%,rgba(233,180,76,.34) 0%,rgba(233,180,76,.10) 40%,transparent 70%)}
+.camp-fire-svg{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);
+  width:30px;height:22.5px;overflow:visible}
+.cf-log{stroke:#4a3a29;stroke-width:2.6;stroke-linecap:round;fill:none}
+.cf-out{fill:var(--ember);fill-opacity:.55}
+.cf-in{fill:#FFD98A;fill-opacity:.85}
 @media (prefers-reduced-motion: no-preference){
-  /* Slow enough to be noticed only if you look for it. A fire flickering on a
-     UI cadence would be a distraction on the screen you come to when you are
-     done. */
-  .camp-fire{animation:campFire 6.5s ease-in-out infinite}
-  @keyframes campFire{0%,100%{opacity:1}45%{opacity:.72}70%{opacity:.9}}
+  /* Two rates that do not divide into each other, so the fire never repeats a
+     pose on a countable beat. Slow enough to be noticed only if you look for
+     it — a fire flickering on a UI cadence would be a distraction on the
+     screen you come to when you are done.
+
+     transform-box/transform-origin because an SVG path's default origin is the
+     *viewport* corner, not the shape: without them the flame slides across the
+     logs instead of licking up off them. */
+  .cf-out,.cf-in{transform-box:fill-box;transform-origin:50% 100%}
+  .cf-out{animation:campFlame 4.3s ease-in-out infinite}
+  .cf-in{animation:campFlame 2.9s ease-in-out infinite reverse}
+  .camp-fire-glow{animation:campGlow 6.5s ease-in-out infinite}
+  @keyframes campFlame{
+    0%,100%{transform:scale(1,1)}
+    30%{transform:scale(.93,1.08)}
+    62%{transform:scale(1.05,.94)}
+  }
+  @keyframes campGlow{0%,100%{opacity:1}45%{opacity:.72}70%{opacity:.9}}
 }
 
 /* The camp itself: type standing in the sky, no border around it. The bottom
    padding is the sky the mountains are drawn in. */
 .camp-head{position:relative;z-index:1;padding:2px 0 150px}
+.camp-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .camp-eyebrow{display:block;font-size:11px;font-weight:700;letter-spacing:.14em;
   text-transform:uppercase;color:var(--ember-2)}
+/* Tonight's moon. flex-none and its own column, so the phase name sets the
+   width the row reserves and a long name can never reach it. */
+.camp-moon-w{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:-4px;max-width:84px}
+.camp-moon{display:block}
+/* On the lit shapes, not on the <svg> — see moonHTML(). */
+.camp-moon .moon-lit{filter:drop-shadow(0 0 1.6px rgba(243,236,220,.5))}
+/* Wrapping rather than nowrap: at 320px the day count and "Waning crescent"
+   do not both fit on one line, and a label that overflows its row is worse
+   than a label on two. */
+.camp-moon-n{font-size:9.5px;font-weight:600;letter-spacing:.04em;line-height:1.25;
+  color:var(--faint);text-align:center}
 .camp-name{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:10px 0 0}
 .camp-sub{font-size:13.5px;line-height:1.5;color:var(--text-dim);margin:10px 0 0;max-width:38ch}
 .camp-stats{display:flex;flex-wrap:wrap;gap:22px;row-gap:14px;margin-top:22px}
@@ -2239,6 +2311,11 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    .screen.on: every render replaces the body's innerHTML and the line would
    redraw itself every time you logged anything. Arriving is the only thing
    that should feel like arriving. */
+/* Snow, and it needs a fill named here or it gets SVG's default — which is
+   black, and paints a solid triangle on every peak that the shape is otherwise
+   exactly right about. Cool rather than white: the range is lit by an ember
+   gradient, and a neutral cap on a warm mountain reads as paper. */
+.ridge-snow{fill:#DDE7F5;fill-opacity:.46}
 .ridge-line{fill:none;stroke:var(--ember-2);stroke-width:1.4;opacity:.55;
   stroke-dasharray:1;stroke-dashoffset:0}
 .ridge-line.far{stroke:var(--ember);opacity:.30;stroke-width:1.2}

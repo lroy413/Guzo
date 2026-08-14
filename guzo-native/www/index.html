@@ -104,7 +104,20 @@ body{transition:background-image 1.2s linear}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 /* The page itself never scrolls. Only the active screen does. That keeps the
    nav bar completely still — no drift, no iOS URL-bar jitter, no rubber-band. */
-html,body{margin:0;padding:0;height:100%;overflow:hidden;position:fixed;inset:0;width:100%}
+/* Sized by `inset:0` alone — no height, no width, and that is the point.
+
+   With `top`, `bottom` and `height` all set this box was over-constrained, and
+   CSS resolves that by dropping `bottom` and keeping `height`. So the app was
+   not sized by the insets at all; it was sized by a percentage, and a
+   percentage has to resolve against something. On iOS "something" is a
+   viewport that changes — the same small-versus-large split that made `100dvh`
+   unusable here — so the box could come out shorter than the screen and leave
+   a band along the bottom that no padding could reach, because the app simply
+   was not there.
+
+   `inset:0` is the viewport by definition, whichever one is current, with no
+   percentage in the way. */
+html,body{margin:0;padding:0;overflow:hidden;position:fixed;inset:0}
 /* The canvas is painted here as well as on the body, and that is not a
    duplicate.
 
@@ -2122,30 +2135,89 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .camp-sky{position:absolute;inset:0;
   background:linear-gradient(180deg,rgba(28,40,60,.55) 0%,rgba(20,28,42,.32) 46%,rgba(11,13,16,0) 100%)}
 .camp-stars{position:absolute;left:0;right:0;top:0;height:58%;width:100%;display:block;opacity:.62}
+/* Each star rests at its own --o. The shimmer multiplies that rather than
+   naming a brightness, so a faint star stays faint — a keyframe holding a
+   literal opacity turns twelve depths into one blinking row. */
+.camp-stars circle{opacity:var(--o,.6)}
+@media (prefers-reduced-motion: no-preference){
+  /* Eleven seconds of nothing and about half a second of shimmer, staggered
+     per star. A sky where every star pulses is a screensaver. */
+  .camp-stars circle{animation:starTwinkle 11s var(--ease-in-out) infinite both}
+  @keyframes starTwinkle{
+    0%,88%,100%{opacity:var(--o)}
+    94%{opacity:calc(var(--o) * 2.1)}
+  }
+}
 /* On the floor of the block rather than at its top, which is what makes it a
    horizon instead of a header decoration. The room it needs is padding under
    the stats — see .camp-head — so the mountains are drawn in open sky and the
    first list starts below them rather than on top of them. */
 .camp-bg .ridge{top:auto;bottom:0;height:168px;opacity:.9}
-/* Firelight, off the ground the ridge stands on. Ember, because that is the
-   brand's own warm, and low enough that the copy over it is still read against
-   the page rather than against the glow. */
-.camp-fire{position:absolute;left:50%;transform:translateX(-50%);bottom:-46px;
-  width:84%;height:176px;pointer-events:none;
-  background:radial-gradient(58% 100% at 50% 100%,rgba(233,180,76,.26) 0%,rgba(233,180,76,.09) 46%,transparent 74%)}
+/* The camp's fire. Sits at the foot of the range, off to one side of the
+   centre line so it does not read as a bullet under the name.
+
+   z-index 0 puts it in the same layer as the backdrop while leaving it outside
+   the backdrop's mask — see the note on the markup. .camp-head is z-index 1 and
+   has no background of its own, so its 150px of bottom padding sits over the
+   fire without hiding it. */
+.camp-fire{position:absolute;left:24%;bottom:0;width:150px;height:96px;
+  z-index:0;pointer-events:none}
+/* Firelight, thrown from the base of the flame rather than centred on it —
+   light comes off the fuel, and a glow centred on the middle of the fire
+   halos it like a sticker. Ember, because that is the brand's own warm.
+
+   The three numbers are one equation, not three guesses: the glow is centred
+   on the flame's base (68.75% down a 96px box puts it 30px up from the foot,
+   which is where .camp-fire-svg sits), and its radius stops short of the box.
+   .camp bleeds nothing past its own edge, so a gradient still carrying alpha
+   at the foot of this box is cut off on a rule across the screen — the exact
+   seam .camp-bg's mask exists to avoid, reintroduced by the thing standing in
+   front of it. Move the flame and the radius moves with it. */
+.camp-fire-glow{position:absolute;inset:0;
+  background:radial-gradient(36% 44% at 50% 68.75%,rgba(233,180,76,.34) 0%,rgba(233,180,76,.10) 40%,transparent 70%)}
+.camp-fire-svg{position:absolute;left:50%;bottom:30px;transform:translateX(-50%);
+  width:30px;height:22.5px;overflow:visible}
+.cf-log{stroke:#4a3a29;stroke-width:2.6;stroke-linecap:round;fill:none}
+.cf-out{fill:var(--ember);fill-opacity:.55}
+.cf-in{fill:#FFD98A;fill-opacity:.85}
 @media (prefers-reduced-motion: no-preference){
-  /* Slow enough to be noticed only if you look for it. A fire flickering on a
-     UI cadence would be a distraction on the screen you come to when you are
-     done. */
-  .camp-fire{animation:campFire 6.5s ease-in-out infinite}
-  @keyframes campFire{0%,100%{opacity:1}45%{opacity:.72}70%{opacity:.9}}
+  /* Two rates that do not divide into each other, so the fire never repeats a
+     pose on a countable beat. Slow enough to be noticed only if you look for
+     it — a fire flickering on a UI cadence would be a distraction on the
+     screen you come to when you are done.
+
+     transform-box/transform-origin because an SVG path's default origin is the
+     *viewport* corner, not the shape: without them the flame slides across the
+     logs instead of licking up off them. */
+  .cf-out,.cf-in{transform-box:fill-box;transform-origin:50% 100%}
+  .cf-out{animation:campFlame 4.3s ease-in-out infinite}
+  .cf-in{animation:campFlame 2.9s ease-in-out infinite reverse}
+  .camp-fire-glow{animation:campGlow 6.5s ease-in-out infinite}
+  @keyframes campFlame{
+    0%,100%{transform:scale(1,1)}
+    30%{transform:scale(.93,1.08)}
+    62%{transform:scale(1.05,.94)}
+  }
+  @keyframes campGlow{0%,100%{opacity:1}45%{opacity:.72}70%{opacity:.9}}
 }
 
 /* The camp itself: type standing in the sky, no border around it. The bottom
    padding is the sky the mountains are drawn in. */
 .camp-head{position:relative;z-index:1;padding:2px 0 150px}
+.camp-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .camp-eyebrow{display:block;font-size:11px;font-weight:700;letter-spacing:.14em;
   text-transform:uppercase;color:var(--ember-2)}
+/* Tonight's moon. flex-none and its own column, so the phase name sets the
+   width the row reserves and a long name can never reach it. */
+.camp-moon-w{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:-4px;max-width:84px}
+.camp-moon{display:block}
+/* On the lit shapes, not on the <svg> — see moonHTML(). */
+.camp-moon .moon-lit{filter:drop-shadow(0 0 1.6px rgba(243,236,220,.5))}
+/* Wrapping rather than nowrap: at 320px the day count and "Waning crescent"
+   do not both fit on one line, and a label that overflows its row is worse
+   than a label on two. */
+.camp-moon-n{font-size:9.5px;font-weight:600;letter-spacing:.04em;line-height:1.25;
+  color:var(--faint);text-align:center}
 .camp-name{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:10px 0 0}
 .camp-sub{font-size:13.5px;line-height:1.5;color:var(--text-dim);margin:10px 0 0;max-width:38ch}
 .camp-stats{display:flex;flex-wrap:wrap;gap:22px;row-gap:14px;margin-top:22px}
@@ -2239,6 +2311,11 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    .screen.on: every render replaces the body's innerHTML and the line would
    redraw itself every time you logged anything. Arriving is the only thing
    that should feel like arriving. */
+/* Snow, and it needs a fill named here or it gets SVG's default — which is
+   black, and paints a solid triangle on every peak that the shape is otherwise
+   exactly right about. Cool rather than white: the range is lit by an ember
+   gradient, and a neutral cap on a warm mountain reads as paper. */
+.ridge-snow{fill:#DDE7F5;fill-opacity:.46}
 .ridge-line{fill:none;stroke:var(--ember-2);stroke-width:1.4;opacity:.55;
   stroke-dasharray:1;stroke-dashoffset:0}
 .ridge-line.far{stroke:var(--ember);opacity:.30;stroke-width:1.2}
@@ -2596,7 +2673,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+df59cc1</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+4d52657</div>
     </div>
   </section>
 
@@ -6961,6 +7038,88 @@ function completionLine(sess, st) {
   if (sess.rung === 'trim')  return 'Trimmed and done. The compounds got in, which is where most of the stimulus lives.';
   if (st.count % 10 === 0)   return `Session ${st.count}. Ten more markers behind you.`;
   return 'Full session, finished. Bank it.';
+}
+
+/* ============================================================
+   THE MOON
+   ------------------------------------------------------------
+   Yes, accurately, and with no network — the moon is arithmetic.
+
+   New moon to new moon is the synodic month: 29.530588853 days on average.
+   Counting them from a known new moon gives the phase to within a few hours
+   across any span this app will ever be asked about, which is far inside what
+   a twenty-pixel drawing of it can express.
+
+   It is a *mean* cycle, not an ephemeris. The real interval wanders by up to
+   about thirteen hours either side because the Moon's orbit is elliptical and
+   the Sun tugs on it, so the drawing can be a few hours out near a quarter and
+   is never wrong about which way the crescent points or roughly how full it
+   is. Anything better needs perturbation terms, and this is a campfire.
+   ============================================================ */
+const LUNAR_MONTH = 29.530588853;
+/* 2000 Jan 6, 18:14 UTC — a new moon, and the epoch most tables count from. */
+const LUNAR_EPOCH = Date.UTC(2000, 0, 6, 18, 14);
+
+/* 0 new, .25 waxing quarter, .5 full, .75 waning quarter.
+
+   Reads the wall clock, not today(). profile.dayStart moves where *your* day
+   ends; it does not move the sky. Same reason data-sky does. */
+function moonPhase(d) {
+  const t = (d instanceof Date ? d.getTime() : Date.now());
+  let p = (((t - LUNAR_EPOCH) / 86400000) % LUNAR_MONTH) / LUNAR_MONTH;
+  if (p < 0) p += 1;
+  return p;
+}
+
+/* The lit fraction of the disc, 0 to 1. */
+function moonIllum(p) { return (1 - Math.cos(2 * Math.PI * p)) / 2; }
+
+function moonName(p) {
+  if (p < .033 || p > .967) return 'New moon';
+  if (p < .217) return 'Waxing crescent';
+  if (p < .283) return 'First quarter';
+  if (p < .467) return 'Waxing gibbous';
+  if (p < .533) return 'Full moon';
+  if (p < .717) return 'Waning gibbous';
+  if (p < .783) return 'Last quarter';
+  return 'Waning crescent';
+}
+
+/* The disc, drawn as three shapes rather than a clip path.
+
+   A dark disc, the lit half of it, and one ellipse that either carves into
+   that half or extends it. The ellipse's width is |1 - 2k| of the radius, so
+   it is the full disc at new and at full — covering everything or nothing —
+   and flat at the quarters, which is the terminator seen edge-on. Waxing lights
+   the right limb and waning the left, as it does from the northern hemisphere.
+
+   Three shapes because a crescent is not a circle minus a circle: the
+   terminator is an ellipse, and drawing it as an offset disc gives a shape
+   that is wrong everywhere except the quarters. */
+function moonHTML(size, d) {
+  const p = moonPhase(d);
+  const k = moonIllum(p);
+  const r = 10, rx = Math.abs(1 - 2 * k) * r;
+  const waxing = p < .5;
+  const lit = '#F3ECDC', dark = 'rgba(12,15,20,.92)';
+  /* Half-disc on the lit limb: right while waxing, left while waning. */
+  const half = waxing
+    ? `M0 ${-r} A ${r} ${r} 0 0 1 0 ${r} Z`
+    : `M0 ${-r} A ${r} ${r} 0 0 0 0 ${r} Z`;
+  /* The glow belongs to the lit shapes, never to the <svg>. A filter on the
+     element blurs its whole alpha silhouette — and the unlit disc is a filled
+     shape, so the halo comes off the *full* circle and a one-percent crescent
+     is painted as a third-lit moon. Marked per shape, the light only leaves
+     the limb that has any, and the dark ellipse paints over the half after it,
+     so the inward bleed is covered rather than glowing across the terminator. */
+  const litCls = k < .5 ? 'moon-lit' : 'moon-lit moon-lit-w';
+  return `<svg class="camp-moon" width="${size}" height="${size}" viewBox="-12 -12 24 24"
+      aria-hidden="true" focusable="false">
+    <circle r="${r}" fill="${dark}"/>
+    <path class="${litCls}" d="${half}" fill="${lit}"/>
+    <ellipse class="${k < .5 ? '' : litCls}" rx="${rx.toFixed(2)}" ry="${r}" fill="${k < .5 ? dark : lit}"/>
+    <circle r="${r}" fill="none" stroke="rgba(243,236,220,.16)" stroke-width=".7"/>
+  </svg>`;
 }
 /* ============================================================
    DAILY METRICS — steps, sleep, bodyweight
@@ -13618,7 +13777,35 @@ function paintTrainStates() {
 
    It is decoration — aria-hidden, and every sibling that can sit under it is
    position:relative so it paints below the words rather than over them. */
-function ridgeHTML(ns, lit) {
+/* Snow on the peaks that are high enough to hold it.
+
+   Computed from the ridge's own points rather than drawn as a second path
+   somebody has to keep in step with it: a peak is a point lower in y than both
+   its neighbours, and the cap runs a fixth of the way down each side of it. So
+   the range can be reshaped and the snow stays on top of it.
+
+   Only the far ridge gets any. Snow sits on the high ground, and putting it on
+   the near hills as well turns a horizon into a row of white triangles. */
+function ridgeSnow(pts) {
+  let d = '';
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x, y] = pts[i], [lx, ly] = pts[i - 1], [rx, ry] = pts[i + 1];
+    if (!(y < ly && y < ry)) continue;
+    if (y > 46) continue;                    // low peaks stay bare
+    const f = 0.2;
+    const ax = x + (lx - x) * f, ay = y + (ly - y) * f;
+    const bx = x + (rx - x) * f, by = y + (ry - y) * f;
+    /* A dip in the middle of the underside, so the snowline is not a ruled
+       edge across the mountain. */
+    const mx = (ax + bx) / 2, my = (ay + by) / 2 + 2.5;
+    d += `M${ax.toFixed(1)} ${ay.toFixed(1)} L${x} ${y} L${bx.toFixed(1)} ${by.toFixed(1)} `
+       + `L${mx.toFixed(1)} ${my.toFixed(1)} Z `;
+  }
+  return d;
+}
+
+function ridgeHTML(ns, lit, snow) {
+  const farPts = [[0,84],[36,50],[58,64],[96,26],[124,48],[158,18],[196,52],[232,34],[268,62],[300,40],[320,58]];
   const far = 'M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58';
   const near = 'M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90';
   return `<div class="ridge ${h(ns)}-ridge" aria-hidden="true">
@@ -13630,6 +13817,7 @@ function ridgeHTML(ns, lit) {
         </linearGradient>
       </defs>
       <path fill="url(#${h(ns)}-ridge-l1)" d="${far} L320 104 L0 104 Z"/>
+      ${snow ? `<path class="ridge-snow" d="${ridgeSnow(farPts)}"/>` : ''}
       <path fill="#1b222b" fill-opacity=".72" d="M0 104 L28 74 L62 90 L104 58 L138 82 L178 60 L214 86 L252 66 L292 88 L320 72 L320 104 Z"/>
       <path fill="#12161c" fill-opacity=".92" d="${near} L320 104 L0 104 Z"/>
       ${/* The skyline catching the sun, drawn on when you arrive. pathLength="1"
@@ -15219,20 +15407,53 @@ function renderMore() {
   let html = `<div class="camp">
   <div class="camp-bg" aria-hidden="true">
     <div class="camp-sky"></div>
+    ${/* Each star carries its own resting opacity as --o rather than as an
+          opacity attribute, because the shimmer has to return it to *its* own
+          brightness: a keyframe with a literal opacity in it would flatten
+          twelve differently-distant stars into one. The delay is the index
+          walked by an irrational-ish step and wrapped, so no two shimmer
+          together and none of it is random — a random one would make a
+          screenshot check unrepeatable for no gain. */''}
     <svg class="camp-stars" viewBox="0 0 320 150" preserveAspectRatio="none">
       ${[[18,26,.85,1.1],[47,58,.4,.8],[74,16,.62,.9],[103,44,.5,1],[128,72,.35,.8],
          [152,22,.9,1.2],[181,52,.45,.9],[206,30,.7,1],[233,66,.38,.8],
          [258,18,.8,1.1],[281,48,.5,.9],[303,28,.65,1]]
-        .map(([x, y, o, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#E9E3D8" opacity="${o}"/>`).join('')}
+        .map(([x, y, o, r], i) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#E9E3D8" style="--o:${o};animation-delay:${((i * 2.71) % 11).toFixed(2)}s"/>`).join('')}
     </svg>
-    ${ridgeHTML('camp', true)}
-    <div class="camp-fire"></div>
+    ${ridgeHTML('camp', true, true)}
+  </div>
+
+  ${/* The fire is a sibling of .camp-bg, not a child of it, and that is the
+        whole placement decision. .camp-bg is masked out at its foot so the
+        range can dissolve into the page instead of ending on a rule — which
+        also means anything drawn down there where a camp actually sits is
+        faded to nothing. Outside the mask it keeps its light, and the dark
+        foreground it stands in is the reason it reads at all. */''}
+  <div class="camp-fire" aria-hidden="true">
+    <div class="camp-fire-glow"></div>
+    <svg class="camp-fire-svg" viewBox="0 0 40 30" aria-hidden="true" focusable="false">
+      <path class="cf-log" d="M11 28 L28.5 24.2 M11.5 24.2 L29 28"/>
+      <path class="cf-out" d="M20 2.5 C22 8.5 26 11 26 17 C26 21.9 23.4 25.4 20 25.4
+        C16.6 25.4 14 21.9 14 17 C14 12.6 17 10 18.6 6.2 C18.8 10 19.4 12 20 13 Z"/>
+      <path class="cf-in" d="M20 11.5 C21.4 14.4 22.5 15.8 22.5 18.6
+        C22.5 21.4 21.4 23.4 20 23.4 C18.6 23.4 17.5 21.4 17.5 18.6
+        C17.5 16.2 19 14.8 20 11.5 Z"/>
+    </svg>
   </div>
 
   <div class="camp-head">
     ${/* No "Base camp" eyebrow: the screen header already says it, and a
           block that repeats the title above it is a label doing nothing. */''}
-    <span class="camp-eyebrow">Day ${jst.day} on the route</span>
+    ${/* Tonight's moon, opposite the day count — both of them are "where you
+          are in time", and putting it in a flex row means it reserves its own
+          width instead of being parked at an offset a long name can reach.
+          Named, because a phase drawn at 24px and left unlabelled is a
+          decoration; named, it is the one thing on this screen that is true
+          about the world rather than about you. */''}
+    <div class="camp-top">
+      <span class="camp-eyebrow">Day ${jst.day} on the route</span>
+      <span class="camp-moon-w">${moonHTML(24)}<span class="camp-moon-n">${moonName(moonPhase())}</span></span>
+    </div>
     <h1 class="camp-name">${h(p.name || 'Traveller')}</h1>
     <p class="camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything below is here when you want it.</p>
     <div class="camp-stats">

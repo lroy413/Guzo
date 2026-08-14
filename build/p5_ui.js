@@ -1117,7 +1117,35 @@ function paintTrainStates() {
 
    It is decoration — aria-hidden, and every sibling that can sit under it is
    position:relative so it paints below the words rather than over them. */
-function ridgeHTML(ns, lit) {
+/* Snow on the peaks that are high enough to hold it.
+
+   Computed from the ridge's own points rather than drawn as a second path
+   somebody has to keep in step with it: a peak is a point lower in y than both
+   its neighbours, and the cap runs a fixth of the way down each side of it. So
+   the range can be reshaped and the snow stays on top of it.
+
+   Only the far ridge gets any. Snow sits on the high ground, and putting it on
+   the near hills as well turns a horizon into a row of white triangles. */
+function ridgeSnow(pts) {
+  let d = '';
+  for (let i = 1; i < pts.length - 1; i++) {
+    const [x, y] = pts[i], [lx, ly] = pts[i - 1], [rx, ry] = pts[i + 1];
+    if (!(y < ly && y < ry)) continue;
+    if (y > 46) continue;                    // low peaks stay bare
+    const f = 0.2;
+    const ax = x + (lx - x) * f, ay = y + (ly - y) * f;
+    const bx = x + (rx - x) * f, by = y + (ry - y) * f;
+    /* A dip in the middle of the underside, so the snowline is not a ruled
+       edge across the mountain. */
+    const mx = (ax + bx) / 2, my = (ay + by) / 2 + 2.5;
+    d += `M${ax.toFixed(1)} ${ay.toFixed(1)} L${x} ${y} L${bx.toFixed(1)} ${by.toFixed(1)} `
+       + `L${mx.toFixed(1)} ${my.toFixed(1)} Z `;
+  }
+  return d;
+}
+
+function ridgeHTML(ns, lit, snow) {
+  const farPts = [[0,84],[36,50],[58,64],[96,26],[124,48],[158,18],[196,52],[232,34],[268,62],[300,40],[320,58]];
   const far = 'M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58';
   const near = 'M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90';
   return `<div class="ridge ${h(ns)}-ridge" aria-hidden="true">
@@ -1129,6 +1157,7 @@ function ridgeHTML(ns, lit) {
         </linearGradient>
       </defs>
       <path fill="url(#${h(ns)}-ridge-l1)" d="${far} L320 104 L0 104 Z"/>
+      ${snow ? `<path class="ridge-snow" d="${ridgeSnow(farPts)}"/>` : ''}
       <path fill="#1b222b" fill-opacity=".72" d="M0 104 L28 74 L62 90 L104 58 L138 82 L178 60 L214 86 L252 66 L292 88 L320 72 L320 104 Z"/>
       <path fill="#12161c" fill-opacity=".92" d="${near} L320 104 L0 104 Z"/>
       ${/* The skyline catching the sun, drawn on when you arrive. pathLength="1"

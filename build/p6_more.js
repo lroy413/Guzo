@@ -48,20 +48,53 @@ function renderMore() {
   let html = `<div class="camp">
   <div class="camp-bg" aria-hidden="true">
     <div class="camp-sky"></div>
+    ${/* Each star carries its own resting opacity as --o rather than as an
+          opacity attribute, because the shimmer has to return it to *its* own
+          brightness: a keyframe with a literal opacity in it would flatten
+          twelve differently-distant stars into one. The delay is the index
+          walked by an irrational-ish step and wrapped, so no two shimmer
+          together and none of it is random — a random one would make a
+          screenshot check unrepeatable for no gain. */''}
     <svg class="camp-stars" viewBox="0 0 320 150" preserveAspectRatio="none">
       ${[[18,26,.85,1.1],[47,58,.4,.8],[74,16,.62,.9],[103,44,.5,1],[128,72,.35,.8],
          [152,22,.9,1.2],[181,52,.45,.9],[206,30,.7,1],[233,66,.38,.8],
          [258,18,.8,1.1],[281,48,.5,.9],[303,28,.65,1]]
-        .map(([x, y, o, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#E9E3D8" opacity="${o}"/>`).join('')}
+        .map(([x, y, o, r], i) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#E9E3D8" style="--o:${o};animation-delay:${((i * 2.71) % 11).toFixed(2)}s"/>`).join('')}
     </svg>
-    ${ridgeHTML('camp', true)}
-    <div class="camp-fire"></div>
+    ${ridgeHTML('camp', true, true)}
+  </div>
+
+  ${/* The fire is a sibling of .camp-bg, not a child of it, and that is the
+        whole placement decision. .camp-bg is masked out at its foot so the
+        range can dissolve into the page instead of ending on a rule — which
+        also means anything drawn down there where a camp actually sits is
+        faded to nothing. Outside the mask it keeps its light, and the dark
+        foreground it stands in is the reason it reads at all. */''}
+  <div class="camp-fire" aria-hidden="true">
+    <div class="camp-fire-glow"></div>
+    <svg class="camp-fire-svg" viewBox="0 0 40 30" aria-hidden="true" focusable="false">
+      <path class="cf-log" d="M11 28 L28.5 24.2 M11.5 24.2 L29 28"/>
+      <path class="cf-out" d="M20 2.5 C22 8.5 26 11 26 17 C26 21.9 23.4 25.4 20 25.4
+        C16.6 25.4 14 21.9 14 17 C14 12.6 17 10 18.6 6.2 C18.8 10 19.4 12 20 13 Z"/>
+      <path class="cf-in" d="M20 11.5 C21.4 14.4 22.5 15.8 22.5 18.6
+        C22.5 21.4 21.4 23.4 20 23.4 C18.6 23.4 17.5 21.4 17.5 18.6
+        C17.5 16.2 19 14.8 20 11.5 Z"/>
+    </svg>
   </div>
 
   <div class="camp-head">
     ${/* No "Base camp" eyebrow: the screen header already says it, and a
           block that repeats the title above it is a label doing nothing. */''}
-    <span class="camp-eyebrow">Day ${jst.day} on the route</span>
+    ${/* Tonight's moon, opposite the day count — both of them are "where you
+          are in time", and putting it in a flex row means it reserves its own
+          width instead of being parked at an offset a long name can reach.
+          Named, because a phase drawn at 24px and left unlabelled is a
+          decoration; named, it is the one thing on this screen that is true
+          about the world rather than about you. */''}
+    <div class="camp-top">
+      <span class="camp-eyebrow">Day ${jst.day} on the route</span>
+      <span class="camp-moon-w">${moonHTML(24)}<span class="camp-moon-n">${moonName(moonPhase())}</span></span>
+    </div>
     <h1 class="camp-name">${h(p.name || 'Traveller')}</h1>
     <p class="camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything below is here when you want it.</p>
     <div class="camp-stats">

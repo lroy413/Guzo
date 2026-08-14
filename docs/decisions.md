@@ -1983,3 +1983,90 @@ backdrop correctly reaches the edges of a 672px column and the assertion read
 pixels. Measured at phone width, where the column *is* the screen, which is the
 case worth asserting. Same lesson as the onboarding title-wrap check, which had
 to be measured at 390 for the same reason.
+
+---
+
+## Night at base camp: snow, shimmer, a fire and a real moon
+
+Four pieces of decoration, added together because they are one picture. All
+four are the kind of thing a later layout change breaks silently, so each got a
+check and each check was proved red against its own revert.
+
+**Snow is computed from the range, not drawn beside it.** `ridgeSnow(pts)`
+walks the far ridge's own points, calls a point a peak when it is lower in y
+than both neighbours, and runs a cap a fifth of the way down each side with a
+dip in the underside so the snowline is not a ruled edge. A hand-drawn second
+path would land near the peaks today and drift the first time the range is
+reshaped, so the check asserts every cap's apex is a vertex the range actually
+has — reverting the apex by 1.5 units prints `0 of 4 on a vertex`.
+
+**Only the far ridge gets any, and only above the snowline.** `if (y > 46)
+continue` leaves the low peaks bare; snow on every summit is a row of white
+triangles rather than a horizon. `ridgeHTML(ns, lit, snow)` takes it as a flag
+and only base camp passes it: **the other bands sit behind body text**, and
+`#DDE7F5` at .46 under a heading is a contrast failure waiting to be written.
+The check asserts Today's range has none, and giving it some prints `1 on
+Today`.
+
+**An SVG shape with no `fill` is black, and the geometry can be perfectly
+right while that is happening.** The caps were emitted, positioned and shaped
+correctly for a full build before anyone looked — as solid black triangles on
+every peak. The check reads the *computed* fill, not the class.
+
+**A twinkle keyframe must multiply the star's own brightness, never name
+one.** Each star carries its resting opacity as `--o` and the shimmer peaks at
+`calc(var(--o) * 2.1)`, so a faint star stays faint. Writing `opacity:1` in the
+keyframe flattens twelve differently-distant stars into one blinking row —
+which a screenshot cannot show you, because the sky spends 88% of every cycle
+at rest. The check steps one star to 94% of its own cycle by hand rather than
+waiting eleven seconds, and asserts the dimmest one lands short of full white:
+the literal prints `0.35 → 1`. The delays come from the index walked by a
+non-integer step, not from `Math.random()` — a random sky is a sky no check can
+reproduce.
+
+**A `filter` on an element blurs its whole alpha silhouette, including the
+parts that are supposed to be dark.** The moon is three shapes: a dark disc,
+the lit half, and one ellipse that carves into that half or extends it. Putting
+the glow on the `<svg>` painted a one-percent crescent as a third-lit moon —
+and every check about the geometry still passed, because the geometry was
+right. The glow belongs on the lit shapes, where the dark ellipse paints over
+the inward bleed and only the limb that has any light gives any off.
+
+**The moon's arithmetic is checkable in closed form, so it is checked that
+way.** Lit area is half a disc plus or minus half an ellipse of the same
+height, which works out to exactly `illum` of the disc when `rx = |1 − 2k|·r`
+and something else entirely when it is not. The check compares the drawn
+fraction against `moonIllum()` at twelve points across a cycle; `rx = k·r`
+prints eleven mismatches, and swapping the limb prints `12 of 12 on the wrong
+side`. It is a *mean* synodic cycle — accurate to a few hours, never wrong
+about which way the crescent points. It reads the wall clock, not `today()`:
+`profile.dayStart` moves where your day ends, not where the sky is.
+
+**The fire is a sibling of the backdrop, and that is the whole placement
+decision.** `.camp-bg` is masked out at its foot so the range can dissolve into
+the page — which also fades to nothing anything drawn down there, which is
+exactly where a camp sits. Outside the mask it keeps its light, and the dark
+foreground it stands in is why a 30px flame reads at all. The check asserts it
+is not a descendant of `.camp-bg` and carries no mask of its own.
+
+**A glow still carrying alpha at the foot of its own box is the seam again.**
+`.camp` bleeds nothing past its edge, so the firelight gradient has to reach
+zero inside the box: it is centred on the flame's base and its radius stops
+short of the floor — one equation, not three guesses. Move the flame without
+moving the radius and the hard rule the mask exists to prevent comes back,
+drawn by the thing standing in front of it.
+
+**And the fire has to stand on something.** The check reads the near ridge's
+own path out of the DOM, interpolates it at the flame's x and maps it through
+the box it was painted into — the range is `preserveAspectRatio="none"`, so a
+copy of the numbers would be a second source of truth that drifts. Lifting the
+flame 32px prints `-30px below the ridgeline`.
+
+**A probe that navigates away detaches everything queried before it.** The
+"Today has no snow" probe leaves and comes back, and every render replaces
+`#more-body`'s innerHTML. Four checks read `getComputedStyle` on nodes captured
+earlier and got `''` for every property — no throw, no error, just empty
+strings that two of the assertions accepted. The navigation runs first now.
+Same shape as the leak baseline captured after a render that had already
+leaked: **if a probe moves the page, everything it touches must be read on the
+side of the move it belongs to.**

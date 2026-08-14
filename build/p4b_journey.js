@@ -278,3 +278,85 @@ function completionLine(sess, st) {
   if (st.count % 10 === 0)   return `Session ${st.count}. Ten more markers behind you.`;
   return 'Full session, finished. Bank it.';
 }
+
+/* ============================================================
+   THE MOON
+   ------------------------------------------------------------
+   Yes, accurately, and with no network — the moon is arithmetic.
+
+   New moon to new moon is the synodic month: 29.530588853 days on average.
+   Counting them from a known new moon gives the phase to within a few hours
+   across any span this app will ever be asked about, which is far inside what
+   a twenty-pixel drawing of it can express.
+
+   It is a *mean* cycle, not an ephemeris. The real interval wanders by up to
+   about thirteen hours either side because the Moon's orbit is elliptical and
+   the Sun tugs on it, so the drawing can be a few hours out near a quarter and
+   is never wrong about which way the crescent points or roughly how full it
+   is. Anything better needs perturbation terms, and this is a campfire.
+   ============================================================ */
+const LUNAR_MONTH = 29.530588853;
+/* 2000 Jan 6, 18:14 UTC — a new moon, and the epoch most tables count from. */
+const LUNAR_EPOCH = Date.UTC(2000, 0, 6, 18, 14);
+
+/* 0 new, .25 waxing quarter, .5 full, .75 waning quarter.
+
+   Reads the wall clock, not today(). profile.dayStart moves where *your* day
+   ends; it does not move the sky. Same reason data-sky does. */
+function moonPhase(d) {
+  const t = (d instanceof Date ? d.getTime() : Date.now());
+  let p = (((t - LUNAR_EPOCH) / 86400000) % LUNAR_MONTH) / LUNAR_MONTH;
+  if (p < 0) p += 1;
+  return p;
+}
+
+/* The lit fraction of the disc, 0 to 1. */
+function moonIllum(p) { return (1 - Math.cos(2 * Math.PI * p)) / 2; }
+
+function moonName(p) {
+  if (p < .033 || p > .967) return 'New moon';
+  if (p < .217) return 'Waxing crescent';
+  if (p < .283) return 'First quarter';
+  if (p < .467) return 'Waxing gibbous';
+  if (p < .533) return 'Full moon';
+  if (p < .717) return 'Waning gibbous';
+  if (p < .783) return 'Last quarter';
+  return 'Waning crescent';
+}
+
+/* The disc, drawn as three shapes rather than a clip path.
+
+   A dark disc, the lit half of it, and one ellipse that either carves into
+   that half or extends it. The ellipse's width is |1 - 2k| of the radius, so
+   it is the full disc at new and at full — covering everything or nothing —
+   and flat at the quarters, which is the terminator seen edge-on. Waxing lights
+   the right limb and waning the left, as it does from the northern hemisphere.
+
+   Three shapes because a crescent is not a circle minus a circle: the
+   terminator is an ellipse, and drawing it as an offset disc gives a shape
+   that is wrong everywhere except the quarters. */
+function moonHTML(size, d) {
+  const p = moonPhase(d);
+  const k = moonIllum(p);
+  const r = 10, rx = Math.abs(1 - 2 * k) * r;
+  const waxing = p < .5;
+  const lit = '#F3ECDC', dark = 'rgba(12,15,20,.92)';
+  /* Half-disc on the lit limb: right while waxing, left while waning. */
+  const half = waxing
+    ? `M0 ${-r} A ${r} ${r} 0 0 1 0 ${r} Z`
+    : `M0 ${-r} A ${r} ${r} 0 0 0 0 ${r} Z`;
+  /* The glow belongs to the lit shapes, never to the <svg>. A filter on the
+     element blurs its whole alpha silhouette — and the unlit disc is a filled
+     shape, so the halo comes off the *full* circle and a one-percent crescent
+     is painted as a third-lit moon. Marked per shape, the light only leaves
+     the limb that has any, and the dark ellipse paints over the half after it,
+     so the inward bleed is covered rather than glowing across the terminator. */
+  const litCls = k < .5 ? 'moon-lit' : 'moon-lit moon-lit-w';
+  return `<svg class="camp-moon" width="${size}" height="${size}" viewBox="-12 -12 24 24"
+      aria-hidden="true" focusable="false">
+    <circle r="${r}" fill="${dark}"/>
+    <path class="${litCls}" d="${half}" fill="${lit}"/>
+    <ellipse class="${k < .5 ? '' : litCls}" rx="${rx.toFixed(2)}" ry="${r}" fill="${k < .5 ? dark : lit}"/>
+    <circle r="${r}" fill="none" stroke="rgba(243,236,220,.16)" stroke-width=".7"/>
+  </svg>`;
+}

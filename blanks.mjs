@@ -1967,6 +1967,138 @@ try {
              /* No card shell around it — the point of the change. */
              boxed: !!document.querySelector('#more-body .camp.hero, #more-body .camp.card') };
   });
+  /* ---- what makes it a night, not a shape ----
+     Four separate subjects, all of them decoration and therefore all of them
+     the kind of thing a later change breaks without anything noticing:
+
+     the snow, which needs a fill named in CSS or it gets SVG's default — black
+     — and paints a solid triangle on every peak;
+
+     the shimmer, which has to return each star to *its own* brightness: a
+     keyframe holding a literal opacity flattens twelve differently-distant
+     stars into one blinking row, and looks fine in a screenshot;
+
+     the moon, whose whole claim is that it is true about the world. The glow
+     is the trap: a filter on the <svg> blurs its entire alpha silhouette, and
+     the unlit disc is a filled shape, so a one-percent crescent gets painted
+     as a third-lit moon that still passes every check about its geometry;
+
+     and the fire, which is a sibling of the backdrop rather than a child of it
+     purely because the backdrop is masked out at the foot — put back inside,
+     it is faded to nothing exactly where a camp belongs. */
+  const night = await page.evaluate(() => {
+    /* Today's range asks for no snow and must have none — the flag has to mean
+       something, or every band in the app grows caps.
+
+       This runs FIRST and on purpose. It leaves and comes back, and every
+       render replaces #more-body's innerHTML: anything queried before it is a
+       detached node afterwards, and getComputedStyle on a detached node returns
+       an empty string for every property rather than throwing. Read in the
+       other order, four of the checks below went green against ''. */
+    go('today'); render();
+    const heroSnow = document.querySelectorAll('#today-body .hero-ridge .ridge-snow').length;
+    go('more'); render();
+
+    const rd = document.querySelector('#more-body .camp-bg .ridge svg');
+    const snow = rd && rd.querySelector('.ridge-snow');
+    /* Every point in a path's d, in viewBox units. */
+    const pts = d => (d || '').match(/-?[\d.]+ -?[\d.]+/g)?.map(s => s.split(' ').map(Number)) || [];
+    /* The range's own vertices, off the path the caps are supposed to sit on. */
+    const farD = rd && rd.querySelector('path[fill^="url"]')?.getAttribute('d');
+    const far = pts(farD);
+    const caps = (snow?.getAttribute('d') || '').trim().split('Z').filter(s => s.trim());
+    /* A cap's apex is its second point — M a, L apex, L b, L mid, Z. Assert it
+       is a vertex of the range: a cap drawn by hand would land near a peak and
+       drift the first time the range is reshaped. */
+    const apexOnPeak = caps.map(c => {
+      const p = pts(c);
+      if (p.length < 3) return false;
+      const [ax, ay] = p[1];
+      return far.some(([x, y]) => Math.abs(x - ax) < .01 && Math.abs(y - ay) < .01);
+    });
+
+    const stars = [...document.querySelectorAll('#more-body .camp-stars circle')];
+    const rest = stars.map(c => +getComputedStyle(c).opacity);
+    /* Step the dimmest star to the peak of its keyframe by hand rather than
+       waiting eleven seconds for it to come round. */
+    const dim = stars[rest.indexOf(Math.min(...rest))];
+    const dimRest = +getComputedStyle(dim).opacity;
+    const heldDelay = getComputedStyle(dim).animationDelay;
+    dim.style.animationDelay = '-10.34s';                 // 94% of an 11s cycle
+    dim.style.animationPlayState = 'paused';
+    const dimPeak = +getComputedStyle(dim).opacity;
+    dim.style.animationDelay = ''; dim.style.animationPlayState = '';
+
+    const moonSvg = document.querySelector('#more-body .camp-moon');
+    const moonLit = moonSvg && moonSvg.querySelector('.moon-lit');
+
+    const fire = document.querySelector('#more-body .camp-fire');
+    const bg = document.querySelector('#more-body .camp-bg');
+    const flame = document.querySelector('#more-body .camp-fire-svg');
+    /* Where the near ridge's own outline sits under the flame. Read off the
+       rendered path, not off a copy of the numbers — the range is
+       preserveAspectRatio="none", so the only honest way to ask "is the fire
+       standing on it" is to map the path's own units through the box it was
+       painted into. */
+    let ridgeYUnderFlame = null, flameFoot = null;
+    const nearPath = rd && [...rd.querySelectorAll('path')].find(p => p.getAttribute('fill') === '#12161c');
+    if (nearPath && flame) {
+      const box = rd.getBoundingClientRect(), fb = flame.getBoundingClientRect();
+      const vb = rd.viewBox.baseVal;
+      const near = pts(nearPath.getAttribute('d')).filter(([, y]) => y < 104);
+      const vx = (fb.left + fb.width / 2 - box.left) / box.width * vb.width;
+      let vy = near[near.length - 1][1];
+      for (let i = 0; i < near.length - 1; i++) {
+        const [x1, y1] = near[i], [x2, y2] = near[i + 1];
+        if (vx >= x1 && vx <= x2) { vy = y1 + (y2 - y1) * (vx - x1) / (x2 - x1); break; }
+      }
+      ridgeYUnderFlame = box.top + vy / vb.height * box.height;
+      flameFoot = fb.bottom;
+    }
+
+    return {
+      snowFill: snow ? getComputedStyle(snow).fill : 'absent',
+      caps: caps.length, apexOnPeak: apexOnPeak.filter(Boolean).length, heroSnow,
+      restDistinct: new Set(rest.map(v => v.toFixed(3))).size,
+      delayDistinct: new Set(stars.map(c => getComputedStyle(c).animationDelay)).size,
+      anim: getComputedStyle(stars[0]).animationName,
+      dimRest, dimPeak, heldDelay,
+      svgFilter: moonSvg ? getComputedStyle(moonSvg).filter : 'absent',
+      litFilter: moonLit ? getComputedStyle(moonLit).filter : 'absent',
+      moonNamed: (document.querySelector('#more-body .camp-moon-n')?.textContent || '').trim(),
+      fireDrawn: !!fire && !!fire.querySelector('.cf-log') && !!fire.querySelector('.cf-out'),
+      fireOutsideMask: !!fire && !!bg && !bg.contains(fire),
+      fireMask: fire ? getComputedStyle(fire).maskImage + '|' + getComputedStyle(fire).webkitMaskImage : 'absent',
+      standsOn: ridgeYUnderFlame === null ? null : Math.round(flameFoot - ridgeYUnderFlame),
+    };
+  });
+
+  /* The drawn moon against the arithmetic, right across a cycle. The three
+     shapes carve an area of exactly `illum` of the disc when the numbers are
+     right and something else entirely when they are not, so this is the whole
+     drawing checked rather than the presence of one. */
+  const moon = await page.evaluate(() => {
+    const base = Date.UTC(2026, 7, 12, 17, 37);            // a real new moon
+    const out = [];
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(base + i * 2.5 * 86400000);
+      const k = moonIllum(moonPhase(d));
+      const el = document.createElement('div');
+      el.innerHTML = moonHTML(24, d);
+      const svg = el.querySelector('svg');
+      const rx = +svg.querySelector('ellipse').getAttribute('rx');
+      const half = svg.querySelector('path').getAttribute('d');
+      const carving = svg.querySelector('ellipse').getAttribute('fill') !== '#F3ECDC';
+      /* Lit area as a fraction of the disc: half a disc, plus or minus half an
+         ellipse of the same height. */
+      const drawn = (10 + (carving ? -rx : rx)) / 20;
+      out.push({ k: +k.toFixed(3), drawn: +drawn.toFixed(3),
+        /* Sweep flag 1 draws the arc clockwise from the top — the right limb. */
+        right: / 0 1 /.test(half), waxing: moonPhase(d) < .5 });
+    }
+    return out;
+  });
+
   await page.setViewportSize({ width: 1280, height: 720 });
   check('base camp has a sky with something in it', camp.stars >= 8, String(camp.stars));
   check('...spanning the whole width of the screen, not inset in a card',
@@ -1976,6 +2108,45 @@ try {
   check('...with the range drawn in open sky rather than behind the first list',
     camp.ridge && camp.list && camp.ridge.b <= camp.list.t,
     camp.ridge && camp.list ? `ridge ends ${camp.ridge.b}, list starts ${camp.list.t}` : 'missing');
+
+  check('...snow on more than one summit', night.caps >= 3, `${night.caps} caps`);
+  check('...painted rather than left to fill black',
+    /^rgba?\(\s*2\d\d/.test(night.snowFill), night.snowFill);
+  check('...every cap sitting on a peak the range actually has',
+    night.caps > 0 && night.apexOnPeak === night.caps,
+    `${night.apexOnPeak} of ${night.caps} on a vertex`);
+  check('...and a range that asked for none having none',
+    night.heroSnow === 0, `${night.heroSnow} on Today`);
+
+  check('...the stars shimmering', night.anim === 'starTwinkle', night.anim);
+  check('...not all at once', night.delayDistinct >= 8, `${night.delayDistinct} delays`);
+  check('...each resting at its own brightness',
+    night.restDistinct >= 5, `${night.restDistinct} distinct`);
+  check('...and brightening from it rather than to a fixed white',
+    night.dimPeak > night.dimRest + .05 && night.dimPeak < .99,
+    `${night.dimRest} → ${night.dimPeak}`);
+
+  check('...a moon over the camp, saying which one it is',
+    /^(New moon|Waxing crescent|First quarter|Waxing gibbous|Full moon|Waning gibbous|Last quarter|Waning crescent)$/
+      .test(night.moonNamed), night.moonNamed || 'unnamed');
+  check('...its glow on the lit limb, not on the whole disc',
+    night.svgFilter === 'none' && night.litFilter.startsWith('drop-shadow'),
+    `svg ${night.svgFilter}, lit ${night.litFilter}`);
+  const moonOff = moon.filter(m => Math.abs(m.k - m.drawn) > .01);
+  check('...drawing exactly as much of itself as is lit, right across a cycle',
+    moon.length === 12 && moonOff.length === 0,
+    moonOff.map(m => `${m.k} lit vs ${m.drawn} drawn`).join(', '));
+  const limbWrong = moon.filter(m => m.right !== m.waxing);
+  check('...with the crescent on the limb the sun is on',
+    limbWrong.length === 0, `${limbWrong.length} of ${moon.length} on the wrong side`);
+
+  check('...a fire at the foot of the range, drawn rather than a glow',
+    night.fireDrawn === true && night.standsOn !== null);
+  check('...outside the backdrop it stands in front of, so the mask cannot fade it',
+    night.fireOutsideMask === true && night.fireMask === 'none|none', night.fireMask);
+  check('...standing on the near ridge rather than in the sky',
+    night.standsOn !== null && night.standsOn >= -2 && night.standsOn <= 22,
+    `${night.standsOn}px below the ridgeline`);
 
   /* ---- every sheet, not the handful anything else looks at ----
      The emoji sweep reads nine sheets and the blank sweep reads a screen at a
