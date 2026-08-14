@@ -48,19 +48,15 @@ function renderMore() {
   let html = `<div class="camp">
   <div class="camp-bg" aria-hidden="true">
     <div class="camp-sky"></div>
-    ${/* Each star carries its own resting opacity as --o rather than as an
-          opacity attribute, because the shimmer has to return it to *its* own
-          brightness: a keyframe with a literal opacity in it would flatten
-          twelve differently-distant stars into one. The delay is the index
-          walked by an irrational-ish step and wrapped, so no two shimmer
-          together and none of it is random — a random one would make a
-          screenshot check unrepeatable for no gain. */''}
-    <svg class="camp-stars" viewBox="0 0 320 150" preserveAspectRatio="none">
-      ${[[18,26,.85,1.1],[47,58,.4,.8],[74,16,.62,.9],[103,44,.5,1],[128,72,.35,.8],
-         [152,22,.9,1.2],[181,52,.45,.9],[206,30,.7,1],[233,66,.38,.8],
-         [258,18,.8,1.1],[281,48,.5,.9],[303,28,.65,1]]
-        .map(([x, y, o, r], i) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#E9E3D8" style="--o:${o};animation-delay:${((i * 2.71) % 11).toFixed(2)}s"/>`).join('')}
-    </svg>
+    ${starsHTML()}
+    ${moonHTML(34)}
+    ${/* The last of the light, low and behind the massif. Its own element and
+          not a shape inside the range, because the range's box is the bottom
+          168px and every layer in it fills to the floor — a glow in there is
+          painted behind an opaque mountain. Out here it is 300px tall, so the
+          peaks stand against it instead of covering it, which is the whole
+          reason a distant ridge reads as distant. */''}
+    <div class="camp-glow"></div>
     ${ridgeHTML('camp', true, true)}
   </div>
 
@@ -85,16 +81,7 @@ function renderMore() {
   <div class="camp-head">
     ${/* No "Base camp" eyebrow: the screen header already says it, and a
           block that repeats the title above it is a label doing nothing. */''}
-    ${/* Tonight's moon, opposite the day count — both of them are "where you
-          are in time", and putting it in a flex row means it reserves its own
-          width instead of being parked at an offset a long name can reach.
-          Named, because a phase drawn at 24px and left unlabelled is a
-          decoration; named, it is the one thing on this screen that is true
-          about the world rather than about you. */''}
-    <div class="camp-top">
-      <span class="camp-eyebrow">Day ${jst.day} on the route</span>
-      <span class="camp-moon-w">${moonHTML(24)}<span class="camp-moon-n">${moonName(moonPhase())}</span></span>
-    </div>
+    <span class="camp-eyebrow">Day ${jst.day} on the route</span>
     <h1 class="camp-name">${h(p.name || 'Traveller')}</h1>
     <p class="camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything below is here when you want it.</p>
     <div class="camp-stats">

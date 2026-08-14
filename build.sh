@@ -131,14 +131,23 @@ cp GuzoFit.html index.html
 [ -f build/sw.js ] || { echo "build: missing build/sw.js" >&2; exit 1; }
 cp build/sw.js sw.js
 
-# dist/ is what Cloudflare publishes. It holds exactly the two deployed files
-# and nothing else — pointing the Worker at the repo root would put build/,
-# docs/ and every test instrument on the open internet. Regenerated here rather
-# than committed, so it can never drift from the parts.
+# The manifest and its icon cannot be inlined either — a <link rel="manifest">
+# is fetched, and the icon it names is fetched again by the installer. They are
+# what the OS reads to decide how a home-screen app is framed and what colour
+# it paints around it; a data: URI in `src` is accepted unevenly and an install
+# that silently drops the icon is the failure this is meant to remove.
+for f in manifest.webmanifest icon.svg; do
+  [ -f "build/$f" ] || { echo "build: missing build/$f" >&2; exit 1; }
+  cp "build/$f" "$f"
+done
+
+# dist/ is what Cloudflare publishes. It holds exactly the deployed files and
+# nothing else — pointing the Worker at the repo root would put build/, docs/
+# and every test instrument on the open internet. Regenerated here rather than
+# committed, so it can never drift from the parts.
 rm -rf dist
 mkdir -p dist
-cp index.html dist/index.html
-cp sw.js dist/sw.js
+cp index.html sw.js manifest.webmanifest icon.svg dist/
 
 # The iOS shell serves the same two files. Copied rather than symlinked so
 # `cap sync` picks up real content, and only when the shell exists — the web
@@ -147,6 +156,7 @@ if [ -d guzo-native ]; then
   mkdir -p guzo-native/www
   cp index.html guzo-native/www/index.html
   cp sw.js      guzo-native/www/sw.js
+  cp manifest.webmanifest icon.svg guzo-native/www/
 fi
 
 bytes=$(wc -c < GuzoFit.html | tr -d ' ')

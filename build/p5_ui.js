@@ -1131,10 +1131,16 @@ function ridgeSnow(pts) {
   for (let i = 1; i < pts.length - 1; i++) {
     const [x, y] = pts[i], [lx, ly] = pts[i - 1], [rx, ry] = pts[i + 1];
     if (!(y < ly && y < ry)) continue;
-    if (y > 46) continue;                    // low peaks stay bare
-    const f = 0.2;
-    const ax = x + (lx - x) * f, ay = y + (ly - y) * f;
-    const bx = x + (rx - x) * f, by = y + (ry - y) * f;
+    if (y > 36) continue;                    // low peaks stay bare
+    /* The cap runs further down the shallower flank, because that is where
+       snow lies. Measured against each side's own slope rather than a single
+       fraction, so a cap on an asymmetric peak sits on it instead of hanging
+       off the steep side. */
+    const gl = Math.abs((ly - y) / (lx - x || 1)), gr = Math.abs((ry - y) / (rx - x || 1));
+    const fl = Math.min(.34, .13 + .10 / Math.max(.35, gl));
+    const fr = Math.min(.34, .13 + .10 / Math.max(.35, gr));
+    const ax = x + (lx - x) * fl, ay = y + (ly - y) * fl;
+    const bx = x + (rx - x) * fr, by = y + (ry - y) * fr;
     /* A dip in the middle of the underside, so the snowline is not a ruled
        edge across the mountain. */
     const mx = (ax + bx) / 2, my = (ay + by) / 2 + 2.5;
@@ -1144,27 +1150,102 @@ function ridgeSnow(pts) {
   return d;
 }
 
-function ridgeHTML(ns, lit, snow) {
-  const farPts = [[0,84],[36,50],[58,64],[96,26],[124,48],[158,18],[196,52],[232,34],[268,62],[300,40],[320,58]];
-  const far = 'M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58';
-  const near = 'M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90';
-  return `<div class="ridge ${h(ns)}-ridge" aria-hidden="true">
+/* The range.
+   ----------
+   Four silhouettes rather than three, and the extra one is the point: a
+   skyline reads as distance when each layer is paler and flatter than the one
+   in front of it, and reads as a paper cut-out when they are all the same
+   darkness. So the haze ridge is nearly the colour of the sky, the far range
+   carries the light, and the two in front of it go progressively darker and
+   lower.
+
+   Every ridgeline has shoulders now. Three straight segments per peak is a
+   sawtooth; a summit with a subordinate shoulder falling off one side is a
+   mountain. The points are still points — ridgeSnow() reads them, and a curve
+   would have to be sampled to find a summit.
+
+   `full` turns on the pieces that only fit where there is real sky: the haze
+   layer, the glow behind the summits, and the snow. Everywhere else the range
+   is a 104px band sitting behind body text, and a pale layer under a heading
+   is a contrast failure waiting to be written. */
+function ridgeHTML(ns, lit, full) {
+  /* One dominant massif right of centre with a shoulder falling off it, a
+     secondary summit left, and everything else subordinate. A range of evenly
+     spaced equal peaks is a sawtooth; a range with a clear subject is a place.
+     Kept as points because ridgeSnow() reads them — a curve would have to be
+     sampled to find a summit. */
+  const farPts = [[0,88],[26,70],[48,34],[68,60],[92,28],[112,52],[132,64],[152,56],
+                  [176,64],[196,54],[212,42],[228,12],[244,30],[256,22],[276,54],
+                  [296,42],[310,50],[320,56]];
+  const path = pts => 'M' + pts.map(([x, y]) => `${x} ${y}`).join(' L');
+  const far = path(farPts);
+  const haze = path([[0,64],[34,50],[62,58],[92,42],[122,54],[152,44],[184,54],[214,32],
+                     [246,46],[276,38],[306,50],[320,46]]);
+  /* A fifth silhouette between the lit range and the dark one. Distance is
+     carried by the *number* of tonal steps as much as by their spread — three
+     layers is a diagram of a mountain range whatever you do to the colours.
+     Only in the full scene: at 104px behind a card heading five overlapping
+     fills is mud. */
+  const midFar = path([[0,98],[28,76],[54,88],[78,64],[104,82],[132,70],[160,84],
+                       [188,62],[214,76],[242,58],[268,78],[296,68],[320,80]]);
+  const mid = path([[0,104],[30,80],[58,90],[84,68],[110,84],[140,72],[168,86],[196,66],
+                    [224,80],[252,70],[280,88],[306,76],[320,84]]);
+  /* The near mass climbs at the left edge instead of running level. Layers that
+     only ever get shorter towards the front read as stacked strips; one that
+     comes up in front of the layer behind it is what makes the stack a
+     landscape. */
+  const near = path([[0,68],[18,78],[40,90],[70,84],[100,92],[132,80],[164,92],
+                     [196,88],[228,96],[258,89],[290,96],[320,91]]);
+  const id = h(ns);
+  /* Every layer is a gradient from its ridgeline down, not a flat fill. That
+     is the whole of atmospheric perspective: haze collects with distance and
+     with depth into a valley, so a silhouette is palest where it meets the sky
+     and darkest at its own foot. Flat fills give you cut paper, which is what
+     this was. */
+  const band = (i, col, top, bot) => `<linearGradient id="${id}-rg${i}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${col}" stop-opacity="${top}"/>
+      <stop offset="100%" stop-color="${col}" stop-opacity="${bot}"/>
+    </linearGradient>`;
+  return `<div class="ridge ${id}-ridge" aria-hidden="true">
     <svg viewBox="0 0 320 104" preserveAspectRatio="none">
       <defs>
-        <linearGradient id="${h(ns)}-ridge-l1" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#E9B44C" stop-opacity=".17"/>
-          <stop offset="100%" stop-color="#E9B44C" stop-opacity=".02"/>
-        </linearGradient>
+        ${/* The far range is cool and pale; the warmth is the light *behind*
+              it. It used to be an ember fill, which painted the mountain the
+              colour of the sunrise and left nothing for the sunrise to be. */''}
+        ${band(1, '#C3D3EA', full ? '.36' : '.13', '.04')}
+        ${band(2, '#1C2942', full ? '.80' : '.55', '.95')}
+        ${band(3, '#05080C', '.90', '1')}
+        ${full ? band(0, '#A6BAD6', '.16', '.02') : ''}
+        ${full ? band(4, '#44597A', '.42', '.66') : ''}
+
       </defs>
-      <path fill="url(#${h(ns)}-ridge-l1)" d="${far} L320 104 L0 104 Z"/>
-      ${snow ? `<path class="ridge-snow" d="${ridgeSnow(farPts)}"/>` : ''}
-      <path fill="#1b222b" fill-opacity=".72" d="M0 104 L28 74 L62 90 L104 58 L138 82 L178 60 L214 86 L252 66 L292 88 L320 72 L320 104 Z"/>
-      <path fill="#12161c" fill-opacity=".92" d="${near} L320 104 L0 104 Z"/>
+      ${/* The light behind the summits is NOT in here. This box is the bottom
+            168px of the scene and every silhouette fills it to the floor, so a
+            glow painted inside it is a glow behind an opaque mountain: the
+            only part that shows is the sliver above the highest ridgeline.
+            Sky belongs in the sky — see .camp-glow, which is a sibling of this
+            box and taller than it. */''}
+      ${full ? `<path fill="url(#${id}-rg0)" d="${haze} L320 104 L0 104 Z"/>` : ''}
+      ${/* Classed, not just filled. Two checks used to find these layers by
+            their literal colour — `path[fill="#12161c"]` and "the first path
+            with a url() fill" — and both silently pointed at the wrong
+            silhouette the moment a layer was added in front. A layer's name is
+            stable; its paint is not. */''}
+      <path class="ridge-far" fill="url(#${id}-rg1)" d="${far} L320 104 L0 104 Z"/>
+      ${full ? `<path class="ridge-snow" d="${ridgeSnow(farPts)}"/>
+        <path fill="url(#${id}-rg4)" d="${midFar} L320 104 L0 104 Z"/>` : ''}
+      <path fill="url(#${id}-rg2)" d="${mid} L320 104 L0 104 Z"/>
+      <path class="ridge-near" fill="url(#${id}-rg3)" d="${near} L320 104 L0 104 Z"/>
       ${/* The skyline catching the sun, drawn on when you arrive. pathLength="1"
             so the dash maths is the same whatever width the phone is — the
             range is preserveAspectRatio="none" and its real path length is not
             a number this code can know. */''}
-      ${lit ? `<path class="ridge-line" pathLength="1" vector-effect="non-scaling-stroke" d="${near}"/>
+      ${/* Not in the full scene. At 96px behind a card heading the lit skyline
+            is the only thing that says "range"; at 250px in open sky it is the
+            loudest thing on the screen, and two of them crossing the whole
+            width read as a line chart rather than as mountains. Where there is
+            room for tone to do the work, tone does it. */''}
+      ${lit && !full ? `<path class="ridge-line" pathLength="1" vector-effect="non-scaling-stroke" d="${near}"/>
         <path class="ridge-line far" pathLength="1" vector-effect="non-scaling-stroke" d="${far}"/>` : ''}
     </svg>
   </div>`;

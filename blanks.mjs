@@ -29,12 +29,29 @@ import { chromium } from 'playwright';
 const ROOT = dirname(fileURLToPath(import.meta.url));
 const CHROME = process.env.GUZO_CHROME || undefined;
 const html = readFileSync(join(ROOT, 'index.html'));
-const swSrc = readFileSync(join(ROOT, 'sw.js'));
-
+/* The deploy is four files, not one, and three of them have to be fetched over
+   http to do their jobs. Served here rather than folded into the HTML so a
+   missing one fails the same way it would on a host. */
+const SIDECARS = {
+  '/sw.js': ['text/javascript', 'sw.js'],
+  '/manifest.webmanifest': ['application/manifest+json', 'manifest.webmanifest'],
+  '/icon.svg': ['image/svg+xml', 'icon.svg'],
+};
 const server = http.createServer((req, res) => {
-  if (req.url.split('?')[0] === '/sw.js') {
-    res.writeHead(200, { 'Content-Type': 'text/javascript' });
-    return res.end(swSrc);
+  const path = req.url.split('?')[0];
+  /* Anything that looks like an asset and is not one 404s, the way a host
+     would. Serving the app's HTML for every path made a manifest pointing at a
+     missing icon return 200 and pass a check whose whole job was to notice. */
+  if (/\.[a-z0-9]+$/i.test(path) && !SIDECARS[path]) {
+    res.writeHead(404); return res.end('missing');
+  }
+  const side = SIDECARS[path];
+  if (side) {
+    try {
+      const body = readFileSync(join(ROOT, side[1]));
+      res.writeHead(200, { 'Content-Type': side[0] });
+      return res.end(body);
+    } catch (e) { res.writeHead(404); return res.end('missing'); }
   }
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(html);
@@ -1968,8 +1985,29 @@ try {
       const b = el.getBoundingClientRect();
       return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), b: Math.round(b.bottom) }; };
     const sc = R('#s-more');
+    const starEls = [...document.querySelectorAll('#more-body .camp-stars circle')];
+    /* Measured against the sky — the backdrop above the ridgeline — and not
+       against the star layer's own box. Against its own box the ratio is high
+       however small the layer is, so shrinking the field to a band across the
+       top passed a check whose whole job was to catch that. */
+    const bgR = document.querySelector('#more-body .camp-bg').getBoundingClientRect();
+    const rgR = document.querySelector('#more-body .camp-bg .ridge').getBoundingClientRect();
+    const skyH = rgR.top - bgR.top;
+    /* Only the ones you can actually see. A clipped SVG child still reports its
+       geometric position, so a field squeezed into a band across the top still
+       measured as spanning the whole sky — the check could not fail. */
+    const layer = document.querySelector('#more-body .camp-stars').getBoundingClientRect();
+    const ys = starEls.map(c => c.getBoundingClientRect().top)
+      .filter(y => y >= layer.top - 1 && y <= layer.bottom + 1);
+    /* Deterministic on purpose — a Math.random() field is a field no
+       screenshot can be repeated against, and it clusters. */
+    const sig = () => [...document.querySelectorAll('#more-body .camp-stars circle')]
+      .map(c => c.getAttribute('cx') + ',' + c.getAttribute('cy')).join(';');
+    const first = sig(); render(); const second = sig();
     return { screen: sc, bg: R('#more-body .camp-bg'), ridge: R('#more-body .camp-bg .ridge'),
-             list: R('#more-body .list'), stars: document.querySelectorAll('#more-body .camp-stars circle').length,
+             list: R('#more-body .list'), stars: starEls.length,
+             starSpan: ys.length && skyH > 0 ? (Math.max(...ys) - Math.min(...ys)) / skyH : 0,
+             starsStable: first === second && first.length > 0,
              /* No card shell around it — the point of the change. */
              boxed: !!document.querySelector('#more-body .camp.hero, #more-body .camp.card') };
   });
@@ -2009,8 +2047,11 @@ try {
     const snow = rd && rd.querySelector('.ridge-snow');
     /* Every point in a path's d, in viewBox units. */
     const pts = d => (d || '').match(/-?[\d.]+ -?[\d.]+/g)?.map(s => s.split(' ').map(Number)) || [];
-    /* The range's own vertices, off the path the caps are supposed to sit on. */
-    const farD = rd && rd.querySelector('path[fill^="url"]')?.getAttribute('d');
+    /* The range's own vertices, off the path the caps are supposed to sit on.
+       By class: "the first path with a url() fill" found the haze layer the
+       moment one was added in front of the far range, and reported every cap
+       as off the mountain. */
+    const farD = rd && rd.querySelector('.ridge-far')?.getAttribute('d');
     const far = pts(farD);
     const caps = (snow?.getAttribute('d') || '').trim().split('Z').filter(s => s.trim());
     /* A cap's apex is its second point — M a, L apex, L b, L mid, Z. Assert it
@@ -2047,7 +2088,7 @@ try {
        standing on it" is to map the path's own units through the box it was
        painted into. */
     let ridgeYUnderFlame = null, flameFoot = null;
-    const nearPath = rd && [...rd.querySelectorAll('path')].find(p => p.getAttribute('fill') === '#12161c');
+    const nearPath = rd && rd.querySelector('.ridge-near');
     if (nearPath && flame) {
       const box = rd.getBoundingClientRect(), fb = flame.getBoundingClientRect();
       const vb = rd.viewBox.baseVal;
@@ -2071,7 +2112,10 @@ try {
       dimRest, dimPeak, heldDelay,
       svgFilter: moonSvg ? getComputedStyle(moonSvg).filter : 'absent',
       litFilter: moonLit ? getComputedStyle(moonLit).filter : 'absent',
-      moonNamed: (document.querySelector('#more-body .camp-moon-n')?.textContent || '').trim(),
+      /* The phase is named in the moon's <title>, not painted anywhere. */
+      moonNamed: (document.querySelector('#more-body .camp-moon > title')?.textContent || '').trim(),
+      moonPainted: !!document.querySelector('#more-body .camp-moon-n'),
+      moonInSky: !!document.querySelector('#more-body .camp-bg .camp-moon'),
       fireDrawn: !!fire && !!fire.querySelector('.cf-log') && !!fire.querySelector('.cf-out'),
       fireOutsideMask: !!fire && !!bg && !bg.contains(fire),
       fireMask: fire ? getComputedStyle(fire).maskImage + '|' + getComputedStyle(fire).webkitMaskImage : 'absent',
@@ -2106,7 +2150,11 @@ try {
   });
 
   await page.setViewportSize({ width: 1280, height: 720 });
-  check('base camp has a sky with something in it', camp.stars >= 8, String(camp.stars));
+  check('base camp has a sky with something in it', camp.stars >= 30, String(camp.stars));
+  check('...spread through all of it rather than banded across the top',
+    camp.starSpan >= .7, `stars cover ${Math.round(camp.starSpan * 100)}% of the sky`);
+  check('...and the same sky every time it is drawn',
+    camp.starsStable === true, camp.starsStable === true ? '' : 'redrew differently');
   check('...spanning the whole width of the screen, not inset in a card',
     camp.bg && camp.bg.l === camp.screen.l && camp.bg.r === camp.screen.r,
     camp.bg ? `${camp.bg.l}–${camp.bg.r} vs ${camp.screen.l}–${camp.screen.r}` : 'no backdrop');
@@ -2132,7 +2180,9 @@ try {
     night.dimPeak > night.dimRest + .05 && night.dimPeak < .99,
     `${night.dimRest} → ${night.dimPeak}`);
 
-  check('...a moon over the camp, saying which one it is',
+  check('...a moon in the sky rather than in the header',
+    night.moonInSky === true && night.moonPainted === false);
+  check('...named for a screen reader without being printed on it',
     /^(New moon|Waxing crescent|First quarter|Waxing gibbous|Full moon|Waning gibbous|Last quarter|Waning crescent)$/
       .test(night.moonNamed), night.moonNamed || 'unnamed');
   check('...its glow on the lit limb, not on the whole disc',
@@ -2184,6 +2234,35 @@ try {
   });
   check('...with nothing covering the screen these are measured on',
     lift.covered === false);
+
+  /* ---- the colour of everything outside the page ----
+     Every box in this app is inset:0 to the viewport, so a strip at the foot of
+     the screen is not the app's layout — it is the region the OS paints around
+     a home-screen app, and only the manifest's background_color governs it.
+     Checked end to end rather than by reading the file: a <link> to a manifest
+     a host does not serve is exactly as useful as no manifest, and that failure
+     is invisible in the source. */
+  const mf = await page.evaluate(async () => {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) return { linked: false };
+    try {
+      const r = await fetch(link.href);
+      if (!r.ok) return { linked: true, status: r.status };
+      const j = await r.json();
+      const icon = j.icons && j.icons[0] && new URL(j.icons[0].src, link.href).href;
+      const ir = icon ? await fetch(icon) : null;
+      return { linked: true, status: 200, bg: j.background_color, display: j.display,
+               theme: (document.querySelector('meta[name="theme-color"]') || {}).content,
+               iconOk: !!(ir && ir.ok) };
+    } catch (e) { return { linked: true, err: String(e) }; }
+  });
+  check('a manifest is linked and the host actually serves it',
+    mf.linked === true && mf.status === 200, JSON.stringify(mf));
+  check('...naming the colour the OS paints around the app',
+    !!mf.bg && mf.bg.toLowerCase() === (mf.theme || '').toLowerCase(),
+    `background_color ${mf.bg} vs theme-color ${mf.theme}`);
+  check('...asking for a standalone window', mf.display === 'standalone', mf.display);
+  check('...and its icon resolving too', mf.iconOk === true);
   check('...its sky reaching the top of the screen rather than starting under the title',
     lift.flat.sky <= 0, `sky top ${lift.flat.sky}`);
   check('...still reaching it once the notch is real',
@@ -2297,26 +2376,33 @@ try {
     }, { d: 'data:image/png;base64,' + b64, y });
   };
   /* A notch faked in so the band is deep enough to have a clear row in it, and
-     scrolled so the stats — real text — are sitting under that row. */
-  await page.evaluate(() => {
-    document.documentElement.style.setProperty('--safe-t', '59px');
-    document.getElementById('s-more').scrollTop = 300;
-  });
-  await page.waitForTimeout(300);
-  const smeared = await edgeAt(25);
+     the scroll position *found* rather than named: it was hardcoded at 300px,
+     which had the stats under the band until the backdrop was redrawn and then
+     had empty sky under it, so the check reported a blur destroying nothing
+     and failed while the blur was working perfectly. Take the position where
+     there is most to destroy. */
+  await page.evaluate(() => document.documentElement.style.setProperty('--safe-t', '59px'));
   const noBlur = await page.addStyleTag({ content:
     '#s-more .hdr::before{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}' });
-  await page.waitForTimeout(200);
-  const sharp = await edgeAt(25);
+  let sharp = 0, sharpAt = 0;
+  for (let y = 120; y <= 620; y += 100) {
+    await page.evaluate(v => { document.getElementById('s-more').scrollTop = v; }, y);
+    await page.waitForTimeout(200);
+    const e = await edgeAt(25);
+    if (e > sharp) { sharp = e; sharpAt = y; }
+  }
   await noBlur.evaluate(n => n.remove());
+  await page.evaluate(v => { document.getElementById('s-more').scrollTop = v; }, sharpAt);
+  await page.waitForTimeout(250);
+  const smeared = await edgeAt(25);
   await page.evaluate(() => {
     document.documentElement.style.removeProperty('--safe-t');
     document.getElementById('s-more').scrollTop = 0;
   });
   check('...the words that pass under it having something to lose',
-    sharp >= 6, `unblurred edge energy ${sharp}`);
+    sharp >= 6, `unblurred edge energy ${sharp} at scroll ${sharpAt}`);
   check('...and losing it — nothing under the band stays readable',
-    sharp >= 6 && smeared < sharp / 4, `${sharp} → ${smeared}`);
+    sharp >= 6 && smeared < sharp / 4, `${sharp} → ${smeared} at scroll ${sharpAt}`);
 
   /* The mask, in pixels off the foot rather than as a share of the box.
      They were 68% and 86%, which were the same thing while the box was 359px

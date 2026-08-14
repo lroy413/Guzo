@@ -324,6 +324,58 @@ function moonName(p) {
   return 'Waning crescent';
 }
 
+/* The sky, as a field rather than a dozen hand-placed dots.
+   ----------------------------------------------------------
+   Twelve were enough when the backdrop was a 208px strip. Lifted behind the
+   header it is two and a half times that, and twelve dots across it read as a
+   sky with nothing in it — which is what was reported.
+
+   Generated, and generated *deterministically*: a small integer hash rather
+   than Math.random(), so the same sky is drawn on every render and a
+   screenshot check can be repeated. A random field would also cluster, and
+   the fix for clustering is exactly this — a jittered grid, which spreads by
+   construction. Six columns of nine, each star pushed off its cell centre by
+   its own hash, so nothing lines up and nothing collides.
+
+   Each star carries its resting opacity as --o rather than as an opacity
+   attribute, because the shimmer has to return it to *its own* brightness: a
+   keyframe naming a literal would flatten a whole sky of distances into one
+   blinking row. The delay is the index walked by a non-integer step so no two
+   shimmer together. */
+function starsHTML() {
+  /* Deterministic, and spread over the whole 0–1 range for every seed — a
+     plain `(n * k) % 1` walks in visible diagonal stripes on a grid. */
+  const rnd = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  const COLS = 6, ROWS = 9, W = 320, H = 300;
+  let out = '';
+  let i = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++, i++) {
+      /* The lower rows thin out: stars nearest the horizon are the ones haze
+         takes first, and a field of even density reads as wallpaper. */
+      const depth = r / (ROWS - 1);
+      if (depth > .55 && rnd(i + 91) < (depth - .55) * 1.7) continue;
+      const x = (c + .12 + rnd(i) * .76) * (W / COLS);
+      const y = (r + .12 + rnd(i + 37) * .76) * (H / ROWS);
+      let mag = rnd(i + 53);
+      /* The copy stands in the lower-left of this field. A bright star landing
+         on a glyph there does not read as a star — the first build put one
+         squarely over the 'a' in "Sat" and it read as a diacritic. Stars stay
+         everywhere (thinning them is how the sky came to look empty in the
+         first place); they are just held to dust where words are. */
+      if (x < W * .74 && y > H * .44) mag = Math.min(mag, .3);
+      /* A few bright ones carry the field; the rest are dust. Without the
+         cube most stars land mid-bright and the sky looks printed. */
+      const rad = (.45 + mag * mag * mag * 1.05).toFixed(2);
+      const o = (.18 + mag * .62).toFixed(2);
+      out += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="#EFEADF"`
+           + ` style="--o:${o};animation-delay:${((i * 1.37) % 11).toFixed(2)}s"/>`;
+    }
+  }
+  return `<svg class="camp-stars" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMin slice"
+      aria-hidden="true" focusable="false">${out}</svg>`;
+}
+
 /* The disc, drawn as three shapes rather than a clip path.
 
    A dark disc, the lit half of it, and one ellipse that either carves into
@@ -352,8 +404,17 @@ function moonHTML(size, d) {
      the limb that has any, and the dark ellipse paints over the half after it,
      so the inward bleed is covered rather than glowing across the terminator. */
   const litCls = k < .5 ? 'moon-lit' : 'moon-lit moon-lit-w';
+  /* No caption. It is in the sky, not in the header — which means it has to be
+     legible as a phase on its own, and a moon that needs captioning is not
+     one. The unlit disc keeps a faint rim so the shape the crescent belongs to
+     is still there at new moon; without it a thin sliver floats unattached.
+
+     Named in a <title> rather than aria-hidden, which is the difference
+     between "not painted" and "not there". Nothing on screen says the phase;
+     a screen reader still can, and it is the one thing in this scene that is
+     true about the world rather than about you. */
   return `<svg class="camp-moon" width="${size}" height="${size}" viewBox="-12 -12 24 24"
-      aria-hidden="true" focusable="false">
+      role="img" focusable="false"><title>${h(moonName(p))}</title>
     <circle r="${r}" fill="${dark}"/>
     <path class="${litCls}" d="${half}" fill="${lit}"/>
     <ellipse class="${k < .5 ? '' : litCls}" rx="${rx.toFixed(2)}" ry="${r}" fill="${k < .5 ? dark : lit}"/>

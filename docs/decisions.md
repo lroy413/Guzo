@@ -2143,3 +2143,124 @@ luminance by `0.003` and slid straight through. It compares raw channels now,
 against the same pixel with the band's own treatment switched off — not against
 a pixel lower down, because the sky is a gradient and two heights differ by
 several counts on their own.
+
+---
+
+## A manifest, because the band is not the app's to paint
+
+Third report of a strip at the foot of the screen; the first two fixes — painting
+the canvas, and removing an over-constrained `height:100%` — both missed. What
+finally narrowed it was reading the layout rather than guessing at it: `html`,
+`body` and `#app` are all `inset:0` to the viewport, every screen is a child of
+that, and the nav is `position:fixed`. **There is no box in this app that can
+end short of the bottom of the screen.** So the strip is not the app's layout at
+all — it is the region the OS paints *around* a home-screen app.
+
+The only thing that has ever governed that colour is a web app manifest's
+`background_color`, and this deploy had no manifest. `apple-mobile-web-app-capable`
+still asks for a standalone window and is still in the head for older iOS, but
+it carries no colour, and Apple has been deprecating it in favour of the
+manifest's `display` since 16.4.
+
+The deploy is four files now: `index.html`, `sw.js`, `manifest.webmanifest`,
+`icon.svg`. The icon is a real file rather than a `data:` URI in `src` —
+support for that is uneven, and an install that silently drops the icon is the
+failure this is meant to remove.
+
+**Checked end to end, not by reading the source.** A `<link rel="manifest">` to
+a file the host does not serve is exactly as useful as no manifest, and that
+failure is invisible in the markup. The check fetches it from the page, parses
+it, asserts `background_color` equals the `theme-color` meta, asserts
+`display: standalone`, and fetches the icon it names.
+
+**And the instrument's own server had to start behaving like a host.** It
+returned the app's HTML for every path, so a manifest pointing at a missing
+icon came back `200` and the icon check passed. Anything that looks like an
+asset and is not one now 404s. **A test server that answers everything proves
+nothing about what a real one would answer.**
+
+*This has not been confirmed on the device yet.* It is the best-supported
+remaining explanation, not a verified fix, and an app already on the home
+screen keeps whatever it was installed with — it reaches an existing install
+only after the icon is removed and re-added.
+
+---
+
+## The range, rebuilt from references
+
+Sent three reference images and asked for the mountains to look better. What
+they have in common is what this did not:
+
+**Depth comes from the number of tonal steps, not from the spread between
+them.** Three layers is a diagram of a mountain range whatever you do to the
+colours. There are five now — haze, far, mid-far, mid, near — and the two extra
+ones are gated behind the same `full` flag as the snow, because everywhere else
+the range is a 104px band sitting behind body text and five overlapping fills
+there is mud.
+
+**Every layer is a gradient from its own ridgeline down.** That is the whole of
+atmospheric perspective: haze collects with distance and into a valley, so a
+silhouette is palest where it meets the sky and darkest at its foot. Flat fills
+give you cut paper, which is what this was.
+
+**The warmth is the light, not the mountain.** The far range was an ember fill —
+painting the peaks the colour of the sunrise and leaving nothing for the sunrise
+to be. It is cool and pale now, and the warm light is behind it.
+
+**A glow inside the range's own box is a glow behind an opaque mountain.** The
+first attempt put it in the ridge SVG, whose box is the bottom 168px of the
+scene and whose every layer fills to the floor — so the only part that showed
+was the sliver above the highest ridgeline, which is to say none of it. It is a
+sibling element 300px tall now, and the peaks stand against it.
+
+**No linework in the full scene.** The lit skyline is the only thing that says
+"range" at 96px behind a card heading; at 250px in open sky it is the loudest
+thing on the screen, and two of them crossing the whole width read as a line
+chart. Where there is room for tone to do the work, tone does it.
+
+**One dominant massif, not a sawtooth.** Evenly spaced equal peaks are teeth.
+The range has a subject right of centre with a shoulder falling off it, a
+secondary summit left, and everything else subordinate — and the near mass
+climbs at the left edge rather than running level, because layers that only get
+shorter towards the front read as stacked strips.
+
+**Two checks were finding layers by their paint.** `path[fill="#12161c"]` and
+"the first path with a `url()` fill" both pointed at the wrong silhouette the
+moment a layer was added in front — the snow check reported every cap as off
+the mountain, and the fire check reported no ridge at all. They read
+`.ridge-far` and `.ridge-near` now. **A layer's name is stable; its paint is
+not.**
+
+---
+
+## A sky with stars in all of it, and a moon that is only a moon
+
+**Twelve stars was a field for a 208px strip.** Lifted behind the header the
+backdrop is two and a half times that, and twelve dots across it read as a sky
+with nothing in it — which is how it was reported. The field is generated now:
+a jittered grid, six by nine, thinning towards the horizon, each star pushed off
+its cell centre by its own hash.
+
+**Deterministic, not random.** `Math.random()` gives a field no screenshot can
+be repeated against, and it clusters — and the fix for clustering is a jittered
+grid anyway, which spreads by construction.
+
+**Stars are held to dust where words are.** A bright one landed squarely over
+the `a` in "Sat" and read as a diacritic. Thinning the field there is how the
+sky came to look empty in the first place, so the stars stay and their
+brightness is capped instead.
+
+**The moon lost its caption and moved into the sky.** It is scenery now, at
+z-index 0 behind the name, positioned off `.camp-bg`'s own top plus one lift —
+both terms carry `--safe-t`, so it lands in the same place at every notch.
+Anchored any other way it drifts by exactly one inset between a desktop browser
+and a phone. The phase is still named, in a `<title>`: nothing on screen says
+it, and a screen reader still can. **That is the difference between "not
+painted" and "not there".**
+
+**Two of the new checks could not fail, and both were the same mistake —
+measuring the subject against itself.** Star spread was `span / height of the
+star layer`, which stays high however small the layer is; it is measured
+against the sky now. And a clipped SVG child still reports its geometric
+position, so a field squeezed into a band across the top still measured as
+spanning everything — only stars inside the layer's own box are counted.

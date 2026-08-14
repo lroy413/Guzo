@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-visual">
 <title>Guzo Fit</title>
 <meta name="theme-color" content="#0a0c0f">
+<!-- The manifest is what names the colour of everything *outside* the page.
+     Every box in this app is `inset:0` to the viewport, so a strip at the foot
+     of the screen cannot be the app's own layout — it is the region the OS
+     paints around a home-screen app, and `background_color` is the only thing
+     that has ever governed it. apple-mobile-web-app-capable still asks for
+     standalone, and is still here for older iOS, but it carries no colour and
+     Apple has been deprecating it in favour of `display` since 16.4.
+
+     An app already on the home screen keeps whatever it was installed with:
+     this reaches an existing install only after it is removed and re-added. -->
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2179,7 +2190,19 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    across the screen where there is nothing to see. */
 .camp-sky{position:absolute;inset:0;
   background:linear-gradient(180deg,rgba(28,40,60,.55) 0%,rgba(20,28,42,.32) 46%,rgba(11,13,16,0) 100%)}
-.camp-stars{position:absolute;left:0;right:0;top:0;height:58%;width:100%;display:block;opacity:.62}
+/* The field fills the whole sky down to the ridgeline, not a share of a box
+   whose height changed underneath it. At 58% of the lifted backdrop the stars
+   sat in a band that stopped well above the mountains and read as a sky with
+   nothing in it — which is what was reported. `slice` rather than `none`
+   keeps them round: the backdrop is stretched by preserveAspectRatio="none"
+   everywhere else in this scene, and a stretched circle is an egg. */
+.camp-stars{position:absolute;left:0;right:0;top:0;bottom:120px;width:100%;display:block;opacity:.58}
+/* Painted after the stars and before the range, so the peaks stand against it
+   and the stars nearest the horizon are washed out by it — which is what the
+   last of the light does to a sky. Centred behind the massif, not behind the
+   middle of the screen. */
+.camp-glow{position:absolute;left:0;right:0;bottom:34px;height:300px;pointer-events:none;
+  background:radial-gradient(58% 100% at 62% 100%,rgba(240,193,101,.16) 0%,rgba(233,180,76,.07) 38%,transparent 72%)}
 /* Each star rests at its own --o. The shimmer multiplies that rather than
    naming a brightness, so a faint star stays faint — a keyframe holding a
    literal opacity turns twelve depths into one blinking row. */
@@ -2249,20 +2272,24 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 /* The camp itself: type standing in the sky, no border around it. The bottom
    padding is the sky the mountains are drawn in. */
 .camp-head{position:relative;z-index:1;padding:2px 0 150px}
-.camp-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .camp-eyebrow{display:block;font-size:11px;font-weight:700;letter-spacing:.14em;
   text-transform:uppercase;color:var(--ember-2)}
-/* Tonight's moon. flex-none and its own column, so the phase name sets the
-   width the row reserves and a long name can never reach it. */
-.camp-moon-w{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:-4px;max-width:84px}
-.camp-moon{display:block}
-/* On the lit shapes, not on the <svg> — see moonHTML(). */
-.camp-moon .moon-lit{filter:drop-shadow(0 0 1.6px rgba(243,236,220,.5))}
-/* Wrapping rather than nowrap: at 320px the day count and "Waning crescent"
-   do not both fit on one line, and a label that overflows its row is worse
-   than a label on two. */
-.camp-moon-n{font-size:9.5px;font-weight:600;letter-spacing:.04em;line-height:1.25;
-  color:var(--faint);text-align:center}
+/* Tonight's moon, in the sky rather than in the header, and unlabelled.
+
+   Positioned off .camp-bg's own top, which is one lift above this block, so
+   adding the lift back lands it just inside the top of the camp — under the
+   header band and clear of it at every notch, because both terms move
+   together. Anchored any other way it drifts by exactly one inset between a
+   desktop browser and a phone.
+
+   z-index 0 with .camp-head at 1: it is scenery, and the name stands in front
+   of it the way the name stands in front of the range. */
+.camp-moon{position:absolute;z-index:0;pointer-events:none;
+  right:26px;top:calc(var(--safe-t) + 118px)}
+/* On the lit shapes, not on the <svg> — see moonHTML(). A filter on the
+   element blurs the unlit disc too and paints a one-percent crescent as a
+   third-lit moon. */
+.camp-moon .moon-lit{filter:drop-shadow(0 0 1.5px rgba(243,236,220,.42))}
 .camp-name{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:10px 0 0}
 .camp-sub{font-size:13.5px;line-height:1.5;color:var(--text-dim);margin:10px 0 0;max-width:38ch}
 .camp-stats{display:flex;flex-wrap:wrap;gap:22px;row-gap:14px;margin-top:22px}

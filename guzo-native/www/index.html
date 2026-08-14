@@ -5,6 +5,17 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-visual">
 <title>Guzo Fit</title>
 <meta name="theme-color" content="#0a0c0f">
+<!-- The manifest is what names the colour of everything *outside* the page.
+     Every box in this app is `inset:0` to the viewport, so a strip at the foot
+     of the screen cannot be the app's own layout — it is the region the OS
+     paints around a home-screen app, and `background_color` is the only thing
+     that has ever governed it. apple-mobile-web-app-capable still asks for
+     standalone, and is still here for older iOS, but it carries no colour and
+     Apple has been deprecating it in favour of `display` since 16.4.
+
+     An app already on the home screen keeps whatever it was installed with:
+     this reaches an existing install only after it is removed and re-added. -->
+<link rel="manifest" href="manifest.webmanifest">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2179,7 +2190,19 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    across the screen where there is nothing to see. */
 .camp-sky{position:absolute;inset:0;
   background:linear-gradient(180deg,rgba(28,40,60,.55) 0%,rgba(20,28,42,.32) 46%,rgba(11,13,16,0) 100%)}
-.camp-stars{position:absolute;left:0;right:0;top:0;height:58%;width:100%;display:block;opacity:.62}
+/* The field fills the whole sky down to the ridgeline, not a share of a box
+   whose height changed underneath it. At 58% of the lifted backdrop the stars
+   sat in a band that stopped well above the mountains and read as a sky with
+   nothing in it — which is what was reported. `slice` rather than `none`
+   keeps them round: the backdrop is stretched by preserveAspectRatio="none"
+   everywhere else in this scene, and a stretched circle is an egg. */
+.camp-stars{position:absolute;left:0;right:0;top:0;bottom:120px;width:100%;display:block;opacity:.58}
+/* Painted after the stars and before the range, so the peaks stand against it
+   and the stars nearest the horizon are washed out by it — which is what the
+   last of the light does to a sky. Centred behind the massif, not behind the
+   middle of the screen. */
+.camp-glow{position:absolute;left:0;right:0;bottom:34px;height:300px;pointer-events:none;
+  background:radial-gradient(58% 100% at 62% 100%,rgba(240,193,101,.16) 0%,rgba(233,180,76,.07) 38%,transparent 72%)}
 /* Each star rests at its own --o. The shimmer multiplies that rather than
    naming a brightness, so a faint star stays faint — a keyframe holding a
    literal opacity turns twelve depths into one blinking row. */
@@ -2249,20 +2272,24 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 /* The camp itself: type standing in the sky, no border around it. The bottom
    padding is the sky the mountains are drawn in. */
 .camp-head{position:relative;z-index:1;padding:2px 0 150px}
-.camp-top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}
 .camp-eyebrow{display:block;font-size:11px;font-weight:700;letter-spacing:.14em;
   text-transform:uppercase;color:var(--ember-2)}
-/* Tonight's moon. flex-none and its own column, so the phase name sets the
-   width the row reserves and a long name can never reach it. */
-.camp-moon-w{flex:none;display:flex;flex-direction:column;align-items:center;gap:3px;margin-top:-4px;max-width:84px}
-.camp-moon{display:block}
-/* On the lit shapes, not on the <svg> — see moonHTML(). */
-.camp-moon .moon-lit{filter:drop-shadow(0 0 1.6px rgba(243,236,220,.5))}
-/* Wrapping rather than nowrap: at 320px the day count and "Waning crescent"
-   do not both fit on one line, and a label that overflows its row is worse
-   than a label on two. */
-.camp-moon-n{font-size:9.5px;font-weight:600;letter-spacing:.04em;line-height:1.25;
-  color:var(--faint);text-align:center}
+/* Tonight's moon, in the sky rather than in the header, and unlabelled.
+
+   Positioned off .camp-bg's own top, which is one lift above this block, so
+   adding the lift back lands it just inside the top of the camp — under the
+   header band and clear of it at every notch, because both terms move
+   together. Anchored any other way it drifts by exactly one inset between a
+   desktop browser and a phone.
+
+   z-index 0 with .camp-head at 1: it is scenery, and the name stands in front
+   of it the way the name stands in front of the range. */
+.camp-moon{position:absolute;z-index:0;pointer-events:none;
+  right:26px;top:calc(var(--safe-t) + 118px)}
+/* On the lit shapes, not on the <svg> — see moonHTML(). A filter on the
+   element blurs the unlit disc too and paints a one-percent crescent as a
+   third-lit moon. */
+.camp-moon .moon-lit{filter:drop-shadow(0 0 1.5px rgba(243,236,220,.42))}
 .camp-name{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:10px 0 0}
 .camp-sub{font-size:13.5px;line-height:1.5;color:var(--text-dim);margin:10px 0 0;max-width:38ch}
 .camp-stats{display:flex;flex-wrap:wrap;gap:22px;row-gap:14px;margin-top:22px}
@@ -2718,7 +2745,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+ede3414</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+6b6265b</div>
     </div>
   </section>
 
@@ -7130,6 +7157,58 @@ function moonName(p) {
   return 'Waning crescent';
 }
 
+/* The sky, as a field rather than a dozen hand-placed dots.
+   ----------------------------------------------------------
+   Twelve were enough when the backdrop was a 208px strip. Lifted behind the
+   header it is two and a half times that, and twelve dots across it read as a
+   sky with nothing in it — which is what was reported.
+
+   Generated, and generated *deterministically*: a small integer hash rather
+   than Math.random(), so the same sky is drawn on every render and a
+   screenshot check can be repeated. A random field would also cluster, and
+   the fix for clustering is exactly this — a jittered grid, which spreads by
+   construction. Six columns of nine, each star pushed off its cell centre by
+   its own hash, so nothing lines up and nothing collides.
+
+   Each star carries its resting opacity as --o rather than as an opacity
+   attribute, because the shimmer has to return it to *its own* brightness: a
+   keyframe naming a literal would flatten a whole sky of distances into one
+   blinking row. The delay is the index walked by a non-integer step so no two
+   shimmer together. */
+function starsHTML() {
+  /* Deterministic, and spread over the whole 0–1 range for every seed — a
+     plain `(n * k) % 1` walks in visible diagonal stripes on a grid. */
+  const rnd = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+  const COLS = 6, ROWS = 9, W = 320, H = 300;
+  let out = '';
+  let i = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++, i++) {
+      /* The lower rows thin out: stars nearest the horizon are the ones haze
+         takes first, and a field of even density reads as wallpaper. */
+      const depth = r / (ROWS - 1);
+      if (depth > .55 && rnd(i + 91) < (depth - .55) * 1.7) continue;
+      const x = (c + .12 + rnd(i) * .76) * (W / COLS);
+      const y = (r + .12 + rnd(i + 37) * .76) * (H / ROWS);
+      let mag = rnd(i + 53);
+      /* The copy stands in the lower-left of this field. A bright star landing
+         on a glyph there does not read as a star — the first build put one
+         squarely over the 'a' in "Sat" and it read as a diacritic. Stars stay
+         everywhere (thinning them is how the sky came to look empty in the
+         first place); they are just held to dust where words are. */
+      if (x < W * .74 && y > H * .44) mag = Math.min(mag, .3);
+      /* A few bright ones carry the field; the rest are dust. Without the
+         cube most stars land mid-bright and the sky looks printed. */
+      const rad = (.45 + mag * mag * mag * 1.05).toFixed(2);
+      const o = (.18 + mag * .62).toFixed(2);
+      out += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${rad}" fill="#EFEADF"`
+           + ` style="--o:${o};animation-delay:${((i * 1.37) % 11).toFixed(2)}s"/>`;
+    }
+  }
+  return `<svg class="camp-stars" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMin slice"
+      aria-hidden="true" focusable="false">${out}</svg>`;
+}
+
 /* The disc, drawn as three shapes rather than a clip path.
 
    A dark disc, the lit half of it, and one ellipse that either carves into
@@ -7158,8 +7237,17 @@ function moonHTML(size, d) {
      the limb that has any, and the dark ellipse paints over the half after it,
      so the inward bleed is covered rather than glowing across the terminator. */
   const litCls = k < .5 ? 'moon-lit' : 'moon-lit moon-lit-w';
+  /* No caption. It is in the sky, not in the header — which means it has to be
+     legible as a phase on its own, and a moon that needs captioning is not
+     one. The unlit disc keeps a faint rim so the shape the crescent belongs to
+     is still there at new moon; without it a thin sliver floats unattached.
+
+     Named in a <title> rather than aria-hidden, which is the difference
+     between "not painted" and "not there". Nothing on screen says the phase;
+     a screen reader still can, and it is the one thing in this scene that is
+     true about the world rather than about you. */
   return `<svg class="camp-moon" width="${size}" height="${size}" viewBox="-12 -12 24 24"
-      aria-hidden="true" focusable="false">
+      role="img" focusable="false"><title>${h(moonName(p))}</title>
     <circle r="${r}" fill="${dark}"/>
     <path class="${litCls}" d="${half}" fill="${lit}"/>
     <ellipse class="${k < .5 ? '' : litCls}" rx="${rx.toFixed(2)}" ry="${r}" fill="${k < .5 ? dark : lit}"/>
@@ -13836,10 +13924,16 @@ function ridgeSnow(pts) {
   for (let i = 1; i < pts.length - 1; i++) {
     const [x, y] = pts[i], [lx, ly] = pts[i - 1], [rx, ry] = pts[i + 1];
     if (!(y < ly && y < ry)) continue;
-    if (y > 46) continue;                    // low peaks stay bare
-    const f = 0.2;
-    const ax = x + (lx - x) * f, ay = y + (ly - y) * f;
-    const bx = x + (rx - x) * f, by = y + (ry - y) * f;
+    if (y > 36) continue;                    // low peaks stay bare
+    /* The cap runs further down the shallower flank, because that is where
+       snow lies. Measured against each side's own slope rather than a single
+       fraction, so a cap on an asymmetric peak sits on it instead of hanging
+       off the steep side. */
+    const gl = Math.abs((ly - y) / (lx - x || 1)), gr = Math.abs((ry - y) / (rx - x || 1));
+    const fl = Math.min(.34, .13 + .10 / Math.max(.35, gl));
+    const fr = Math.min(.34, .13 + .10 / Math.max(.35, gr));
+    const ax = x + (lx - x) * fl, ay = y + (ly - y) * fl;
+    const bx = x + (rx - x) * fr, by = y + (ry - y) * fr;
     /* A dip in the middle of the underside, so the snowline is not a ruled
        edge across the mountain. */
     const mx = (ax + bx) / 2, my = (ay + by) / 2 + 2.5;
@@ -13849,27 +13943,102 @@ function ridgeSnow(pts) {
   return d;
 }
 
-function ridgeHTML(ns, lit, snow) {
-  const farPts = [[0,84],[36,50],[58,64],[96,26],[124,48],[158,18],[196,52],[232,34],[268,62],[300,40],[320,58]];
-  const far = 'M0 84 L36 50 L58 64 L96 26 L124 48 L158 18 L196 52 L232 34 L268 62 L300 40 L320 58';
-  const near = 'M0 104 L44 88 L86 100 L132 82 L182 98 L228 84 L276 100 L320 90';
-  return `<div class="ridge ${h(ns)}-ridge" aria-hidden="true">
+/* The range.
+   ----------
+   Four silhouettes rather than three, and the extra one is the point: a
+   skyline reads as distance when each layer is paler and flatter than the one
+   in front of it, and reads as a paper cut-out when they are all the same
+   darkness. So the haze ridge is nearly the colour of the sky, the far range
+   carries the light, and the two in front of it go progressively darker and
+   lower.
+
+   Every ridgeline has shoulders now. Three straight segments per peak is a
+   sawtooth; a summit with a subordinate shoulder falling off one side is a
+   mountain. The points are still points — ridgeSnow() reads them, and a curve
+   would have to be sampled to find a summit.
+
+   `full` turns on the pieces that only fit where there is real sky: the haze
+   layer, the glow behind the summits, and the snow. Everywhere else the range
+   is a 104px band sitting behind body text, and a pale layer under a heading
+   is a contrast failure waiting to be written. */
+function ridgeHTML(ns, lit, full) {
+  /* One dominant massif right of centre with a shoulder falling off it, a
+     secondary summit left, and everything else subordinate. A range of evenly
+     spaced equal peaks is a sawtooth; a range with a clear subject is a place.
+     Kept as points because ridgeSnow() reads them — a curve would have to be
+     sampled to find a summit. */
+  const farPts = [[0,88],[26,70],[48,34],[68,60],[92,28],[112,52],[132,64],[152,56],
+                  [176,64],[196,54],[212,42],[228,12],[244,30],[256,22],[276,54],
+                  [296,42],[310,50],[320,56]];
+  const path = pts => 'M' + pts.map(([x, y]) => `${x} ${y}`).join(' L');
+  const far = path(farPts);
+  const haze = path([[0,64],[34,50],[62,58],[92,42],[122,54],[152,44],[184,54],[214,32],
+                     [246,46],[276,38],[306,50],[320,46]]);
+  /* A fifth silhouette between the lit range and the dark one. Distance is
+     carried by the *number* of tonal steps as much as by their spread — three
+     layers is a diagram of a mountain range whatever you do to the colours.
+     Only in the full scene: at 104px behind a card heading five overlapping
+     fills is mud. */
+  const midFar = path([[0,98],[28,76],[54,88],[78,64],[104,82],[132,70],[160,84],
+                       [188,62],[214,76],[242,58],[268,78],[296,68],[320,80]]);
+  const mid = path([[0,104],[30,80],[58,90],[84,68],[110,84],[140,72],[168,86],[196,66],
+                    [224,80],[252,70],[280,88],[306,76],[320,84]]);
+  /* The near mass climbs at the left edge instead of running level. Layers that
+     only ever get shorter towards the front read as stacked strips; one that
+     comes up in front of the layer behind it is what makes the stack a
+     landscape. */
+  const near = path([[0,68],[18,78],[40,90],[70,84],[100,92],[132,80],[164,92],
+                     [196,88],[228,96],[258,89],[290,96],[320,91]]);
+  const id = h(ns);
+  /* Every layer is a gradient from its ridgeline down, not a flat fill. That
+     is the whole of atmospheric perspective: haze collects with distance and
+     with depth into a valley, so a silhouette is palest where it meets the sky
+     and darkest at its own foot. Flat fills give you cut paper, which is what
+     this was. */
+  const band = (i, col, top, bot) => `<linearGradient id="${id}-rg${i}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${col}" stop-opacity="${top}"/>
+      <stop offset="100%" stop-color="${col}" stop-opacity="${bot}"/>
+    </linearGradient>`;
+  return `<div class="ridge ${id}-ridge" aria-hidden="true">
     <svg viewBox="0 0 320 104" preserveAspectRatio="none">
       <defs>
-        <linearGradient id="${h(ns)}-ridge-l1" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#E9B44C" stop-opacity=".17"/>
-          <stop offset="100%" stop-color="#E9B44C" stop-opacity=".02"/>
-        </linearGradient>
+        ${/* The far range is cool and pale; the warmth is the light *behind*
+              it. It used to be an ember fill, which painted the mountain the
+              colour of the sunrise and left nothing for the sunrise to be. */''}
+        ${band(1, '#C3D3EA', full ? '.36' : '.13', '.04')}
+        ${band(2, '#1C2942', full ? '.80' : '.55', '.95')}
+        ${band(3, '#05080C', '.90', '1')}
+        ${full ? band(0, '#A6BAD6', '.16', '.02') : ''}
+        ${full ? band(4, '#44597A', '.42', '.66') : ''}
+
       </defs>
-      <path fill="url(#${h(ns)}-ridge-l1)" d="${far} L320 104 L0 104 Z"/>
-      ${snow ? `<path class="ridge-snow" d="${ridgeSnow(farPts)}"/>` : ''}
-      <path fill="#1b222b" fill-opacity=".72" d="M0 104 L28 74 L62 90 L104 58 L138 82 L178 60 L214 86 L252 66 L292 88 L320 72 L320 104 Z"/>
-      <path fill="#12161c" fill-opacity=".92" d="${near} L320 104 L0 104 Z"/>
+      ${/* The light behind the summits is NOT in here. This box is the bottom
+            168px of the scene and every silhouette fills it to the floor, so a
+            glow painted inside it is a glow behind an opaque mountain: the
+            only part that shows is the sliver above the highest ridgeline.
+            Sky belongs in the sky — see .camp-glow, which is a sibling of this
+            box and taller than it. */''}
+      ${full ? `<path fill="url(#${id}-rg0)" d="${haze} L320 104 L0 104 Z"/>` : ''}
+      ${/* Classed, not just filled. Two checks used to find these layers by
+            their literal colour — `path[fill="#12161c"]` and "the first path
+            with a url() fill" — and both silently pointed at the wrong
+            silhouette the moment a layer was added in front. A layer's name is
+            stable; its paint is not. */''}
+      <path class="ridge-far" fill="url(#${id}-rg1)" d="${far} L320 104 L0 104 Z"/>
+      ${full ? `<path class="ridge-snow" d="${ridgeSnow(farPts)}"/>
+        <path fill="url(#${id}-rg4)" d="${midFar} L320 104 L0 104 Z"/>` : ''}
+      <path fill="url(#${id}-rg2)" d="${mid} L320 104 L0 104 Z"/>
+      <path class="ridge-near" fill="url(#${id}-rg3)" d="${near} L320 104 L0 104 Z"/>
       ${/* The skyline catching the sun, drawn on when you arrive. pathLength="1"
             so the dash maths is the same whatever width the phone is — the
             range is preserveAspectRatio="none" and its real path length is not
             a number this code can know. */''}
-      ${lit ? `<path class="ridge-line" pathLength="1" vector-effect="non-scaling-stroke" d="${near}"/>
+      ${/* Not in the full scene. At 96px behind a card heading the lit skyline
+            is the only thing that says "range"; at 250px in open sky it is the
+            loudest thing on the screen, and two of them crossing the whole
+            width read as a line chart rather than as mountains. Where there is
+            room for tone to do the work, tone does it. */''}
+      ${lit && !full ? `<path class="ridge-line" pathLength="1" vector-effect="non-scaling-stroke" d="${near}"/>
         <path class="ridge-line far" pathLength="1" vector-effect="non-scaling-stroke" d="${far}"/>` : ''}
     </svg>
   </div>`;
@@ -15452,19 +15621,15 @@ function renderMore() {
   let html = `<div class="camp">
   <div class="camp-bg" aria-hidden="true">
     <div class="camp-sky"></div>
-    ${/* Each star carries its own resting opacity as --o rather than as an
-          opacity attribute, because the shimmer has to return it to *its* own
-          brightness: a keyframe with a literal opacity in it would flatten
-          twelve differently-distant stars into one. The delay is the index
-          walked by an irrational-ish step and wrapped, so no two shimmer
-          together and none of it is random — a random one would make a
-          screenshot check unrepeatable for no gain. */''}
-    <svg class="camp-stars" viewBox="0 0 320 150" preserveAspectRatio="none">
-      ${[[18,26,.85,1.1],[47,58,.4,.8],[74,16,.62,.9],[103,44,.5,1],[128,72,.35,.8],
-         [152,22,.9,1.2],[181,52,.45,.9],[206,30,.7,1],[233,66,.38,.8],
-         [258,18,.8,1.1],[281,48,.5,.9],[303,28,.65,1]]
-        .map(([x, y, o, r], i) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#E9E3D8" style="--o:${o};animation-delay:${((i * 2.71) % 11).toFixed(2)}s"/>`).join('')}
-    </svg>
+    ${starsHTML()}
+    ${moonHTML(34)}
+    ${/* The last of the light, low and behind the massif. Its own element and
+          not a shape inside the range, because the range's box is the bottom
+          168px and every layer in it fills to the floor — a glow in there is
+          painted behind an opaque mountain. Out here it is 300px tall, so the
+          peaks stand against it instead of covering it, which is the whole
+          reason a distant ridge reads as distant. */''}
+    <div class="camp-glow"></div>
     ${ridgeHTML('camp', true, true)}
   </div>
 
@@ -15489,16 +15654,7 @@ function renderMore() {
   <div class="camp-head">
     ${/* No "Base camp" eyebrow: the screen header already says it, and a
           block that repeats the title above it is a label doing nothing. */''}
-    ${/* Tonight's moon, opposite the day count — both of them are "where you
-          are in time", and putting it in a flex row means it reserves its own
-          width instead of being parked at an offset a long name can reach.
-          Named, because a phase drawn at 24px and left unlabelled is a
-          decoration; named, it is the one thing on this screen that is true
-          about the world rather than about you. */''}
-    <div class="camp-top">
-      <span class="camp-eyebrow">Day ${jst.day} on the route</span>
-      <span class="camp-moon-w">${moonHTML(24)}<span class="camp-moon-n">${moonName(moonPhase())}</span></span>
-    </div>
+    <span class="camp-eyebrow">Day ${jst.day} on the route</span>
     <h1 class="camp-name">${h(p.name || 'Traveller')}</h1>
     <p class="camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything below is here when you want it.</p>
     <div class="camp-stats">
