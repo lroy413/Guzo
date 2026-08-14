@@ -2058,6 +2058,30 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .opt-mark svg{width:13px;height:13px;stroke-width:3.2;color:#1F1704;opacity:0;transition:opacity .18s ease}
 .opt.on .opt-mark svg{opacity:1}
 .opt-tag{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ember-2);background:var(--ember-dim);border:1px solid var(--ember-line);padding:2px 7px;border-radius:5px;margin-left:8px;vertical-align:middle}
+/* What is in today's session, on the hero card. Two columns and a hairline,
+   deliberately quieter than the set rows on Train — this is a glance before
+   you commit, not a thing to work from. */
+.hero-what{margin-top:16px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.hw-row{display:flex;align-items:baseline;gap:10px;padding:5px 0}
+.hw-n{flex:1;font-size:13.5px;font-weight:550;color:var(--text-dim);line-height:1.35}
+.hw-d{flex:none;font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+
+/* Today's stretch list, behind a disclosure. Styled as a row rather than a
+   button-looking control: it reveals what is already yours, it does not do
+   anything, and a filled button here would compete with Start directly above. */
+.str-disc{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;
+  padding:12px 14px;border-radius:var(--r-m);background:var(--surface-2);
+  border:1px solid var(--line-soft);color:var(--text);font-size:14.5px;font-weight:600;
+  text-align:left;transition:background var(--t-fast) ease}
+.str-disc .grow{text-align:left}
+.str-disc-n{font-size:13px;color:var(--faint);flex:none}
+.str-disc-c{flex:none;display:flex;align-items:center;color:var(--faint);
+  transition:transform var(--t) var(--ease-spring)}
+.str-disc-c .ico-svg{width:16px;height:16px}
+.str-disc.on{background:var(--surface-3)}
+.str-disc.on .str-disc-c{transform:rotate(180deg)}
+.str-body{margin-top:12px}
+
 /* The arrow between a stored weight and its corrected value. */
 .conv-a{display:inline-flex;align-items:center;padding:0 7px;vertical-align:-2px}
 .conv-a .ico-svg{width:13px;height:13px;color:var(--faint)}

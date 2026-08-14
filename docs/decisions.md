@@ -1606,3 +1606,83 @@ so adding questions without revisiting the claim fails here instead of
 shipping. Its first version read "down to three minutes on a hotel floor" from
 the size ladder — which appears earlier on that screen — and reported no claim
 at all; it is anchored on "about"/"around" now.
+
+---
+
+## Today says what is in the session; the stretch list stops shouting
+
+Two changes in opposite directions, and they are the same judgement: show what
+somebody needs to decide with, hide what they already know.
+
+**Today** said "Full body · 60 min" and kept the movements behind Start — the
+one thing you want before deciding whether today is a training day. It lists
+them now, with sets and reps, above the button.
+
+**The stretch sheet** was nine rows of movements before anything else, and the
+presets — which answer a different and more urgent question, "my back is
+wrecked and I have fifteen minutes" — sat underneath all of them where nobody
+scrolled. The list is closed on arrival behind a "What's in it" row, Start is
+directly under the summary, and the presets are reachable without scrolling at
+all. "Something else" and "Save as routine" moved inside the fold, because both
+act on a list you have not asked to see.
+
+The open/closed flag is cleared by the **one true entry point** and nowhere
+else. This sheet redraws itself by calling `sheetStretch()` again on every tick,
+reroll and back — resetting inside the render would slam the list shut the
+instant somebody ticked a movement in it, which reads exactly like the tap not
+registering. Asserted directly.
+
+### previewSession(), and why it snapshots everything
+
+Both screens draw a real generated session, and `generateSession()` lazily
+writes rep targets into `S.lifts` through `targetFor()`. Fine when you are
+starting a session; poison when you are only drawing one. Today re-renders on
+every state change, so a leak there would seed a catalogue into the save of
+anyone who merely looked at the screen.
+
+One function now, shared with the onboarding preview, snapshotting the whole of
+`S` and restoring it in a `finally`. Field-by-field unwinding was rejected for
+the usual reason: it needs updating every time generation touches something new
+and fails silently when it is not. Measured at **2.8ms against a 211KB save** —
+two hundred sessions, a year of training three times a week — which is
+affordable once per render and buys not having to memoise behind a cache key
+that would need to name every input to generation to stay correct.
+
+### Three of my own checks were wrong before they were right
+
+Counting `.hw-row` nodes found them inside a hidden container just as happily,
+so wrapping the whole block in `hide` left the check green — it was measuring
+markup, not the screen. It filters on rendered height now.
+
+The state-leak baseline was captured *after* the first render, so the first
+render wrote the lift entries and the next two rewrote the same keys: `S`
+looked stable while being wrong. Taken before any render now.
+
+And the rest-timer check demanded two separately-rounded rectangles be
+identical, which a fractional layout height broke by one pixel. The invariant
+is that the gap does not grow by the whole 34px inset; 2px of tolerance keeps
+that and stops the check crying wolf about its own arithmetic.
+
+**A fourth failure was not a check at all.** A revert was restored without
+rebuilding, so the next run measured a stale `index.html` and reported a leak
+that did not exist. Restoring a file is not restoring the build.
+
+## The build stamp could not answer the question it existed for
+
+`build.sh` stamped the boot panel with `VERSION`, and its comment said this is
+"what makes 'is this host current?' answerable at all". `VERSION` changes on a
+release; this repo ships many builds per release, so every build for weeks read
+`1.8.0` and the question was unanswerable.
+
+It carries the commit now — `1.8.0+5593fd3` — taken from the CI variable where
+there is one and from `git rev-parse` otherwise, so a wrong guess at
+Cloudflare's variable name degrades to the checkout's own SHA rather than
+silently dropping back to a bare version.
+
+This matters more than it looks, because the deployed file is 1MB and a fetch
+of it returns roughly the first 1,200 characters. Every content check against
+the live site is therefore blind — asking whether "Lose fat" appears returned
+"absent" for both the new copy *and* the old, which proves only that the fetch
+was truncated. The boot panel sits inside those first 1,200 characters, so the
+stamp is the one thing about a deployment that can actually be read from
+outside.

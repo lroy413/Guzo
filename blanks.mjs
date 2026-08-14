@@ -274,12 +274,19 @@ try {
     document.documentElement.style.removeProperty('--safe-b');
     return { flat, phone };
   });
+  /* Within 2px rather than identical. Both gaps are the difference between two
+     separately-rounded rectangles, so a fractional layout height can move one
+     of them by a pixel — which is not the bug. The bug is the gap growing by
+     the whole 34px inset, and a 2px tolerance still catches that with plenty
+     to spare. Demanding exact equality made this fail on a 1px rounding
+     wobble, which is a check crying wolf about its own arithmetic. */
+  const tracks = (a, b) => a !== null && b !== null && Math.abs(a - b) <= 2;
   check('the rest timer sits just above the nav, at any inset',
-    floaters.flat.rest !== null && floaters.flat.rest === floaters.phone.rest
+    tracks(floaters.flat.rest, floaters.phone.rest)
     && floaters.phone.rest >= 0 && floaters.phone.rest <= 20,
     `${floaters.flat.rest}px flat, ${floaters.phone.rest}px on a phone`);
   check('...and so does the toast',
-    floaters.flat.toast !== null && floaters.flat.toast === floaters.phone.toast
+    tracks(floaters.flat.toast, floaters.phone.toast)
     && floaters.phone.toast >= 0 && floaters.phone.toast <= 30,
     `${floaters.flat.toast}px flat, ${floaters.phone.toast}px on a phone`);
 
@@ -1834,6 +1841,97 @@ try {
   check('the sweep actually read some screens', emojiSweep.looked > 40, String(emojiSweep.looked));
   check('no emoji is painted on any screen or sheet',
     emojiSweep.n === 0, emojiSweep.hits.join(' | '));
+
+  /* ---- Today says what is in the session before you commit to it ----
+     The card read "Full body · 60 min" and kept the movements behind the Start
+     button — the one thing somebody wants before deciding whether today is a
+     training day.
+
+     The check that matters is the last one. previewSession() draws a real
+     generated session, and generateSession() lazily writes rep targets into
+     S.lifts through targetFor(); Today re-renders on every state change, so a
+     leak here would seed a catalogue into the save of anyone who simply looked
+     at the screen. Rendered three times, and the whole of S is compared. */
+  const todayWhat = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.profile.bodyweight = [{ d: today(), w: 82 }];
+    save(true); buildWeekPlan(true);
+    /* Captured before the FIRST render, not after it. Taking the baseline
+       after one render made the comparison blind to the leak — the first
+       render wrote the lift entries and the next two rewrote the same keys, so
+       S looked stable while being wrong. */
+    go('today');
+    const before = JSON.stringify(S);
+    render(); render(); render();
+    /* Painted, not merely present. Counting nodes found them inside a hidden
+       container just as happily, so hiding the whole block left this check
+       green — it was measuring the markup rather than the screen. */
+    const rows = [...document.querySelectorAll('#today-body .hw-row')]
+      .filter(r => r.getBoundingClientRect().height > 0);
+    const start = document.querySelector('#today-body [data-act="start-session"]');
+    return {
+      n: rows.length,
+      named: rows.map(r => (r.querySelector('.hw-n') || {}).textContent || ''),
+      dosed: rows.filter(r => ((r.querySelector('.hw-d') || {}).textContent || '').trim()).length,
+      leaked: JSON.stringify(S) !== before,
+      lifts: Object.keys(S.lifts || {}).length,
+      startTop: start ? Math.round(start.getBoundingClientRect().top) : null
+    };
+  });
+  check('Today names the movements in the session it is offering',
+    todayWhat.n >= 3 && todayWhat.named.every(x => x.trim()), todayWhat.named.join(', '));
+  check('...each with what it is asking of you',
+    todayWhat.dosed === todayWhat.n, `${todayWhat.dosed} of ${todayWhat.n}`);
+  /* Naming them must not push the thing you came to press off the screen. */
+  check('...and Start is still on the first screen',
+    todayWhat.startTop != null && todayWhat.startTop < 844,
+    todayWhat.startTop + 'px');
+  check('...and drawing it leaves no trace in the save',
+    !todayWhat.leaked && todayWhat.lifts === 0,
+    `leaked ${todayWhat.leaked}, ${todayWhat.lifts} lifts written`);
+
+  /* ---- today's stretch opens closed ----
+     Nine rows of movements were the whole sheet, so the presets — which answer
+     a different and more urgent question — sat under all of them where nobody
+     scrolled. Closed on arrival, and the presets are reachable without
+     scrolling at all.
+
+     The tick case is the one worth asserting: this sheet redraws itself by
+     calling sheetStretch() again, so resetting the flag anywhere in the render
+     would shut the list the instant somebody ticked a movement in it. */
+  const strFold = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.profile.sex = 'm';
+    S.stretch = { onboarded: true, occupation: 'camera', areas: ['shoulder'], done: {}, mins: 12 };
+    save(true); buildWeekPlan(true); go('more'); render();
+    document.body.insertAdjacentHTML('beforeend', '<button id="zz-str" data-act="stretch"></button>');
+    const zz = document.getElementById('zz-str');
+    const read = () => {
+      const b = document.getElementById('sheet-body');
+      const body = b.querySelector('.str-body');
+      const pset = b.querySelector('.pset');
+      const scroller = b.closest('.sheet') || b;
+      const rel = pset ? pset.getBoundingClientRect().top - scroller.getBoundingClientRect().top : null;
+      return { open: !!body && !body.classList.contains('hide'),
+               rows: b.querySelectorAll('.str-row').length,
+               presetsReachable: rel != null && rel < scroller.clientHeight };
+    };
+    zz.click();            const closed = read();
+    document.querySelector('[data-act="stretch-list"]').click();
+    const opened = read();
+    const t = document.querySelector('.str-body [data-act="stretch-tick"]');
+    if (t) t.click();      const ticked = read();
+    zz.click();            const again = read();
+    return { closed, opened, ticked, again };
+  });
+  check("today's stretch list is closed when the sheet opens",
+    strFold.closed.open === false && strFold.closed.rows > 0,
+    `open ${strFold.closed.open}, ${strFold.closed.rows} movements behind it`);
+  check('...and the quick-start presets need no scrolling to reach',
+    strFold.closed.presetsReachable === true);
+  check('...it opens on a tap', strFold.opened.open === true);
+  check('...ticking something in it does not shut it',
+    strFold.ticked.open === true);
+  check('...and coming back to the sheet closes it again',
+    strFold.again.open === false);
 
   /* ---- every sheet, not the handful anything else looks at ----
      The emoji sweep reads nine sheets and the blank sweep reads a screen at a

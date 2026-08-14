@@ -2058,6 +2058,30 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .opt-mark svg{width:13px;height:13px;stroke-width:3.2;color:#1F1704;opacity:0;transition:opacity .18s ease}
 .opt.on .opt-mark svg{opacity:1}
 .opt-tag{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ember-2);background:var(--ember-dim);border:1px solid var(--ember-line);padding:2px 7px;border-radius:5px;margin-left:8px;vertical-align:middle}
+/* What is in today's session, on the hero card. Two columns and a hairline,
+   deliberately quieter than the set rows on Train — this is a glance before
+   you commit, not a thing to work from. */
+.hero-what{margin-top:16px;padding-top:12px;border-top:1px solid var(--line-soft)}
+.hw-row{display:flex;align-items:baseline;gap:10px;padding:5px 0}
+.hw-n{flex:1;font-size:13.5px;font-weight:550;color:var(--text-dim);line-height:1.35}
+.hw-d{flex:none;font-size:12.5px;color:var(--faint);font-variant-numeric:tabular-nums}
+
+/* Today's stretch list, behind a disclosure. Styled as a row rather than a
+   button-looking control: it reveals what is already yours, it does not do
+   anything, and a filled button here would compete with Start directly above. */
+.str-disc{display:flex;align-items:center;gap:10px;width:100%;min-height:48px;
+  padding:12px 14px;border-radius:var(--r-m);background:var(--surface-2);
+  border:1px solid var(--line-soft);color:var(--text);font-size:14.5px;font-weight:600;
+  text-align:left;transition:background var(--t-fast) ease}
+.str-disc .grow{text-align:left}
+.str-disc-n{font-size:13px;color:var(--faint);flex:none}
+.str-disc-c{flex:none;display:flex;align-items:center;color:var(--faint);
+  transition:transform var(--t) var(--ease-spring)}
+.str-disc-c .ico-svg{width:16px;height:16px}
+.str-disc.on{background:var(--surface-3)}
+.str-disc.on .str-disc-c{transform:rotate(180deg)}
+.str-body{margin-top:12px}
+
 /* The arrow between a stored weight and its corrected value. */
 .conv-a{display:inline-flex;align-items:center;padding:0 7px;vertical-align:-2px}
 .conv-a .ico-svg{width:13px;height:13px;color:var(--faint)}
@@ -2498,7 +2522,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+5593fd3</div>
     </div>
   </section>
 
@@ -6100,6 +6124,35 @@ function spendSlackOnAccessories(items, spent, budget) {
     }
   }
   return added;
+}
+
+/* ---------- a session you can look at without starting it ----------
+   generateSession() reads S, and it also lazily writes rep targets into
+   S.lifts through targetFor(). That is fine when you are actually starting a
+   session and poison when you are only drawing one: a Today screen that
+   half-seeds your lifts every time it renders, or an onboarding preview that
+   leaves a catalogue in the save of somebody who then went back and changed
+   their answers.
+
+   So the whole of S is snapshotted and put back in a finally. Field-by-field
+   unwinding was rejected for the usual reason — it has to be updated every
+   time generation touches something new, and it fails silently when it is not.
+
+   Measured at 2.8ms against a 211KB save — two hundred sessions, which is a
+   year of training three times a week. That is affordable once per render of a
+   screen nobody scrolls at sixty frames a second, and it buys not having to
+   memoise behind a cache key that would need to name every input to session
+   generation to stay correct. If Today ever renders in a loop, cache it there
+   rather than making this cheaper and less safe. */
+function previewSession(type, envKey, rung, minutes) {
+  const snap = JSON.stringify(S);
+  try {
+    return generateSession(type, envKey, rung, minutes);
+  } catch (e) {
+    return null;
+  } finally {
+    S = JSON.parse(snap);
+  }
 }
 
 /* Cardio finisher, spread across the week to hit the chosen dose */
@@ -12186,6 +12239,9 @@ function roundToStep(w, u) { const step = u === 'kg' ? 2.5 : 5; return Math.max(
    half-seeded profile behind for someone who then walked back and changed
    their answers. The restore is in a finally, so a throw cannot leak it. */
 function obPreviewSession() {
+  /* The draft has to be written into S for the engine to see it, and *that*
+     write is what this snapshot protects — previewSession() below protects its
+     own generate, but it cannot know about the profile fields set here. */
   const snap = JSON.stringify(S);
   try {
     const P = S.profile;
@@ -12203,7 +12259,7 @@ function obPreviewSession() {
     seedStartingWeights(obDraft.level, obDraft.bodyweight || 0,
                         obDraft.seedOverrides, obDraft.seedExact);
     const prog = PROGRAMS[obDraft.programId] || PROGRAMS.anchor3;
-    return generateSession(prog.cycle[0] || 'full', P.envs[0], 'full', obDraft.sessionMins);
+    return previewSession(prog.cycle[0] || 'full', P.envs[0], 'full', obDraft.sessionMins);
   } catch (e) {
     return null;
   } finally {
@@ -12654,6 +12710,35 @@ function renderToday() {
           <span class="grow">Check in first &mdash; it sizes this session</span>
           <span class="strip-chev">${ICO.chevR}</span>
         </button>`}
+        ${/* What is actually in it, before you commit to it.
+
+              The card said "Full body · 60 min" and put the movements behind
+              the Start button, which is the one thing on this screen somebody
+              wants to know before deciding whether today is a training day.
+              Generated by the real engine through previewSession(), so it is
+              the session you will get and not an illustration of one — and so
+              it costs nothing in state, which drawing it any other way would.
+
+              A routine already lists its own movements when you open it, so
+              this is only for a generated session. */''}
+        ${rt ? '' : (() => {
+          const prev = previewSession(type, c.env, suggested, null);
+          const items = (prev && prev.exercises) || [];
+          if (!items.length) return '';
+          return `<div class="hero-what">
+            ${items.map(it => {
+              const ex = EX[it.exId];
+              if (!ex) return '';
+              const dose = it.cardio ? `${it.targetR} min`
+                : it.load === 'time' ? `${it.sets.length} × ${it.targetR}s`
+                : `${it.sets.length} × ${it.targetR}`;
+              return `<div class="hw-row">
+                <span class="hw-n">${h(ex.name)}</span>
+                <span class="hw-d mono">${dose}</span>
+              </div>`;
+            }).join('')}
+          </div>`;
+        })()}
         ${rt ? `<button class="btn primary block lg mt" data-act="routine-start" data-v="${h(rt.id)}" data-planned="1">Start</button>`
              : `<button class="btn primary block lg mt" data-act="start-session" data-type="${type}" data-rung="${suggested}">Start</button>`}
         ${/* Two controls, side by side, that look like controls. They were
@@ -18790,6 +18875,19 @@ function sheetStretch() {
           The reasons are headings now. A movement is under the answer that put
           it there, the chips are gone from the rows, and the list is organised
           rather than annotated. A reason with nothing under it is not drawn. */''}
+    ${allDone ? '' : `<button class="btn primary block lg mb" data-act="stretch-start">Start it &mdash; ${Math.round(secs / 60)} min</button>`}
+
+    ${/* Closed on arrival. The list was the whole sheet — nine rows before
+          anything else — and it answers the question you already know the
+          answer to. What is behind it is unchanged; what changed is that it
+          no longer stands between you and the two things underneath it. */''}
+    <button class="str-disc ${stretchListOpen ? 'on' : ''}" data-act="stretch-list"
+            aria-expanded="${stretchListOpen ? 'true' : 'false'}">
+      <span class="grow">What&rsquo;s in it</span>
+      <span class="str-disc-n mono">${done.length}/${list.length}</span>
+      <span class="str-disc-c">${ICO.chevD}</span>
+    </button>
+    <div class="str-body${stretchListOpen ? '' : ' hide'}">
     ${(() => {
       /* Short, because these are uppercase and letter-spaced: "Because of your
          working day · Camera / AV crew" wrapped to two lines and pushed the
@@ -18833,16 +18931,17 @@ function sheetStretch() {
         </div>`;
       }).join('');
     })()}
-    </div>
-
-    ${allDone ? '' : `<button class="btn primary block lg mb" data-act="stretch-start">Start it &mdash; ${Math.round(secs / 60)} min</button>`}
-    <div class="btn-row mb">
+    ${/* Both of these act on the list, so they live with it rather than adding
+          two more buttons to a screen you have not asked to see it on. */''}
+    <div class="btn-row mt">
       <button class="btn ghost grow" data-act="stretch-reroll">Something else</button>
       <button class="btn ghost grow" data-act="stretch-save">Save as routine</button>
     </div>
+    </div>
 
     ${/* Presets. The other question people have is not "what should I do
-          today" but "my back is wrecked and I have fifteen minutes". */''}
+          today" but "my back is wrecked and I have fifteen minutes" — and that
+          one used to be answerable only after scrolling past nine rows. */''}
     <div class="sec-head"><span class="sec-t">Quick start</span></div>
     <div class="pset mb">
       ${STRETCH_PRESETS.filter(p => presetReady(p.k)).map(p => `
@@ -18936,6 +19035,20 @@ let stretchDraft = null;
 /* Which way the setup figure is facing. Draft state, like stretchDraft itself:
    it is a question about this visit to the sheet, not about you. */
 let stretchSetView = 'front';
+
+/* Whether today's list is showing its movements.
+
+   Closed when the sheet opens, and it has to stay closed *only* then: this
+   sheet redraws itself by calling sheetStretch() again on every tick, reroll
+   and back — so resetting inside the render would slam the list shut the
+   instant you ticked something in it. The one true entry point (`case
+   'stretch'`) clears it; every redraw leaves it alone.
+
+   The reason it starts closed is that nine rows of movements were the whole
+   sheet, and the presets — which answer a different and more urgent question,
+   "my back is wrecked and I have fifteen minutes" — sat underneath all of
+   them where nobody scrolled. */
+let stretchListOpen = false;
 
 /* One place that flags an area, whether it was tapped on the figure, on a chip
    below it, or resolved from a near-miss on bare silhouette. Three call sites
@@ -20616,7 +20729,11 @@ document.addEventListener('click', ev => {
     case 'routines': sheetRoutines(); break;
 
     /* ---- stretch ---- */
-    case 'stretch': sheetStretch(); break;
+    /* The only real entry point — the other four sheetStretch() calls below
+       are the sheet redrawing itself, and clearing the flag there would shut
+       the list the moment you ticked something in it. */
+    case 'stretch': stretchListOpen = false; sheetStretch(); break;
+    case 'stretch-list': stretchListOpen = !stretchListOpen; sheetStretch(); break;
     case 'stretch-setup': stretchDraft = null; sheetStretchSetup(); break;
     case 'stretch-occ': {
       /* Tapping the one already chosen clears it. "None of these" is a real

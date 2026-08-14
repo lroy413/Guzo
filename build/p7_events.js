@@ -1467,7 +1467,11 @@ document.addEventListener('click', ev => {
     case 'routines': sheetRoutines(); break;
 
     /* ---- stretch ---- */
-    case 'stretch': sheetStretch(); break;
+    /* The only real entry point — the other four sheetStretch() calls below
+       are the sheet redrawing itself, and clearing the flag there would shut
+       the list the moment you ticked something in it. */
+    case 'stretch': stretchListOpen = false; sheetStretch(); break;
+    case 'stretch-list': stretchListOpen = !stretchListOpen; sheetStretch(); break;
     case 'stretch-setup': stretchDraft = null; sheetStretchSetup(); break;
     case 'stretch-occ': {
       /* Tapping the one already chosen clears it. "None of these" is a real

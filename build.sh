@@ -74,8 +74,28 @@ cat "${PARTS[@]}" > GuzoFit.html
 # page, which is what makes "is this host current?" answerable at all.
 VERSION_STR=$(sed -n "s/^const VERSION = '\([^']*\)';.*/\1/p" build/p3_data.js | head -1)
 [ -n "$VERSION_STR" ] || { echo "build: could not read VERSION from build/p3_data.js" >&2; exit 1; }
+
+# The stamp carries the commit as well as the version, because the version alone
+# could not answer the question the stamp exists for. VERSION changes on a
+# release; this repo ships many builds per release, so every build for weeks
+# read "1.8.0" and "is this host serving the latest?" was unanswerable — which
+# is exactly what the comment above claimed it made answerable.
+#
+# The CI variable first and git second: on Cloudflare both work, so a wrong
+# guess at the variable name degrades to the checkout's own SHA rather than
+# silently dropping back to a bare version. Locally the SHA is HEAD at build
+# time, i.e. the parent of the commit that will contain this file — harmless,
+# because the served artefact is the one Cloudflare rebuilds from the commit
+# it checked out, and that one is exact.
+BUILD_SHA="${WORKERS_CI_COMMIT_SHA:-${CF_PAGES_COMMIT_SHA:-${GITHUB_SHA:-}}}"
+if [ -z "$BUILD_SHA" ] && command -v git >/dev/null 2>&1; then
+  BUILD_SHA=$(git rev-parse --short=7 HEAD 2>/dev/null || echo "")
+fi
+BUILD_STR="$VERSION_STR"
+[ -n "$BUILD_SHA" ] && BUILD_STR="${VERSION_STR}+$(printf '%s' "$BUILD_SHA" | cut -c1-7)"
+
 grep -q '__GUZO_BUILD__' GuzoFit.html || { echo "build: build stamp placeholder is missing" >&2; exit 1; }
-sed -i "s/__GUZO_BUILD__/${VERSION_STR}/g" GuzoFit.html
+sed -i "s/__GUZO_BUILD__/${BUILD_STR}/g" GuzoFit.html
 
 # index.html is the deployed file and is byte-identical to GuzoFit.html. Two
 # names for one artefact: GuzoFit.html is what the build is called, index.html
@@ -108,4 +128,4 @@ fi
 
 bytes=$(wc -c < GuzoFit.html | tr -d ' ')
 swbytes=$(wc -c < sw.js | tr -d ' ')
-echo "build: ${#PARTS[@]} parts → index.html (${bytes} bytes) + sw.js (${swbytes} bytes) → dist/ · v${VERSION_STR}"
+echo "build: ${#PARTS[@]} parts → index.html (${bytes} bytes) + sw.js (${swbytes} bytes) → dist/ · ${BUILD_STR}"

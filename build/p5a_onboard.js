@@ -746,6 +746,9 @@ function roundToStep(w, u) { const step = u === 'kg' ? 2.5 : 5; return Math.max(
    half-seeded profile behind for someone who then walked back and changed
    their answers. The restore is in a finally, so a throw cannot leak it. */
 function obPreviewSession() {
+  /* The draft has to be written into S for the engine to see it, and *that*
+     write is what this snapshot protects — previewSession() below protects its
+     own generate, but it cannot know about the profile fields set here. */
   const snap = JSON.stringify(S);
   try {
     const P = S.profile;
@@ -763,7 +766,7 @@ function obPreviewSession() {
     seedStartingWeights(obDraft.level, obDraft.bodyweight || 0,
                         obDraft.seedOverrides, obDraft.seedExact);
     const prog = PROGRAMS[obDraft.programId] || PROGRAMS.anchor3;
-    return generateSession(prog.cycle[0] || 'full', P.envs[0], 'full', obDraft.sessionMins);
+    return previewSession(prog.cycle[0] || 'full', P.envs[0], 'full', obDraft.sessionMins);
   } catch (e) {
     return null;
   } finally {

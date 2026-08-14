@@ -55,6 +55,19 @@ function sheetStretch() {
           The reasons are headings now. A movement is under the answer that put
           it there, the chips are gone from the rows, and the list is organised
           rather than annotated. A reason with nothing under it is not drawn. */''}
+    ${allDone ? '' : `<button class="btn primary block lg mb" data-act="stretch-start">Start it &mdash; ${Math.round(secs / 60)} min</button>`}
+
+    ${/* Closed on arrival. The list was the whole sheet — nine rows before
+          anything else — and it answers the question you already know the
+          answer to. What is behind it is unchanged; what changed is that it
+          no longer stands between you and the two things underneath it. */''}
+    <button class="str-disc ${stretchListOpen ? 'on' : ''}" data-act="stretch-list"
+            aria-expanded="${stretchListOpen ? 'true' : 'false'}">
+      <span class="grow">What&rsquo;s in it</span>
+      <span class="str-disc-n mono">${done.length}/${list.length}</span>
+      <span class="str-disc-c">${ICO.chevD}</span>
+    </button>
+    <div class="str-body${stretchListOpen ? '' : ' hide'}">
     ${(() => {
       /* Short, because these are uppercase and letter-spaced: "Because of your
          working day · Camera / AV crew" wrapped to two lines and pushed the
@@ -98,16 +111,17 @@ function sheetStretch() {
         </div>`;
       }).join('');
     })()}
-    </div>
-
-    ${allDone ? '' : `<button class="btn primary block lg mb" data-act="stretch-start">Start it &mdash; ${Math.round(secs / 60)} min</button>`}
-    <div class="btn-row mb">
+    ${/* Both of these act on the list, so they live with it rather than adding
+          two more buttons to a screen you have not asked to see it on. */''}
+    <div class="btn-row mt">
       <button class="btn ghost grow" data-act="stretch-reroll">Something else</button>
       <button class="btn ghost grow" data-act="stretch-save">Save as routine</button>
     </div>
+    </div>
 
     ${/* Presets. The other question people have is not "what should I do
-          today" but "my back is wrecked and I have fifteen minutes". */''}
+          today" but "my back is wrecked and I have fifteen minutes" — and that
+          one used to be answerable only after scrolling past nine rows. */''}
     <div class="sec-head"><span class="sec-t">Quick start</span></div>
     <div class="pset mb">
       ${STRETCH_PRESETS.filter(p => presetReady(p.k)).map(p => `
@@ -201,6 +215,20 @@ let stretchDraft = null;
 /* Which way the setup figure is facing. Draft state, like stretchDraft itself:
    it is a question about this visit to the sheet, not about you. */
 let stretchSetView = 'front';
+
+/* Whether today's list is showing its movements.
+
+   Closed when the sheet opens, and it has to stay closed *only* then: this
+   sheet redraws itself by calling sheetStretch() again on every tick, reroll
+   and back — so resetting inside the render would slam the list shut the
+   instant you ticked something in it. The one true entry point (`case
+   'stretch'`) clears it; every redraw leaves it alone.
+
+   The reason it starts closed is that nine rows of movements were the whole
+   sheet, and the presets — which answer a different and more urgent question,
+   "my back is wrecked and I have fifteen minutes" — sat underneath all of
+   them where nobody scrolled. */
+let stretchListOpen = false;
 
 /* One place that flags an area, whether it was tapped on the figure, on a chip
    below it, or resolved from a near-miss on bare silhouette. Three call sites
