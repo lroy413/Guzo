@@ -1817,3 +1817,62 @@ the file.
 
 The checks are written as line arrays reproducing each layout rather than by
 committing the document, which is somebody's training plan and not a fixture.
+
+---
+
+## Finishing a session is destructive, which is why there was nothing to go back to
+
+Reported: finish was tapped one movement early, and there was no way back in.
+
+The obvious reading is that the session was closed and needed reopening. The
+actual problem is worse. `finishSession()` runs
+
+    A.exercises = A.exercises.filter(i => i.sets.some(s => s.done));
+
+so **every movement with nothing ticked is deleted**. Tap finish early and the
+rest of the workout is not merely closed, it is gone — a naive "reopen" would
+have handed back a session containing only the one movement that had a tick in
+it, which is technically a reopen and completely useless. The rest of the
+workout is what you went back for.
+
+So the undo is captured *before* the finish starts taking things apart, and it
+holds the full list. The kept movements are the same objects in both arrays, so
+their ticks are the same ticks.
+
+### What has to be reversed, and what must not be
+
+Finishing does seven things, and reopening has to undo six of them: take the
+session back out of the log, restore the full exercise list, unwind the
+progression, un-mark the day on the week, put the stretch log back, and
+decrement the routine's use count.
+
+**Progression is the one that matters and the one it would be easy to skip.**
+`applyProgression()` writes to `S.lifts`, so reopening without unwinding it
+banks the session's gains once now and again when the session is finished for
+real. Only the entries the session touched are restored — anything it never
+looked at keeps whatever else has written to it.
+
+Milestones are deliberately *not* reversed. `milestonesReached()` derives from
+`journeyStats()` now, so a marker whose evidence went away stops showing on its
+own; and a stored flag that stays is the app keeping something rather than
+taking it back, which is the right way for this app to be wrong.
+
+### One slot, one day, the last session
+
+`S.lastFinish` is replaced on every finish rather than stored per session,
+because progression compounds: a session with another one logged on top of it
+cannot have its lifts restored without unpicking the later one's too. So the
+offer is the last session, while it is still today — `today()` rather than a
+wall-clock window, so a session finished at 1am under a 4am day boundary is
+still today's.
+
+Offered in exactly two places, both of which are where the mistake is noticed:
+the finish sheet, and Today's completed hero for when that sheet has already
+been dismissed. Not a Settings toggle for a concept nobody has a name for.
+
+### And a check that threw instead of failing
+
+The revert that shortens the captured list leaves `exercises[1]` undefined, so
+the "can be finished again" step threw and the whole instrument died before
+printing anything — which reads as a hang, not as the red it was meant to be.
+Third time in this project. Guarded now, and the revert prints `1 of 7`.

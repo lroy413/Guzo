@@ -2522,7 +2522,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+bb1a416</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+22f1b34</div>
     </div>
   </section>
 
@@ -12758,6 +12758,11 @@ function renderToday() {
         </div>
         <p class="hero-sub">That's today's waypoint marked. Anything else now is a bonus, not a requirement.</p>
         <button class="btn ghost block mt" data-act="new-session">Log something else</button>
+        ${/* And here, because the finish sheet is dismissable and the mistake
+              is often noticed after it has been dismissed. Same session, same
+              undo — this is not a second way to do it, it is the same one in
+              the other place you would look. */''}
+        ${canReopen() ? `<button class="btn quiet block mt-s" data-act="reopen-session">Finished this by mistake? Pick it back up</button>` : ''}
       </div>
     </div>`;
   } else if (plan && plan.type === 'recovery' && !plan.routineId) {
@@ -19555,6 +19560,34 @@ function finishSession() {
      work is a better answer than zero. */
   A.dur = A.backdated ? sessionMinsEstimate(A)
                       : Math.max(1, sessionActiveMins(A) || sessionMinsEstimate(A));
+
+  /* Everything needed to put this back, captured before the finish starts
+     taking things apart.
+
+     Finishing is destructive in a way that is easy to miss: the filter on the
+     next line deletes every movement you had not ticked. Hit the button one
+     movement early — which is the whole reason this exists — and the rest of
+     the session is not merely closed, it is gone, so there is nothing left to
+     go back to. `all` is taken before the filter and holds the same objects,
+     so the ticks on the kept ones are the same ticks.
+
+     One slot, not one per session: only the most recent finish is reversible,
+     because progression compounds and a session with later ones stacked on top
+     of it cannot have its lifts restored without unpicking theirs too. */
+  const touched = {};
+  A.exercises.forEach(i => { if (S.lifts[i.exId]) touched[i.exId] = S.lifts[i.exId]; });
+  S.lastFinish = {
+    id: A.id,
+    at: Date.now(),
+    date: A.date,
+    all: A.exercises.slice(),
+    lifts: JSON.parse(JSON.stringify(touched)),
+    /* Whether the day was already discharged before this session, so putting
+       the session back does not un-tick a day something else had settled. */
+    planWasDone: !!((S.week.plan[A.date] || {}).done),
+    stretchWasDone: ((S.stretch && S.stretch.done && S.stretch.done[key(A.date)]) || []).slice()
+  };
+
   A.exercises = A.exercises.filter(i => i.sets.some(s => s.done));
   A.kcal = sessionKcal(A);
   applyProgression(A);
@@ -19579,6 +19612,57 @@ function finishSession() {
   buzz([40, 50, 90]);
   go('today');
   setTimeout(() => sheetSessionDone(A, v, fresh), 220);
+}
+
+/* Whether the session just finished can still be picked back up.
+
+   Only the last one in the log, only while it is still today, and only while
+   nothing has been logged after it — progression compounds, so restoring the
+   lifts under a session that has another one stacked on top would quietly
+   undo that one's gains too. `today()` rather than a wall-clock window, so a
+   session finished at 1am on a 4am day boundary is still today's. */
+function canReopen() {
+  const f = S.lastFinish;
+  if (!f || S.active) return false;
+  const last = (S.sessions || [])[S.sessions.length - 1];
+  return !!last && last.id === f.id && key(f.date) === today();
+}
+
+/* Put it back exactly as it was, including the movements the finish deleted. */
+function reopenSession() {
+  if (!canReopen()) return false;
+  const f = S.lastFinish;
+  const A = S.sessions.pop();
+
+  /* The full list, so the movements you had not started are there to finish —
+     which is the entire point. */
+  A.exercises = f.all;
+  delete A.ended;
+  delete A.dur;
+  delete A.kcal;
+
+  /* Progression, unwound. Restoring only what the session touched: an entry it
+     never looked at must keep whatever else has written to it. */
+  Object.keys(f.lifts).forEach(id => { S.lifts[id] = f.lifts[id]; });
+
+  if (!f.planWasDone && S.week.plan[A.date]) delete S.week.plan[A.date].done;
+  if (S.stretch && S.stretch.done) {
+    if (f.stretchWasDone.length) S.stretch.done[key(A.date)] = f.stretchWasDone.slice();
+    else delete S.stretch.done[key(A.date)];
+  }
+  if (A.routineId) {
+    const rt = routineById(A.routineId);
+    if (rt && rt.uses) rt.uses--;
+  }
+
+  /* The clock picks up where it stopped rather than counting the time the
+     session spent closed — tickAt is what stops a gap being back-filled. */
+  A.tickAt = Date.now();
+  S.active = A;
+  S.lastFinish = null;
+  wakeOn();
+  save(true);
+  return true;
 }
 
 function sheetSessionDone(A, v, fresh) {
@@ -19625,6 +19709,12 @@ function sheetSessionDone(A, v, fresh) {
       <span class="creed-tag">GUZO · ${prettyDate(today()).toUpperCase()}</span>
     </div>
     <button class="btn primary block lg mt" data-act="close">Good</button>
+    ${/* The way back, offered where the mistake is noticed. Hitting finish one
+          movement early is a tap error, and the moment you find out is this
+          sheet — so the correction belongs on it rather than somewhere you
+          would have to know exists. Quiet, because it is the way out of a
+          screen you reached by finishing, not a second thing to do. */''}
+    ${canReopen() ? `<button class="btn quiet block mt-s" data-act="reopen-session">Not finished &mdash; go back in</button>` : ''}
   `);
 }
 
@@ -20052,6 +20142,13 @@ document.addEventListener('click', ev => {
     case 'blank-session': blankSession(); break;
     case 'open-typepick': sheetTypePick(); break;
     case 'pick-type': closeSheet(); sheetLadder(v); break;
+    case 'reopen-session': {
+      if (!reopenSession()) { toast('That one can no longer be reopened'); break; }
+      closeSheet();
+      go('train'); renderTrain();
+      toast('Back in it &mdash; nothing was lost');
+      break;
+    }
     case 'goto-train': go('train'); break;
     case 'train-pause': {
       const paused = toggleSessionPause();

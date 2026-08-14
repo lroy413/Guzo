@@ -331,6 +331,11 @@ function renderToday() {
         </div>
         <p class="hero-sub">That's today's waypoint marked. Anything else now is a bonus, not a requirement.</p>
         <button class="btn ghost block mt" data-act="new-session">Log something else</button>
+        ${/* And here, because the finish sheet is dismissable and the mistake
+              is often noticed after it has been dismissed. Same session, same
+              undo — this is not a second way to do it, it is the same one in
+              the other place you would look. */''}
+        ${canReopen() ? `<button class="btn quiet block mt-s" data-act="reopen-session">Finished this by mistake? Pick it back up</button>` : ''}
       </div>
     </div>`;
   } else if (plan && plan.type === 'recovery' && !plan.routineId) {

@@ -2080,6 +2080,107 @@ try {
     goalFx.restBoth === goalFx.restNeither,
     `${goalFx.restBoth}s`);
 
+  /* ---- a session finished by mistake can be picked back up ----
+     Reported: finish was tapped one movement early and there was no way back
+     in. The session was not merely closed — finishSession() filters out every
+     movement with nothing ticked, so the rest of the workout was deleted, and
+     "reopen" would have handed back a session with one exercise in it.
+
+     So the undo is captured before the finish starts taking things apart, and
+     what it restores is the whole session. */
+  console.log('\nfinishing by mistake\n');
+  const reopen = await page.evaluate(() => {
+    const fresh = () => {
+      S = blank(); S.onboarded = true; save(true); buildWeekPlan(true);
+      /* A planned day, so the un-marking path is exercised rather than skipped
+         because today happened to be a rest day in the generated week. */
+      S.week.plan[today()] = { type: 'full', done: false };
+      S.week.days[today()] = { avail: 'long', env: 'full' };
+      save(true);
+      startSession('full', 'full', 60);
+      return S.active;
+    };
+    const out = {};
+
+    let A = fresh();
+    out.total = A.exercises.length;
+    A.exercises[0].sets.forEach(s => { s.done = true; s.w = 100; s.r = 5; });
+    const liftBefore = JSON.stringify(S.lifts[A.exercises[0].exId] || null);
+    finishSession();
+    out.keptOnFinish = S.sessions[0].exercises.length;
+    out.dayDoneOnFinish = !!(S.week.plan[today()] || {}).done;
+    out.progressed = JSON.stringify(S.lifts[A.exercises[0].exId] || null) !== liftBefore;
+    out.offered = canReopen();
+    out.reopened = reopenSession();
+    out.restored = S.active ? S.active.exercises.length : 0;
+    out.ticksKept = S.active ? S.active.exercises[0].sets.filter(s => s.done).length : 0;
+    out.logged = S.sessions.length;
+    out.dayDoneAfter = !!(S.week.plan[today()] || {}).done;
+    out.liftBack = JSON.stringify(S.lifts[A.exercises[0].exId] || null) === liftBefore;
+    out.twice = canReopen();
+    /* And finishing again works, so the way back is not a one-way door.
+       Guarded, because a reopen that hands back fewer movements than it should
+       leaves exercises[1] undefined — and a check that throws has not run: the
+       instrument died before printing anything, which reads as a hang rather
+       than as the red it was supposed to be. */
+    const second = S.active && S.active.exercises[1];
+    if (second) second.sets.forEach(s => { s.done = true; s.w = 60; s.r = 8; });
+    if (S.active) finishSession();
+    out.refinished = S.sessions.length;
+    out.refinishedExercises = (S.sessions[0] || { exercises: [] }).exercises.length;
+
+    /* Refused once something else has been logged on top: progression
+       compounds, and restoring the lifts under this one would silently undo
+       the later session's gains too. */
+    A = fresh();
+    A.exercises[0].sets.forEach(s => { s.done = true; s.w = 100; s.r = 5; });
+    finishSession();
+    S.active = null;
+    startSession('full', 'full', 60);
+    S.active.exercises[0].sets.forEach(s => { s.done = true; s.w = 100; s.r = 5; });
+    finishSession();
+    /* lastFinish now names the second session, so the first is unreachable —
+       which is the correct answer, not a bug. */
+    const secondId = S.sessions[S.sessions.length - 1].id;
+    out.onlyTheLast = S.lastFinish.id === secondId;
+
+    /* And refused tomorrow. */
+    A = fresh();
+    A.exercises[0].sets.forEach(s => { s.done = true; s.w = 100; s.r = 5; });
+    finishSession();
+    S.lastFinish.date = dk(addDays(fromKey(today()), -1));
+    S.sessions[S.sessions.length - 1].date = S.lastFinish.date;
+    out.staleRefused = !canReopen();
+    return out;
+  });
+
+  check('finishing early deletes the movements you had not started',
+    reopen.keptOnFinish === 1 && reopen.total > 1,
+    `${reopen.total} movements, ${reopen.keptOnFinish} logged`);
+  check('...and the session can be picked back up', reopen.offered && reopen.reopened);
+  /* The whole point. Handing back the one movement that had a tick in it would
+     be technically a reopen and useless — the rest of the workout is what you
+     went back for. */
+  check('...with every movement it started with, not just the ticked ones',
+    reopen.restored === reopen.total, `${reopen.restored} of ${reopen.total}`);
+  check('...keeping the work already logged in it', reopen.ticksKept > 0,
+    String(reopen.ticksKept));
+  check('...taking it back out of the log', reopen.logged === 0, String(reopen.logged));
+  check('...and off the week', reopen.dayDoneOnFinish === true && reopen.dayDoneAfter === false,
+    `${reopen.dayDoneOnFinish} → ${reopen.dayDoneAfter}`);
+  /* applyProgression runs on finish and writes to S.lifts. Reopening without
+     unwinding it would leave the session's gains banked twice once it is
+     finished for real. */
+  check('...with the progression it banked unwound',
+    reopen.progressed === true && reopen.liftBack === true,
+    `applied ${reopen.progressed}, restored ${reopen.liftBack}`);
+  check('...once, not repeatedly', reopen.twice === false);
+  check('...and it can be finished again for real',
+    reopen.refinished === 1 && reopen.refinishedExercises === 2,
+    `${reopen.refinished} logged, ${reopen.refinishedExercises} movements`);
+  check('only the last session is reopenable', reopen.onlyTheLast === true);
+  check('...and not once it is no longer today', reopen.staleRefused === true);
+
   /* Said, never done. A week rebuilt around a number given for the energy
      equation is not something anyone asked for, and the functional recovery
      evidence is not strong enough to spend someone's Tuesday on. */
