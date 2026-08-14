@@ -1940,3 +1940,46 @@ instead. And the stat row inherited `--teal`, which in this app means
 *completed*: right over "logged today", wrong over a standing total, where it
 reads as a session you have just finished. The camp's numbers are ember,
 because the journey is ember.
+
+---
+
+## The camp came out of its card
+
+A camp inside a rounded rectangle is a picture of a camp. Full-bleed, the
+mountains are where you are.
+
+The sky, the stars, the range and the firelight are now one backdrop behind the
+whole of Base camp, reaching the edges of the phone, with the name and the
+numbers standing in it and no border anywhere. It is broken out through the
+screen's own horizontal padding and given that padding back as its own, so the
+picture reaches the edges while the words stay on the same left margin as every
+other line on the screen.
+
+**It scrolls with the content, and that was a decision.** Fixing it to the
+viewport gives parallax on paper and, in practice, three lists sliding over a
+horizon that never moves — which reads as a bug rather than as depth.
+
+Three things went wrong on the way, and each is a general trap:
+
+**A backdrop with its own height overruns the thing it is behind.** The first
+version was `position:absolute` with `height:432px` on `#more-body`, so it ran
+straight on underneath the first three list rows: the mountains were drawn, and
+you could see fragments of them at the left edge between opaque cards. It is
+one block now — `.camp` — that sizes itself to the type standing in it, with
+the range anchored to that block's floor and the room it needs supplied as
+padding under the stats. The check asserts the range ends above the first list,
+and reverting to a fixed height prints `ridge ends 516, list starts 477`.
+
+**`overflow:hidden` ends a picture on a rule.** The ridge fills are opaque and
+darker than the page, so clipping them left a hard horizontal line across the
+screen with the mountains sliced off along it — a panel, which is the thing
+this stopped being. The backdrop is masked out at the foot instead, so the
+range settles into the night and the seam has nowhere to appear.
+
+**And a full-bleed check cannot be measured in a wide window.** `.screen > *`
+caps the column at 640px and centres it, so in the instrument's 1280 window the
+backdrop correctly reaches the edges of a 672px column and the assertion read
+`304–976 vs 0–1280` — a full-bleed backdrop reported as inset by three hundred
+pixels. Measured at phone width, where the column *is* the screen, which is the
+case worth asserting. Same lesson as the onboarding title-wrap check, which had
+to be measured at 390 for the same reason.

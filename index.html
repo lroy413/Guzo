@@ -2098,32 +2098,62 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .str-body{margin-top:12px}
 
 /* ---------- base camp ----------
-   The hero shell, plus the two things that make it a camp. */
-.hero.camp{margin-bottom:18px}
-.camp-stars{position:absolute;left:0;right:0;top:0;height:52%;pointer-events:none;opacity:.55}
-.camp-stars svg{width:100%;height:100%;display:block}
-/* Firelight, coming up off the bottom edge rather than sitting behind the
-   text. Ember, because that is the brand's own warm, and low enough that the
-   copy above it is still read against the card and not against the glow. */
-.camp-fire{position:absolute;left:50%;transform:translateX(-50%);bottom:-26px;
-  width:78%;height:120px;pointer-events:none;
-  background:radial-gradient(60% 100% at 50% 100%,rgba(233,180,76,.30) 0%,rgba(233,180,76,.10) 45%,transparent 72%)}
+   The sky is the screen. One full-bleed block that sizes itself to the type
+   standing in it, with the ridge on its floor — not a card with a picture in
+   it, and not a fixed backdrop the lists slide over, which reads as a bug
+   rather than as parallax. */
+#more-body{position:relative}
+/* Out through the screen's own horizontal padding so the sky reaches the edges
+   of the phone, and back in again as padding so the words stay aligned with
+   every other line on the screen. */
+.camp{position:relative;overflow:hidden;
+  margin:0 calc(-1 * var(--sp)) 6px;padding:14px var(--sp) 0}
+/* Masked out at the foot rather than clipped there. The ridge fills are
+   opaque and darker than the page, so `overflow:hidden` alone ended the sky on
+   a hard rule across the screen with the mountains sliced off along it — a
+   panel, which is the thing this stopped being. Faded, the range settles into
+   the night instead, and the seam between the backdrop and the page has
+   nowhere to appear. */
+.camp-bg{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 68%,rgba(0,0,0,.55) 86%,transparent 100%);
+  mask-image:linear-gradient(180deg,#000 0%,#000 68%,rgba(0,0,0,.55) 86%,transparent 100%)}
+/* Night, fading out rather than stopping. A hard edge would put a horizon line
+   across the screen where there is nothing to see. */
+.camp-sky{position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(28,40,60,.55) 0%,rgba(20,28,42,.32) 46%,rgba(11,13,16,0) 100%)}
+.camp-stars{position:absolute;left:0;right:0;top:0;height:58%;width:100%;display:block;opacity:.62}
+/* On the floor of the block rather than at its top, which is what makes it a
+   horizon instead of a header decoration. The room it needs is padding under
+   the stats — see .camp-head — so the mountains are drawn in open sky and the
+   first list starts below them rather than on top of them. */
+.camp-bg .ridge{top:auto;bottom:0;height:168px;opacity:.9}
+/* Firelight, off the ground the ridge stands on. Ember, because that is the
+   brand's own warm, and low enough that the copy over it is still read against
+   the page rather than against the glow. */
+.camp-fire{position:absolute;left:50%;transform:translateX(-50%);bottom:-46px;
+  width:84%;height:176px;pointer-events:none;
+  background:radial-gradient(58% 100% at 50% 100%,rgba(233,180,76,.26) 0%,rgba(233,180,76,.09) 46%,transparent 74%)}
 @media (prefers-reduced-motion: no-preference){
-  /* Slow enough to be noticed only if you look for it. A camp fire that
-     flickered on a UI cadence would be a distraction on a screen you come to
-     when you are done. */
+  /* Slow enough to be noticed only if you look for it. A fire flickering on a
+     UI cadence would be a distraction on the screen you come to when you are
+     done. */
   .camp-fire{animation:campFire 6.5s ease-in-out infinite}
   @keyframes campFire{0%,100%{opacity:1}45%{opacity:.72}70%{opacity:.9}}
 }
-/* Wide enough for the line it actually holds. 30ch wrapped "set out Fri 14
-   Aug" onto a second line for one word. */
-.camp-sub{max-width:38ch}
+
+/* The camp itself: type standing in the sky, no border around it. The bottom
+   padding is the sky the mountains are drawn in. */
+.camp-head{position:relative;z-index:1;padding:2px 0 150px}
+.camp-eyebrow{display:block;font-size:11px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ember-2)}
+.camp-name{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:10px 0 0}
+.camp-sub{font-size:13.5px;line-height:1.5;color:var(--text-dim);margin:10px 0 0;max-width:38ch}
+.camp-stats{display:flex;flex-wrap:wrap;gap:22px;row-gap:14px;margin-top:22px}
+.camp-stats > div{display:flex;flex-direction:column;gap:3px}
 /* Ember rather than the teal every other hero uses. Teal is this app's colour
    for something completed — right over "logged today", wrong over a standing
-   total, where it reads as a session you just finished. These are the numbers
-   the whole journey has accumulated, and the journey is ember. */
-.camp .hs-v{color:var(--ember-2)}
-.camp-stats{flex-wrap:wrap;row-gap:12px}
+   total, where it reads as a session you just finished. */
+.camp-stats .hs-v{color:var(--ember-2)}
 .hs-of{font-size:.62em;font-weight:650;color:var(--faint);margin-left:1px}
 
 /* The arrow between a stored weight and its corrected value. */
@@ -2566,7 +2596,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+6803b43</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+df59cc1</div>
     </div>
   </section>
 
@@ -15173,43 +15203,45 @@ function renderMore() {
   const p = S.profile;
   const st = totalStats();
   const jst = journeyStats();
-  /* Base camp as a place rather than a page of rows.
-
-     It is the one screen in the app named after somewhere, and it looked like
-     a settings index: an identity strip and three lists. Everything here is
-     drawn from what the app already speaks — the same ridge as Today and
-     Progress, the same hero shell, the same stat row — because a camp built
-     out of new components would be a different app on one screen.
-
-     Two things are new and both are the camp itself: a sky with something in
-     it, and firelight coming up off the bottom edge. The glow is what makes it
-     read as a place somebody is sitting in rather than a header with a
-     mountain behind it. */
   const marks = milestonesReached().length;
-  let html = `<div class="hero camp">
-    <div class="camp-stars" aria-hidden="true">
-      <svg viewBox="0 0 320 90" preserveAspectRatio="none">
-        ${[[24,18,.9],[58,34,.5],[92,12,.7],[131,28,.45],[168,16,.8],
-           [203,36,.5],[238,20,.65],[271,32,.42],[299,14,.75]]
-          .map(([x, y, o]) => `<circle cx="${x}" cy="${y}" r="1.1" fill="#E9E3D8" opacity="${o}"/>`).join('')}
-      </svg>
-    </div>
+  /* The sky is the screen, not a card in it.
+
+     A camp inside a rounded rectangle is a picture of a camp. Full-bleed, the
+     mountains are where you are — so the stars, the ridge and the firelight
+     are a backdrop laid behind the whole of Base camp, and the name and the
+     numbers stand in it with no border around them.
+
+     Absolutely positioned inside #more-body and pulled back out through the
+     screen's own padding, so it reaches the edges of the phone and still
+     scrolls away with the content. Fixed would have held it against the
+     viewport and left the lists sliding over a horizon that never moved,
+     which reads as a bug rather than as parallax. */
+  let html = `<div class="camp">
+  <div class="camp-bg" aria-hidden="true">
+    <div class="camp-sky"></div>
+    <svg class="camp-stars" viewBox="0 0 320 150" preserveAspectRatio="none">
+      ${[[18,26,.85,1.1],[47,58,.4,.8],[74,16,.62,.9],[103,44,.5,1],[128,72,.35,.8],
+         [152,22,.9,1.2],[181,52,.45,.9],[206,30,.7,1],[233,66,.38,.8],
+         [258,18,.8,1.1],[281,48,.5,.9],[303,28,.65,1]]
+        .map(([x, y, o, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#E9E3D8" opacity="${o}"/>`).join('')}
+    </svg>
     ${ridgeHTML('camp', true)}
-    <div class="camp-fire" aria-hidden="true"></div>
-    <div class="hero-in">
-      ${/* No "Base camp" eyebrow: the screen header already says it, and a
-            card that repeats the title it sits under is a label doing nothing.
-            The eyebrow carries the thing you cannot see anywhere else. */''}
-      <span class="hero-eyebrow">Day ${jst.day} on the route</span>
-      <h1 class="hero-title">${h(p.name || 'Traveller')}</h1>
-      <p class="hero-sub camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything below is here when you want it.</p>
-      <div class="hero-stats camp-stats">
-        <div><span class="hs-v">${st.count}</span><span class="hs-k">session${st.count === 1 ? '' : 's'}</span></div>
-        <div><span class="hs-v">${marks}<span class="hs-of">/${MILESTONES.length}</span></span><span class="hs-k">markers</span></div>
-        ${st.tonnage ? `<div><span class="hs-v">${(st.tonnage / 1000).toFixed(1)}k</span><span class="hs-k">${unit()} moved</span></div>` : ''}
-        ${st.mins ? `<div><span class="hs-v">${Math.round(st.mins / 60)}</span><span class="hs-k">hours in</span></div>` : ''}
-      </div>
+    <div class="camp-fire"></div>
+  </div>
+
+  <div class="camp-head">
+    ${/* No "Base camp" eyebrow: the screen header already says it, and a
+          block that repeats the title above it is a label doing nothing. */''}
+    <span class="camp-eyebrow">Day ${jst.day} on the route</span>
+    <h1 class="camp-name">${h(p.name || 'Traveller')}</h1>
+    <p class="camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything below is here when you want it.</p>
+    <div class="camp-stats">
+      <div><span class="hs-v">${st.count}</span><span class="hs-k">session${st.count === 1 ? '' : 's'}</span></div>
+      <div><span class="hs-v">${marks}<span class="hs-of">/${MILESTONES.length}</span></span><span class="hs-k">markers</span></div>
+      ${st.tonnage ? `<div><span class="hs-v">${(st.tonnage / 1000).toFixed(1)}k</span><span class="hs-k">${unit()} moved</span></div>` : ''}
+      ${st.mins ? `<div><span class="hs-v">${Math.round(st.mins / 60)}</span><span class="hs-k">hours in</span></div>` : ''}
     </div>
+  </div>
   </div>`;
 
   /* More is a list of places to go. Everything you tune rather than visit now

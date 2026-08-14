@@ -2098,32 +2098,62 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .str-body{margin-top:12px}
 
 /* ---------- base camp ----------
-   The hero shell, plus the two things that make it a camp. */
-.hero.camp{margin-bottom:18px}
-.camp-stars{position:absolute;left:0;right:0;top:0;height:52%;pointer-events:none;opacity:.55}
-.camp-stars svg{width:100%;height:100%;display:block}
-/* Firelight, coming up off the bottom edge rather than sitting behind the
-   text. Ember, because that is the brand's own warm, and low enough that the
-   copy above it is still read against the card and not against the glow. */
-.camp-fire{position:absolute;left:50%;transform:translateX(-50%);bottom:-26px;
-  width:78%;height:120px;pointer-events:none;
-  background:radial-gradient(60% 100% at 50% 100%,rgba(233,180,76,.30) 0%,rgba(233,180,76,.10) 45%,transparent 72%)}
+   The sky is the screen. One full-bleed block that sizes itself to the type
+   standing in it, with the ridge on its floor — not a card with a picture in
+   it, and not a fixed backdrop the lists slide over, which reads as a bug
+   rather than as parallax. */
+#more-body{position:relative}
+/* Out through the screen's own horizontal padding so the sky reaches the edges
+   of the phone, and back in again as padding so the words stay aligned with
+   every other line on the screen. */
+.camp{position:relative;overflow:hidden;
+  margin:0 calc(-1 * var(--sp)) 6px;padding:14px var(--sp) 0}
+/* Masked out at the foot rather than clipped there. The ridge fills are
+   opaque and darker than the page, so `overflow:hidden` alone ended the sky on
+   a hard rule across the screen with the mountains sliced off along it — a
+   panel, which is the thing this stopped being. Faded, the range settles into
+   the night instead, and the seam between the backdrop and the page has
+   nowhere to appear. */
+.camp-bg{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,#000 68%,rgba(0,0,0,.55) 86%,transparent 100%);
+  mask-image:linear-gradient(180deg,#000 0%,#000 68%,rgba(0,0,0,.55) 86%,transparent 100%)}
+/* Night, fading out rather than stopping. A hard edge would put a horizon line
+   across the screen where there is nothing to see. */
+.camp-sky{position:absolute;inset:0;
+  background:linear-gradient(180deg,rgba(28,40,60,.55) 0%,rgba(20,28,42,.32) 46%,rgba(11,13,16,0) 100%)}
+.camp-stars{position:absolute;left:0;right:0;top:0;height:58%;width:100%;display:block;opacity:.62}
+/* On the floor of the block rather than at its top, which is what makes it a
+   horizon instead of a header decoration. The room it needs is padding under
+   the stats — see .camp-head — so the mountains are drawn in open sky and the
+   first list starts below them rather than on top of them. */
+.camp-bg .ridge{top:auto;bottom:0;height:168px;opacity:.9}
+/* Firelight, off the ground the ridge stands on. Ember, because that is the
+   brand's own warm, and low enough that the copy over it is still read against
+   the page rather than against the glow. */
+.camp-fire{position:absolute;left:50%;transform:translateX(-50%);bottom:-46px;
+  width:84%;height:176px;pointer-events:none;
+  background:radial-gradient(58% 100% at 50% 100%,rgba(233,180,76,.26) 0%,rgba(233,180,76,.09) 46%,transparent 74%)}
 @media (prefers-reduced-motion: no-preference){
-  /* Slow enough to be noticed only if you look for it. A camp fire that
-     flickered on a UI cadence would be a distraction on a screen you come to
-     when you are done. */
+  /* Slow enough to be noticed only if you look for it. A fire flickering on a
+     UI cadence would be a distraction on the screen you come to when you are
+     done. */
   .camp-fire{animation:campFire 6.5s ease-in-out infinite}
   @keyframes campFire{0%,100%{opacity:1}45%{opacity:.72}70%{opacity:.9}}
 }
-/* Wide enough for the line it actually holds. 30ch wrapped "set out Fri 14
-   Aug" onto a second line for one word. */
-.camp-sub{max-width:38ch}
+
+/* The camp itself: type standing in the sky, no border around it. The bottom
+   padding is the sky the mountains are drawn in. */
+.camp-head{position:relative;z-index:1;padding:2px 0 150px}
+.camp-eyebrow{display:block;font-size:11px;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--ember-2)}
+.camp-name{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:10px 0 0}
+.camp-sub{font-size:13.5px;line-height:1.5;color:var(--text-dim);margin:10px 0 0;max-width:38ch}
+.camp-stats{display:flex;flex-wrap:wrap;gap:22px;row-gap:14px;margin-top:22px}
+.camp-stats > div{display:flex;flex-direction:column;gap:3px}
 /* Ember rather than the teal every other hero uses. Teal is this app's colour
    for something completed — right over "logged today", wrong over a standing
-   total, where it reads as a session you just finished. These are the numbers
-   the whole journey has accumulated, and the journey is ember. */
-.camp .hs-v{color:var(--ember-2)}
-.camp-stats{flex-wrap:wrap;row-gap:12px}
+   total, where it reads as a session you just finished. */
+.camp-stats .hs-v{color:var(--ember-2)}
 .hs-of{font-size:.62em;font-weight:650;color:var(--faint);margin-left:1px}
 
 /* The arrow between a stored weight and its corrected value. */

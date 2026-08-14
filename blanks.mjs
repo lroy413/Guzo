@@ -1933,6 +1933,50 @@ try {
   check('...and coming back to the sheet closes it again',
     strFold.again.open === false);
 
+  /* ---- base camp is a place, not a card with a picture in it ----
+     The sky, the range and the firelight are the screen's own backdrop. Two
+     things make that true rather than merely intended, and both are easy to
+     lose to a later layout change:
+
+     it reaches the edges of the phone — a backdrop inset by the screen's
+     padding is a panel, which is what it was; and the range is drawn in open
+     sky above the first list rather than behind it, which is what it did on
+     the first attempt: the mountains were there, under three rows of opaque
+     cards, visible only as fragments at the left edge. */
+  /* At phone width. `.screen > *` caps the column at 640px and centres it, so
+     in this instrument's 1280 window the backdrop correctly reaches the edges
+     of a 672px column and nothing wider — measuring against the screen there
+     reports a full-bleed backdrop as inset by three hundred pixels. On the
+     device the column is the screen, which is the case worth asserting. */
+  await page.setViewportSize({ width: 390, height: 844 });
+  const camp = await page.evaluate(() => {
+    S = blank(); S.onboarded = true; S.profile.name = 'Lawrence';
+    S.profile.bodyweight = [{ d: today(), w: 97 }];
+    const e = EX['bb-back-squat'];
+    for (let i = 0; i < 7; i++) S.sessions.push({ id: 'c' + i,
+      date: dk(addDays(fromKey(today()), -i)), ended: Date.now(), dur: 52, kcal: 320, type: 'full',
+      exercises: [{ exId: e.id, name: e.name, load: e.load, targetR: 5,
+        sets: [{ w: 100, r: 5, done: true }, { w: 100, r: 5, done: true }] }] });
+    checkMilestones(); save(true); buildWeekPlan(true); go('more'); render();
+    const R = q => { const el = document.querySelector(q); if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { l: Math.round(b.left), r: Math.round(b.right), t: Math.round(b.top), b: Math.round(b.bottom) }; };
+    const sc = R('#s-more');
+    return { screen: sc, bg: R('#more-body .camp-bg'), ridge: R('#more-body .camp-bg .ridge'),
+             list: R('#more-body .list'), stars: document.querySelectorAll('#more-body .camp-stars circle').length,
+             /* No card shell around it — the point of the change. */
+             boxed: !!document.querySelector('#more-body .camp.hero, #more-body .camp.card') };
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  check('base camp has a sky with something in it', camp.stars >= 8, String(camp.stars));
+  check('...spanning the whole width of the screen, not inset in a card',
+    camp.bg && camp.bg.l === camp.screen.l && camp.bg.r === camp.screen.r,
+    camp.bg ? `${camp.bg.l}–${camp.bg.r} vs ${camp.screen.l}–${camp.screen.r}` : 'no backdrop');
+  check('...and no card shell around it', camp.boxed === false);
+  check('...with the range drawn in open sky rather than behind the first list',
+    camp.ridge && camp.list && camp.ridge.b <= camp.list.t,
+    camp.ridge && camp.list ? `ridge ends ${camp.ridge.b}, list starts ${camp.list.t}` : 'missing');
+
   /* ---- every sheet, not the handful anything else looks at ----
      The emoji sweep reads nine sheets and the blank sweep reads a screen at a
      time. There are sixty-two. The day editor was painting "avail-long",

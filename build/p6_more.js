@@ -32,43 +32,45 @@ function renderMore() {
   const p = S.profile;
   const st = totalStats();
   const jst = journeyStats();
-  /* Base camp as a place rather than a page of rows.
-
-     It is the one screen in the app named after somewhere, and it looked like
-     a settings index: an identity strip and three lists. Everything here is
-     drawn from what the app already speaks — the same ridge as Today and
-     Progress, the same hero shell, the same stat row — because a camp built
-     out of new components would be a different app on one screen.
-
-     Two things are new and both are the camp itself: a sky with something in
-     it, and firelight coming up off the bottom edge. The glow is what makes it
-     read as a place somebody is sitting in rather than a header with a
-     mountain behind it. */
   const marks = milestonesReached().length;
-  let html = `<div class="hero camp">
-    <div class="camp-stars" aria-hidden="true">
-      <svg viewBox="0 0 320 90" preserveAspectRatio="none">
-        ${[[24,18,.9],[58,34,.5],[92,12,.7],[131,28,.45],[168,16,.8],
-           [203,36,.5],[238,20,.65],[271,32,.42],[299,14,.75]]
-          .map(([x, y, o]) => `<circle cx="${x}" cy="${y}" r="1.1" fill="#E9E3D8" opacity="${o}"/>`).join('')}
-      </svg>
-    </div>
+  /* The sky is the screen, not a card in it.
+
+     A camp inside a rounded rectangle is a picture of a camp. Full-bleed, the
+     mountains are where you are — so the stars, the ridge and the firelight
+     are a backdrop laid behind the whole of Base camp, and the name and the
+     numbers stand in it with no border around them.
+
+     Absolutely positioned inside #more-body and pulled back out through the
+     screen's own padding, so it reaches the edges of the phone and still
+     scrolls away with the content. Fixed would have held it against the
+     viewport and left the lists sliding over a horizon that never moved,
+     which reads as a bug rather than as parallax. */
+  let html = `<div class="camp">
+  <div class="camp-bg" aria-hidden="true">
+    <div class="camp-sky"></div>
+    <svg class="camp-stars" viewBox="0 0 320 150" preserveAspectRatio="none">
+      ${[[18,26,.85,1.1],[47,58,.4,.8],[74,16,.62,.9],[103,44,.5,1],[128,72,.35,.8],
+         [152,22,.9,1.2],[181,52,.45,.9],[206,30,.7,1],[233,66,.38,.8],
+         [258,18,.8,1.1],[281,48,.5,.9],[303,28,.65,1]]
+        .map(([x, y, o, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#E9E3D8" opacity="${o}"/>`).join('')}
+    </svg>
     ${ridgeHTML('camp', true)}
-    <div class="camp-fire" aria-hidden="true"></div>
-    <div class="hero-in">
-      ${/* No "Base camp" eyebrow: the screen header already says it, and a
-            card that repeats the title it sits under is a label doing nothing.
-            The eyebrow carries the thing you cannot see anywhere else. */''}
-      <span class="hero-eyebrow">Day ${jst.day} on the route</span>
-      <h1 class="hero-title">${h(p.name || 'Traveller')}</h1>
-      <p class="hero-sub camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything below is here when you want it.</p>
-      <div class="hero-stats camp-stats">
-        <div><span class="hs-v">${st.count}</span><span class="hs-k">session${st.count === 1 ? '' : 's'}</span></div>
-        <div><span class="hs-v">${marks}<span class="hs-of">/${MILESTONES.length}</span></span><span class="hs-k">markers</span></div>
-        ${st.tonnage ? `<div><span class="hs-v">${(st.tonnage / 1000).toFixed(1)}k</span><span class="hs-k">${unit()} moved</span></div>` : ''}
-        ${st.mins ? `<div><span class="hs-v">${Math.round(st.mins / 60)}</span><span class="hs-k">hours in</span></div>` : ''}
-      </div>
+    <div class="camp-fire"></div>
+  </div>
+
+  <div class="camp-head">
+    ${/* No "Base camp" eyebrow: the screen header already says it, and a
+          block that repeats the title above it is a label doing nothing. */''}
+    <span class="camp-eyebrow">Day ${jst.day} on the route</span>
+    <h1 class="camp-name">${h(p.name || 'Traveller')}</h1>
+    <p class="camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything below is here when you want it.</p>
+    <div class="camp-stats">
+      <div><span class="hs-v">${st.count}</span><span class="hs-k">session${st.count === 1 ? '' : 's'}</span></div>
+      <div><span class="hs-v">${marks}<span class="hs-of">/${MILESTONES.length}</span></span><span class="hs-k">markers</span></div>
+      ${st.tonnage ? `<div><span class="hs-v">${(st.tonnage / 1000).toFixed(1)}k</span><span class="hs-k">${unit()} moved</span></div>` : ''}
+      ${st.mins ? `<div><span class="hs-v">${Math.round(st.mins / 60)}</span><span class="hs-k">hours in</span></div>` : ''}
     </div>
+  </div>
   </div>`;
 
   /* More is a list of places to go. Everything you tune rather than visit now
