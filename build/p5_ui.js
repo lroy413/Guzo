@@ -1162,6 +1162,99 @@ function ridgeSnow(pts) {
   return d;
 }
 
+/* Base camp's mountain.
+   ---------------------
+   Not ridgeHTML(). That draws a RANGE — five low silhouettes across a 104px
+   band, which is right behind a card heading and wrong as the thing you are
+   standing at the foot of. This is one massif with a summit, and it is the
+   only drawing in the app that gets to be the subject of its screen.
+
+   Built as a clip plus flat layers rather than as outlined shapes: the
+   silhouette is authored once, and the snow, the rock ribs and the two lit
+   faces are simple polygons trimmed to it. Authoring each of those as its own
+   closed outline means five paths that all have to be edited together the
+   first time the mountain changes shape.
+
+   Classed .ridge / .ridge-snow / .ridge-near so it answers to the same names
+   the range does — those are what the checks and the CSS look for, and a
+   mountain is a mountain whichever way it was drawn. */
+function massifHTML(ns) {
+  const id = h(ns);
+  const outline = 'M0 560 L34 512 L62 470 L88 404 L104 418 L128 366 L152 300 L166 316 '
+                + 'L192 268 L214 200 L230 212 L252 148 '
+                + 'L272 192 L288 180 L308 236 L332 274 L346 260 L370 316 L396 358 '
+                + 'L414 344 L430 396 L430 560 Z';
+  /* Snow lies above a jagged snowline. Clipped to the massif, so the line can
+     be a simple polygon across the whole width and still land on the mountain
+     rather than beside it. */
+  const snowline = 'M0 470 L38 438 L68 462 L98 396 L122 420 L148 366 L176 392 L200 336 '
+                 + 'L226 362 L252 306 L276 344 L300 322 L326 366 L350 342 L374 386 '
+                 + 'L400 362 L430 404 L430 100 L0 100 Z';
+  return `<div class="ridge ${id}-ridge" aria-hidden="true">
+    <svg viewBox="0 0 430 560" preserveAspectRatio="xMidYMax slice">
+      <defs>
+        <linearGradient id="${id}-rock" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#3B4B63"/>
+          <stop offset="60%" stop-color="#233043"/>
+          <stop offset="100%" stop-color="#161F2C"/>
+        </linearGradient>
+        <linearGradient id="${id}-snowg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#EEF4FF"/>
+          <stop offset="55%" stop-color="#C9D8EE"/>
+          <stop offset="100%" stop-color="#9DB1CE"/>
+        </linearGradient>
+        <linearGradient id="${id}-haze" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#16233A" stop-opacity="0"/>
+          <stop offset="100%" stop-color="#16233A" stop-opacity=".85"/>
+        </linearGradient>
+        <linearGradient id="${id}-far" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#8FA6C6" stop-opacity=".30"/>
+          <stop offset="100%" stop-color="#8FA6C6" stop-opacity=".05"/>
+        </linearGradient>
+        <clipPath id="${id}-clip"><path d="${outline}"/></clipPath>
+      </defs>
+      ${/* The range behind it, so the massif has something to stand in front
+            of. Without it the summit is a cut-out on a flat sky. */''}
+      <path class="ridge-far" fill="url(#${id}-far)" d="M0 452 L38 424 L74 444 L112 402
+        L148 428 L186 396 L226 424 L262 390 L300 420 L340 398 L378 428 L412 408
+        L430 424 L430 560 L0 560 Z"/>
+      <g clip-path="url(#${id}-clip)">
+        <rect x="0" y="120" width="430" height="450" fill="url(#${id}-rock)"/>
+        <path class="ridge-snow" fill="url(#${id}-snowg)" d="${snowline}"/>
+        ${/* Rock through the snow, down the fall line. Narrow and soft — as
+              hard triangles at full opacity they read as shapes laid on top of
+              the mountain rather than as its own stone. */''}
+        <g fill="#1E2836" opacity=".5">
+          <path d="M252 150 L258 284 L250 300 L245 272 Z"/>
+          <path d="M214 202 L221 344 L214 360 L206 318 Z"/>
+          <path d="M308 238 L316 366 L309 382 L300 342 Z"/>
+          <path d="M128 368 L134 466 L128 478 L120 444 Z"/>
+          <path d="M370 318 L376 430 L370 442 L361 408 Z"/>
+          <path d="M192 270 L187 398 L180 410 L176 382 Z"/>
+          <path d="M346 262 L352 372 L346 384 L339 348 Z"/>
+          <path d="M166 318 L160 428 L154 440 L150 404 Z"/>
+        </g>
+        ${/* The moon is up and to the right, so the right flanks take the light
+              and the left ones fall away. Angled with the light rather than
+              ruled down the middle — a vertical seam at the summit is the one
+              thing that says "two shapes" instead of "one mountain". */''}
+        <path fill="#F2F7FF" opacity=".15" d="M252 148 L272 192 L288 180 L308 236
+          L332 274 L346 260 L370 316 L396 358 L414 344 L430 396 L430 560 L296 560 Z"/>
+        <path fill="#050A14" opacity=".34" d="M252 148 L230 212 L214 200 L192 268
+          L166 316 L152 300 L128 366 L104 418 L88 404 L62 470 L34 512 L0 560 L214 560 Z"/>
+        <rect x="0" y="440" width="430" height="130" fill="url(#${id}-haze)"/>
+      </g>
+      ${/* The plume. Every photograph of a big peak has one, and it is what
+            stops a white triangle reading as a logo. */''}
+      <path fill="#DDE8FA" opacity=".07" d="M222 176 C258 154 320 158 362 174
+        C330 186 300 188 276 186 C252 184 238 180 222 180 Z"/>
+      <path class="ridge-near" fill="#0B111B" fill-opacity=".92" d="M0 556 L48 534
+        L96 552 L146 528 L196 548 L248 524 L300 546 L352 526 L400 548 L430 536
+        L430 560 L0 560 Z"/>
+    </svg>
+  </div>`;
+}
+
 /* The range.
    ----------
    Four silhouettes rather than three, and the extra one is the point: a

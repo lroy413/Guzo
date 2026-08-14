@@ -2397,3 +2397,56 @@ Every other reader of `meta.created` already does `dk(new Date(...))`. This one
 did not, and **the first check written for it passed against the bug** — it
 asserted "no error was thrown", and nothing ever throws. It asserts the range
 itself now; reverting prints `min 0` where six weeks of history should be.
+
+---
+
+## The mountain, the stats on it, and a membership pill
+
+Base camp got the shared `ridgeHTML` range — five low silhouettes across a
+104px band — and it was reported as a downgrade from the mockup's massif. It
+was. That function draws a *range*, which is right behind a card heading and
+wrong as the thing you are standing at the foot of. `massifHTML()` draws one
+mountain with a summit, and it is the only drawing in the app that is the
+subject of its own screen.
+
+**Its box has to be as tall as the drawing.** At `preserveAspectRatio="xMidYMax
+slice"` a 430×560 scene in a 250px box crops everything above the lower slopes
+— the summit was simply not on screen, which reads as "the mountain got
+smaller" rather than as "the mountain got cropped". 430px shows the peak and
+still bleeds the foot into the moraine.
+
+**The stats moved onto the mountain.** They are the distance you have covered
+and that is the thing you are covering; it is also the only part of the scene
+wide enough to carry four numbers without a row of its own.
+
+**The membership pill is not the paywall, and that distinction is load-bearing.**
+`sheetPaywall()` is a pricing preview with £69.99 on it and no payment wired up
+behind it — kept unreachable on purpose, and refused by its own handler as
+well, because a price with nothing behind it reads as an unfinished app.
+Pointing the new pill at it broke a check that has been guarding exactly that
+since the paywall was hidden. `sheetMembership()` says what your copy *is*
+instead; the paywall is linked from inside it only if `SHOW_PAYWALL` ever goes
+true. The check now asserts membership is reachable **and** carries no price.
+
+**The mountain opens the route unconditionally.** It was on the fire's terms —
+an object only while the nav was not offering that destination — and that rule
+is right for the fire, which would otherwise lead somewhere switched off. It is
+wrong for the mountain: a mountain that looks tappable and is not is worse than
+a second way to reach a screen.
+
+### The failure this scene invites, and the check that now catches it
+
+Every destination is a drawing, laid over the others in one composition, so the
+failure mode is not a missing handler — it is an element that exists, carries
+the right `data-act`, and is **covered**. `.camp-head` is a text block with
+150px of bottom padding to hold the range clear of the type; at `z-index:3`
+that empty box sat over the top half of the mountain and ate every tap meant
+for it. Nothing in the markup looked wrong. `elementFromPoint` on the summit
+returned `.camp-head`.
+
+The fix is `pointer-events:none` on the block and `auto` on the one control
+inside it — a block of text is not a target. The check presses the middle of
+every object and asks what answers, and it measures each target: the membership
+pill came back at 36px against a 44px floor. **Reverting `pointer-events` prints
+"the mountain hit nothing", and none of the other seventeen camp checks
+notice** — which is the whole argument for having it.

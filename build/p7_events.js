@@ -1768,6 +1768,7 @@ document.addEventListener('click', ev => {
       toast(S.settings.warmup ? 'Warm-up on' : 'Warm-up off', true);
       break;
     }
+    case 'open-membership': sheetMembership(); break;
     case 'open-paywall':
       /* Belt and braces: the entry point is gone from More, and the action
          refuses too, so a stale handler cannot resurrect a purchase surface

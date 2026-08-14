@@ -2220,10 +2220,12 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    horizon instead of a header decoration. The room it needs is padding under
    the stats — see .camp-head — so the mountains are drawn in open sky and the
    first list starts below them rather than on top of them. */
-/* Taller here than anywhere else in the app, and that is the point: this is
-   the one place the range is the subject rather than a band behind a heading.
-   Its foot lands on the moraine the camp stands on. */
-.camp-bg .ridge{top:auto;bottom:0;height:250px;opacity:.92}
+/* Tall enough to hold a whole mountain, which is what this one is. massifHTML
+   draws a 430x560 scene at preserveAspectRatio="xMidYMax slice": at 250px the
+   box cropped everything above the lower slopes and the summit was simply not
+   on screen. 430px shows the peak and still bleeds the foot into the moraine.
+   The head's scrim is what keeps the name legible over the top of it. */
+.camp-bg .ridge{top:auto;bottom:0;height:430px;opacity:.95}
 /* The camp's fire. Sits at the foot of the range, off to one side of the
    centre line so it does not read as a bullet under the name.
 
@@ -2274,7 +2276,13 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 
 /* The camp itself: type standing in the sky, no border around it. The bottom
    padding is the sky the mountains are drawn in. */
-.camp-head{position:relative;z-index:1;padding:2px 0 150px}
+/* pointer-events:none on the block, auto on the one control in it. The head
+   carries 150px of bottom padding to hold the range clear of the type, and at
+   z-index 3 that empty box sat over the top half of the mountain and ate every
+   tap meant for it — elementFromPoint on the summit returned .camp-head. A
+   block of text is not a target; the pill inside it is. */
+.camp-head{position:relative;z-index:3;padding:2px 0 150px;pointer-events:none}
+.camp-head .camp-member{pointer-events:auto}
 .camp-eyebrow{display:block;font-size:11px;font-weight:700;letter-spacing:.14em;
   text-transform:uppercase;color:var(--ember-2)}
 /* Tonight's moon, in the sky rather than in the header, and unlabelled.
@@ -2358,7 +2366,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    shape in it: the range is one flat SVG and carving a hit area out of its
    silhouette would tie the tap to the artwork. */
 .camp-route{position:absolute;left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
-  bottom:250px;height:160px;z-index:1;background:none;border:0;padding:0;
+  bottom:250px;height:300px;z-index:1;background:none;border:0;padding:0;
   display:flex;align-items:flex-end;justify-content:center;
   cursor:pointer;-webkit-tap-highlight-color:transparent}
 .camp-route:focus,.camp-route:focus-visible,.camp-route:active{outline:none}
@@ -2368,8 +2376,22 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .camp-route:focus-visible .camp-route-l,.camp-route:active .camp-route-l{color:#FFF3DC}
 /* The moon: a control, so it gets a real target rather than the disc's own
    size. 42px of moon inside a 56px tap area. */
+/* A pill, not a card. Membership is one sentence about your copy of the app;
+   it had a whole section on the old More screen and said nothing a line could
+   not. */
+.camp-member{display:inline-flex;align-items:center;gap:8px;margin-top:14px;
+  padding:7px 14px 7px 11px;border-radius:999px;
+  background:rgba(233,180,76,.10);border:1px solid rgba(233,180,76,.30);
+  color:var(--ember-2);font-size:12px;font-weight:700;letter-spacing:.02em;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;min-height:44px;
+  transition:background var(--t) ease,border-color var(--t) ease}
+.camp-member:active,.camp-member:focus-visible{outline:none;
+  background:rgba(233,180,76,.18);border-color:rgba(233,180,76,.55)}
+.cm-dot{width:7px;height:7px;border-radius:50%;background:var(--ember);flex:none}
+.cm-s{color:var(--faint);font-weight:600;font-size:11px;letter-spacing:.01em}
+
 .camp-moon-btn{position:absolute;right:12px;top:calc(var(--safe-t) + 26px);
-  z-index:2;width:56px;height:56px;display:grid;place-items:center;
+  z-index:4;width:56px;height:56px;display:grid;place-items:center;
   background:none;border:0;padding:0;cursor:pointer;
   -webkit-tap-highlight-color:transparent;transition:transform var(--t) var(--ease-spring)}
 .camp-moon-btn:focus,.camp-moon-btn:focus-visible,.camp-moon-btn:active{outline:none}
@@ -2383,7 +2405,12 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .camp-moon .moon-lit{filter:drop-shadow(0 0 1.5px rgba(243,236,220,.42))}
 .camp-name{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:10px 0 0}
 .camp-sub{font-size:13.5px;line-height:1.5;color:var(--text-dim);margin:10px 0 0;max-width:38ch}
-.camp-stats{display:flex;flex-wrap:wrap;gap:22px;row-gap:14px;margin-top:22px}
+/* On the mountain, not under the name. Absolutely placed over the massif's
+   lower slopes — the one part of the scene wide enough and dark enough to
+   carry four numbers. z-index above the backdrop and below the tents. */
+.camp-stats{position:absolute;left:0;right:0;bottom:300px;z-index:2;
+  display:flex;flex-wrap:wrap;justify-content:center;gap:26px;row-gap:12px;
+  pointer-events:none;text-shadow:0 1px 6px rgba(4,6,12,.9)}
 .camp-stats > div{display:flex;flex-direction:column;gap:3px}
 /* Ember rather than the teal every other hero uses. Teal is this app's colour
    for something completed — right over "logged today", wrong over a standing

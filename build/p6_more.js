@@ -138,7 +138,7 @@ function renderMore() {
           peaks stand against it instead of covering it, which is the whole
           reason a distant ridge reads as distant. */''}
     <div class="camp-glow"></div>
-    ${ridgeHTML('camp', true, true)}
+    ${massifHTML('camp')}
   </div>
 
   <button class="camp-moon-btn" data-act="open-settings">
@@ -154,13 +154,23 @@ function renderMore() {
     <span class="camp-eyebrow">Day ${jst.day} on the route</span>
     <h1 class="camp-name">${h(p.name || 'Traveller')}</h1>
     <p class="camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything you might want is pitched here.</p>
-    <div class="camp-stats">
+    ${/* Under the name, because that is what it is about: not a section of the
+          screen, a fact about your copy of the app. */''}
+    <button class="camp-member" data-act="open-membership">
+      <span class="cm-dot"></span>Membership<span class="cm-s">Beta — everything on</span>
+    </button>
+  </div>`;
+
+  /* The stats are ON the mountain. They are the distance you have covered and
+     that is the thing you are covering — a better place for them than a row
+     under your name, and the only part of the scene wide enough to carry four
+     numbers. */
+  html += `<div class="camp-stats">
       <div><span class="hs-v">${st.count}</span><span class="hs-k">session${st.count === 1 ? '' : 's'}</span></div>
       <div><span class="hs-v">${marks}<span class="hs-of">/${MILESTONES.length}</span></span><span class="hs-k">markers</span></div>
       ${st.tonnage ? `<div><span class="hs-v">${(st.tonnage / 1000).toFixed(1)}k</span><span class="hs-k">${unit()} moved</span></div>` : ''}
       ${st.mins ? `<div><span class="hs-v">${Math.round(st.mins / 60)}</span><span class="hs-k">hours in</span></div>` : ''}
-    </div>
-  </div>`;
+    </div>`;
 
   /* ---- the camp itself ----
      More used to be four lists of rows. It is a place now: the tents are the
@@ -201,15 +211,17 @@ function renderMore() {
       : `<div class="spot spot-fire spot-quiet" aria-hidden="true" style="--l:50%;--b:122px;--w:78px">${fireSVG()}</div>`}
   </div>`;
 
-  /* The mountain is the route. It is the one object here that was already a
-     metaphor for the thing it now opens, and it only takes the tap when the
-     nav has given the Route tab away to Fuel. */
-  if (fuelOn()) {
-    html += `<button class="camp-route" data-go="plan">
-      <span class="sr-only">The route — shape the week and see the whole plan</span>
-      <span class="camp-route-l">The route</span>
-    </button>`;
-  }
+  /* The mountain is the route, and it takes the tap whether or not the nav is
+     also offering it. It was conditional on Fuel being on, by the same rule
+     that governs the fire — but the fire is a destination that would lead
+     somewhere switched off, and the route is not: it is where the journey
+     starts, it is the one object here that was already a metaphor for the
+     thing it opens, and a mountain you cannot tap is a mountain that looks
+     tappable and is not. */
+  html += `<button class="camp-route" data-go="plan">
+    <span class="sr-only">The route — shape the week and see the whole plan</span>
+    <span class="camp-route-l">The route</span>
+  </button>`;
   html += `</div>`;
 
   $('#more-body').innerHTML = html;
@@ -644,6 +656,38 @@ function sheetRest() {
 }
 
 /* sheetProfile now lives in p6e_profile.js */
+
+/* What your copy of the app is, and what it costs you — which in beta is
+   nothing. NOT the paywall: sheetPaywall() is a pricing preview with £69.99 on
+   it and no payment wired up behind it, kept unreachable on purpose and
+   refused by its own handler as well. A price with nothing behind it reads as
+   an incomplete app, and putting a button to it under someone's name would be
+   the fastest possible way to do that. It is linked from here only if
+   SHOW_PAYWALL ever goes true. */
+function sheetMembership() {
+  openSheet(`
+    <div class="center mb">
+      <div class="ob-mark">${ICO.summit}</div>
+      <h2 class="h1 mt-s">Guzo Pro</h2>
+      <div class="pill em mt-s">Beta — everything on</div>
+    </div>
+    <p class="small mb">Every part of the app is unlocked while this is in testing.
+      Nothing charges, nothing phones home, and there is no account to make.</p>
+    <div class="list mb">
+      <div class="lrow"><div class="grow"><div class="h3">Your data</div>
+        <div class="tiny mt-s">Stored on this device only. No server holds a copy, so nothing
+          is uploaded, shared or sold — and nothing is backed up for you either.</div></div></div>
+      <div class="lrow"><div class="grow"><div class="h3">Offline</div>
+        <div class="tiny mt-s">The whole app works with the network off. The one thing that
+          reaches out is the barcode lookup, and it is off unless you turn it on.</div></div></div>
+      <div class="lrow"><div class="grow"><div class="h3">What happens after beta</div>
+        <div class="tiny mt-s">Not decided. Whatever it becomes, what you have already logged
+          stays on your device and keeps working.</div></div></div>
+    </div>
+    ${SHOW_PAYWALL ? `<button class="btn ghost block mb" data-act="open-paywall">Preview the paywall</button>` : ''}
+    <p class="tiny center mb">Guzo Fit v${VERSION} · beta build<br>ጉዞ · Amharic for “journey”<br>guzofit.app · all data stored locally on this device</p>
+    <button class="btn primary block" data-act="close">Done</button>`);
+}
 
 function sheetPaywall() {
   openSheet(`

@@ -2149,6 +2149,14 @@ try {
 
     return {
       snowFill: snow ? getComputedStyle(snow).fill : 'absent',
+      /* Where the snow sits on the mountain, as a fraction of the drawing's
+         own height — so it is the same assertion whatever size the box is. */
+      snowSpan: (() => {
+        if (!snow || !rd) return null;
+        const vb = rd.viewBox.baseVal, b = snow.getBBox();
+        return { top: b.y / vb.height, bottom: (b.y + b.height) / vb.height };
+      })(),
+      snowClipped: !!snow && !!snow.closest('g[clip-path]'),
       caps: caps.length, apexOnPeak: apexOnPeak.filter(Boolean).length, heroSnow,
       heroLayers: document.querySelectorAll('#today-body .hero-ridge path[fill^="url"]').length,
       restDistinct: new Set(rest.map(v => v.toFixed(3))).size,
@@ -2166,9 +2174,15 @@ try {
         const b = document.querySelector('#more-body .camp-moon-btn');
         if (!b) return null;
         const r = b.getBoundingClientRect();
-        const range = document.querySelector('#more-body .camp-bg .ridge').getBoundingClientRect();
+        /* Above the mountain you can SEE, not above the box it is drawn in —
+           the massif's box now reaches up behind the header, so "above the
+           range element" is false for a moon that is plainly in the sky. The
+           stats sit on the mountain's slopes and the camp stands on the
+           ground, so clearing both is what being in the sky means here. */
+        const stats = document.querySelector('#more-body .camp-stats').getBoundingClientRect();
+        const ground = document.querySelector('#more-body .camp-ground').getBoundingClientRect();
         return { act: b.dataset.act, tap: Math.round(Math.min(r.width, r.height)),
-          inSky: r.bottom < range.top,
+          inSky: r.bottom < stats.top && r.bottom < ground.top,
           named: (b.querySelector('.sr-only')?.textContent || '').trim().length > 6,
           /* textContent includes the screen-reader name, which is the whole
              point of it — so this asks the structural question instead: is
@@ -2236,12 +2250,19 @@ try {
   check('...and no list left on it at all',
     camp.list === null, 'a list is still rendered on More');
 
-  check('...snow on more than one summit', night.caps >= 3, `${night.caps} caps`);
+  /* Base camp's mountain is one massif, so its snow is a SNOWLINE clipped to
+     the peak rather than a cap per summit — the caps check belongs to
+     ridgeHTML's range and moved to Today with it. What matters here is that
+     the snow covers the high ground and stops: a polygon that reaches the foot
+     is a white mountain, and one that never starts is a grey one. */
+  check('...snow lying on the high ground of the massif',
+    night.snowSpan && night.snowSpan.top < .35 && night.snowSpan.bottom > .45
+      && night.snowSpan.bottom < .95,
+    night.snowSpan ? `from ${(night.snowSpan.top * 100) | 0}% to ${(night.snowSpan.bottom * 100) | 0}% of the mountain` : 'no snow');
   check('...painted rather than left to fill black',
     /^rgba?\(\s*2\d\d/.test(night.snowFill), night.snowFill);
-  check('...every cap sitting on a peak the range actually has',
-    night.caps > 0 && night.apexOnPeak === night.caps,
-    `${night.apexOnPeak} of ${night.caps} on a vertex`);
+  check('...and clipped to the mountain rather than laid across the sky',
+    night.snowClipped === true, `clipped: ${night.snowClipped}`);
   /* It is the same range on every screen now — same silhouette, same five
      layers, same snow. It used to be a reduced version everywhere but here, on
      the theory that a pale layer under a card heading is a contrast failure
@@ -2305,9 +2326,63 @@ try {
   check('...and still a fire when it is not a destination',
     fireRule.off.drawn === true && fireRule.off.act === null && fireRule.off.tappable === false,
     `drawn ${fireRule.off.drawn}, act ${fireRule.off.act}`);
-  check('...with the range taking the route on exactly the same terms',
-    fireRule.on.route === 'plan' && fireRule.off.route === null,
-    `on: ${fireRule.on.route}, off: ${fireRule.off.route}`);
+  /* The mountain is not on the fire's terms. It is where the journey starts,
+     it is the one object here that was already a metaphor for the thing it
+     opens, and a mountain that looks tappable and is not is worse than a
+     second way to reach a screen the nav is also offering. */
+  check('...and the mountain opening the route whether or not the nav does too',
+    fireRule.on.route === 'plan' && fireRule.off.route === 'plan',
+    `Fuel on: ${fireRule.on.route}, Fuel off: ${fireRule.off.route}`);
+
+  /* ---- every door in the camp actually opens ----
+     The destinations are drawings now, laid over each other in one scene, and
+     the failure that comes with that is not a missing handler — it is an
+     element that exists, carries the right data-act, and is simply covered.
+     .camp-head is a text block with 150px of bottom padding to hold the range
+     clear of the type; at z-index 3 that empty box sat over the top half of
+     the mountain and ate every tap meant for it. Nothing about the markup
+     looked wrong, and elementFromPoint on the summit returned .camp-head.
+
+     So this asks the only question that matters: press the middle of each
+     object and see what answers. Targets are measured too — the membership
+     pill came out at 36px against a 44px floor. */
+  const doors = await page.evaluate(() => {
+    go('more'); render();
+    const want = ['open-membership', 'open-settings', 'open-journey', 'open-help',
+                  'stretch', 'routines', 'open-nutrition'];
+    const out = [];
+    for (const act of want) {
+      const e = document.querySelector(`#more-body [data-act="${act}"]`);
+      if (!e) { out.push({ act, found: false }); continue; }
+      const b = e.getBoundingClientRect();
+      const hit = document.elementFromPoint(b.left + b.width / 2,
+        b.top + Math.min(b.height / 2, b.height - 10));
+      const owner = hit && hit.closest ? hit.closest('[data-act],[data-go]') : null;
+      out.push({ act, found: true, reaches: owner === e,
+        got: owner ? (owner.dataset.act || owner.dataset.go) : 'nothing',
+        tap: Math.round(Math.min(b.width, b.height)) });
+    }
+    const m = document.querySelector('#more-body [data-go="plan"]');
+    if (m) {
+      const b = m.getBoundingClientRect();
+      const hit = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2);
+      const owner = hit && hit.closest ? hit.closest('[data-act],[data-go]') : null;
+      out.push({ act: 'the mountain', found: true, reaches: owner === m,
+        got: owner ? (owner.dataset.act || owner.dataset.go) : 'nothing',
+        tap: Math.round(Math.min(b.width, b.height)) });
+    } else out.push({ act: 'the mountain', found: false });
+    return out;
+  });
+  const missing = doors.filter(d => !d.found);
+  const covered = doors.filter(d => d.found && !d.reaches);
+  const small = doors.filter(d => d.found && d.tap < 44);
+  check('every destination in the camp is there', missing.length === 0,
+    missing.map(d => d.act).join(', '));
+  check('...and each one answers when you press it',
+    doors.length >= 8 && covered.length === 0,
+    covered.map(d => `${d.act} hit ${d.got}`).join(', ') || `${doors.length} checked`);
+  check('...at a target you can actually hit',
+    small.length === 0, small.map(d => `${d.act} ${d.tap}px`).join(', '));
 
   /* ---- the sky reaches the top of the screen ----
      The dark strip above base camp was never the header band, which repaints
@@ -3747,6 +3822,24 @@ try {
     return { reachable, opened: after !== before, after: after.slice(0, 60) };
   });
   check('the paywall is not reachable from More', paywall.reachable === false);
+  /* Membership IS reachable — the user asked for it — and it must not be the
+     paywall. sheetPaywall() carries a £69.99 card with no payment behind it;
+     a button to that under someone's name is the fastest way to make a working
+     app read as an unfinished one. */
+  const member = await page.evaluate(() => {
+    go('more'); render();
+    const btn = document.querySelector('#more-body [data-act="open-membership"]');
+    if (!btn) return { there: false };
+    btn.click();
+    const txt = document.getElementById('sheet-body').innerText || '';
+    const priced = /£|\$|per month|\/ month|free trial/i.test(txt);
+    closeSheet();
+    return { there: true, priced, says: txt.replace(/\s+/g, ' ').slice(0, 70) };
+  });
+  check('...but membership is, from under your name',
+    member.there === true);
+  check('...and it says what your copy is rather than what one costs',
+    member.there && member.priced === false, member.says || '');
   check('...and the action refuses even if invoked directly', paywall.opened === false, paywall.after);
 
   /* The store needs a policy, and it has to say the true thing. */
