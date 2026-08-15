@@ -418,6 +418,61 @@ function moonHTML(size, d) {
     <circle r="${r}" fill="${dark}"/>
     <path class="${litCls}" d="${half}" fill="${lit}"/>
     <ellipse class="${k < .5 ? '' : litCls}" rx="${rx.toFixed(2)}" ry="${r}" fill="${k < .5 ? dark : lit}"/>
-    <circle r="${r}" fill="none" stroke="rgba(243,236,220,.16)" stroke-width=".7"/>
+    <circle r="${r}" fill="none" stroke="rgba(243,236,220,.22)" stroke-width=".7"/>
+    ${moonGear()}
   </svg>`;
+}
+
+/* What the moon is FOR, said quietly on the moon itself.
+   -------------------------------------------------------
+   It opens Settings, and nothing on the screen said so — the sr-only name told
+   a screen reader and left everyone else to discover it by pressing the sky.
+   A gear is the one shape that needs no caption.
+
+   Faint on purpose, and the number matters: this is a hint about what a control
+   does, not a badge announcing itself. Loud enough to be seen when looked at,
+   quiet enough that the phase is still what the moon is about — the moon is the
+   only thing in this scene that is true about the world rather than about you,
+   and a gear that competes with the terminator throws that away.
+
+   ONE mid tone at one opacity, drawn over everything, and that is what makes it
+   work on a shape that is half cream and half near-black. A colour picked to
+   sit on the lit limb disappears on the dark one, and a crescent moon would
+   show a gear with a bite out of it — worse than no gear. A mid grey-blue is
+   darker than #F3ECDC and lighter than the unlit disc, so it reads as engraved
+   on the lit side and etched on the dark side, at every phase including new.
+
+   Drawn in the moon's own coordinates rather than by scaling ICO.cog into them.
+   The catalogue's icons are authored on a 24-box with a stroke width tuned for
+   that box; scaled to 0.58 the stroke comes with it and stops being a weight
+   anybody chose. Nine points is not a saving worth an unreadable transform.
+
+   aria-hidden: the button already carries its name, and a second voice saying
+   "gear" after "Settings" is noise. */
+function moonGear() {
+  /* #7C8CA8 rather than a lighter grey-blue, and the difference is measured:
+     composited at .46 over each fill it clears 2.2:1 against the unlit disc and
+     1.5:1 against the lit limb. A lighter stroke reads beautifully on the dark
+     side and drops to 1.37:1 on the bright one — still visible, with no margin
+     left for anyone who later nudges the opacity. Balanced across the two is
+     the property worth having, not maximum contrast on either. */
+  return '<g class="moon-gear" aria-hidden="true" fill="none" stroke="#7C8CA8"'
+    + ' stroke-opacity=".46" stroke-linecap="round">'
+    /* The body ring is what makes this a gear and not a sun. Teeth radiating
+       from a small hub is exactly ICO.cog, which is the glyph on the More tab
+       — drawn at this size against a bright disc it reads as a rising sun,
+       which is the wrong idea twice over on a moon. A ring for the wheel, a
+       hole at the middle, and the teeth standing off the rim rather than
+       reaching the centre. */
+    + '<circle r="3.6" stroke-width=".78"/>'
+    + '<circle r="1.45" stroke-width=".7"/>'
+    /* Eight teeth, each from the rim at r3.6 out to r5.3, and thicker than the
+       ring they stand on — teeth the same weight as the wheel read as a second
+       ring with gaps. Four on the axes, four on the diagonals; the diagonals
+       are that pair over root two, written out because the whole gear is a
+       dozen numbers and a loop that generates it is longer than it is. */
+    + '<path stroke-width="1.05" d="M0 -5.3v1.7M0 3.6v1.7M-5.3 0h1.7M3.6 0h1.7"/>'
+    + '<path stroke-width="1.05" d="M-3.75 -3.75l1.2 1.2M2.55 2.55l1.2 1.2'
+    + 'M3.75 -3.75l-1.2 1.2M-2.55 2.55l-1.2 1.2"/>'
+    + '</g>';
 }

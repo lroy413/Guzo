@@ -2557,7 +2557,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .cm-s{color:var(--faint);font-weight:600;font-size:11px;letter-spacing:.01em}
 
 .camp-moon-btn{position:absolute;right:12px;top:calc(var(--safe-t) + 26px);
-  z-index:4;width:56px;height:56px;display:grid;place-items:center;
+  z-index:4;width:72px;height:72px;display:grid;place-items:center;
   background:none;border:0;padding:0;cursor:pointer;
   -webkit-tap-highlight-color:transparent;transition:transform var(--t) var(--ease-spring)}
 .camp-moon-btn:focus,.camp-moon-btn:focus-visible,.camp-moon-btn:active{outline:none}
@@ -2568,7 +2568,13 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 /* On the lit shapes, not on the <svg> — see moonHTML(). A filter on the
    element blurs the unlit disc too and paints a one-percent crescent as a
    third-lit moon. */
-.camp-moon .moon-lit{filter:drop-shadow(0 0 1.5px rgba(243,236,220,.42))}
+.camp-moon .moon-lit{filter:drop-shadow(0 0 2.5px rgba(243,236,220,.5))}
+/* The gear brightens with the press, the way the lit limb does, so the thing
+   the moon is FOR is what answers when you touch it. Opacity rather than a
+   filter: a glow on a hairline stroke smears it into a blur instead of
+   lighting it. */
+.camp-moon .moon-gear{transition:stroke-opacity var(--t) ease}
+.camp-moon-btn:focus-visible .moon-gear,.camp-moon-btn:active .moon-gear{stroke-opacity:.85}
 .camp-name{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:10px 0 0}
 .camp-sub{font-size:13.5px;line-height:1.5;color:var(--text-dim);margin:10px 0 0;max-width:38ch}
 /* On the mountain, not under the name. Absolutely placed over the massif's
@@ -3076,7 +3082,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+1c8ad39</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+7d29f90</div>
     </div>
   </section>
 
@@ -7582,8 +7588,63 @@ function moonHTML(size, d) {
     <circle r="${r}" fill="${dark}"/>
     <path class="${litCls}" d="${half}" fill="${lit}"/>
     <ellipse class="${k < .5 ? '' : litCls}" rx="${rx.toFixed(2)}" ry="${r}" fill="${k < .5 ? dark : lit}"/>
-    <circle r="${r}" fill="none" stroke="rgba(243,236,220,.16)" stroke-width=".7"/>
+    <circle r="${r}" fill="none" stroke="rgba(243,236,220,.22)" stroke-width=".7"/>
+    ${moonGear()}
   </svg>`;
+}
+
+/* What the moon is FOR, said quietly on the moon itself.
+   -------------------------------------------------------
+   It opens Settings, and nothing on the screen said so — the sr-only name told
+   a screen reader and left everyone else to discover it by pressing the sky.
+   A gear is the one shape that needs no caption.
+
+   Faint on purpose, and the number matters: this is a hint about what a control
+   does, not a badge announcing itself. Loud enough to be seen when looked at,
+   quiet enough that the phase is still what the moon is about — the moon is the
+   only thing in this scene that is true about the world rather than about you,
+   and a gear that competes with the terminator throws that away.
+
+   ONE mid tone at one opacity, drawn over everything, and that is what makes it
+   work on a shape that is half cream and half near-black. A colour picked to
+   sit on the lit limb disappears on the dark one, and a crescent moon would
+   show a gear with a bite out of it — worse than no gear. A mid grey-blue is
+   darker than #F3ECDC and lighter than the unlit disc, so it reads as engraved
+   on the lit side and etched on the dark side, at every phase including new.
+
+   Drawn in the moon's own coordinates rather than by scaling ICO.cog into them.
+   The catalogue's icons are authored on a 24-box with a stroke width tuned for
+   that box; scaled to 0.58 the stroke comes with it and stops being a weight
+   anybody chose. Nine points is not a saving worth an unreadable transform.
+
+   aria-hidden: the button already carries its name, and a second voice saying
+   "gear" after "Settings" is noise. */
+function moonGear() {
+  /* #7C8CA8 rather than a lighter grey-blue, and the difference is measured:
+     composited at .46 over each fill it clears 2.2:1 against the unlit disc and
+     1.5:1 against the lit limb. A lighter stroke reads beautifully on the dark
+     side and drops to 1.37:1 on the bright one — still visible, with no margin
+     left for anyone who later nudges the opacity. Balanced across the two is
+     the property worth having, not maximum contrast on either. */
+  return '<g class="moon-gear" aria-hidden="true" fill="none" stroke="#7C8CA8"'
+    + ' stroke-opacity=".46" stroke-linecap="round">'
+    /* The body ring is what makes this a gear and not a sun. Teeth radiating
+       from a small hub is exactly ICO.cog, which is the glyph on the More tab
+       — drawn at this size against a bright disc it reads as a rising sun,
+       which is the wrong idea twice over on a moon. A ring for the wheel, a
+       hole at the middle, and the teeth standing off the rim rather than
+       reaching the centre. */
+    + '<circle r="3.6" stroke-width=".78"/>'
+    + '<circle r="1.45" stroke-width=".7"/>'
+    /* Eight teeth, each from the rim at r3.6 out to r5.3, and thicker than the
+       ring they stand on — teeth the same weight as the wheel read as a second
+       ring with gaps. Four on the axes, four on the diagonals; the diagonals
+       are that pair over root two, written out because the whole gear is a
+       dozen numbers and a loop that generates it is longer than it is. */
+    + '<path stroke-width="1.05" d="M0 -5.3v1.7M0 3.6v1.7M-5.3 0h1.7M3.6 0h1.7"/>'
+    + '<path stroke-width="1.05" d="M-3.75 -3.75l1.2 1.2M2.55 2.55l1.2 1.2'
+    + 'M3.75 -3.75l-1.2 1.2M-2.55 2.55l-1.2 1.2"/>'
+    + '</g>';
 }
 /* ============================================================
    DAILY METRICS — steps, sleep, bodyweight
@@ -16165,7 +16226,7 @@ function renderMore() {
 
   <button class="camp-moon-btn" data-act="open-settings">
     <span class="sr-only">Settings — ${h(settingsSummary())}</span>
-    ${moonHTML(42)}
+    ${moonHTML(58)}
   </button>
 
   ${/* The camp's fire is a destination now — it is Fuel, and it is drawn

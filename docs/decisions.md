@@ -2937,3 +2937,44 @@ canvas, so the magenta that distinguishes "inside the page" from "outside the
 web view" had nowhere to show, and a picture with no magenta in it looked like
 an answer. Bars, thick, labelled, on the viewport rather than on any box —
 that could only mean one thing, and it did.
+
+---
+
+## The moon wears a gear
+
+Bigger — 42px to 58px in a 72px target — and carrying a faint gear, because
+what it opens was only ever in its screen-reader name. Everyone else had to
+discover Settings by pressing the sky.
+
+**It was a sun first.** The obvious move is to scale `ICO.cog` into the moon's
+coordinates. That icon is teeth radiating from a small hub with no body ring,
+which is fine at 24px in the nav and reads as a rising sun at 58px on a bright
+disc — wrong twice over on a moon, and it is also the glyph already on the More
+tab, so the moon would have been wearing the button that got you there. A ring
+for the wheel, a hole at the centre, teeth standing off the rim. Authored in
+the moon's own coordinates rather than transformed in, because a scaled icon
+brings its stroke width with it and the weight stops being one anybody chose.
+
+**One mid tone, drawn last.** The gear crosses a shape that is half #F3ECDC and
+half near-black. A colour picked against either half disappears on the other,
+and on a crescent that shows as a gear with a bite out of it — worse than no
+gear at all. Drawn last so the terminator does not paint across it.
+
+**The check was too weak twice, and the reverts found it.** Eight were run;
+two passed that should not have.
+
+- A near-black gear passed, because the assertion was only that its luminance
+  lay *between* the two fills. Sitting a hair above the unlit disc satisfies
+  that and is invisible on it. It now composites the translucent stroke over
+  each half and requires 1.35:1 against both — what you would actually see,
+  rather than what was declared.
+- A tooth flung out past the rim passed, because the assertion was on the
+  bounding box's *width*. A gear already symmetric about the origin barely
+  widens when one tooth escapes. It now measures reach from the centre on every
+  axis.
+
+That second measurement changed the design: composited, the lighter grey-blue
+cleared 2.2:1 on the dark half and only 1.37:1 on the lit one. Visible, but
+with nothing left for anyone who later nudges the opacity. #7C8CA8 balances it
+at 2.2 and 1.5. Balanced across the two halves is the property worth holding,
+not maximum contrast on either.

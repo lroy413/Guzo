@@ -2557,7 +2557,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .cm-s{color:var(--faint);font-weight:600;font-size:11px;letter-spacing:.01em}
 
 .camp-moon-btn{position:absolute;right:12px;top:calc(var(--safe-t) + 26px);
-  z-index:4;width:56px;height:56px;display:grid;place-items:center;
+  z-index:4;width:72px;height:72px;display:grid;place-items:center;
   background:none;border:0;padding:0;cursor:pointer;
   -webkit-tap-highlight-color:transparent;transition:transform var(--t) var(--ease-spring)}
 .camp-moon-btn:focus,.camp-moon-btn:focus-visible,.camp-moon-btn:active{outline:none}
@@ -2568,7 +2568,13 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 /* On the lit shapes, not on the <svg> — see moonHTML(). A filter on the
    element blurs the unlit disc too and paints a one-percent crescent as a
    third-lit moon. */
-.camp-moon .moon-lit{filter:drop-shadow(0 0 1.5px rgba(243,236,220,.42))}
+.camp-moon .moon-lit{filter:drop-shadow(0 0 2.5px rgba(243,236,220,.5))}
+/* The gear brightens with the press, the way the lit limb does, so the thing
+   the moon is FOR is what answers when you touch it. Opacity rather than a
+   filter: a glow on a hairline stroke smears it into a blur instead of
+   lighting it. */
+.camp-moon .moon-gear{transition:stroke-opacity var(--t) ease}
+.camp-moon-btn:focus-visible .moon-gear,.camp-moon-btn:active .moon-gear{stroke-opacity:.85}
 .camp-name{font-size:34px;font-weight:800;letter-spacing:-.04em;line-height:1.05;margin:10px 0 0}
 .camp-sub{font-size:13.5px;line-height:1.5;color:var(--text-dim);margin:10px 0 0;max-width:38ch}
 /* On the mountain, not under the name. Absolutely placed over the massif's

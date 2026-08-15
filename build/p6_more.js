@@ -143,7 +143,7 @@ function renderMore() {
 
   <button class="camp-moon-btn" data-act="open-settings">
     <span class="sr-only">Settings — ${h(settingsSummary())}</span>
-    ${moonHTML(42)}
+    ${moonHTML(58)}
   </button>
 
   ${/* The camp's fire is a destination now — it is Fuel, and it is drawn

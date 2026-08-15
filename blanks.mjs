@@ -2301,6 +2301,81 @@ try {
   check('...its glow on the lit limb, not on the whole disc',
     night.svgFilter === 'none' && night.litFilter.startsWith('drop-shadow'),
     `svg ${night.svgFilter}, lit ${night.litFilter}`);
+  /* ...and a gear on it, saying what it is for without a caption.
+
+     The moon opens Settings and nothing on screen said so — the sr-only name
+     told a screen reader and left everyone else to find it by pressing the sky.
+
+     Three things make it work and each has a way of quietly not being true.
+     It has to be a GEAR: teeth around a small hub with no body ring is
+     ICO.cog, which at this size on a bright disc reads as a rising sun — wrong
+     twice over on a moon — so a ring and a hub are required, not one circle.
+     It has to be ONE mid tone: a colour chosen against the lit limb vanishes on
+     the dark one, and a crescent would show a gear with a bite out of it, so
+     its luminance must sit strictly between the two fills it crosses. And it
+     has to be LAST, over both, or the terminator paints across it.
+
+     Faint is a range, not a value — loud enough to see, quiet enough that the
+     phase is still what the moon is about. */
+  const gear = await page.evaluate(() => {
+    const svg = document.querySelector('#more-body .camp-moon');
+    const g = svg && svg.querySelector('.moon-gear');
+    if (!g) return { missing: true };
+    const lum = (c) => {
+      const m = c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+      const f = v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); };
+      return .2126 * f(m[0]) + .7152 * f(m[1]) + .0722 * f(m[2]);
+    };
+    const cs = getComputedStyle(g);
+    const disc = svg.querySelector('circle');            // the unlit disc, drawn first
+    const litShape = svg.querySelector('.moon-lit');
+    const gb = g.getBBox(), db = disc.getBBox();
+    const rgb = c => c.match(/\d+(\.\d+)?/g).slice(0, 3).map(Number);
+    const op = parseFloat(cs.strokeOpacity);
+    /* What you actually SEE, not what was declared. The stroke is translucent,
+       so the visible mark is the stroke composited over whichever half it
+       crosses — and a raw-colour comparison passed a near-black gear that is
+       invisible on the unlit disc. Contrast of the composite against its own
+       backing, on both halves, is the thing that had to be measured. */
+    const over = (bg) => {
+      const s = rgb(cs.stroke), b = rgb(bg);
+      return s.map((v, i) => v * op + b[i] * (1 - op));
+    };
+    const ratio = (a, b) => {
+      const [x, y] = [lum(`rgb(${a.join(',')})`), lum(`rgb(${b.join(',')})`)].sort((m, n) => n - m);
+      return (x + .05) / (y + .05);
+    };
+    const darkFill = getComputedStyle(disc).fill, litFill = getComputedStyle(litShape).fill;
+    /* Reach on any axis from the centre the moon is drawn around, not the box's
+       width — one tooth flung out to the rim barely widens a box that is
+       already symmetric about the origin, and that is exactly how a spill
+       hides. */
+    const reach = Math.max(Math.abs(gb.x), Math.abs(gb.x + gb.width),
+                           Math.abs(gb.y), Math.abs(gb.y + gb.height));
+    return {
+      /* A ring and a hub — two circles. One is a sun. */
+      circles: g.querySelectorAll('circle').length,
+      teeth: g.querySelectorAll('path').length,
+      hidden: g.getAttribute('aria-hidden') === 'true',
+      op,
+      reach: +reach.toFixed(2), r: db.width / 2,
+      last: svg.lastElementChild === g,
+      onDark: +ratio(over(darkFill), rgb(darkFill)).toFixed(2),
+      onLit: +ratio(over(litFill), rgb(litFill)).toFixed(2),
+      size: Math.round(svg.getBoundingClientRect().width),
+    };
+  });
+  check('...wearing a gear, so what it opens is on it rather than only in its name',
+    !gear.missing && gear.circles >= 2 && gear.teeth >= 1 && gear.hidden
+      && gear.op > .2 && gear.op < .6 && gear.last
+      && gear.reach <= gear.r * .68
+      && gear.onDark >= 1.35 && gear.onLit >= 1.35
+      && gear.size >= 52,
+    gear.missing ? 'no gear'
+      : `${gear.circles} circles, ${gear.teeth} tooth paths · opacity ${gear.op}`
+        + ` · reaches ${gear.reach} of ${gear.r} · drawn last ${gear.last}`
+        + ` · seen at ${gear.onDark}:1 on the dark half, ${gear.onLit}:1 on the lit`
+        + ` · moon ${gear.size}px`);
   const moonOff = moon.filter(m => Math.abs(m.k - m.drawn) > .01);
   check('...drawing exactly as much of itself as is lit, right across a cycle',
     moon.length === 12 && moonOff.length === 0,
