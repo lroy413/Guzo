@@ -2637,3 +2637,84 @@ manifest's `background_color`, and that is already the app's own `--bg`.
 **Also gone: "Everything you might want is pitched here."** It restated the
 screen it was printed on, sat between someone's name and the one control under
 it, and cost two lines of the room the camp needed.
+
+---
+
+## The app draws its own edges, because the numbers cannot settle it
+
+*"Still not reaching the bottom, for some reason."*
+
+Fifth reading of the same strip. The readout from the phone now says:
+
+```
+window 402x812 · screen 402x874 · visual 402x812 @0
+body 402x812 @0 · #app 402x812 @0
+safe t62 r0 b34 l0 · window at y0 · outer 402x874
+```
+
+The window is the whole screen and starts at the top; the layout viewport
+inside it is 62px short. Every box in the app is `position:fixed; inset:0`,
+which resolves against the layout viewport, so every box is short too.
+
+**Two hypotheses were killed by measurement rather than by argument.**
+
+*The gradient tiles into the strip.* `html` paints `--bg-grad` with
+`background-attachment:fixed`, and a fixed-attachment background is sized to
+the viewport and then repeated across the painting area — so a canvas taller
+than the viewport should show the gradient's bright top edge again, as a
+lighter band at the foot. Reproduced exactly: a 402×874 window with an
+812-tall `html`, sampled at y800, y840 and y870. All three came back
+`10,12,15`. The positioning area is the *window*, not the short layout
+viewport, so there is no second tile and no seam. `background-repeat:no-repeat`
+changed nothing, which is the control that says the first result meant
+something.
+
+*The strip is mispainted.* It is not — it is `#0a0c0f`, the same as the app's
+own last row. What makes it read as a band is that base camp's floor is
+lighter than the page background. The canvas propagation added earlier is
+working; it just cannot help on a screen whose bottom is not page-coloured.
+
+**What is left cannot be told apart from the numbers.** A window shorter than
+its screen is equally consistent with the viewport starting below the status
+bar and with it ending above the home indicator, and iOS reports
+`env(safe-area-inset-*)` from the device rather than from the viewport, so the
+insets agree with both. `screenY` already lied once. This is the same trap
+written up one section above — *a value consistent with two opposite
+situations is not evidence for either* — and it was walked into again, which
+is why the fix this time is not another reading of the same fields.
+
+So the app paints a test pattern instead. Settings → This screen → **Show
+edges** puts a class on the root that gives each box its own colour: magenta
+on `html`, which is what paints the canvas, cyan on `body`, yellow on `#app`,
+green on the nav. One photograph answers both questions at once — a strip that
+comes out magenta is inside the page and reachable from CSS, a strip that comes
+out anything else is outside the web view where no stylesheet can go, and the
+outlines say which box stops short and at which end.
+
+Three details are load-bearing, and two of them were found by the check:
+
+- **The sheet has to close first**, or the photograph is of the sheet.
+- **`transition:none`.** The root carries a 1.2s cross-fade on
+  `background-color` — that is the sky following the hour, deliberately slow
+  enough that you never catch it happening. Inherited, it meant the pattern
+  faded in over more than a second, so a tap followed straight away by a
+  screenshot captured a half-mixed colour: the one picture this exists to
+  take, taken wrong. The check read `rgb(8,9,13)` where it expected magenta
+  and found this before any device did.
+- **The way out is a control, not a timer.** A pattern that reverted itself
+  part-way through a screenshot would produce exactly the kind of picture that
+  started all this.
+
+Nothing is written to the save; it is a class on the root and it is gone on
+the next launch. Six reverts were run against the check — sheet left open,
+pattern the same colour as the page, cross-fade left on, no way out, a way out
+too small to hit, and the control removed altogether — and each produces
+exactly one failure.
+
+**Also removed: `interactive-widget=resizes-visual` from the viewport meta.**
+A Chrome-only key that Safari does not implement, naming the default value on
+every engine that does — inert everywhere, while sharing a meta with
+`viewport-fit=cover`, the one declaration the full-bleed layout depends on.
+Removing it is the cheapest available test of whether an unknown key was
+costing the parse of the key next to it. If the numbers do not move, it cost
+nothing, and that is a fact worth having rather than a suspicion worth keeping.

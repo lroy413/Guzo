@@ -165,6 +165,39 @@ body{
   -webkit-font-smoothing:antialiased;
   overscroll-behavior-y:none;
 }
+/* A test pattern for one bug, off unless it is asked for.
+
+   A strip at the foot of the screen has now been explained four different
+   ways from the same numbers, and three of those explanations were wrong.
+   The numbers cannot settle it: a window shorter than the screen is equally
+   consistent with the layout viewport starting below the status bar and with
+   it ending above the home indicator, and iOS reports env(safe-area-inset-*)
+   from the device rather than from the viewport, so the insets agree with
+   both stories too.
+
+   What does settle it is giving each box its own colour and taking one
+   photograph. html's background is what paints the canvas, so a strip that
+   comes out magenta is inside the page and reachable from CSS, and a strip
+   that comes out anything else is outside the web view where no stylesheet
+   can go. The outlines then say which box stops short and at which end —
+   which is the question a screenshot of the app itself cannot answer,
+   because the app's own artwork is not the same colour as its background. */
+/* `transition:none` because the root carries a 1.2s cross-fade on
+   background-color — that is the sky changing with the hour, and it is
+   deliberately slow enough that you never catch it happening. Inherited here
+   it means the pattern fades in over more than a second, so a tap followed
+   immediately by a screenshot photographs a half-mixed colour: the one
+   picture this exists to take, taken wrong. */
+html.edges{background:#FF00A8;background-image:none;transition:none}
+html.edges body{outline:3px solid #00E5FF;outline-offset:-3px}
+html.edges #app{outline:3px solid #FFE500;outline-offset:-9px}
+html.edges #nav{outline:3px solid #7CFF00;outline-offset:-3px}
+.edges-stop{
+  position:fixed;left:50%;transform:translateX(-50%);
+  bottom:calc(var(--safe-b) + 96px);z-index:2000;
+  background:#FF00A8;color:#fff;border:0;border-radius:999px;
+  padding:12px 20px;min-height:44px;font:600 14px/1.2 var(--ff);
+}
 button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
 button{cursor:pointer;border:none;background:none;padding:0}
 input,select,textarea{-webkit-appearance:none;appearance:none}

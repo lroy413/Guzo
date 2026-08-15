@@ -823,6 +823,10 @@ function sheetSettings() {
     <div class="card mb">
       <div class="tiny mono" id="dispdiag">measuring…</div>
       <p class="tiny mt-s" style="color:var(--faint)">What this phone reports about its own screen. Useful only for chasing a layout bug.</p>
+      ${/* The numbers above are ambiguous by construction — see the .edges
+            block in the stylesheet. This paints each box a different colour
+            so one screenshot says which one stops short, and where. */''}
+      <button class="btn quiet mt-s" data-act="show-edges">Show edges</button>
     </div>
 
     <p class="tiny center">Guzo Fit v${VERSION} · build ${VERSION}<br>All data stored locally on this device.</p>

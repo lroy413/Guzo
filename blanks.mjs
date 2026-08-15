@@ -2517,6 +2517,68 @@ try {
       && /display-mode \w/.test(diag.flat) && !/env\(/.test(diag.flat),
     diag.flat.replace(/\s+/g, ' ').slice(0, 90));
 
+  /* ...and it can draw its own edges, because the numbers are ambiguous.
+     A window shorter than the screen is equally consistent with the layout
+     viewport starting below the status bar and with it ending above the home
+     indicator, and iOS reports the safe-area insets from the device rather
+     than from the viewport, so those agree with both stories too. Four
+     readings, three wrong answers.
+
+     Giving each box its own colour ends that, but only if the colours are
+     actually distinguishable and only if the sheet gets out of the way — a
+     test pattern photographed through the sheet that switched it on is worth
+     nothing, and that is the failure this checks for first. Chromium leaves
+     no strip, so what is asserted here is that the pattern is well formed and
+     reversible, not what it reveals. */
+  const edges = await page.evaluate(() => {
+    const root = document.documentElement;
+    const seen = JSON.stringify(S);
+    go('more'); render();
+    document.querySelector('[data-act="open-settings"]').click();
+    const btn = document.querySelector('[data-act="show-edges"]');
+    /* Put the screen back on every path out of here, including this one. A
+       probe that returns a failure while leaving a sheet over the app — or
+       the pattern itself still on — makes every measurement after it a
+       reading of the wrong picture, and eight checks go red for one bug. */
+    if (!btn) { closeSheet(); return { missing: true }; }
+    btn.click();
+    const html = getComputedStyle(root);
+    const body = getComputedStyle(document.body);
+    const stop = document.querySelector('.edges-stop');
+    const r = stop ? stop.getBoundingClientRect() : { width: 0, height: 0 };
+    const hit = stop
+      ? document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+      : null;
+    const out = {
+      on: root.classList.contains('edges'),
+      /* The photograph has to be of the screen, not of the sheet. */
+      sheetGone: !document.getElementById('scrim').classList.contains('on'),
+      htmlBg: html.backgroundColor,
+      htmlImg: html.backgroundImage,
+      bodyBg: body.backgroundColor,
+      stopH: Math.round(r.height),
+      stopNamed: stop ? (stop.textContent || '').trim() : '',
+      stopReachable: !!(stop && hit && stop.contains(hit)),
+      wrote: JSON.stringify(S) !== seen,
+    };
+    if (stop) stop.click();
+    out.off = !root.classList.contains('edges') && !document.querySelector('.edges-stop');
+    root.classList.remove('edges');
+    const left = document.querySelector('.edges-stop');
+    if (left) left.remove();
+    if (document.getElementById('scrim').classList.contains('on')) closeSheet();
+    return out;
+  });
+  check('...and can draw its own edges when they will not settle it',
+    !edges.missing && edges.on && edges.sheetGone && edges.off
+      && edges.htmlBg !== edges.bodyBg && edges.htmlImg === 'none'
+      && edges.stopH >= 44 && edges.stopReachable
+      && /hide|done/i.test(edges.stopNamed) && !edges.wrote,
+    edges.missing ? 'no control' : `html ${edges.htmlBg} img ${edges.htmlImg} · body `
+      + `${edges.bodyBg} · sheet gone ${edges.sheetGone} · stop ${edges.stopH}px `
+      + `"${edges.stopNamed}" reachable ${edges.stopReachable} · off ${edges.off}`
+      + ` · wrote ${edges.wrote}`);
+
   /* ---- the sky reaches the top of the screen ----
      The dark strip above base camp was never the header band, which repaints
      the page's own gradient and is invisible against it. It was the page: a

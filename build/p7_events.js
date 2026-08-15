@@ -1769,6 +1769,31 @@ document.addEventListener('click', ev => {
       break;
     }
     case 'open-membership': sheetMembership(); break;
+
+    /* The sheet has to go, or the photograph is of the sheet rather than of
+       the screen the bug is on. The way back out is a control of its own
+       rather than a timer: a pattern that reverted itself part-way through
+       taking a screenshot would produce exactly the kind of picture that
+       started this. Nothing is written to the save — this is a class on the
+       root element and it is gone on the next launch. */
+    case 'show-edges': {
+      closeSheet();
+      document.documentElement.classList.add('edges');
+      if (!document.querySelector('.edges-stop')) {
+        const b = document.createElement('button');
+        b.className = 'edges-stop';
+        b.dataset.act = 'hide-edges';
+        b.textContent = 'Done — hide edges';
+        document.body.appendChild(b);
+      }
+      break;
+    }
+    case 'hide-edges': {
+      document.documentElement.classList.remove('edges');
+      const b = document.querySelector('.edges-stop');
+      if (b) b.remove();
+      break;
+    }
     case 'open-paywall':
       /* Belt and braces: the entry point is gone from More, and the action
          refuses too, so a stale handler cannot resurrect a purchase surface
