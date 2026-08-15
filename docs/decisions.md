@@ -3036,3 +3036,34 @@ what counts as a backup or on what restoring does.
 that replaces the whole of `S` on purpose. Left holding its own fixture, it
 changed what later screens render and a contrast sweep three hundred lines away
 went red on text whose colour nobody had touched.
+
+---
+
+## `--muted` is calibrated for surfaces, and a mountain is not one
+
+The week hero on Plan reads "N /M sessions done" over the range. The number is
+`--text`; the "/M" and the label are `--muted`, whose token comment says
+"4.5:1 on every surface in the app" — and that is true, and the range is not a
+surface. Measured against the brightest ridge pixel behind them: **4.41 and
+4.40 against a 4.5 requirement.** Close enough to read fine and to fail, which
+is the worst kind of miss.
+
+A token rather than a hex in two rules — `--on-range` — because two selectors
+need it and a third will want it the next time something is drawn over the
+mountains. It measures 5.43–5.55:1 on the same pixels.
+
+**Checked across dates and across sky bands, because both were candidates.**
+The hero's text changes width with the week plan, so the box the ridge is
+sampled through moves day to day; and the ridge is dimmed per `data-sky`
+elsewhere in the app, so the hour was a candidate too. Twenty-one consecutive
+dates: worst 5.43. All four bands: identical, so this particular range is not
+band-dimmed. Reverting to `--muted` reproduces 4.41/4.40 exactly.
+
+**One thing not explained, and worth saying rather than papering over.** An
+earlier run of the same build reported this check green at the same 4.4-ish
+values. Two runs since have both reproduced the failure, so it is not simply
+flaky in one direction — something in the sampling varies a little between
+runs and 4.4 sits close enough to 4.5 to land on either side of it. The fix
+does not depend on knowing which: at 5.4 there is a fifth of the requirement in
+hand, and variation that small cannot reach it. If it ever goes red again the
+margin is the evidence that the cause is elsewhere.

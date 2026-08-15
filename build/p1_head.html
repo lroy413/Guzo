@@ -77,6 +77,15 @@
   --text-dim:#aab4c0;
   --muted:#848f9b;   /* 4.5:1 on every surface in the app */
   --faint:#868f9a;   /* was #5a636e — 2.98:1, unreadable in daylight */
+  /* Secondary text sitting over the RANGE rather than over a surface.
+     --muted is calibrated against surfaces, and a mountain is not one: over
+     the week hero's range its brightest pixel is lighter than any surface in
+     the app, and --muted measured 4.41:1 there against a 4.5 requirement.
+     Close enough to read fine and to fail, which is the worst kind of miss.
+     Measured, not guessed: this clears 4.9:1 on the same pixel, and it is a
+     token rather than a hex in two rules because two selectors need it and a
+     third will want it the next time something is drawn over the mountains. */
+  --on-range:#8e98a4;
 
   --ember:#E9B44C;
   --ember-2:#F4D08C;
@@ -2817,9 +2826,9 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .wk-hero .ridge{height:88px;opacity:.5}
 .wk-hero-n{display:flex;align-items:baseline;gap:7px;margin-top:6px}
 .wk-hero-v{font-size:38px;font-weight:700;letter-spacing:-.04em;color:var(--text);line-height:1}
-.wk-hero-of{font-size:20px;font-weight:650;color:var(--muted);letter-spacing:-.02em}
+.wk-hero-of{font-size:20px;font-weight:650;color:var(--on-range);letter-spacing:-.02em}
 .wk-hero-k{font-size:11px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;
-  color:var(--muted);margin-left:4px}
+  color:var(--on-range);margin-left:4px}
 
 .wroute{display:flex;flex-direction:column}
 .wr-row{display:flex;align-items:stretch;gap:12px;width:100%;text-align:left;
