@@ -2718,3 +2718,59 @@ every engine that does — inert everywhere, while sharing a meta with
 Removing it is the cheapest available test of whether an unknown key was
 costing the parse of the key next to it. If the numbers do not move, it cost
 nothing, and that is a fact worth having rather than a suspicion worth keeping.
+
+---
+
+## The camp's floor stops where the nav reservation starts
+
+*"I've uninstalled and reinstalled multiple times. It's strange because my
+other apps built here don't have this issue."*
+
+That sentence relocated the bug. Same phone, same iOS, same install flow,
+other web apps full-bleed — so whatever this is, it is in this app's code, and
+the manifest-baked-in-at-install theory is dead.
+
+Every screen reserves `--navpad` of padding at its foot so its last card can
+scroll clear of the floating nav. On a screen made of cards that reservation is
+invisible, because the cards sit on the page and the reservation *is* the page.
+Base camp is not made of cards. It is a scene with its own floor, and the floor
+ends where `.camp` ends — so the reserved room read as a band of bare page
+across the bottom of the phone. Measured at a 34px inset: the moraine's bottom
+lands 41px above the foot of `#app`, 25 of those fully exposed below the nav
+pill. Every other app on the phone looks right for exactly the reason this one
+did not.
+
+The floor now carries on beneath, and three things about how:
+
+- **Extended, not moved.** Giving `.camp` the padding back would drag
+  `.camp-spots` down with it and put the bottom row of tents under the nav —
+  the thing the reservation exists to prevent. The objects stay where they
+  stand; only the ground continues.
+- **A separate block, not a taller `.camp-ground`.** That gradient's stops are
+  proportional, so stretching the box moves its transparent-to-solid ramp down
+  the screen, and that ramp is where the range's foot meets the moraine. Same
+  trap the backdrop's mask already carries a note about.
+- **`--navpad` is a token now.** The number had one author and two readers;
+  written out twice, a change to the nav's height would leave a band under the
+  camp and nothing else on any screen looking wrong.
+
+**The check was written wrong first, and passed for the wrong reason.** It
+compared the colour at the last row against the colour of the floor above it,
+which is the right idea and unusable: the moraine ends on `#06070C` and the
+page behind it is `#08090d`, three levels apart at near black. Deleting the
+extension outright left it green; truncating it to 12px turned it red. A check
+that catches a partial break and misses the total one is measuring noise. It is
+geometric now — the used height of the pseudo-element against the gap it has to
+cover — plus an assertion that the extension's colour still equals the last
+stop of the moraine's own gradient, since those are two declarations that have
+to agree and a pixel sample provably cannot tell them apart. Four reverts, four
+single failures.
+
+**What this does not claim.** In headless the band is a three-level difference
+at near black. That is a real defect and it is fixed, but it is not obviously
+the bar being reported — on an OLED at near black a three-level step is far
+more visible than it is in a screenshot, and it is also possible this is a
+second, smaller thing sitting underneath a larger one. The 62px between
+`window.innerHeight` and the screen is still unexplained and still needs the
+edges photograph. Saying so is the point: the last four times, a plausible fix
+was shipped as *the* fix and it was not.

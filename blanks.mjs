@@ -2482,6 +2482,49 @@ try {
   check('...because the screen reserves the nav\'s height under the camp',
     floorClears, fits.map(f => `${f.sz}: ${f.clear}px`).join(' · '));
 
+  /* ...and the floor carries on through that reservation, to the foot.
+     The room reserved for the nav is page-coloured, and on a screen made of
+     cards that is invisible — the cards sit on the page. Base camp is a scene
+     with its own floor several shades off the page, so the reservation read as
+     a band across the bottom of the phone: 41px of it at a 34px inset.
+
+     Measured with the inset faked in, because it is 0 in any desktop browser
+     and the band shrinks to 8px without it.
+
+     Asserted geometrically, and that is the second attempt. The first compared
+     the colour at the foot against the colour of the floor above it — which is
+     the right idea and unusable in practice, because the moraine ends on
+     #06070C and the page behind it is #08090d. Three levels apart at near
+     black. Deleting the extension outright left that check green while
+     truncating it to 12px turned it red, which is a check measuring noise. */
+  const foot = await page.evaluate(() => {
+    document.documentElement.style.setProperty('--safe-b', '34px');
+    go('more'); render();
+    const ground = document.querySelector('#more-body .camp-ground');
+    const g = ground.getBoundingClientRect();
+    const app = document.getElementById('app').getBoundingClientRect();
+    /* The used height of the pseudo-element, which is a resolved layout value
+       rather than the declaration: the calc() and the env() inside it are
+       already substituted by the time it reads back. */
+    const ext = parseFloat(getComputedStyle(ground, '::after').height) || 0;
+    /* The extension continues the moraine's own last colour rather than a
+       matched guess, and the two are written in different rules — so the check
+       is that they still agree. A pixel comparison cannot do this job: the
+       gradient ends on #06070C and the page behind it is #08090d, three levels
+       apart, which is inside the noise. Comparing the declarations to each
+       other catches the drift that a sample never could. */
+    const stops = (getComputedStyle(ground).backgroundImage.match(/rgba?\([^)]*\)/g) || []);
+    return { gap: Math.round(app.bottom - g.bottom), ext: Math.round(ext),
+             end: stops[stops.length - 1] || '—',
+             fill: getComputedStyle(ground, '::after').backgroundColor };
+  });
+  await page.evaluate(() => document.documentElement.style.removeProperty('--safe-b'));
+  check('...and the camp\'s floor carries on under it, to the foot of the phone',
+    foot.gap > 0 && foot.ext >= foot.gap
+      && foot.end.replace(/\s/g, '') === foot.fill.replace(/\s/g, ''),
+    `${foot.gap}px of reserved room under the moraine, floor extends ${foot.ext}px`
+      + ` · moraine ends ${foot.end}, extension ${foot.fill}`);
+
   /* What this phone reports about its own screen, said out loud in Settings.
      Three attempts to explain a strip at the foot of the screen were made from
      screenshots and all three were wrong, because the numbers that settle it —

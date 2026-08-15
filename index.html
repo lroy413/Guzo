@@ -88,6 +88,14 @@
   --shadow-sm:0 2px 10px rgba(0,0,0,.24);
   --safe-b:env(safe-area-inset-bottom,0px);
   --safe-t:env(safe-area-inset-top,0px);
+  /* The room every screen reserves under itself for the floating nav. A token
+     because two places need the same number and they must not drift: the
+     screens pad by it so their last card scrolls clear, and base camp's floor
+     bleeds back down through exactly that padding so the scene reaches the
+     foot of the phone. Written as one number in two rules, a change to the
+     nav's height leaves a band of bare page under the camp and nothing else
+     on any screen looks wrong. */
+  --navpad:calc(78px + var(--safe-b) * .5);
   --ff:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',Roboto,Helvetica,Arial,sans-serif;
   --fm:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;
 }
@@ -1098,7 +1106,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    own offset is half the inset, so this matches it: 60px of nav, that offset,
    and 10px of clearance. */
 #s-today,#s-plan,#s-train,#s-fuel,#s-progress,#s-more{
-  padding-bottom:calc(78px + var(--safe-b) * .5);
+  padding-bottom:var(--navpad);
 }
 
 /* ---------- header ----------
@@ -2396,6 +2404,32 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .camp-ground{position:absolute;left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
   bottom:0;height:250px;z-index:0;pointer-events:none;
   background:linear-gradient(180deg,rgba(18,22,31,0) 0%,#0C0F16 24%,#080A10 62%,#06070C 100%)}
+/* ...and the floor carries on under the nav, to the foot of the phone.
+
+   The camp ends where .camp ends, and below that sits the padding every screen
+   reserves so its last card can scroll clear of the floating nav. On a screen
+   made of cards that padding is invisible — it is the page, and the cards sit
+   on the page. Base camp is not made of cards. It is a scene with its own
+   floor, several shades off the page behind it, so the reserved room read as a
+   dead band across the bottom of the phone: 41px of it at a 34px inset, 25 of
+   those below the nav pill and fully exposed. Every other app on the phone
+   looks fine for exactly the reason this one did not.
+
+   Extended rather than moved. Giving .camp the padding back would drag
+   .camp-spots down with it and put the bottom row of tents under the nav,
+   which is the thing the reservation exists to prevent — so the objects stay
+   where they stand and only the ground carries on beneath them.
+
+   A separate block rather than a taller .camp-ground, because that gradient's
+   stops are proportional: stretching the box moves the transparent-to-solid
+   ramp at its top down the screen, and that ramp is where the range's foot
+   meets the moraine. It ends at #06070C, so continuing in #06070C is seamless
+   by construction rather than by a matched guess.
+
+   Sized to the padding exactly. Overshooting would add to the scroller's
+   overflow and give the screen further to scroll for nothing. */
+.camp-ground::after{content:'';position:absolute;left:0;right:0;top:100%;
+  height:calc(var(--navpad) + 6px);background:#06070C}
 .camp-spots{position:absolute;left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
   bottom:0;height:250px;z-index:1}
 /* Each destination stands on the ground at its own place and its own size.
@@ -2974,7 +3008,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+3c08294</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+5a2c6e2</div>
     </div>
   </section>
 
