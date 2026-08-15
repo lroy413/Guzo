@@ -2496,3 +2496,68 @@ not stretch with the box. **As a pseudo-element it is the first child**, so at
 the same z-index as `.camp-bg` the backdrop painted straight over it and the
 scrim did nothing at all — text back to 3.69:1 with the CSS still present and
 looking correct.
+
+---
+
+## The strip, finally: iOS counts the notch and takes it out as well
+
+Four reports, three wrong diagnoses, and the answer arrived the moment the app
+was asked to describe its own screen instead of being guessed at from a
+photograph. The phone said:
+
+```
+window 402x812 · screen 402x874 · safe t62 r0 b34 l0
+display-mode standalone · apple standalone yes
+```
+
+**The sixty-two pixels are missing from the window AND still reported by the
+inset.** iOS handed the app a viewport that already excludes the status bar,
+and `env(safe-area-inset-top)` describes the screen's safe area rather than the
+window's. Padding by it reserves the notch a second time, and everything sits a
+status bar too low — which is the empty band, and also why the camp overflowed
+and the bottom row of tents went behind the nav.
+
+The other state is the ordinary one: a full-height window reporting the same
+inset, where the padding is exactly right and removing it would put the title
+under the clock. **Both states report the same inset**, so the inset cannot
+distinguish them; the window's height against the screen's can.
+`calibrateSafeTop()` sets `--safe-t` to 0 only when the whole inset is already
+missing from the window, only in a standalone app, and re-asks on resize and
+rotation.
+
+Two details that make it testable rather than hopeful. `screen.width/height`
+do not rotate on iOS, so the comparison picks the screen's long side only while
+the window is itself tall. And the inset is read through a `.safe-probe` class
+rather than an inline style, so an instrument can fake a phone's 62px on a
+desktop — where `env()` is always `0px`, which is precisely the state this
+function exists to tell apart from a real one. Both branches are asserted with
+`screen.height` and `navigator.standalone` faked in.
+
+### The scrim was hiding the mountain, and every contrast check was happier for it
+
+"The mountain looks faint." It was: the scrim that keeps the name legible
+spanned the whole upper camp at 90% and took the range from **148 to 21** on a
+brightness sample. Nothing caught it, because every text check reads better the
+darker the backdrop gets — a scene can be measured for legibility from every
+angle and still be measured into invisibility.
+
+Node by node, exactly one thing needed it: the "Set out …" line, at 1.35:1 over
+the summit's snow. The name clears on its own at 34px, the stats sit low where
+the mountain is dark anyway, and the membership pill — which was the single
+worst-contrast text on the screen — only needed its own background. Opaque
+pill, scrim bounded to `.camp-head`, and the range is back at 119–142 with
+every word still passing.
+
+**So the scene has a floor as well as a ceiling now.** A check samples the
+mountain below the head and asserts it is something you can see. Spreading the
+scrim back over it prints `34 of 255` while every other camp check stays green.
+
+### And a third date-fragile probe
+
+The week-route check seeded `today() + 2` and asserted a constraint chip
+appeared on it. The strip runs Monday to Sunday of the current week, so from
+Friday onward that day is in next week's strip and the chip has no row to
+appear on — it went red the moment the date rolled over to a Saturday. It takes
+the day off the screen now. That is the third probe in this file written
+against `today()` plus an offset, and the lesson has not changed: **if a probe
+needs a particular relative day, take it from what the screen is showing.**

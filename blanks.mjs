@@ -799,10 +799,20 @@ try {
         exercises: [mk('bb-bench', 3)] });
       if (S.week.plan[k]) S.week.plan[k].done = true;
     }
-    /* And one day ahead deliberately not a normal day. */
-    const far = dk(addDays(fromKey(today()), 2));
-    S.week.days[far] = { avail: 'micro', env: 'bw' };
     save(true); go('plan');
+    /* One day deliberately not a normal day — and the day is taken off the
+       SCREEN rather than from today()+2. The strip runs Monday to Sunday of
+       the current week, so "two days from now" is in next week's strip from
+       Friday onward and the chip has no row to appear on. This went red the
+       moment the date rolled over to a Saturday, which is the third time a
+       probe here has been written against today() plus an offset and the
+       second lesson is the same as the first: if a probe needs a particular
+       relative day, take it from what the screen is actually showing. */
+    const keys = [...document.querySelectorAll('#plan-body .wr-row')].map(r => r.dataset.k);
+    const ahead = keys.filter(k => k > today());
+    const far = ahead.length ? ahead[ahead.length - 1] : keys.filter(k => k !== today())[0];
+    S.week.days[far] = { avail: 'micro', env: 'bw' };
+    save(true); renderPlan();
     const rows = [...document.querySelectorAll('#plan-body .wr-row')];
     const cls = rows.map(r => r.className.replace('wr-row ', '').trim());
     const todayAt = rows.findIndex(r => r.dataset.k === today());
@@ -2334,6 +2344,86 @@ try {
     fireRule.on.route === 'plan' && fireRule.off.route === 'plan',
     `Fuel on: ${fireRule.on.route}, Fuel off: ${fireRule.off.route}`);
 
+  /* ---- the mountain is actually visible ----
+     Reported as "the mountain looks faint", and nothing caught it: the scrim
+     that keeps the name legible was spanning the whole upper camp at 90%, and
+     took the range from 148 to 21 on a brightness sample. Every contrast check
+     was greener for it. The mountain was still drawn, still snow-capped, still
+     tappable, and you could barely see it.
+
+     So the scene gets a floor as well as a ceiling. Sampled below the head,
+     where nothing is meant to be covering it — the top of the range is
+     supposed to be dimmed, that is what the scrim is for. */
+  const seen = await page.evaluate(async () => {
+    go('more'); render();
+    await new Promise(r => setTimeout(r, 300));
+    const ridge = document.querySelector('#more-body .camp-bg .ridge').getBoundingClientRect();
+    const head = document.querySelector('#more-body .camp-head').getBoundingClientRect();
+    return { top: ridge.top, height: ridge.height, headBottom: head.bottom };
+  });
+  const mtn = await (async () => {
+    const b64 = (await page.screenshot()).toString('base64');
+    return page.evaluate(async ({ d, g }) => {
+      const im = new Image();
+      await new Promise(r => { im.onload = r; im.onerror = r; im.src = d; });
+      const c = document.createElement('canvas'); c.width = im.width; c.height = im.height;
+      const cx = c.getContext('2d'); cx.drawImage(im, 0, 0);
+      const dpr = im.width / window.innerWidth;
+      /* Below the head, and above the moraine. */
+      const y0 = Math.max(g.headBottom + 10, g.top), y1 = g.top + g.height - 30;
+      let best = 0;
+      for (let y = y0; y < y1; y += 6) {
+        const row = cx.getImageData(0, Math.round(y * dpr), im.width, 1).data;
+        for (let i = 0; i < row.length; i += 4)
+          best = Math.max(best, row[i] * .2126 + row[i + 1] * .7152 + row[i + 2] * .0722);
+      }
+      return Math.round(best);
+    }, { d: 'data:image/png;base64,' + b64, g: seen });
+  })();
+  check('and the mountain is something you can actually see',
+    mtn >= 70, `brightest point below the name reads ${mtn} of 255`);
+
+  /* ---- the notch, counted once ----
+     iOS can hand a standalone web app a viewport that ALREADY excludes the
+     status bar while still reporting a non-zero safe-area-inset-top. Measured
+     on a real phone: screen 402x874, window 402x812, inset 62 — the sixty-two
+     pixels are gone from the window AND still described by the inset. Padding
+     by it then reserves the notch twice and parks everything a status bar too
+     low, which is the empty strip that was reported four times and
+     misdiagnosed three.
+
+     Both states report the same inset, so only the window's height against the
+     screen's can tell them apart. Faked here in both directions, because a
+     desktop browser is in neither: env() is 0px and screen.height is whatever
+     the harness says. */
+  const notch = [];
+  for (const [label, screenH, want] of [['already excluded', 874, '0px'], ['full height', 812, '']]) {
+    const ctx2 = await browser.newContext({ viewport: { width: 402, height: 812 } });
+    await ctx2.addInitScript(hh => {
+      Object.defineProperty(window.screen, 'height', { get: () => hh });
+      Object.defineProperty(window.screen, 'width', { get: () => 402 });
+      Object.defineProperty(navigator, 'standalone', { get: () => true });
+    }, screenH);
+    const p2 = await ctx2.newPage();
+    await p2.goto(origin + '/', { waitUntil: 'load' });
+    await p2.waitForFunction(() => typeof window.go === 'function');
+    await p2.addStyleTag({ content: '.safe-probe{padding-top:62px !important}' });
+    const got = await p2.evaluate(() => {
+      S = blank(); S.onboarded = true; save(true);
+      calibrateSafeTop(); render(); go('more');
+      return { inline: document.documentElement.style.getPropertyValue('--safe-t'),
+               hdr: Math.round(document.querySelector('#s-more .hdr').getBoundingClientRect().top) };
+    });
+    notch.push({ label, want, ...got });
+    await ctx2.close();
+  }
+  const wrong = notch.filter(n => n.inline !== n.want);
+  check('a notch iOS has already taken out of the window is not reserved again',
+    wrong.length === 0,
+    notch.map(n => `${n.label}: "${n.inline}" (want "${n.want}") header at ${n.hdr}`).join(' · '));
+  check('...and a window that really does reach the top still clears it',
+    notch[1] && notch[1].inline === '', `"${notch[1] ? notch[1].inline : '?'}"`);
+
   /* ---- every door in the camp actually opens ----
      The destinations are drawings now, laid over each other in one scene, and
      the failure that comes with that is not a missing handler — it is an
@@ -2792,7 +2882,7 @@ try {
        legible against the mountain — so a flattened backdrop read through it
        is not flat. It came back at 181 of 255 the first time, 30 the second
        when the scrim moved and this selector did not follow it. */
-    '#more-body .camp::before{display:none !important}' });
+    '#more-body .camp-head::before{display:none !important}' });
   await page.waitForTimeout(120);
   const fade = await page.evaluate(() => {
     const b = document.querySelector('#more-body .camp-bg').getBoundingClientRect();

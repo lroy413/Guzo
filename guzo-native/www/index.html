@@ -2303,6 +2303,12 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    drawings — a tent, a moon, a mountain — so the only name they have is this
    one. Clipped rather than display:none, which would take them out of the
    accessibility tree along with the pixels. */
+/* Measured, not read: getPropertyValue on --safe-t hands back the literal
+   text `env(safe-area-inset-top,0px)`. An element has to use it before the
+   number iOS substituted can be seen. A class rather than an inline style so
+   the instruments can fake a phone's inset on a desktop, where env() is 0. */
+.safe-probe{position:fixed;left:-9999px;top:0;padding-top:env(safe-area-inset-top,0px)}
+
 .sr-only{position:absolute;width:1px;height:1px;margin:-1px;padding:0;
   overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
 
@@ -2318,28 +2324,27 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    name. Given a floor it overflows and the screen scrolls, which is the right
    answer on a 4-inch phone even though More is a place rather than a list. */
 .camp{flex:1 1 auto;min-height:470px;display:flex;flex-direction:column}
-/* The words stand in the sky, and the sky has a mountain in it. The name, the
-   day and the numbers all sit over peaks and snow; measured without this,
-   "Set out Fri 14 Aug" falls to 1.68:1.
+/* The scrim is the height of the TEXT, not the height of the mountain.
 
-   A scrim rather than a shorter mountain or a dimmer one: the mountain is the
-   subject of this screen, shrinking it gives back the thing the camp exists to
-   be, and dimming it takes the far peaks first — which is the part worth
-   looking at.
+   Spanning the whole upper camp at 90% it took the range from 148 to 21 on a
+   brightness sample — the mountain was still there and you could barely see
+   it, which is what "the mountain looks faint" was. Measured node by node,
+   exactly one thing needs it: the "Set out …" line, at 1.35:1 over the summit's
+   snow. The name clears on its own at 34px, the stats sit low where the
+   mountain is dark anyway, and the membership pill carries its own ground.
 
-   Anchored to .camp, not to .camp-head, and faded over a fixed 80px rather
-   than a percentage. Hung off the head it moved whenever the head's padding
-   changed, and the stats — which are absolutely placed against the camp's own
-   floor — slid out from under it. */
-/* z-index 1, not 0. As a pseudo-element it is the FIRST child of .camp, so at
-   the same z-index as .camp-bg the backdrop — a later sibling — paints over
-   the top of it and the scrim does nothing at all. Above the backdrop, below
-   the stats (2) and the head (3). */
-.camp::before{content:'';position:absolute;z-index:1;
+   So it is bounded to .camp-head — which ends at the pill — and fades out over
+   its last 60px. Below that the mountain is at full strength. On .camp it
+   could not be bounded this way, because .camp is the whole screen.
+
+   z-index -1 inside .camp-head, which has z-index 3 and therefore its own
+   stacking context: the scrim sits under the head's own words and above
+   everything outside it. */
+.camp-head::before{content:'';position:absolute;z-index:-1;
   left:calc(var(--sp) * -1);right:calc(var(--sp) * -1);
-  top:calc((var(--safe-t) + 120px) * -1);bottom:200px;
-  background:linear-gradient(180deg,rgba(8,10,15,.93) 0%,
-    rgba(8,10,15,.90) calc(100% - 80px),rgba(8,10,15,0) 100%);
+  top:calc((var(--safe-t) + 120px) * -1);bottom:0;
+  background:linear-gradient(180deg,rgba(8,10,15,.92) 0%,
+    rgba(8,10,15,.86) calc(100% - 60px),rgba(8,10,15,0) 100%);
   pointer-events:none}
 /* The moraine the camp stands on: below the range, above the nav. */
 /* Transparent at its own top edge. Given a colour there it draws a rule
@@ -2393,7 +2398,11 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
    not. */
 .camp-member{display:inline-flex;align-items:center;gap:8px;margin-top:14px;
   padding:7px 14px 7px 11px;border-radius:999px;
-  background:rgba(233,180,76,.10);border:1px solid rgba(233,180,76,.30);
+  /* Opaque, so the words in it stand on their own ground rather than on
+     whatever the mountain is doing behind them. Translucent, this pill's own
+     subtitle was the worst-contrast text on the screen and the only reason the
+     scrim had to cover the range. */
+  background:rgba(22,17,10,.93);border:1px solid rgba(233,180,76,.38);
   color:var(--ember-2);font-size:12px;font-weight:700;letter-spacing:.02em;
   cursor:pointer;-webkit-tap-highlight-color:transparent;min-height:44px;
   transition:background var(--t) ease,border-color var(--t) ease}
@@ -2922,7 +2931,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+92f7219</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+345155a</div>
     </div>
   </section>
 
@@ -20409,6 +20418,56 @@ function sheetBodyMap(m) {
     <button class="btn ghost block" data-act="stretch">Today's stretch instead</button>`,
     { key: 'bodymap' });
 }
+/* Whether the notch has already been taken out of the viewport.
+   ------------------------------------------------------------
+   iOS can hand a standalone web app a viewport that ALREADY excludes the
+   status bar while still reporting a non-zero `safe-area-inset-top`. Measured
+   on a real phone: `screen` 402x874, `window` 402x812, `safe-area-inset-top`
+   62 — the sixty-two pixels are gone from the window AND still described by
+   the inset. Padding by the inset on top of that reserves the notch twice and
+   parks everything a status bar too low, which is the empty strip that was
+   reported four times and misdiagnosed three.
+
+   The other state is the ordinary one: a full-height window with the same
+   inset reported, where the padding is exactly right and removing it would put
+   the title under the clock. Both states report the same inset, so the inset
+   cannot tell them apart — the window's height against the screen's can.
+
+   Only in a standalone app. In a browser tab the difference between the screen
+   and the window is the browser's own chrome, which is not a safe area and
+   changes as you scroll.
+
+   Resolved by measurement, not by reading --safe-t: getPropertyValue hands
+   back the literal text `env(safe-area-inset-top,0px)`. */
+function calibrateSafeTop() {
+  const root = document.documentElement;
+  const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+    || navigator.standalone === true;
+  root.style.removeProperty('--safe-t');
+  if (!standalone) return;
+
+  /* The inset arrives through a class rather than an inline style so a test
+     can fake it — env() is always 0px in a desktop browser, which is exactly
+     the state this function is supposed to tell apart from a real phone's. */
+  const probe = document.createElement('div');
+  probe.className = 'safe-probe';
+  document.body.appendChild(probe);
+  const envTop = Math.round(parseFloat(getComputedStyle(probe).paddingTop) || 0);
+  probe.remove();
+  if (envTop <= 0) return;
+
+  /* screen.width/height do not rotate on iOS, so the tall one is compared
+     against the window's height only while the window itself is tall. */
+  const portrait = window.innerHeight >= window.innerWidth;
+  const screenH = portrait ? Math.max(screen.width, screen.height)
+                           : Math.min(screen.width, screen.height);
+  const missing = screenH - window.innerHeight;
+  /* Within a few pixels of the whole inset: the status bar is already out of
+     the viewport and reserving it again is the bug. A partially missing strip
+     is something else and is left alone. */
+  if (missing >= envTop - 4) root.style.setProperty('--safe-t', '0px');
+}
+
 /* ============================================================
    REST TIMER
    ============================================================ */
@@ -22434,6 +22493,12 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
   try {
     STORAGE_OK = storageProbe();
     a11yWatch();
+    calibrateSafeTop();
+    /* Rotation and the in-call banner both change which of the two states the
+       device is in, so it is re-asked rather than decided once at boot. */
+    window.addEventListener('resize', calibrateSafeTop);
+    window.addEventListener('orientationchange', calibrateSafeTop);
+
     syncSky();
     /* The sky is checked on a timer as well as on every navigation, because
        the app is often left open on a bench between sets and the light should
