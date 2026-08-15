@@ -263,6 +263,59 @@ function bindingsOf(seg) {
   return [];
 }
 
+/* Duplicate `case` labels inside one switch — the same bug one level down.
+   ------------------------------------------------------------------------
+   Two `case 'x':` in one switch is legal JavaScript, warns about nothing, and
+   the FIRST one wins. Everything after it for that label is unreachable code
+   that looks completely ordinary.
+
+   It shipped. There were two `case 'import':` in the delegated listener — the
+   plan importer near the top, the backup restore seven hundred lines below —
+   so "Restore from backup" in Settings opened the PDF-and-text plan importer,
+   which refuses JSON, and importData() had never once run. It was reported as
+   "I saved a backup .json before reinstalling and the import doesn't accept
+   .json files", which is exactly what the app was doing.
+
+   Scoped per switch, not per file: the same label in two different switches is
+   correct and common. Frames are tracked on the masked source so braces inside
+   strings do not count, and the label text is read from the RAW source at the
+   same offset — masking blanks string bodies, so the masked copy knows where
+   the labels are and not what they say. Offsets are preserved exactly, which
+   is what makes reading one through the other legitimate. */
+function caseCollisions(raw, masked) {
+  const starts = [0];
+  for (let i = 0; i < masked.length; i++) if (masked[i] === '\n') starts.push(i + 1);
+  const lineAt = (i) => {
+    let lo = 0, hi = starts.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (starts[mid] <= i) lo = mid; else hi = mid - 1; }
+    return lo + 1;
+  };
+  const frames = [];
+  const hits = [];
+  let labels = 0, switches = 0, pending = false;
+
+  for (let i = 0; i < masked.length; i++) {
+    const c = masked[i];
+    if (c === '{') { frames.push({ isSwitch: pending, seen: new Map() }); if (pending) switches++; pending = false; continue; }
+    if (c === '}') { frames.pop(); continue; }
+    if (!/[A-Za-z_$]/.test(c) || (i > 0 && /[\w$]/.test(masked[i - 1]))) continue;
+    if (masked.startsWith('switch', i)) { pending = true; i += 5; continue; }
+    if (masked.startsWith('case', i)) {
+      const m = /^case\s+(?:'([^']*)'|"([^"]*)")\s*:/.exec(raw.slice(i, i + 240));
+      const top = frames[frames.length - 1];
+      if (m && top && top.isSwitch) {
+        const label = m[1] !== undefined ? m[1] : m[2];
+        labels++;
+        if (top.seen.has(label)) hits.push({ label, first: top.seen.get(label), second: lineAt(i) });
+        else top.seen.set(label, lineAt(i));
+      }
+      i += 3;
+      continue;
+    }
+  }
+  return { hits, labels, switches };
+}
+
 /* ---------------------------------------------------------------- */
 
 let parts;
@@ -277,6 +330,8 @@ const js = parts.filter(p => p.endsWith('.js'));
 const seen = new Map(); // name -> [{file, line, kind}]
 const problems = [];
 let namesSeen = 0;
+let caseLabels = 0, switchCount = 0;
+const caseHits = [];
 
 for (const rel of js) {
   let src;
@@ -295,6 +350,10 @@ for (const rel of js) {
     if (!seen.has(d.name)) seen.set(d.name, []);
     seen.get(d.name).push({ file: rel, line: d.line, kind: d.kind });
   }
+  const cc = caseCollisions(src, masked);
+  caseLabels += cc.labels;
+  switchCount += cc.switches;
+  for (const hit of cc.hits) caseHits.push({ file: rel, ...hit });
 }
 
 const dupes = [...seen.entries()].filter(([, hits]) => hits.length > 1);
@@ -306,6 +365,17 @@ if (problems.length) {
   console.error('dupes: FAILED to scan cleanly');
   for (const p of problems) console.error('  ' + p);
   process.exit(2);
+}
+
+if (caseHits.length) {
+  console.error(`dupes: ${caseHits.length} duplicate case label(s) inside one switch\n`);
+  for (const hit of caseHits) {
+    console.error(`  case '${hit.label}'`);
+    console.error(`      ${hit.file}:${hit.first}  ← this one runs`);
+    console.error(`      ${hit.file}:${hit.second}  ← unreachable\n`);
+  }
+  console.error("  The first matching case wins and the rest is dead code. Rename one.");
+  process.exit(1);
 }
 
 if (dupes.length) {
@@ -322,4 +392,5 @@ if (dupes.length) {
 
 if (!QUIET) {
   console.log(`dupes: ok — ${namesSeen} top-level declarations across ${js.length} parts, ${seen.size} distinct, 0 duplicates`);
+  console.log(`       ok — ${caseLabels} case labels in ${switchCount} switches, 0 shadowed`);
 }

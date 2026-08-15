@@ -332,7 +332,7 @@ try {
     return {
       settingsRows: body.querySelectorAll('[data-act="open-settings"]').length,
       // these moved into Settings and must no longer sit loose on More
-      strays: ['rest-settings','plate-settings','export','import','reset','open-program','edit-envs']
+      strays: ['rest-settings','plate-settings','export','restore-backup','reset','open-program','edit-envs']
         .filter(a => acts.includes(a)),
       text: body.innerText || ''
     };
@@ -352,9 +352,100 @@ try {
   check('no placeholder text in Settings', !BAD.test(sheet.text));
   for (const need of ['open-program','edit-envs','rest-settings','plate-settings',
                       'set-toggle-warmup','set-toggle-fuel','edit-profile',
-                      'export','import','reset']) {
+                      'export','restore-backup','paste-backup','reset']) {
     check(`Settings offers ${need}`, sheet.acts.includes(need));
   }
+
+  /* ---- a backup can actually be restored ----
+     "Settings offers import" passed for the whole life of this bug, because it
+     asked whether the row EXISTS. There were two `case 'import':` in the
+     delegated switch — the plan importer first — so the row opened the
+     PDF-and-text importer, which refuses JSON, and importData() was
+     unreachable. A check written from the same assumption as the code cannot
+     find that assumption; this one follows the tap to what it does.
+
+     Three things, because each failed independently:
+     - the row reaches the BACKUP restore, evidenced by a file input being
+       opened rather than the plan sheet being rendered;
+     - that input carries no `accept` filter. iOS resolves accept to UTIs and
+       greys out a backup it has filed as plain text, which is the file the
+       user is reaching for. The content check below is the real gate;
+     - a backup actually round-trips, and a non-backup is refused without
+       touching what is already on the device. */
+  const restore = await page.evaluate(() => {
+    const realConfirm = window.confirm;
+    const realClick = HTMLInputElement.prototype.click;
+    window.confirm = () => true;
+    /* This probe is the only one in the file that replaces the whole store on
+       purpose, so it is the only one that has to hand it back. Left holding its
+       own fixture it changed what later screens render, and a contrast sweep
+       three hundred lines away went red on text whose colour nobody touched. */
+    const before = JSON.stringify(S);
+
+    S = blank(); S.onboarded = true; S.profile.name = 'Lene';
+    S.profile.bodyweight = [{ d: '2026-08-01', w: 71.4 }];
+    S.sessions = [{ d: '2026-08-01', type: 'push', exercises: [] }];
+    S.lifts = { 'bb-squat': { w: 92.5 } };
+    save(true);
+    const json = JSON.stringify(S);
+
+    /* The file input never reaches the document, so watch the call it makes. */
+    const picked = {};
+    HTMLInputElement.prototype.click = function () {
+      if (this.type === 'file') { picked.opened = true; picked.accept = this.getAttribute('accept'); }
+      else realClick.call(this);
+    };
+    go('more');
+    document.querySelector('[data-act="open-settings"]').click();
+    const beforeSheet = (document.getElementById('sheet-body').innerText || '').slice(0, 60);
+    document.querySelector('#sheet-body [data-act="restore-backup"]').click();
+    picked.sheetUnchanged =
+      (document.getElementById('sheet-body').innerText || '').slice(0, 60) === beforeSheet;
+    HTMLInputElement.prototype.click = realClick;
+
+    /* Lose everything, then put it back from the text alone. */
+    S = blank(); save(true);
+    const ok = applyBackup(json);
+    const back = { name: S.profile.name, lifts: S.lifts && S.lifts['bb-squat'] && S.lifts['bb-squat'].w,
+                   sessions: S.sessions.length, bw: (S.profile.bodyweight || []).length };
+
+    /* And a file that is not a backup must not take the device with it. */
+    const junkRefused = applyBackup('this is not json') === false
+      && applyBackup(JSON.stringify({ hello: 'world' })) === false
+      && applyBackup(JSON.stringify([1, 2, 3])) === false;
+    const survived = S.profile.name === 'Lene';
+
+    window.confirm = realConfirm;
+    closeSheet();
+    S = JSON.parse(before); save(true); render();
+    return { ...picked, ok, back, junkRefused, survived };
+  });
+  check('a backup restores, and the row that says so reaches it',
+    restore.opened === true && restore.sheetUnchanged === true && restore.ok === true
+      && restore.back.name === 'Lene' && restore.back.lifts === 92.5
+      && restore.back.sessions === 1 && restore.back.bw === 1,
+    `file picker opened ${restore.opened}, plan sheet not shown ${restore.sheetUnchanged}`
+      + ` · restored ${JSON.stringify(restore.back)}`);
+  check('...with nothing telling the picker which files to grey out',
+    restore.accept === null, `accept ${JSON.stringify(restore.accept)}`);
+  check('...and anything that is not a backup refused without losing what is here',
+    restore.junkRefused === true && restore.survived === true,
+    `refused ${restore.junkRefused}, existing data survived ${restore.survived}`);
+
+  const paste = await page.evaluate(() => {
+    go('more');
+    document.querySelector('[data-act="open-settings"]').click();
+    document.querySelector('#sheet-body [data-act="paste-backup"]').click();
+    const b = document.getElementById('sheet-body');
+    const ta = b.querySelector('#paste-backup-text');
+    const out = { hasBox: !!ta, go: !!b.querySelector('[data-act="paste-backup-go"]'),
+                  text: b.innerText || '' };
+    closeSheet();
+    return out;
+  });
+  check('...and a way in that no file picker can refuse',
+    paste.hasBox && paste.go && paste.text.length > 40 && !BAD.test(paste.text),
+    `textarea ${paste.hasBox}, restore button ${paste.go}`);
 
   /* Every navigational row must actually open something. A row whose case is
      missing would silently do nothing, which looks identical to a row nobody

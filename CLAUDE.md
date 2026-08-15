@@ -265,6 +265,8 @@ That one entry point is also what makes `profile.dayStart` a three-line feature.
 
 ## Fragile areas
 
+**1b. Two `case 'x':` in one switch is legal, silent, and the FIRST one wins.** It shipped: two `case 'import':` in the delegated listener meant Settings → "Restore from backup" opened the *plan* importer, which refuses JSON, and `importData()` was unreachable code that had never run. A user with a `.json` backup could not restore it. `dupes.mjs` now fails the build on duplicate case labels as well as duplicate declarations — scoped per switch, since the same label in two different switches is fine. **A check that a row EXISTS is not a check that it does the right thing**; follow the tap to what it does.
+
 **1. `build.sh` PARTS order is the load order.** Two part files declaring the same top-level name is legal JavaScript and completely silent — the later one wins app-wide. This already happened: a defensive copy of `daysBetween` in `p4d_plates.js` clamped its result to `Math.max(0, …)`, and because that file loads later, *every past-or-future check in the app lost the ability to see the past.* `dupes.mjs` now runs inside `build.sh` and fails the build on any duplicate. Do not remove that check.
 
 **2. `addDays()` returns a Date, stores are keyed by string.** Passing one where the other is expected fails silently — the lookup just misses, no error. Six call sites had this bug; two shipped. Normalise through `key()` at every store boundary.

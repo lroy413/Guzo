@@ -663,6 +663,38 @@ function sheetRest() {
    an incomplete app, and putting a button to it under someone's name would be
    the fastest possible way to do that. It is linked from here only if
    SHOW_PAYWALL ever goes true. */
+/* The way back in when the picker will not show the file.
+
+   A file picker is something that can refuse you, and on iOS it does: the
+   Files picker filters by UTI, and a backup Safari wrote from a Blob download
+   can land typed as plain text rather than JSON. The `accept` filter that
+   caused that is gone, but "the file is there and the app will not take it" is
+   a dead end for somebody holding the only copy of their training history, and
+   it should not depend on one API behaving.
+
+   Text cannot be refused. Open the backup in Files, select all, copy, paste.
+
+   No `key` on the sheet: it does not redraw itself, so it correctly opens at
+   the top, and giving it one would only pin a scroll position nobody wants
+   remembered. */
+function sheetPasteBackup() {
+  openSheet(`
+    <div class="sheet-h">Paste a backup</div>
+    <p class="small mb">For when the file picker will not show your backup — which iOS does
+      when it has filed your <span class="mono">.json</span> as plain text. Open the file in
+      Files or Mail, select all, copy, and paste it here.</p>
+    <div class="field mb">
+      <div class="label">Backup text</div>
+      <textarea class="input" id="paste-backup-text" rows="7" autocapitalize="off"
+        autocorrect="off" spellcheck="false"
+        placeholder='{ "v": "1.8.0", "profile": { … } }'></textarea>
+    </div>
+    <p class="tiny mb" style="color:var(--faint)">This replaces everything currently on this
+      device. Nothing is sent anywhere — it is read here and written to this device only.</p>
+    <button class="btn primary block mb" data-act="paste-backup-go">Restore from this text</button>
+    <button class="btn quiet block" data-act="close">Cancel</button>`);
+}
+
 function sheetMembership() {
   openSheet(`
     <div class="center mb">
@@ -790,7 +822,14 @@ function sheetSettings() {
     <div class="eyebrow mb-s">Your data</div>
     <div class="list mb">
       ${row('export', ICO.download, 'Export backup', 'A JSON file of everything. Do this weekly.')}
-      ${row('import', ICO.upload, 'Restore from backup', 'Replaces everything on this device')}
+      ${row('restore-backup', ICO.upload, 'Restore from backup', 'Replaces everything on this device')}
+      ${/* The way back in when the picker will not show the file. iOS filters
+            the Files picker by UTI and a backup Safari wrote can land typed as
+            plain text, at which point a JSON filter greys out the one file you
+            need. The filter is gone, but a picker is still something that can
+            refuse you, and the person reaching for this is holding the only
+            copy of their training history. Text cannot be refused. */''}
+      ${row('paste-backup', ICO.doc, 'Paste a backup instead', 'If the file picker will not show your .json')}
       <div class="lrow" data-act="reset">
         <div class="ico">${ICO.warn}</div>
         <div class="grow"><div class="h3" style="color:var(--rose)">Reset everything</div><div class="tiny mt-s">Cannot be undone</div></div>

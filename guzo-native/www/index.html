@@ -3082,7 +3082,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+7d29f90</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+9666d75</div>
     </div>
   </section>
 
@@ -16746,6 +16746,38 @@ function sheetRest() {
    an incomplete app, and putting a button to it under someone's name would be
    the fastest possible way to do that. It is linked from here only if
    SHOW_PAYWALL ever goes true. */
+/* The way back in when the picker will not show the file.
+
+   A file picker is something that can refuse you, and on iOS it does: the
+   Files picker filters by UTI, and a backup Safari wrote from a Blob download
+   can land typed as plain text rather than JSON. The `accept` filter that
+   caused that is gone, but "the file is there and the app will not take it" is
+   a dead end for somebody holding the only copy of their training history, and
+   it should not depend on one API behaving.
+
+   Text cannot be refused. Open the backup in Files, select all, copy, paste.
+
+   No `key` on the sheet: it does not redraw itself, so it correctly opens at
+   the top, and giving it one would only pin a scroll position nobody wants
+   remembered. */
+function sheetPasteBackup() {
+  openSheet(`
+    <div class="sheet-h">Paste a backup</div>
+    <p class="small mb">For when the file picker will not show your backup — which iOS does
+      when it has filed your <span class="mono">.json</span> as plain text. Open the file in
+      Files or Mail, select all, copy, and paste it here.</p>
+    <div class="field mb">
+      <div class="label">Backup text</div>
+      <textarea class="input" id="paste-backup-text" rows="7" autocapitalize="off"
+        autocorrect="off" spellcheck="false"
+        placeholder='{ "v": "1.8.0", "profile": { … } }'></textarea>
+    </div>
+    <p class="tiny mb" style="color:var(--faint)">This replaces everything currently on this
+      device. Nothing is sent anywhere — it is read here and written to this device only.</p>
+    <button class="btn primary block mb" data-act="paste-backup-go">Restore from this text</button>
+    <button class="btn quiet block" data-act="close">Cancel</button>`);
+}
+
 function sheetMembership() {
   openSheet(`
     <div class="center mb">
@@ -16873,7 +16905,14 @@ function sheetSettings() {
     <div class="eyebrow mb-s">Your data</div>
     <div class="list mb">
       ${row('export', ICO.download, 'Export backup', 'A JSON file of everything. Do this weekly.')}
-      ${row('import', ICO.upload, 'Restore from backup', 'Replaces everything on this device')}
+      ${row('restore-backup', ICO.upload, 'Restore from backup', 'Replaces everything on this device')}
+      ${/* The way back in when the picker will not show the file. iOS filters
+            the Files picker by UTI and a backup Safari wrote can land typed as
+            plain text, at which point a JSON filter greys out the one file you
+            need. The filter is gone, but a picker is still something that can
+            refuse you, and the person reaching for this is holding the only
+            copy of their training history. Text cannot be refused. */''}
+      ${row('paste-backup', ICO.doc, 'Paste a backup instead', 'If the file picker will not show your .json')}
       <div class="lrow" data-act="reset">
         <div class="ico">${ICO.warn}</div>
         <div class="grow"><div class="h3" style="color:var(--rose)">Reset everything</div><div class="tiny mt-s">Cannot be undone</div></div>
@@ -20960,25 +20999,55 @@ function exportData() {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
   toast('Backup downloaded', true);
 }
+/* NO `accept` FILTER, AND THAT IS THE WHOLE POINT.
+
+   It was `accept="application/json,.json"`, which is the obviously correct
+   thing and made a backup impossible to restore on the phone this app is for.
+   iOS resolves `accept` to UTIs and filters the Files picker by them:
+   `application/json` becomes `public.json`, and a file Safari wrote from a Blob
+   download usually lands in Files typed `public.plain-text` or `public.data`.
+   It does not conform, so it is greyed out and cannot be chosen — the report
+   was "the import doesn't accept .json files", and it was exactly true.
+
+   A filter here can only ever wrongly exclude. It cannot make a bad file good:
+   the content is parsed and checked below whatever the picker hands over, and
+   that check is the real gate. Between an unfiltered picker and a user staring
+   at their own greyed-out backup, this is not close. */
 function importData() {
   const inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = 'application/json,.json';
+  inp.type = 'file';
   inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
     const fr = new FileReader();
-    fr.onload = () => {
-      try {
-        const d = JSON.parse(fr.result);
-        if (!d.profile || !Array.isArray(d.sessions)) throw new Error('not a Guzo backup');
-        if (!confirm('Replace everything on this device with this backup?')) return;
-        S = Object.assign(blank(), d);
-        save(true); closeSheet(); go('today');
-        toast('Backup restored', true);
-      } catch (e) { toast('That file did not read as a backup'); }
-    };
+    fr.onload = () => applyBackup(fr.result);
+    fr.onerror = () => toast('That file could not be read');
     fr.readAsText(f);
   };
   inp.click();
+}
+
+/* One reader for both ways in, so the file picker and the paste box cannot
+   drift on what counts as a backup or on what restoring does.
+
+   Says WHICH way it failed. "That file did not read as a backup" covers a
+   photo, a truncated download and a genuine Guzo export from a build that
+   named things differently, and the three want completely different things
+   from you. Somebody holding the only copy of their training history deserves
+   to know whether they picked the wrong file or the right one is damaged. */
+function applyBackup(text) {
+  let d;
+  try { d = JSON.parse(String(text || '')); }
+  catch (e) { toast('That is not readable as JSON — it may be the wrong file, or a partial download'); return false; }
+  if (!d || typeof d !== 'object' || Array.isArray(d)) { toast('That JSON is not a Guzo backup'); return false; }
+  if (!d.profile || !Array.isArray(d.sessions)) {
+    toast('That reads as JSON but has no Guzo profile or sessions in it');
+    return false;
+  }
+  if (!confirm('Replace everything on this device with this backup?')) return false;
+  S = Object.assign(blank(), d);
+  save(true); closeSheet(); go('today');
+  toast('Backup restored', true);
+  return true;
 }
 
 /* ============================================================
@@ -22460,7 +22529,27 @@ document.addEventListener('click', ev => {
       if (!SHOW_PAYWALL) break;
       sheetPaywall(); break;
     case 'export': exportData(); break;
-    case 'import': importData(); break;
+    /* `restore-backup`, not `import`, and the rename IS the bug fix.
+
+       There were two `case 'import':` in this switch — the plan importer at the
+       top and this one — and in a JavaScript switch the first match wins. So
+       "Restore from backup" in Settings opened the PDF-and-text plan importer,
+       which refuses JSON, and importData() below was unreachable code that had
+       never run. The report was "I saved a backup .json before reinstalling and
+       the import doesn't accept .json files"; the app was doing precisely that,
+       and every part of it looked right in isolation.
+
+       Two labels colliding is legal, silent, and shadows a whole feature — the
+       same shape as two part files declaring one name, which build.sh already
+       refuses. dupes.mjs now fails the build on this too. */
+    case 'restore-backup': importData(); break;
+    case 'paste-backup': sheetPasteBackup(); break;
+    case 'paste-backup-go': {
+      const box = document.getElementById('paste-backup-text');
+      if (!box || !box.value.trim()) { toast('Paste the backup text first'); break; }
+      applyBackup(box.value);
+      break;
+    }
     case 'reset': {
       if (!confirm('Erase everything and start over? Export a backup first if you want to keep it.')) break;
       if (!confirm('Really sure? This cannot be undone.')) break;

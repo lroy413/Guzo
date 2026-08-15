@@ -312,25 +312,55 @@ function exportData() {
   setTimeout(() => URL.revokeObjectURL(url), 4000);
   toast('Backup downloaded', true);
 }
+/* NO `accept` FILTER, AND THAT IS THE WHOLE POINT.
+
+   It was `accept="application/json,.json"`, which is the obviously correct
+   thing and made a backup impossible to restore on the phone this app is for.
+   iOS resolves `accept` to UTIs and filters the Files picker by them:
+   `application/json` becomes `public.json`, and a file Safari wrote from a Blob
+   download usually lands in Files typed `public.plain-text` or `public.data`.
+   It does not conform, so it is greyed out and cannot be chosen — the report
+   was "the import doesn't accept .json files", and it was exactly true.
+
+   A filter here can only ever wrongly exclude. It cannot make a bad file good:
+   the content is parsed and checked below whatever the picker hands over, and
+   that check is the real gate. Between an unfiltered picker and a user staring
+   at their own greyed-out backup, this is not close. */
 function importData() {
   const inp = document.createElement('input');
-  inp.type = 'file'; inp.accept = 'application/json,.json';
+  inp.type = 'file';
   inp.onchange = () => {
     const f = inp.files[0]; if (!f) return;
     const fr = new FileReader();
-    fr.onload = () => {
-      try {
-        const d = JSON.parse(fr.result);
-        if (!d.profile || !Array.isArray(d.sessions)) throw new Error('not a Guzo backup');
-        if (!confirm('Replace everything on this device with this backup?')) return;
-        S = Object.assign(blank(), d);
-        save(true); closeSheet(); go('today');
-        toast('Backup restored', true);
-      } catch (e) { toast('That file did not read as a backup'); }
-    };
+    fr.onload = () => applyBackup(fr.result);
+    fr.onerror = () => toast('That file could not be read');
     fr.readAsText(f);
   };
   inp.click();
+}
+
+/* One reader for both ways in, so the file picker and the paste box cannot
+   drift on what counts as a backup or on what restoring does.
+
+   Says WHICH way it failed. "That file did not read as a backup" covers a
+   photo, a truncated download and a genuine Guzo export from a build that
+   named things differently, and the three want completely different things
+   from you. Somebody holding the only copy of their training history deserves
+   to know whether they picked the wrong file or the right one is damaged. */
+function applyBackup(text) {
+  let d;
+  try { d = JSON.parse(String(text || '')); }
+  catch (e) { toast('That is not readable as JSON — it may be the wrong file, or a partial download'); return false; }
+  if (!d || typeof d !== 'object' || Array.isArray(d)) { toast('That JSON is not a Guzo backup'); return false; }
+  if (!d.profile || !Array.isArray(d.sessions)) {
+    toast('That reads as JSON but has no Guzo profile or sessions in it');
+    return false;
+  }
+  if (!confirm('Replace everything on this device with this backup?')) return false;
+  S = Object.assign(blank(), d);
+  save(true); closeSheet(); go('today');
+  toast('Backup restored', true);
+  return true;
 }
 
 /* ============================================================
@@ -1812,7 +1842,27 @@ document.addEventListener('click', ev => {
       if (!SHOW_PAYWALL) break;
       sheetPaywall(); break;
     case 'export': exportData(); break;
-    case 'import': importData(); break;
+    /* `restore-backup`, not `import`, and the rename IS the bug fix.
+
+       There were two `case 'import':` in this switch — the plan importer at the
+       top and this one — and in a JavaScript switch the first match wins. So
+       "Restore from backup" in Settings opened the PDF-and-text plan importer,
+       which refuses JSON, and importData() below was unreachable code that had
+       never run. The report was "I saved a backup .json before reinstalling and
+       the import doesn't accept .json files"; the app was doing precisely that,
+       and every part of it looked right in isolation.
+
+       Two labels colliding is legal, silent, and shadows a whole feature — the
+       same shape as two part files declaring one name, which build.sh already
+       refuses. dupes.mjs now fails the build on this too. */
+    case 'restore-backup': importData(); break;
+    case 'paste-backup': sheetPasteBackup(); break;
+    case 'paste-backup-go': {
+      const box = document.getElementById('paste-backup-text');
+      if (!box || !box.value.trim()) { toast('Paste the backup text first'); break; }
+      applyBackup(box.value);
+      break;
+    }
     case 'reset': {
       if (!confirm('Erase everything and start over? Export a backup first if you want to keep it.')) break;
       if (!confirm('Really sure? This cannot be undone.')) break;

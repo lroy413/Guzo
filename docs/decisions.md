@@ -2978,3 +2978,61 @@ cleared 2.2:1 on the dark half and only 1.37:1 on the lit one. Visible, but
 with nothing left for anyone who later nudges the opacity. #7C8CA8 balances it
 at 2.2 and 1.5. Balanced across the two halves is the property worth holding,
 not maximum contrast on either.
+
+---
+
+## Two `case 'import':` in one switch, and a backup nobody could restore
+
+*"I saved a backup .json file before reinstalling the app, but I go to import
+it back in and the import doesn't accept .json files."*
+
+The app was doing exactly that. The delegated listener had **two**
+`case 'import':` — the plan importer near the top of the switch, the backup
+restore seven hundred lines below — and in a JavaScript switch the first match
+wins. So Settings → "Restore from backup" opened the PDF-and-text plan
+importer, which refuses JSON, and `importData()` had never run in its life.
+
+Legal, silent, no warning at build time or runtime. The same shape as two part
+files declaring one top-level name, which `build.sh` has refused since the
+`daysBetween` incident — one level down, and unguarded.
+
+**`dupes.mjs` now fails the build on it too.** Scoped per switch rather than
+per file, since the same label in two different switches is correct and common.
+Frames are tracked on the masked source so braces inside strings do not count,
+and the label text is read from the RAW source at the same offset — masking
+blanks string bodies, so the masked copy knows where the labels are and not
+what they say, and `mask()` preserving offsets exactly is what makes reading
+one through the other legitimate. Restoring the collision takes the build from
+green to `exit 1` naming both lines. 257 labels across 2 switches; this was the
+only one.
+
+**The existing check passed throughout.** `Settings offers import` asked
+whether the row EXISTS. It did. A check written from the same assumption as the
+code cannot find that assumption — third time that sentence has been written in
+this file. The replacement follows the tap to what it does: a file input has to
+be opened and the plan sheet has to not appear.
+
+**Two more things were wrong behind it**, and both would have bitten the moment
+the routing was fixed:
+
+- `accept="application/json,.json"` on the picker. iOS resolves `accept` to
+  UTIs and filters the Files picker by them; a backup Safari wrote from a Blob
+  download commonly lands typed `public.plain-text` or `public.data`, does not
+  conform to `public.json`, and is greyed out. The filter is gone. It could
+  only ever wrongly exclude — the content is parsed and checked whatever the
+  picker hands over, and that check is the real gate.
+- One error message for every failure. "That file did not read as a backup"
+  covers a photo, a truncated download and a real export from a build that
+  named things differently, and those want completely different things from
+  you. It now says which.
+
+**And a way in that no picker can refuse.** Paste the backup text. A file
+picker is a thing that can say no, and the person reaching for this is holding
+the only copy of their training history — that should not rest on one API
+behaving. Both paths go through one `applyBackup()`, so they cannot drift on
+what counts as a backup or on what restoring does.
+
+**The probe had to hand the store back.** It is the only one in `blanks.mjs`
+that replaces the whole of `S` on purpose. Left holding its own fixture, it
+changed what later screens render and a contrast sweep three hundred lines away
+went red on text whose colour nobody had touched.
