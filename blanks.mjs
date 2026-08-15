@@ -2757,6 +2757,33 @@ try {
     !!mf.bg && mf.bg.toLowerCase() === (mf.theme || '').toLowerCase(),
     `background_color ${mf.bg} vs theme-color ${mf.theme}`);
   check('...asking for a standalone window', mf.display === 'standalone', mf.display);
+  /* ...and not ALSO asking for a translucent status bar, which is the thing
+     that took 62px off the foot of the screen.
+
+     A test pattern with a labelled bar at each edge of the layout viewport
+     settled it in one photograph: the top bar came out above the clock, so the
+     viewport starts at screen y0 and the status bar overlays the app — exactly
+     what black-translucent asks for, working. The bottom bar came out 62px
+     short of the foot with black below it. iOS had reduced the viewport height
+     by the status bar as though it were opaque while leaving the origin at y0
+     as though it were translucent, and the difference fell off the bottom
+     where no stylesheet reaches. `lvh 874` against `svh 812` says the same
+     from the other end: 62px of "retractable chrome" in an app that has none.
+
+     It is also the one meta an ordinary PWA does not carry, which is why every
+     other web app on that phone was fine. Locked here rather than left to a
+     comment, because it reads like the declaration that gives you MORE screen
+     and every instinct is to put it back. */
+  const bar = await page.evaluate(() => {
+    const m = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    const vp = (document.querySelector('meta[name="viewport"]') || {}).content || '';
+    const cap = (document.querySelector('meta[name="apple-mobile-web-app-capable"]') || {}).content;
+    return { style: m ? m.content : null, cover: /viewport-fit\s*=\s*cover/.test(vp), cap };
+  });
+  check('...without also asking for a translucent status bar',
+    bar.style !== 'black-translucent' && bar.cover === true && bar.cap === 'yes',
+    `status-bar-style ${bar.style === null ? 'absent' : bar.style}`
+      + ` · viewport-fit=cover ${bar.cover} · web-app-capable ${bar.cap}`);
   check('...and its icon resolving too', mf.iconOk === true);
   check('...its sky reaching the top of the screen rather than starting under the title',
     lift.flat.sky <= 0, `sky top ${lift.flat.sky}`);

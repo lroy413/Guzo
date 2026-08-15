@@ -2885,3 +2885,55 @@ on the screen* it sits:
 phone; that is why this round exists. The bars are named because one bar in a
 picture is ambiguous about which end it is. Seven reverts across the two
 checks, one failure each.
+
+---
+
+## `black-translucent` was what took the bottom 62px
+
+The test pattern's two bars settled it in one photograph, after five wrong
+answers reasoned from numbers.
+
+- **Top bar: above the clock.** The layout viewport starts at screen y0 and the
+  status bar overlays the app. That is precisely what `black-translucent` asks
+  for, and it was working.
+- **Bottom bar: 62px short of the foot, black below it.** Viewport y0..812 on
+  an 874 screen.
+
+Those two facts cannot both be right, and the contradiction is iOS's: **the
+viewport height was reduced by the status bar as though it were opaque, while
+the origin stayed at y0 as though it were translucent.** Reserved once in the
+height, waived once in the position, and the difference falls off the bottom
+where nothing paints it. `lvh 874` against `svh 812` had been saying the same
+thing from the other end the whole time — the engine modelling 62px of
+retractable chrome in an app that has none.
+
+`black-translucent` is the half that pins the origin to y0, and it is also the
+one meta an ordinary PWA does not carry. That is the answer to *"my other apps
+built here don't have this issue"*: they never asked for the translucent bar,
+so both halves of iOS's decision agreed and the window ran to the foot of the
+screen.
+
+Removed. Both halves now agree on an opaque status bar: the window is placed
+below it and reaches the bottom. The check locks the whole head configuration —
+`viewport-fit=cover` present, `apple-mobile-web-app-capable` yes,
+status-bar-style *not* translucent — because that meta reads like the
+declaration that gives you MORE screen and every instinct is to put it back.
+
+**What to watch on the next launch.** With the window below the status bar,
+`env(safe-area-inset-top)` should report 0. If it still reports 62 the app will
+reserve a notch it was never given and push the title down — the "added up top"
+failure both earlier calibrations produced, from opposite directions. It is one
+line of the Settings readout, so it is a look rather than an investigation. No
+calibration has been added for it: the whole history of this bug is rules built
+on inference, and there is no reason to build a sixth.
+
+**The method, since it is the only part that generalises.** Five explanations
+came from reading fields that were consistent with two opposite situations. The
+thing that worked was an instrument whose output could only mean one thing —
+and it only worked on the third attempt at building it. The first version used
+3px outlines, invisible in a photograph of a phone. The second was blinded by
+the fix it was measuring: with the body sized to the full window it covered the
+canvas, so the magenta that distinguishes "inside the page" from "outside the
+web view" had nowhere to show, and a picture with no magenta in it looked like
+an answer. Bars, thick, labelled, on the viewport rather than on any box —
+that could only mean one thing, and it did.
