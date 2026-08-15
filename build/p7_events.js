@@ -1786,12 +1786,23 @@ document.addEventListener('click', ev => {
         b.textContent = 'Done — hide edges';
         document.body.appendChild(b);
       }
+      /* Where the viewport's own edges land on the screen. Labelled, because a
+         photograph showing one bar cannot say which end it is. */
+      if (!document.querySelector('.edges-mark')) {
+        for (const [cls, txt] of [['t', 'TOP OF VIEWPORT'], ['b', 'BOTTOM OF VIEWPORT']]) {
+          const m = document.createElement('div');
+          m.className = 'edges-mark ' + cls;
+          m.textContent = txt;
+          document.body.appendChild(m);
+        }
+      }
       break;
     }
     case 'hide-edges': {
       document.documentElement.classList.remove('edges');
       const b = document.querySelector('.edges-stop');
       if (b) b.remove();
+      document.querySelectorAll('.edges-mark').forEach(m => m.remove());
       break;
     }
     case 'open-paywall':

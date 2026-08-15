@@ -2835,3 +2835,53 @@ one failure.
 **The bar had two causes, not one.** The camp's floor stopping at the nav
 reservation was real and is fixed; this is the other 62px. It was right not to
 call the first one the answer.
+
+---
+
+## `lvh` worked, and did not help — reverted
+
+The rule took. The readout went from `body 402x812` to `body 402x874`, which
+is exactly what it was written to do. The band at the foot of the screen did
+not move by a pixel.
+
+**A box the size of the window is not a box you can see all of.**
+`window.innerHeight` stayed at 812. So the app was painting 874px of content
+into a viewport that renders 812, and the last 62px hung off the bottom where
+nothing draws it — every screen quietly lost the end of its scroll area and
+nothing was gained. Reverted, and the check inverted: `html` and `body` take
+their height from the insets and from nothing else, and any viewport unit on
+either — `vh`, `svh`, `lvh`, `dvh`, gated or not, `height` or `min-height` — is
+now a failure. The old check asserted the unit was `lvh`; the new one asserts
+there is no unit at all. Both were reverted to prove them.
+
+**What this rules out, which is the useful part.** The strip is not the app
+being too short for its viewport. Sized by the viewport it is actually given,
+the app fills that viewport exactly — `body 402x812` against `window 402x812`.
+Whatever the strip is, it is outside the box the page is allowed to paint, and
+no length in any stylesheet reaches it. Three of the five theories died here.
+
+**And the test pattern could not answer it either, for a reason worth writing
+down.** With the body sized to 874 it covered the entire window, so `html`'s
+magenta — the whole mechanism for distinguishing "inside the page" from
+"outside the web view" — had nowhere to show. The photograph came back with no
+magenta anywhere, which looks like a decisive answer and is actually the
+instrument being blinded by the fix it was meant to evaluate. A diagnostic and
+the change it is measuring cannot share a surface.
+
+So the pattern gained two bars. `position:fixed`, full width, 14px, labelled
+TOP OF VIEWPORT and BOTTOM OF VIEWPORT. They mark the edges of the box
+`position:fixed` resolves against — the same box every screen is sized from —
+and they answer the one question left, which is not *how big* it is but *where
+on the screen* it sits:
+
+- Orange hard against the top of the screen, under the clock → the web view
+  starts at the top and the strip is at the foot.
+- Orange below the status bar with black above it → the web view was placed
+  under an opaque status bar, and the app has been reserving `--safe-t` for a
+  notch it was never given. The inset counted twice — which is what two earlier
+  calibrations were built to fix, and they got it backwards in both directions.
+
+3px outlines were used the first time and are invisible in a photograph of a
+phone; that is why this round exists. The bars are named because one bar in a
+picture is ambiguous about which end it is. Seven reverts across the two
+checks, one failure each.

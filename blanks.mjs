@@ -2525,63 +2525,47 @@ try {
     `${foot.gap}px of reserved room under the moraine, floor extends ${foot.ext}px`
       + ` · moraine ends ${foot.end}, extension ${foot.fill}`);
 
-  /* ---- the app is as tall as the window, in a standalone app ----
-     Measured on the phone: window 402x812 inside an outer 402x874 at y0, with
-     `svh 812 · lvh 874 · dvh 812 · vh 874`. The layout viewport is the SMALL
-     viewport, `position:fixed` resolves against it, and so every box in the app
-     stopped 62px above the foot of the screen. `lvh` is the only length that
-     reaches the window.
+  /* ---- the app is sized by the viewport it is actually given ----
+     There was a `@media (display-mode: standalone){html,body{height:100lvh}}`
+     here and a check that asserted the unit. Both are gone, and the reason is
+     worth keeping: the rule worked and did not help.
 
-     A desktop browser can prove none of that. In Chromium — app mode included,
-     which does report `display-mode: standalone` — `lvh` equals `innerHeight`,
-     so the rule is a genuine no-op here and no measurement can see it. What is
-     checkable is the part that would fail silently: the unit. `svh` and `dvh`
-     both read 812 on that phone, so either of them compiles, applies, matches
-     the media query, and changes nothing at all. And `getComputedStyle` is no
-     help either — it returns the USED value for a positioned box, so `bottom`
-     reads `0px` whether it was authored `0` or `auto`.
+     The phone reports `svh 812 · lvh 874 · dvh 812 · vh 874` against a `window
+     402x812` inside an `outer 402x874`, so `lvh` really is the only CSS length
+     that reaches the window, and sizing the body by it really did take — the
+     readout went from `body 402x812` to `body 402x874`. The band at the foot of
+     the screen did not move by a pixel.
 
-     So this reads the rule itself out of the CSSOM, which is the one place the
-     unit survives, and then checks behaviourally that the invariant it depends
-     on still holds. */
-  const tall = await page.evaluate(() => {
-    let inMedia = null, ungated = false;
+     A box the size of the window is not a box you can see all of. `innerHeight`
+     stayed at 812, so the app was painting 62px into a window that shows 812,
+     and the overhang cost every screen the last 62px of its scroll area for
+     nothing. So the check is now the opposite one: html and body take their
+     height from the insets and from nothing else. A viewport unit on either is
+     the thing to catch, whichever unit it is and whatever it is gated behind. */
+  const sized = await page.evaluate(() => {
+    const bad = [];
     for (const sheet of document.styleSheets) {
       let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
-      for (const r of rules) {
-        if (r.type === CSSRule.MEDIA_RULE && /display-mode:\s*standalone/.test(r.conditionText || '')) {
-          for (const inner of r.cssRules)
-            if (/\bbody\b/.test(inner.selectorText || '') && inner.style.height)
-              inMedia = { sel: inner.selectorText, h: inner.style.height, b: inner.style.bottom || '—' };
-        } else if (r.type === CSSRule.STYLE_RULE
-            && /^html,\s*body$/.test((r.selectorText || '').trim()) && r.style.height) {
-          /* An ungated copy would size a browser tab by the viewport with the
-             address bar retracted, which is the failure `100dvh` on #app
-             already cost once. */
-          ungated = true;
+      const walk = (list, where) => {
+        for (const r of list) {
+          if (r.type === CSSRule.MEDIA_RULE) { walk(r.cssRules, r.conditionText || 'media'); continue; }
+          if (r.type !== CSSRule.STYLE_RULE) continue;
+          const sel = (r.selectorText || '').trim();
+          if (!/(^|,\s*)(html|body)\s*(,|$)/.test(sel)) continue;
+          for (const prop of ['height', 'min-height', 'max-height']) {
+            const v = r.style.getPropertyValue(prop);
+            if (v && /\d\s*(vh|svh|lvh|dvh)\b/.test(v)) bad.push(`${where}: ${sel} { ${prop}:${v} }`);
+          }
         }
-      }
+      };
+      walk(rules, 'top level');
     }
-    /* And the invariant: #app is `height:100%` of the body, so a body taller
-       than the viewport has to carry #app with it rather than leave it behind
-       at the old height. Forced directly, since lvh cannot diverge here. */
-    const s = document.createElement('style');
-    s.textContent = 'html,body{height:940px;bottom:auto}';
-    document.head.appendChild(s);
-    const app = Math.round(document.getElementById('app').getBoundingClientRect().height);
-    const body = Math.round(document.body.getBoundingClientRect().height);
-    s.remove();
-    const back = Math.round(document.getElementById('app').getBoundingClientRect().height);
-    return { inMedia, ungated, app, body, restored: back === window.innerHeight };
+    const b = document.body.getBoundingClientRect();
+    return { bad, h: Math.round(b.height), fits: Math.round(b.height) === window.innerHeight };
   });
-  check('the app is as tall as the window when it is a standalone app',
-    !!tall.inMedia && /\b100lvh\b/.test(tall.inMedia.h) && tall.inMedia.b === 'auto'
-      && !tall.ungated && tall.app === 940 && tall.body === 940 && tall.restored,
-    tall.inMedia
-      ? `${tall.inMedia.sel} { height:${tall.inMedia.h}; bottom:${tall.inMedia.b} }`
-        + ` · ungated ${tall.ungated} · forced body ${tall.body} → #app ${tall.app}`
-        + ` · restored ${tall.restored}`
-      : 'no standalone height rule');
+  check('the app is sized by the viewport it is actually given, not by a unit',
+    sized.bad.length === 0 && sized.fits,
+    sized.bad.length ? sized.bad.join(' · ') : `body ${sized.h} = innerHeight`);
 
   /* What this phone reports about its own screen, said out loud in Settings.
      Three attempts to explain a strip at the foot of the screen were made from
@@ -2662,11 +2646,33 @@ try {
       stopReachable: !!(stop && hit && stop.contains(hit)),
       wrote: JSON.stringify(S) !== seen,
     };
+    /* The two bars that say WHERE the layout viewport is on the screen, which
+       is the question the outlines cannot answer. They have to sit at the
+       viewport's own edges — `position:fixed`, not the body's box, because the
+       whole point is to catch the case where those two differ — and they have
+       to be legible in a photograph of a phone: a 3px outline was not, which
+       is why this round exists. Named, because one bar in a picture is
+       ambiguous about which end it is. */
+    const marks = [...document.querySelectorAll('.edges-mark')].map(m => {
+      const b = m.getBoundingClientRect();
+      return { top: Math.round(b.top), bottom: Math.round(b.bottom),
+               h: Math.round(b.height), w: Math.round(b.width),
+               txt: (m.textContent || '').trim(),
+               fixed: getComputedStyle(m).position === 'fixed' };
+    });
+    out.marks = marks.length;
+    out.markTop = marks.find(m => m.top === 0) || null;
+    out.markBottom = marks.find(m => m.bottom === window.innerHeight) || null;
+    out.marksWide = marks.every(m => m.w === window.innerWidth);
+    out.marksSeen = marks.every(m => m.h >= 12 && m.fixed && /VIEWPORT/.test(m.txt));
+    out.marksNamed = new Set(marks.map(m => m.txt)).size === marks.length;
     if (stop) stop.click();
-    out.off = !root.classList.contains('edges') && !document.querySelector('.edges-stop');
+    out.off = !root.classList.contains('edges') && !document.querySelector('.edges-stop')
+      && !document.querySelector('.edges-mark');
     root.classList.remove('edges');
     const left = document.querySelector('.edges-stop');
     if (left) left.remove();
+    document.querySelectorAll('.edges-mark').forEach(m => m.remove());
     if (document.getElementById('scrim').classList.contains('on')) closeSheet();
     return out;
   });
@@ -2679,6 +2685,14 @@ try {
       + `${edges.bodyBg} · sheet gone ${edges.sheetGone} · stop ${edges.stopH}px `
       + `"${edges.stopNamed}" reachable ${edges.stopReachable} · off ${edges.off}`
       + ` · wrote ${edges.wrote}`);
+  check('...marking where the viewport itself begins and ends on the screen',
+    !edges.missing && edges.marks === 2 && !!edges.markTop && !!edges.markBottom
+      && edges.marksWide && edges.marksSeen && edges.marksNamed,
+    edges.missing ? 'no control'
+      : `${edges.marks} bars · top ${edges.markTop ? edges.markTop.txt : 'missing'}`
+        + ` · bottom ${edges.markBottom ? edges.markBottom.txt : 'missing'}`
+        + ` · full width ${edges.marksWide} · legible+fixed ${edges.marksSeen}`
+        + ` · distinct ${edges.marksNamed}`);
 
   /* ---- the sky reaches the top of the screen ----
      The dark strip above base camp was never the header band, which repaints

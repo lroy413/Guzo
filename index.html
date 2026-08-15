@@ -147,38 +147,25 @@ body{transition:background-image 1.2s linear}
    `inset:0` is the viewport by definition, whichever one is current, with no
    percentage in the way. */
 html,body{margin:0;padding:0;overflow:hidden;position:fixed;inset:0}
-/* ...and "whichever one is current" turned out to be the short one.
+/* There WAS a `@media (display-mode: standalone){html,body{height:100lvh}}`
+   here, and it is gone. Worth the note, because the reasoning for it still
+   looks good and it was still wrong.
 
-   Measured on the phone rather than reasoned about, after four wrong answers
-   from the same numbers:
+   The phone reports `svh 812 · lvh 874 · dvh 812 · vh 874` against a `window
+   402x812` inside an `outer 402x874`, so `lvh` is genuinely the only CSS
+   length that reaches the window, and sizing the body by it genuinely worked:
+   the readout went from `body 402x812` to `body 402x874`. The band at the foot
+   of the screen did not move.
 
-     window 402x812 · screen 402x874 · outer 402x874 · window at y0
-     svh 812   lvh 874   dvh 812   vh 874
+   Which is the whole lesson. A box the size of the window is not the same
+   thing as a box you can SEE the whole of — `innerHeight` stayed at 812, so
+   the app was painting 62px of content into a window that shows 812, and the
+   extra hung off the bottom where nothing renders it. It cost every screen the
+   last 62px of its scroll area and bought nothing.
 
-   The window is the whole screen and starts at the top. The layout viewport
-   inside it is the *small* viewport — 62px shorter — and `position:fixed`
-   resolves against exactly that, so every box in the app stopped 62px above
-   the foot of the phone and the strip below them was never anything the app
-   was asked to paint. `svh` and `dvh` agree with the short one; `lvh` is the
-   only length that reaches the window, and it is a real 874.
+   The strip is not the app being too short. Sized correctly by the viewport it
+   is actually given, the app already fills that viewport exactly. */
 
-   Applied only where it is safe, which is the whole subtlety. In a browser tab
-   `lvh` is the viewport with the address bar *retracted*, so a body sized by
-   it while the bar is showing runs off the bottom of the screen and
-   `overflow:hidden` cuts it — the same failure that made `100dvh` unusable on
-   `#app`, one level up. A standalone app has no retractable chrome, so there
-   `lvh` is simply the window and cannot move. Hence the media query, not a
-   bare declaration.
-
-   Height only. Left and right still come from the insets, and `bottom:auto` is
-   written out rather than left to the over-constraint rule that would drop it
-   anyway — the rule is the thing this whole comment is about, and relying on
-   it silently once was enough. `#app` stays at `height:100%` and is therefore
-   its parent by definition; the invariant that keeps it from ever exceeding
-   the body is untouched. */
-@media (display-mode: standalone){
-  html,body{height:100lvh;bottom:auto}
-}
 /* The canvas is painted here as well as on the body, and that is not a
    duplicate.
 
@@ -232,6 +219,30 @@ html.edges{background:#FF00A8;background-image:none;transition:none}
 html.edges body{outline:3px solid #00E5FF;outline-offset:-3px}
 html.edges #app{outline:3px solid #FFE500;outline-offset:-9px}
 html.edges #nav{outline:3px solid #7CFF00;outline-offset:-3px}
+/* Two bars marking the LAYOUT VIEWPORT'S own edges, which is the one thing the
+   outlines above could not show.
+
+   They are `position:fixed`, so they sit at the top and bottom of the viewport
+   `position:fixed` resolves against — the same box every screen in this app is
+   sized from. Everything else in the pattern says how big a box is; these say
+   WHERE ON THE SCREEN that box begins and ends, and that is the question left.
+
+   A 3px outline is invisible in a photograph of a phone, and the first round
+   of this proved it: the body's own edges could not be made out at either end.
+   These are 14px and fully saturated, and they are labelled, because a
+   photograph showing one bar is ambiguous about which one it is.
+
+   Read it like this. Orange hard against the top of the screen, under the
+   clock, means the web view starts at the top and the missing strip is at the
+   foot. Orange sitting BELOW the status bar, with black above it, means the
+   web view was placed under an opaque status bar and the app has been
+   reserving --safe-t for a notch it was never given — the inset counted twice,
+   which is the bug two earlier calibrations were built to fix and got backwards
+   in both directions. */
+html.edges .edges-mark{position:fixed;left:0;right:0;height:14px;z-index:1999;
+  pointer-events:none;font:700 10px/14px var(--fm);text-align:center;color:#000}
+html.edges .edges-mark.t{top:0;background:#FF6A00}
+html.edges .edges-mark.b{bottom:0;background:#7CFF00}
 .edges-stop{
   position:fixed;left:50%;transform:translateX(-50%);
   bottom:calc(var(--safe-b) + 96px);z-index:2000;
@@ -3040,7 +3051,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+88f2667</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+abdd3f3</div>
     </div>
   </section>
 
@@ -22337,12 +22348,23 @@ document.addEventListener('click', ev => {
         b.textContent = 'Done — hide edges';
         document.body.appendChild(b);
       }
+      /* Where the viewport's own edges land on the screen. Labelled, because a
+         photograph showing one bar cannot say which end it is. */
+      if (!document.querySelector('.edges-mark')) {
+        for (const [cls, txt] of [['t', 'TOP OF VIEWPORT'], ['b', 'BOTTOM OF VIEWPORT']]) {
+          const m = document.createElement('div');
+          m.className = 'edges-mark ' + cls;
+          m.textContent = txt;
+          document.body.appendChild(m);
+        }
+      }
       break;
     }
     case 'hide-edges': {
       document.documentElement.classList.remove('edges');
       const b = document.querySelector('.edges-stop');
       if (b) b.remove();
+      document.querySelectorAll('.edges-mark').forEach(m => m.remove());
       break;
     }
     case 'open-paywall':
