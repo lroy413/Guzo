@@ -2561,3 +2561,39 @@ appear on — it went red the moment the date rolled over to a Saturday. It take
 the day off the screen now. That is the third probe in this file written
 against `today()` plus an offset, and the lesson has not changed: **if a probe
 needs a particular relative day, take it from what the screen is showing.**
+
+---
+
+## A window shorter than the screen does not say which end is missing
+
+The previous entry claimed the strip was solved. It was not, and the way it
+was wrong is the point.
+
+The phone reports `window 402x812` against `screen 402x874` with
+`safe-area-inset-top: 62`. Sixty-two pixels of screen are not in the window.
+That reading is **equally consistent with two opposite situations**:
+
+- the window starts *below* the status bar, so the top inset is already spent
+  and reserving it again pushes everything down a status bar; or
+- the window starts *at the top* and is 62px short at the **foot** — in which
+  case the status bar genuinely is over the content, the inset is needed, and
+  zeroing it puts the title under the clock while leaving the strip exactly
+  where it was.
+
+The first calibration assumed the first case from the height difference alone.
+That is not evidence, it is one of two readings of the same number, and the
+diagnostic that produced it had no line that could tell them apart — so the
+next readout came back byte-identical and said nothing about whether the fix
+had fired or what it had done.
+
+`window.screenY` is the missing datum: where the window sits on the screen.
+The rule requires it now — no offset, no change — and the diagnostic prints it
+alongside whether the app decided the inset was spent, so a readout answers
+the question instead of restating it.
+
+**The check was complicit.** It asserted the two states it had been written
+around and passed; the third — a window merely short at the foot — was never
+constructed, because the code under test could not distinguish it and neither
+could the person writing the check. Reverting to the height-only rule now
+prints `"0px"` where the inset is needed. **A check built from the same
+assumption as the code cannot find the assumption.**

@@ -2931,7 +2931,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+345155a</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+c9347c5</div>
     </div>
   </section>
 
@@ -16737,6 +16737,12 @@ function paintDisplayDiag() {
     `body ${Math.round(body.width)}x${Math.round(body.height)} @${Math.round(body.top)}`,
     `#app ${Math.round(app.width)}x${Math.round(app.height)} @${Math.round(app.top)}`,
     `safe t${inset[0]} r${inset[1]} b${inset[2]} l${inset[3]}`,
+    /* Where the window sits ON THE SCREEN, and whether the app decided the
+       top inset was already spent. A window shorter than the screen says
+       nothing about which end the missing strip is at — this does, and it is
+       the line that was missing when the first calibration was written. */
+    `window at y${typeof window.screenY === 'number' ? window.screenY : '?'} · outer ${window.outerWidth}x${window.outerHeight}`,
+    `top inset ${document.documentElement.style.getPropertyValue('--safe-t') === '0px' ? 'treated as spent' : 'reserved'}`,
     `display-mode ${mode} · apple standalone ${nav}`
   ].map(h).join('<br>');
 }
@@ -20462,10 +20468,23 @@ function calibrateSafeTop() {
   const screenH = portrait ? Math.max(screen.width, screen.height)
                            : Math.min(screen.width, screen.height);
   const missing = screenH - window.innerHeight;
-  /* Within a few pixels of the whole inset: the status bar is already out of
-     the viewport and reserving it again is the bug. A partially missing strip
-     is something else and is left alone. */
-  if (missing >= envTop - 4) root.style.setProperty('--safe-t', '0px');
+
+  /* WHERE the missing strip is, which is the whole question and which the
+     first version of this guessed at. A window 62px shorter than the screen
+     can mean two opposite things: it starts below the status bar and the top
+     inset is already spent, or it starts at the top and is 62px short at the
+     FOOT — in which case the status bar really is over the content, the inset
+     is needed, and zeroing it puts the title under the clock.
+
+     `screenY` is the only thing that says which. Nothing in the window's size
+     does, and the earlier rule read a difference of 62 as proof of the first
+     case when it is equally consistent with the second. Positive evidence
+     required now: no offset, no change. */
+  const offsetTop = typeof window.screenY === 'number' ? window.screenY
+                  : (typeof window.screenTop === 'number' ? window.screenTop : 0);
+  if (missing >= envTop - 4 && offsetTop >= envTop - 4) {
+    root.style.setProperty('--safe-t', '0px');
+  }
 }
 
 /* ============================================================

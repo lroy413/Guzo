@@ -860,6 +860,12 @@ function paintDisplayDiag() {
     `body ${Math.round(body.width)}x${Math.round(body.height)} @${Math.round(body.top)}`,
     `#app ${Math.round(app.width)}x${Math.round(app.height)} @${Math.round(app.top)}`,
     `safe t${inset[0]} r${inset[1]} b${inset[2]} l${inset[3]}`,
+    /* Where the window sits ON THE SCREEN, and whether the app decided the
+       top inset was already spent. A window shorter than the screen says
+       nothing about which end the missing strip is at — this does, and it is
+       the line that was missing when the first calibration was written. */
+    `window at y${typeof window.screenY === 'number' ? window.screenY : '?'} · outer ${window.outerWidth}x${window.outerHeight}`,
+    `top inset ${document.documentElement.style.getPropertyValue('--safe-t') === '0px' ? 'treated as spent' : 'reserved'}`,
     `display-mode ${mode} · apple standalone ${nav}`
   ].map(h).join('<br>');
 }

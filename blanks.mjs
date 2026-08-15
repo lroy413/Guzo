@@ -2397,13 +2397,18 @@ try {
      desktop browser is in neither: env() is 0px and screen.height is whatever
      the harness says. */
   const notch = [];
-  for (const [label, screenH, want] of [['already excluded', 874, '0px'], ['full height', 812, '']]) {
+  for (const [label, screenH, screenY, want] of [
+    ['starts below the status bar', 874, 62, '0px'],
+    ['starts at the top, short at the foot', 874, 0, ''],
+    ['ordinary full height', 812, 0, ''],
+  ]) {
     const ctx2 = await browser.newContext({ viewport: { width: 402, height: 812 } });
-    await ctx2.addInitScript(hh => {
+    await ctx2.addInitScript(([hh, yy]) => {
       Object.defineProperty(window.screen, 'height', { get: () => hh });
       Object.defineProperty(window.screen, 'width', { get: () => 402 });
+      Object.defineProperty(window, 'screenY', { get: () => yy });
       Object.defineProperty(navigator, 'standalone', { get: () => true });
-    }, screenH);
+    }, [screenH, screenY]);
     const p2 = await ctx2.newPage();
     await p2.goto(origin + '/', { waitUntil: 'load' });
     await p2.waitForFunction(() => typeof window.go === 'function');
@@ -2420,8 +2425,14 @@ try {
   const wrong = notch.filter(n => n.inline !== n.want);
   check('a notch iOS has already taken out of the window is not reserved again',
     wrong.length === 0,
-    notch.map(n => `${n.label}: "${n.inline}" (want "${n.want}") header at ${n.hdr}`).join(' · '));
-  check('...and a window that really does reach the top still clears it',
+    notch.map(n => `${n.label}: "${n.inline}" want "${n.want}"`).join(' · '));
+  /* The case the first version of this got wrong. A window 62px shorter than
+     the screen is equally consistent with "it starts below the status bar" and
+     "it starts at the top and is short at the foot" — and in the second the
+     status bar really is over the content, so zeroing the inset puts the title
+     under the clock. Only screenY separates them, and the rule now requires it
+     rather than inferring it from the height alone. */
+  check('...and a window merely short at the foot still clears the status bar',
     notch[1] && notch[1].inline === '', `"${notch[1] ? notch[1].inline : '?'}"`);
 
   /* ---- every door in the camp actually opens ----

@@ -42,10 +42,23 @@ function calibrateSafeTop() {
   const screenH = portrait ? Math.max(screen.width, screen.height)
                            : Math.min(screen.width, screen.height);
   const missing = screenH - window.innerHeight;
-  /* Within a few pixels of the whole inset: the status bar is already out of
-     the viewport and reserving it again is the bug. A partially missing strip
-     is something else and is left alone. */
-  if (missing >= envTop - 4) root.style.setProperty('--safe-t', '0px');
+
+  /* WHERE the missing strip is, which is the whole question and which the
+     first version of this guessed at. A window 62px shorter than the screen
+     can mean two opposite things: it starts below the status bar and the top
+     inset is already spent, or it starts at the top and is 62px short at the
+     FOOT — in which case the status bar really is over the content, the inset
+     is needed, and zeroing it puts the title under the clock.
+
+     `screenY` is the only thing that says which. Nothing in the window's size
+     does, and the earlier rule read a difference of 62 as proof of the first
+     case when it is equally consistent with the second. Positive evidence
+     required now: no offset, no change. */
+  const offsetTop = typeof window.screenY === 'number' ? window.screenY
+                  : (typeof window.screenTop === 'number' ? window.screenTop : 0);
+  if (missing >= envTop - 4 && offsetTop >= envTop - 4) {
+    root.style.setProperty('--safe-t', '0px');
+  }
 }
 
 /* ============================================================
