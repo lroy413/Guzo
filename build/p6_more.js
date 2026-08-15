@@ -153,7 +153,6 @@ function renderMore() {
           block that repeats the title above it is a label doing nothing. */''}
     <span class="camp-eyebrow">Day ${jst.day} on the route</span>
     <h1 class="camp-name">${h(p.name || 'Traveller')}</h1>
-    <p class="camp-sub">Set out ${h(prettyDate(dk(new Date(S.meta.created))))}. Everything you might want is pitched here.</p>
     ${/* Under the name, because that is what it is about: not a section of the
           screen, a fact about your copy of the app. */''}
     <button class="camp-member" data-act="open-membership">
@@ -864,8 +863,8 @@ function paintDisplayDiag() {
        top inset was already spent. A window shorter than the screen says
        nothing about which end the missing strip is at — this does, and it is
        the line that was missing when the first calibration was written. */
-    `window at y${typeof window.screenY === 'number' ? window.screenY : '?'} · outer ${window.outerWidth}x${window.outerHeight}`,
-    `top inset ${document.documentElement.style.getPropertyValue('--safe-t') === '0px' ? 'treated as spent' : 'reserved'}`,
+    `window at y${typeof window.screenY === 'number' ? window.screenY : '?'}`,
+    `outer ${window.outerWidth}x${window.outerHeight}`,
     `display-mode ${mode} · apple standalone ${nav}`
   ].map(h).join('<br>');
 }

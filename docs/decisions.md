@@ -2597,3 +2597,43 @@ constructed, because the code under test could not distinguish it and neither
 could the person writing the check. Reverting to the height-only rule now
 prints `"0px"` where the inset is needed. **A check built from the same
 assumption as the code cannot find the assumption.**
+
+---
+
+## The safe-area calibration is gone, and that is the finding
+
+It was wrong twice on a real phone, in both directions, and the second attempt
+was wrong *after* being told what the first attempt got wrong.
+
+- First rule: the window is 62px shorter than the screen, therefore the top
+  inset is already spent. Zeroed it. The strip stayed and the readout came back
+  byte-identical, because nothing in the diagnostic could say whether the rule
+  had fired.
+- Second rule: require `window.screenY` as positive evidence that the window
+  starts below the status bar. iOS reported `screenY` of 62 for a window that
+  visibly starts at the top — so the rule fired again, and this time the title
+  landed under the Dynamic Island.
+
+Both rules were reasonable readings of the numbers available. Neither was a
+measurement of the thing that actually matters, which is *where the window is
+painted*, and iOS does not report that in any field this app can read.
+
+So there is no calibration. `--safe-t` is `env(safe-area-inset-top)` and always
+reserved, which is what the app did for its whole life before this and is
+correct wherever the status bar overlays content. The diagnostic keeps
+reporting `screenY` and the outer size, because they are still the only way to
+see what a device is doing — they just are not a basis for changing layout.
+
+**The general lesson, and it cost two bad deploys:** a value that is consistent
+with two opposite situations is not evidence for either. Both rules were built
+by picking the reading that matched the symptom, and a check written from the
+same assumption cannot catch that — the third case only got constructed after
+the device disproved the second rule, not before.
+
+The strip at the foot is 62px of screen the web view is not given. Nothing in
+CSS reaches it; the only lever is what the OS paints there, which is the
+manifest's `background_color`, and that is already the app's own `--bg`.
+
+**Also gone: "Everything you might want is pitched here."** It restated the
+screen it was printed on, sat between someone's name and the one control under
+it, and cost two lines of the room the camp needed.

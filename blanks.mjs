@@ -2383,57 +2383,12 @@ try {
   check('and the mountain is something you can actually see',
     mtn >= 70, `brightest point below the name reads ${mtn} of 255`);
 
-  /* ---- the notch, counted once ----
-     iOS can hand a standalone web app a viewport that ALREADY excludes the
-     status bar while still reporting a non-zero safe-area-inset-top. Measured
-     on a real phone: screen 402x874, window 402x812, inset 62 — the sixty-two
-     pixels are gone from the window AND still described by the inset. Padding
-     by it then reserves the notch twice and parks everything a status bar too
-     low, which is the empty strip that was reported four times and
-     misdiagnosed three.
-
-     Both states report the same inset, so only the window's height against the
-     screen's can tell them apart. Faked here in both directions, because a
-     desktop browser is in neither: env() is 0px and screen.height is whatever
-     the harness says. */
-  const notch = [];
-  for (const [label, screenH, screenY, want] of [
-    ['starts below the status bar', 874, 62, '0px'],
-    ['starts at the top, short at the foot', 874, 0, ''],
-    ['ordinary full height', 812, 0, ''],
-  ]) {
-    const ctx2 = await browser.newContext({ viewport: { width: 402, height: 812 } });
-    await ctx2.addInitScript(([hh, yy]) => {
-      Object.defineProperty(window.screen, 'height', { get: () => hh });
-      Object.defineProperty(window.screen, 'width', { get: () => 402 });
-      Object.defineProperty(window, 'screenY', { get: () => yy });
-      Object.defineProperty(navigator, 'standalone', { get: () => true });
-    }, [screenH, screenY]);
-    const p2 = await ctx2.newPage();
-    await p2.goto(origin + '/', { waitUntil: 'load' });
-    await p2.waitForFunction(() => typeof window.go === 'function');
-    await p2.addStyleTag({ content: '.safe-probe{padding-top:62px !important}' });
-    const got = await p2.evaluate(() => {
-      S = blank(); S.onboarded = true; save(true);
-      calibrateSafeTop(); render(); go('more');
-      return { inline: document.documentElement.style.getPropertyValue('--safe-t'),
-               hdr: Math.round(document.querySelector('#s-more .hdr').getBoundingClientRect().top) };
-    });
-    notch.push({ label, want, ...got });
-    await ctx2.close();
-  }
-  const wrong = notch.filter(n => n.inline !== n.want);
-  check('a notch iOS has already taken out of the window is not reserved again',
-    wrong.length === 0,
-    notch.map(n => `${n.label}: "${n.inline}" want "${n.want}"`).join(' · '));
-  /* The case the first version of this got wrong. A window 62px shorter than
-     the screen is equally consistent with "it starts below the status bar" and
-     "it starts at the top and is short at the foot" — and in the second the
-     status bar really is over the content, so zeroing the inset puts the title
-     under the clock. Only screenY separates them, and the rule now requires it
-     rather than inferring it from the height alone. */
-  check('...and a window merely short at the foot still clears the status bar',
-    notch[1] && notch[1].inline === '', `"${notch[1] ? notch[1].inline : '?'}"`);
+  /* The header's clearance is asserted where it always was — see "clearing
+     the notch by exactly one notch, not two" above. There was briefly a
+     runtime calibration here that tried to work out whether iOS had already
+     spent the top inset; it was wrong twice on a real phone, in both
+     directions, and it is gone. The inset is reserved, always. See
+     docs/decisions.md. */
 
   /* ---- every door in the camp actually opens ----
      The destinations are drawings now, laid over each other in one scene, and
@@ -2724,8 +2679,15 @@ try {
   const bare = await shotPx(Math.round(390 * .72), 6);
   await bandOff.evaluate(n => n.remove());
   const bandDrift = Math.max(...bandOn.map((v, i) => Math.abs(v - bare[i])));
+  /* Four counts, not two. Blurring a smooth gradient is a no-op, but this sky
+     has stars in it — point sources the blur genuinely does average — so a
+     couple of counts is the blur working rather than a veil sneaking in. The
+     thing this exists to catch moves it by seventeen: a 40% veil measured
+     [15,22,32] against a bare [24,34,49]. Two was tight enough that shortening
+     the copy above moved the sample onto a different patch of sky and turned
+     it red for no reason. */
   check('...and adding nothing to that sky when you have not scrolled at all',
-    bandDrift <= 2, `band ${JSON.stringify(bandOn)} vs bare sky ${JSON.stringify(bare)}`);
+    bandDrift <= 4, `band ${JSON.stringify(bandOn)} vs bare sky ${JSON.stringify(bare)}`);
 
   /* The guarantee itself, stated as what it actually is. "Opaque" was the old
      screen's way of saying you cannot read what passes under the title; this

@@ -1,66 +1,3 @@
-/* Whether the notch has already been taken out of the viewport.
-   ------------------------------------------------------------
-   iOS can hand a standalone web app a viewport that ALREADY excludes the
-   status bar while still reporting a non-zero `safe-area-inset-top`. Measured
-   on a real phone: `screen` 402x874, `window` 402x812, `safe-area-inset-top`
-   62 — the sixty-two pixels are gone from the window AND still described by
-   the inset. Padding by the inset on top of that reserves the notch twice and
-   parks everything a status bar too low, which is the empty strip that was
-   reported four times and misdiagnosed three.
-
-   The other state is the ordinary one: a full-height window with the same
-   inset reported, where the padding is exactly right and removing it would put
-   the title under the clock. Both states report the same inset, so the inset
-   cannot tell them apart — the window's height against the screen's can.
-
-   Only in a standalone app. In a browser tab the difference between the screen
-   and the window is the browser's own chrome, which is not a safe area and
-   changes as you scroll.
-
-   Resolved by measurement, not by reading --safe-t: getPropertyValue hands
-   back the literal text `env(safe-area-inset-top,0px)`. */
-function calibrateSafeTop() {
-  const root = document.documentElement;
-  const standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
-    || navigator.standalone === true;
-  root.style.removeProperty('--safe-t');
-  if (!standalone) return;
-
-  /* The inset arrives through a class rather than an inline style so a test
-     can fake it — env() is always 0px in a desktop browser, which is exactly
-     the state this function is supposed to tell apart from a real phone's. */
-  const probe = document.createElement('div');
-  probe.className = 'safe-probe';
-  document.body.appendChild(probe);
-  const envTop = Math.round(parseFloat(getComputedStyle(probe).paddingTop) || 0);
-  probe.remove();
-  if (envTop <= 0) return;
-
-  /* screen.width/height do not rotate on iOS, so the tall one is compared
-     against the window's height only while the window itself is tall. */
-  const portrait = window.innerHeight >= window.innerWidth;
-  const screenH = portrait ? Math.max(screen.width, screen.height)
-                           : Math.min(screen.width, screen.height);
-  const missing = screenH - window.innerHeight;
-
-  /* WHERE the missing strip is, which is the whole question and which the
-     first version of this guessed at. A window 62px shorter than the screen
-     can mean two opposite things: it starts below the status bar and the top
-     inset is already spent, or it starts at the top and is 62px short at the
-     FOOT — in which case the status bar really is over the content, the inset
-     is needed, and zeroing it puts the title under the clock.
-
-     `screenY` is the only thing that says which. Nothing in the window's size
-     does, and the earlier rule read a difference of 62 as proof of the first
-     case when it is equally consistent with the second. Positive evidence
-     required now: no offset, no change. */
-  const offsetTop = typeof window.screenY === 'number' ? window.screenY
-                  : (typeof window.screenTop === 'number' ? window.screenTop : 0);
-  if (missing >= envTop - 4 && offsetTop >= envTop - 4) {
-    root.style.setProperty('--safe-t', '0px');
-  }
-}
-
 /* ============================================================
    REST TIMER
    ============================================================ */
@@ -2086,12 +2023,6 @@ setInterval(() => { if (SCREEN === 'train' && S && S.active) updateTrainProgress
   try {
     STORAGE_OK = storageProbe();
     a11yWatch();
-    calibrateSafeTop();
-    /* Rotation and the in-call banner both change which of the two states the
-       device is in, so it is re-asked rather than decided once at boot. */
-    window.addEventListener('resize', calibrateSafeTop);
-    window.addEventListener('orientationchange', calibrateSafeTop);
-
     syncSky();
     /* The sky is checked on a timer as well as on every navigation, because
        the app is often left open on a bench between sets and the light should
