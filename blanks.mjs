@@ -2525,6 +2525,64 @@ try {
     `${foot.gap}px of reserved room under the moraine, floor extends ${foot.ext}px`
       + ` · moraine ends ${foot.end}, extension ${foot.fill}`);
 
+  /* ---- the app is as tall as the window, in a standalone app ----
+     Measured on the phone: window 402x812 inside an outer 402x874 at y0, with
+     `svh 812 · lvh 874 · dvh 812 · vh 874`. The layout viewport is the SMALL
+     viewport, `position:fixed` resolves against it, and so every box in the app
+     stopped 62px above the foot of the screen. `lvh` is the only length that
+     reaches the window.
+
+     A desktop browser can prove none of that. In Chromium — app mode included,
+     which does report `display-mode: standalone` — `lvh` equals `innerHeight`,
+     so the rule is a genuine no-op here and no measurement can see it. What is
+     checkable is the part that would fail silently: the unit. `svh` and `dvh`
+     both read 812 on that phone, so either of them compiles, applies, matches
+     the media query, and changes nothing at all. And `getComputedStyle` is no
+     help either — it returns the USED value for a positioned box, so `bottom`
+     reads `0px` whether it was authored `0` or `auto`.
+
+     So this reads the rule itself out of the CSSOM, which is the one place the
+     unit survives, and then checks behaviourally that the invariant it depends
+     on still holds. */
+  const tall = await page.evaluate(() => {
+    let inMedia = null, ungated = false;
+    for (const sheet of document.styleSheets) {
+      let rules; try { rules = sheet.cssRules; } catch (e) { continue; }
+      for (const r of rules) {
+        if (r.type === CSSRule.MEDIA_RULE && /display-mode:\s*standalone/.test(r.conditionText || '')) {
+          for (const inner of r.cssRules)
+            if (/\bbody\b/.test(inner.selectorText || '') && inner.style.height)
+              inMedia = { sel: inner.selectorText, h: inner.style.height, b: inner.style.bottom || '—' };
+        } else if (r.type === CSSRule.STYLE_RULE
+            && /^html,\s*body$/.test((r.selectorText || '').trim()) && r.style.height) {
+          /* An ungated copy would size a browser tab by the viewport with the
+             address bar retracted, which is the failure `100dvh` on #app
+             already cost once. */
+          ungated = true;
+        }
+      }
+    }
+    /* And the invariant: #app is `height:100%` of the body, so a body taller
+       than the viewport has to carry #app with it rather than leave it behind
+       at the old height. Forced directly, since lvh cannot diverge here. */
+    const s = document.createElement('style');
+    s.textContent = 'html,body{height:940px;bottom:auto}';
+    document.head.appendChild(s);
+    const app = Math.round(document.getElementById('app').getBoundingClientRect().height);
+    const body = Math.round(document.body.getBoundingClientRect().height);
+    s.remove();
+    const back = Math.round(document.getElementById('app').getBoundingClientRect().height);
+    return { inMedia, ungated, app, body, restored: back === window.innerHeight };
+  });
+  check('the app is as tall as the window when it is a standalone app',
+    !!tall.inMedia && /\b100lvh\b/.test(tall.inMedia.h) && tall.inMedia.b === 'auto'
+      && !tall.ungated && tall.app === 940 && tall.body === 940 && tall.restored,
+    tall.inMedia
+      ? `${tall.inMedia.sel} { height:${tall.inMedia.h}; bottom:${tall.inMedia.b} }`
+        + ` · ungated ${tall.ungated} · forced body ${tall.body} → #app ${tall.app}`
+        + ` · restored ${tall.restored}`
+      : 'no standalone height rule');
+
   /* What this phone reports about its own screen, said out loud in Settings.
      Three attempts to explain a strip at the foot of the screen were made from
      screenshots and all three were wrong, because the numbers that settle it —

@@ -2774,3 +2774,64 @@ second, smaller thing sitting underneath a larger one. The 62px between
 `window.innerHeight` and the screen is still unexplained and still needs the
 edges photograph. Saying so is the point: the last four times, a plausible fix
 was shipped as *the* fix and it was not.
+
+---
+
+## `lvh` — the fifth reading, and the one that was a measurement
+
+```
+window 402x812 · screen 402x874 · outer 402x874 · window at y0
+svh 812   lvh 874   dvh 812   vh 874
+```
+
+The window is the whole screen and starts at the top. The layout viewport
+inside it is the **small** viewport, 62px shorter, and `position:fixed`
+resolves against exactly that — so every box in the app stopped 62px above the
+foot of the phone, and the strip below them was never anything the app had been
+asked to paint. `svh` and `dvh` agree with the short one. `lvh` is the only
+length that reaches the window, and it is a real 874.
+
+Four previous answers were readings of the same ambiguous numbers. This one is
+a length the phone measured and reported. The difference is the whole lesson of
+the two sections above it, and the diagnostic that printed it exists precisely
+because guessing had already failed four times.
+
+```css
+@media (display-mode: standalone){
+  html,body{height:100lvh;bottom:auto}
+}
+```
+
+**Gated, and that is the subtlety.** In a browser tab `lvh` is the viewport
+with the address bar *retracted*, so a body sized by it while the bar is
+showing runs off the bottom of the screen and `overflow:hidden` cuts it — the
+same failure that got `100dvh` banned from `#app`, one level up. A standalone
+app has no retractable chrome, so there `lvh` is simply the window and cannot
+move. Height only: left and right still come from the insets, `#app` stays at
+`height:100%` and is therefore its parent by definition, and `bottom:auto` is
+written out rather than left to the over-constraint rule that would drop it
+anyway — relying on that rule silently once was enough.
+
+**A desktop browser can prove none of this.** In Chromium, app mode included —
+which does report `display-mode: standalone`, confirmed by launching with
+`--app=` — `lvh` equals `innerHeight`, so the rule is a genuine no-op locally
+and no measurement can see its effect. Two things that look like they would
+help do not:
+
+- `Emulation.setEmulatedMedia` with a `display-mode` feature does not take in
+  this build; the media query still reports false. `--app=` is what works.
+- `getComputedStyle` returns the **used** value for a positioned box, so
+  `bottom` reads `0px` whether it was authored `0` or `auto`. It cannot tell
+  the two states apart.
+
+So the check reads the rule out of the CSSOM, which is the one place the unit
+survives, and separately proves behaviourally that a body taller than the
+viewport carries `#app` with it. The unit is the thing worth guarding: `svh`
+and `dvh` both read 812 on that phone, so either of them compiles, applies,
+matches the media query, and changes nothing whatsoever. Five reverts — no rule,
+`svh`, `dvh`, `bottom` left at 0, and the rule ungated — each produce exactly
+one failure.
+
+**The bar had two causes, not one.** The camp's floor stopping at the nav
+reservation was real and is fixed; this is the other 62px. It was right not to
+call the first one the answer.
