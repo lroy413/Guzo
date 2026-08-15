@@ -846,6 +846,18 @@ function paintDisplayDiag() {
   const inset = [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft]
     .map(v => Math.round(parseFloat(v) || 0));
   probe.remove();
+  /* Which viewport unit, if any, reaches the whole window. The layout
+     viewport here is 62px shorter than the window that contains it, and the
+     app is sized from `position:fixed; inset:0` — which resolves against the
+     layout viewport and therefore stops short too. If one of these reads the
+     full height there is a fix; if they all read 812 there is no CSS length
+     that reaches the strip and the answer is not in the stylesheet. */
+  const u = document.createElement('div');
+  u.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px';
+  document.body.appendChild(u);
+  const unit = n => { u.style.height = '100' + n; return Math.round(u.getBoundingClientRect().height) || 0; };
+  const units = `svh ${unit('svh')} lvh ${unit('lvh')} dvh ${unit('dvh')} vh ${unit('vh')}`;
+  u.remove();
   const app = document.getElementById('app').getBoundingClientRect();
   const body = document.body.getBoundingClientRect();
   const vv = window.visualViewport;
@@ -864,7 +876,8 @@ function paintDisplayDiag() {
        nothing about which end the missing strip is at — this does, and it is
        the line that was missing when the first calibration was written. */
     `window at y${typeof window.screenY === 'number' ? window.screenY : '?'}`,
-    `outer ${window.outerWidth}x${window.outerHeight}`,
+    `outer ${window.outerWidth}x${window.outerHeight} · root ${document.documentElement.clientHeight}`,
+    units,
     `display-mode ${mode} · apple standalone ${nav}`
   ].map(h).join('<br>');
 }

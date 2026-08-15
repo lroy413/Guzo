@@ -2,7 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-visual">
+<!-- viewport-fit=cover is the part that matters: without it iOS insets the
+     layout viewport by the safe areas instead of letting the page cover them.
+     `interactive-widget=resizes-visual` used to sit in here too. It is a
+     Chrome-only key, Safari does not implement it, and the value it named is
+     the default everywhere that does — so it was doing nothing on any engine
+     while sharing a meta with the one declaration this app depends on. Removed
+     as the cheapest possible test of whether it was costing the parse: on a
+     phone reporting `window 402x812` inside `outer 402x874`, the layout
+     viewport is short by exactly one status bar, which is what an ignored
+     viewport-fit looks like. If the numbers do not move, it cost nothing. -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Guzo Fit</title>
 <meta name="theme-color" content="#0a0c0f">
 <!-- The manifest is what names the colour of everything *outside* the page.
@@ -2931,7 +2941,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+e4b3447</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+06e709a</div>
     </div>
   </section>
 
@@ -16723,6 +16733,18 @@ function paintDisplayDiag() {
   const inset = [c.paddingTop, c.paddingRight, c.paddingBottom, c.paddingLeft]
     .map(v => Math.round(parseFloat(v) || 0));
   probe.remove();
+  /* Which viewport unit, if any, reaches the whole window. The layout
+     viewport here is 62px shorter than the window that contains it, and the
+     app is sized from `position:fixed; inset:0` — which resolves against the
+     layout viewport and therefore stops short too. If one of these reads the
+     full height there is a fix; if they all read 812 there is no CSS length
+     that reaches the strip and the answer is not in the stylesheet. */
+  const u = document.createElement('div');
+  u.style.cssText = 'position:fixed;left:-9999px;top:0;width:1px';
+  document.body.appendChild(u);
+  const unit = n => { u.style.height = '100' + n; return Math.round(u.getBoundingClientRect().height) || 0; };
+  const units = `svh ${unit('svh')} lvh ${unit('lvh')} dvh ${unit('dvh')} vh ${unit('vh')}`;
+  u.remove();
   const app = document.getElementById('app').getBoundingClientRect();
   const body = document.body.getBoundingClientRect();
   const vv = window.visualViewport;
@@ -16741,7 +16763,8 @@ function paintDisplayDiag() {
        nothing about which end the missing strip is at — this does, and it is
        the line that was missing when the first calibration was written. */
     `window at y${typeof window.screenY === 'number' ? window.screenY : '?'}`,
-    `outer ${window.outerWidth}x${window.outerHeight}`,
+    `outer ${window.outerWidth}x${window.outerHeight} · root ${document.documentElement.clientHeight}`,
+    units,
     `display-mode ${mode} · apple standalone ${nav}`
   ].map(h).join('<br>');
 }

@@ -2,7 +2,17 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,interactive-widget=resizes-visual">
+<!-- viewport-fit=cover is the part that matters: without it iOS insets the
+     layout viewport by the safe areas instead of letting the page cover them.
+     `interactive-widget=resizes-visual` used to sit in here too. It is a
+     Chrome-only key, Safari does not implement it, and the value it named is
+     the default everywhere that does — so it was doing nothing on any engine
+     while sharing a meta with the one declaration this app depends on. Removed
+     as the cheapest possible test of whether it was costing the parse: on a
+     phone reporting `window 402x812` inside `outer 402x874`, the layout
+     viewport is short by exactly one status bar, which is what an ignored
+     viewport-fit looks like. If the numbers do not move, it cost nothing. -->
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Guzo Fit</title>
 <meta name="theme-color" content="#0a0c0f">
 <!-- The manifest is what names the colour of everything *outside* the page.
