@@ -2184,27 +2184,50 @@ try {
   /* Said, never done. A week rebuilt around a number given for the energy
      equation is not something anyone asked for, and the functional recovery
      evidence is not strong enough to spend someone's Tuesday on. */
+  /* Pinned to a Monday, and that is the bug fix rather than the setup.
+
+     This fixture seeds only the days from today forward — a warning about two
+     hard days touching has nothing to say about days already behind you — so
+     how many days it seeds depends on where in the week it is run. Seven on a
+     Monday, one on a Sunday, and one day cannot be two days in a row. The
+     check ran green Monday to Saturday and went red on Sunday, which is what
+     it did: the app was right and the fixture could not build the situation it
+     was asking about.
+
+     Third date-fragile probe in this project and the same fix as the other
+     two — pinning today() pins weekStart() with it, because there is one
+     clock. Verified by running it on all seven weekdays. */
   const gap = await page.evaluate(() => {
-    S = blank(); S.onboarded = true; S.profile.birthYear = 1955;
-    save(true); buildWeekPlan(true);
-    const st = weekStart();
-    for (let i = 0; i < 7; i++) {
-      const k = dk(addDays(st, i));
-      if (daysBetween(k, today()) > 0) continue;
-      S.week.plan[k] = { type: 'full', done: false };
-      S.week.days[k] = { avail: 'long', env: 'full' };
-    }
-    save(true);
-    const before = JSON.stringify(S.week.plan);
-    const hit = backToBackHard();
-    go('plan');
-    const notice = !!document.querySelector('#plan-body .wk-gap');
-    const after = JSON.stringify(S.week.plan);
-    S.profile.birthYear = 1996; save(true);
-    go('plan');
-    const young = !!document.querySelector('#plan-body .wk-gap');
-    return { hit: !!hit, notice, young, unchanged: before === after };
+    const realToday = today;
+    try {
+      today = () => '2026-03-09';                 // a Monday
+      S = blank(); S.onboarded = true; S.profile.birthYear = 1955;
+      save(true); buildWeekPlan(true);
+      const st = weekStart();
+      let seeded = 0;
+      for (let i = 0; i < 7; i++) {
+        const k = dk(addDays(st, i));
+        if (daysBetween(k, today()) > 0) continue;
+        S.week.plan[k] = { type: 'full', done: false };
+        S.week.days[k] = { avail: 'long', env: 'full' };
+        seeded++;
+      }
+      save(true);
+      const before = JSON.stringify(S.week.plan);
+      const hit = backToBackHard();
+      go('plan');
+      const notice = !!document.querySelector('#plan-body .wk-gap');
+      const after = JSON.stringify(S.week.plan);
+      S.profile.birthYear = 1996; save(true);
+      go('plan');
+      const young = !!document.querySelector('#plan-body .wk-gap');
+      return { hit: !!hit, notice, young, unchanged: before === after, seeded };
+    } finally { today = realToday; }
   });
+  /* Asserted, because the whole failure was a fixture that quietly built a
+     smaller situation than the one it was checking. */
+  check('...with a whole week of hard days to notice it in',
+    gap.seeded === 7, `${gap.seeded} days seeded`);
   check('two hard days touching is noticed', gap.hit && gap.notice === true);
   check('...and nothing is moved for it', gap.unchanged === true);
   check('...and it is silent for someone the evidence does not cover',

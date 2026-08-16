@@ -3128,3 +3128,36 @@ reached target and a macro did not. That is the only state that separates "all
 three" from "the big one", and it was missing. Added, and the revert goes red.
 The existing ring checks were rescoped rather than deleted: they now ask for
 rings explicitly, which is what keeping them as a choice actually means.
+
+---
+
+## Date-fragile probe number three
+
+`engine.mjs`'s back-to-back-hard-days check went red, and the app was right.
+
+The fixture seeds only the days from today forward — a warning about two hard
+days touching has nothing to say about days already behind you — so how many
+days it seeds depends on where in the week it runs. Measured across all seven
+weekdays:
+
+```
+Mon seeded 7 · Tue 6 · Wed 5 · Thu 4 · Fri 3 · Sat 2 · Sun 1
+hit true      true     true     true     true     true    FALSE
+```
+
+One day cannot be two days in a row. `backToBackHard()` correctly found
+nothing; the fixture could not build the situation it was asking about. The
+check ran green Monday to Saturday for its whole life and went red the first
+Sunday anyone ran the suite.
+
+Pinned to a Monday, which pins `weekStart()` with it because there is one
+clock — the same fix as the two probes already recorded here. And the seeded
+count is now **asserted**, because the whole failure was a fixture quietly
+building a smaller situation than the one it was checking: pinning to a Sunday
+turns both checks red, which is the proof that the assertion is load-bearing
+rather than decorative.
+
+**Both of the failures found this session were in the instruments or in a token
+calibrated against the wrong surface — neither was a user-visible regression
+from the work being done.** Worth writing down because the instinct on a red
+check is to look at what just changed.
