@@ -808,6 +808,14 @@ function sheetSettings() {
         fuelOn() ? 'On — it has its own tab, and Route moves to More' : 'Protein and calorie targets, worked out from your body data',
         fuelOn())}
       ${fuelOn() ? row('open-diet-prefs', ICO.plate, 'How you eat', 'Meals a day, dietary pattern, what to leave out') : ''}
+      ${/* Which way today is drawn. A toggle rather than two rows, because it
+            is one choice with two answers — and worded so the ON state is the
+            default the app now ships, so the switch reads the same way round
+            as the setting is stored. */''}
+      ${fuelOn() ? toggle('toggle-fuel-viz', ICO.fire, 'Today as a fire', fuelViz() === 'fire'
+        ? 'On — the day is a campfire that grows as you eat. Three flames, one per target.'
+        : 'Off — the day is three rings.',
+        fuelViz() === 'fire') : ''}
       ${fuelOn() ? toggle('toggle-off', ICO.globe, 'Barcode lookup', S.settings.off
         ? 'On — the first scan of an unknown packet asks Open Food Facts. The only thing this app ever sends anywhere, and it sends only the barcode.'
         : 'Off — everything stays on the device. An unknown packet asks you to name it once.',

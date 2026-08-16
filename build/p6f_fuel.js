@@ -29,6 +29,152 @@ function fuelOn() { return !!(S.settings && S.settings.nutrition); }
    was and lets the bar say the rest. */
 const FUEL_BAR_CEIL = 140;
 
+/* ============================================================
+   THE DAY AS A FIRE
+   ------------------------------------------------------------
+   The same three numbers the rings draw, drawn as the thing this app already
+   uses for Fuel everywhere else: the fire at base camp is the Fuel tab, the
+   Fuel toggle in Settings is a fire, and eating is the one thing in a training
+   app that literally is adding fuel. The rings stay — this is a choice, not a
+   replacement, and `fuelViz()` is how it is made.
+
+   CONCENTRIC, because that is what a fire actually is. An outer luminous
+   envelope, a brighter body inside it, a near-white core — so three nested
+   layers is not a diagram borrowed from the rings, it is how flame is built,
+   and it maps onto three nested arcs without either shape being bent to fit.
+   Outer is the headline number, then protein, then carbs: the ring order,
+   outside in.
+
+   NOT CLAMPED to each other. A tall protein flame inside a short calorie one
+   reads as a bright core standing up through it, which is a thing fires do.
+   Clamping each layer to its parent would hide exactly the divergence the
+   middle layer exists to show, on the day you have hit your protein and eaten
+   very little else — which is the day worth seeing.
+
+   AND IT IS NEVER OUT. At zero every layer still has a base height, over a bed
+   of embers and two logs that are always drawn. A day you have not eaten yet
+   is a fire waiting to be built up, not a cold hearth — the same reason
+   nothing on this screen goes red and a missed day is free. An empty state
+   that looks like failure is a verdict, and this app does not pass them. */
+function fuelViz() {
+  /* Absent means fire. Written this way round on purpose: the fire is the new
+     default, so no existing save needs a migration to get it, and only the
+     choice to go back to rings is ever stored. The mirror of the `rpe` and
+     `restSound` problem — those had to be stored as an explicit false because
+     absent had to mean ON. Here absent means the new thing. */
+  return S.settings && S.settings.fuelViz === 'rings' ? 'rings' : 'fire';
+}
+
+/* One flame, as a path, from a height and a half-width.
+
+   Parametric rather than one authored path scaled in Y: a flame squashed to a
+   third of its height is a puddle and stretched to double is a needle, and
+   this gauge spends its whole life between those. Built from h and w the
+   silhouette stays a flame at every size — narrow at the base, fullest around
+   a third of the way up, tapering to the tip. */
+const FIRE_CX = 90, FIRE_BASE = 150;
+function flamePath(h, w, lean) {
+  const b = FIRE_BASE, x = FIRE_CX, n = (v) => v.toFixed(1);
+  const t = x + w * (lean || 0);                    // where the tip actually is
+  /* Belly at ~1.2w around a third up, and a tip rounded over a short span
+     rather than brought to a needle. Both tuned against a render: control
+     points converging straight on the apex draw a candle, which is what the
+     first version was — correct arithmetic, wrong object.
+
+     ASYMMETRIC, and that is the whole difference between fire and a teardrop.
+     The two sides carry different ratios and the tip leans off centre, so no
+     layer is a mirror of itself and no two layers nest concentrically. Three
+     perfectly symmetric flames inside one another read as a diagram of a
+     flame; three leaning ones overlap into an irregular crown, which is what
+     you actually see when you look at a fire. The lean is per layer and small
+     — this is a gauge before it is an illustration, and a flame bent far
+     enough to be picturesque stops reading as a level. */
+  return `M${n(x - w)} ${b}`
+    + `C${n(x - w * 1.20)} ${n(b - h * .28)},${n(x - w * .82)} ${n(b - h * .58)},${n(t - w * .14)} ${n(b - h * .90)}`
+    + `C${n(t - w * .05)} ${n(b - h * .97)},${n(t + w * .05)} ${n(b - h * .97)},${n(t + w * .12)} ${n(b - h * .89)}`
+    + `C${n(x + w * .70)} ${n(b - h * .66)},${n(x + w * 1.14)} ${n(b - h * .32)},${n(x + w)} ${b}Z`;
+}
+
+/* The outer layer only: a main tongue and a second, shorter one beside it,
+   with a valley between them.
+
+   One smooth outline is a flame ICON however well its belly is tuned — that is
+   what three rounds of adjusting control points produced, and the shape was
+   never the problem. A crown that splits is the thing the eye reads as fire.
+   Only the outermost layer gets it: the body of a fire is smoother than its
+   edge, so a notched core would read as noise, and the outer envelope is the
+   only silhouette against the page anyway. */
+function flamePathForked(h, w, lean) {
+  const b = FIRE_BASE, x = FIRE_CX, n = (v) => v.toFixed(1);
+  const t = x + w * (lean || 0);
+  return `M${n(x - w)} ${b}`
+    + `C${n(x - w * 1.22)} ${n(b - h * .26)},${n(x - w * .88)} ${n(b - h * .58)},${n(t - w * .16)} ${n(b - h * .90)}`
+    + `C${n(t - w * .06)} ${n(b - h * .98)},${n(t + w * .06)} ${n(b - h * .98)},${n(t + w * .20)} ${n(b - h * .84)}`
+    /* down into the valley between the two tongues */
+    + `C${n(x + w * .30)} ${n(b - h * .66)},${n(x + w * .26)} ${n(b - h * .58)},${n(x + w * .40)} ${n(b - h * .52)}`
+    /* and up to the shorter one */
+    + `C${n(x + w * .56)} ${n(b - h * .58)},${n(x + w * .68)} ${n(b - h * .70)},${n(x + w * .74)} ${n(b - h * .60)}`
+    + `C${n(x + w * .94)} ${n(b - h * .42)},${n(x + w * 1.16)} ${n(b - h * .22)},${n(x + w)} ${b}Z`;
+}
+
+/* pct is 0–100 already clamped by the caller. `lit` says every layer has
+   reached its target, which is the only state that changes how this behaves
+   rather than how big it is. */
+function fireGaugeHTML(layers, lit, label) {
+  const GEOM = [
+    /* `base` is the height at nothing-logged, and it is not small change. At
+       26 the flames sat inside the logs and a day you had not eaten yet drew a
+       bare hearth — technically a fire, and it read as an empty state, which
+       on this screen is a verdict. At 38 an unfed fire is plainly alight and
+       still less than half of a fed one, which is the whole message. */
+    { base: 38, span: 60, w: 50, lean:  .14, fork: true },  // outer — headline
+    { base: 28, span: 50, w: 32, lean: -.18 },              // middle — protein
+    { base: 19, span: 37, w: 18, lean:  .10 },              // core — carbs
+  ];
+  const flames = layers.map((l, i) => {
+    const g = GEOM[i];
+    const h = g.base + g.span * (Math.max(0, Math.min(100, l.pct)) / 100);
+    return `<path class="ff-flame ff-${l.cls}" fill="url(#ff-${l.cls}-g)" d="${(g.fork ? flamePathForked : flamePath)(h, g.w, g.lean)}"/>`;
+  }).join('');
+  /* Sparks only when it is going, and only three — a shower of them is a
+     celebration animation, and this is a fire that happens to be doing well. */
+  const sparks = lit ? [0, 1, 2].map(i =>
+    `<circle class="ff-spark" cx="${FIRE_CX - 12 + i * 12}" cy="${FIRE_BASE - 34}" r="${1.6 + i * .3}"/>`).join('') : '';
+  /* Hot at the base, its own hue at the crown. A flat fill draws a flame-shaped
+     SHAPE; the vertical ramp is most of what makes it read as burning, and it
+     is also what keeps three stacked layers from flattening into one silhouette
+     — each one is lightest exactly where the one inside it begins.
+
+     userSpaceOnUse against the tallest this layer can ever be, not the default
+     objectBoundingBox: box-relative stops rescale with the path, so a small
+     flame would show the full ramp compressed into 30px and look identical to
+     a large one. Anchored to the geometry, a low fire is the bottom of the
+     ramp — which is what a low fire looks like. */
+  const grads = layers.map((l, i) => {
+    const g = GEOM[i], top = FIRE_BASE - (g.base + g.span);
+    return `<linearGradient id="ff-${l.cls}-g" gradientUnits="userSpaceOnUse"
+        x1="0" y1="${FIRE_BASE}" x2="0" y2="${top}">
+      <stop offset="0" class="ff-s0"/><stop offset=".45" class="ff-s1"/>
+      <stop offset="1" class="ff-s2"/></linearGradient>`;
+  }).join('');
+  return `<div class="fuel-fire-wrap${lit ? ' lit' : ''}">
+    <div class="fuel-fire-glow" aria-hidden="true"></div>
+    <svg class="fuel-fire" viewBox="0 40 180 132" role="img" aria-label="${h(label)}">
+      <defs>${grads}</defs>
+      ${/* Always drawn, at every value: the hearth is laid whether or not
+            anything is burning on it yet. */''}
+      <ellipse class="ff-bed" cx="${FIRE_CX}" cy="${FIRE_BASE + 4}" rx="46" ry="9"/>
+      ${flames}
+      ${sparks}
+      <g class="ff-logs" stroke-linecap="round" fill="none">
+        <path d="M56 ${FIRE_BASE + 2} L124 ${FIRE_BASE - 9}" stroke="#4A3222" stroke-width="9"/>
+        <path d="M58 ${FIRE_BASE - 9} L126 ${FIRE_BASE + 2}" stroke="#382514" stroke-width="9"/>
+        <path d="M56 ${FIRE_BASE + 2} L124 ${FIRE_BASE - 9}" stroke="#8A6038" stroke-width="2.6" opacity=".5"/>
+      </g>
+    </svg>
+  </div>`;
+}
+
 /* Route leaves the bar when Fuel joins it, so the count stays at five. */
 function syncNav() {
   const fuel = document.getElementById('nav-fuel');
@@ -104,6 +250,8 @@ function renderFuel() {
       transform="rotate(-90 90 90)"/>`;
   };
   const ringTrack = r => `<circle class="fr-track" cx="90" cy="90" r="${r}"/>`;
+  /* ── or the day as a fire ─────────────────────────────────────
+     The rings and the fire are the same three numbers. See fireGaugeHTML. */
   const mainPct = pctOf(pOnly ? t.p : t.kcal, pOnly ? pTarget : kcalTarget);
   const cTarget = tg.c || (e && e.c) || 0;
   const fTarget = tg.f || (e && e.f) || 0;
@@ -133,18 +281,41 @@ function renderFuel() {
         <div class="deck-face food ${fuelFace === 'food' ? 'on' : ''}" id="deck-food" role="tabpanel"
              aria-label="Food" ${fuelFace === 'food' ? '' : 'inert'}>`
   + `<div class="fuel-day-card">
-    <div class="fuel-ring-wrap">
-      <svg class="fuel-ring" viewBox="0 0 180 180" aria-hidden="true">
-        ${ringTrack(78)}${ringArc(mainPct, 78, 'main')}
-        ${!pOnly ? ringTrack(64) + ringArc(pctOf(t.p, pTarget), 64, 'prot') : ''}
-        ${!pOnly ? ringTrack(50) + ringArc(pctOf(t.c, cTarget), 50, 'carb') : ''}
-      </svg>
-      <div class="fuel-ring-mid">
-        <div class="fuel-ring-v mono">${pOnly ? Math.round(t.p) + 'g' : t.kcal}</div>
-        <div class="fuel-ring-k">${pOnly ? 'protein' : 'kcal'}</div>
-        ${(pOnly ? pTarget : kcalTarget) ? `<div class="fuel-ring-of">of ${pOnly ? pTarget + 'g' : kcalTarget}</div>` : ''}
-      </div>
-    </div>
+    ${(() => {
+      const protPct = pctOf(t.p, pTarget), carbPct = pctOf(t.c, cTarget);
+      const headV = pOnly ? Math.round(t.p) + 'g' : String(t.kcal);
+      const headK = pOnly ? 'protein' : 'kcal';
+      const headT = pOnly ? pTarget : kcalTarget;
+      const read = `<div class="fuel-ring-v mono">${headV}</div>
+        <div class="fuel-ring-k">${headK}</div>
+        ${headT ? `<div class="fuel-ring-of">of ${pOnly ? pTarget + 'g' : kcalTarget}</div>` : ''}`;
+      if (fuelViz() === 'rings') {
+        return `<div class="fuel-ring-wrap">
+          <svg class="fuel-ring" viewBox="0 0 180 180" aria-hidden="true">
+            ${ringTrack(78)}${ringArc(mainPct, 78, 'main')}
+            ${!pOnly ? ringTrack(64) + ringArc(protPct, 64, 'prot') : ''}
+            ${!pOnly ? ringTrack(50) + ringArc(carbPct, 50, 'carb') : ''}
+          </svg>
+          <div class="fuel-ring-mid">${read}</div>
+        </div>`;
+      }
+      /* Protein-only mode has one number, so it gets one flame. Drawing the
+         other two off targets that are switched off would be inventing them. */
+      const layers = pOnly
+        ? [{ pct: mainPct, cls: 'out' }]
+        : [{ pct: mainPct, cls: 'out' }, { pct: protPct, cls: 'mid' }, { pct: carbPct, cls: 'core' }];
+      /* Every layer that is actually being tracked has to be there. A target
+         that is not set cannot be "hit", so a fire cannot blaze off a number
+         nobody asked for. */
+      const tracked = pOnly ? [headT] : [kcalTarget, pTarget, cTarget];
+      const lit = tracked.every(Boolean) && layers.every(l => l.pct >= 100);
+      const label = pOnly
+        ? `Protein ${Math.round(mainPct)}% of target`
+        : `Calories ${Math.round(mainPct)}%, protein ${Math.round(protPct)}%, `
+          + `carbs ${Math.round(carbPct)}% of target${lit ? ' — all three reached' : ''}`;
+      return fireGaugeHTML(layers, lit, label)
+        + `<div class="fuel-fire-read">${read}</div>`;
+    })()}
 
     ${burned && !pOnly ? `<div class="fuel-burn-chip"><span class="mono">+${burned}</span> burned training</div>` : ''}
 

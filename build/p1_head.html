@@ -1636,6 +1636,97 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   color:var(--muted);margin-top:5px}
 .fuel-ring-of{font-size:11.5px;color:var(--faint);margin-top:3px}
 
+/* ---------- the day as a fire ----------
+   The other face of the same three numbers. See fireGaugeHTML() for why the
+   layers are concentric, why they are not clamped to each other, and why it is
+   never out.
+
+   Three fire colours rather than the rings' three hues, which is what was
+   asked for and is also the only way a stack of flames reads as ONE fire:
+   ember at the envelope, amber through the body, near-white at the core. They
+   are ordered by heat, so the eye reads depth rather than three overlapping
+   shapes — and each stays distinguishable from the one under it, which a
+   single hue at three opacities does not. */
+/* 132 tall, not the ring's 180. The viewBox is cropped to where the fire
+   actually lives — even at full burn the tallest flame tops out around y=57 of
+   180, so a square box left a third of the card empty above an unfed fire and
+   made the low states look like a mistake. Cropped, the fire is bottom-anchored
+   in its frame and grows up into it, which is the thing being drawn. */
+.fuel-fire-wrap{position:relative;width:180px;height:132px;margin:6px auto 0}
+.fuel-fire{position:relative;width:180px;height:132px;display:block;overflow:visible}
+.ff-bed{fill:#2A1508;opacity:.85}
+/* Each layer is a two-hop ramp from its own hot base to its own crown. The
+   stops are classes rather than inline stop-colors so the whole palette sits
+   here with the rest of the colour, and each layer's crown is the next one
+   out's base — which is what makes three of them read as depth in one fire
+   rather than as three flames standing in a row. */
+.ff-flame{fill-opacity:.94}
+.ff-out{fill-opacity:.74}
+.ff-mid{fill-opacity:.9}
+#ff-out-g .ff-s0{stop-color:#FF9535}
+#ff-out-g .ff-s1{stop-color:#F0641F}
+#ff-out-g .ff-s2{stop-color:#B8300F}
+#ff-mid-g .ff-s0{stop-color:#FFE08A}
+#ff-mid-g .ff-s1{stop-color:#FFB33F}
+#ff-mid-g .ff-s2{stop-color:#F8802A}
+#ff-core-g .ff-s0{stop-color:#FFFDF2}
+#ff-core-g .ff-s1{stop-color:#FFF0BE}
+#ff-core-g .ff-s2{stop-color:#FFD070}
+.ff-spark{fill:#FFD98A;opacity:0}
+/* Behind the flames and outside the SVG, so it cannot be clipped by a viewBox
+   the tallest flame already fills. Scaled by the wrap rather than by a value
+   per layer: one fire, one pool of light. */
+.fuel-fire-glow{position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);
+  width:190px;height:126px;pointer-events:none;
+  background:radial-gradient(50% 50% at 50% 62%,rgba(255,150,54,.30) 0%,rgba(255,120,40,.10) 46%,rgba(255,110,40,0) 72%)}
+.fuel-fire-wrap.lit .fuel-fire-glow{
+  background:radial-gradient(50% 50% at 50% 62%,rgba(255,170,70,.46) 0%,rgba(255,130,45,.17) 46%,rgba(255,110,40,0) 74%)}
+/* The number sits under the fire rather than in it. A ring has a hole in the
+   middle and a fire has its brightest part exactly there — text over the core
+   is either unreadable or forces the core dark, and the core is the point. */
+.fuel-fire-read{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;text-align:center;margin-top:-6px}
+
+@media (prefers-reduced-motion: no-preference){
+  /* Growth is a transition on the path, so adding a food makes the fire climb
+     rather than cut. `d` is animatable on a path in every engine this ships to,
+     and the shape is regenerated from the same function at the new height, so
+     the two ends of the transition are the same curve at different sizes —
+     which is what makes it interpolate cleanly instead of writhing. */
+  .ff-flame{transition:d .55s var(--ease-out),fill-opacity .55s var(--ease-out)}
+  /* Three rates, none dividing into another, so the fire never repeats a pose
+     on a countable beat — the camp fire's rule, and the reason it is watchable
+     rather than a blinking element. transform-box because an SVG path's origin
+     is the viewport corner by default, so without it the flames slide off the
+     logs instead of licking up from them. */
+  .ff-flame{transform-box:fill-box;transform-origin:50% 100%}
+  .ff-out{animation:ffLick 4.3s ease-in-out infinite}
+  .ff-mid{animation:ffLick 2.9s ease-in-out infinite reverse}
+  .ff-core{animation:ffLick 3.7s ease-in-out infinite}
+  .fuel-fire-glow{animation:ffGlow 6.5s ease-in-out infinite}
+  @keyframes ffLick{
+    0%,100%{transform:scale(1,1)}
+    30%{transform:scale(.94,1.07)}
+    62%{transform:scale(1.05,.95)}
+  }
+  @keyframes ffGlow{0%,100%{opacity:1}45%{opacity:.74}70%{opacity:.92}}
+  /* Reaching all three targets makes it burn harder, not throw a party. The
+     rates shorten and the sparks start; nothing flashes, nothing bounces, and
+     no copy congratulates you. The fire is bigger because you fed it. */
+  .lit .ff-out{animation-duration:3.1s}
+  .lit .ff-mid{animation-duration:2.1s}
+  .lit .ff-core{animation-duration:2.6s}
+  .lit .ff-spark{animation:ffSpark 2.6s ease-out infinite}
+  .lit .ff-spark:nth-of-type(2){animation-duration:3.3s;animation-delay:.7s}
+  .lit .ff-spark:nth-of-type(3){animation-duration:2.9s;animation-delay:1.4s}
+  @keyframes ffSpark{
+    0%{opacity:0;transform:translateY(0) scale(.6)}
+    18%{opacity:.9}
+    100%{opacity:0;transform:translateY(-58px) scale(.35)}
+  }
+  .fuel-fire .ff-spark{transform-box:fill-box;transform-origin:50% 50%}
+}
+
 .fuel-burn-chip{display:block;width:fit-content;margin:2px auto 0;font-size:11.5px;
   color:var(--ember-2);background:var(--ember-dim);border:1px solid var(--ember-line);
   border-radius:999px;padding:4px 11px}

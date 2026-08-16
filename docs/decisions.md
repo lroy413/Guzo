@@ -3067,3 +3067,64 @@ runs and 4.4 sits close enough to 4.5 to land on either side of it. The fix
 does not depend on knowing which: at 5.4 there is a fifth of the requirement in
 hand, and variation that small cannot reach it. If it ever goes red again the
 margin is the evidence that the cause is elsewhere.
+
+---
+
+## The day as a fire
+
+*"Similar to the water tracker, I want to be on theme and make the main counter
+a campfire and when you add your foods is like adding 'fuel to the fire' and it
+grows bigger."*
+
+The metaphor was already load-bearing everywhere else: the fire at base camp
+IS the Fuel tab, the Fuel toggle in Settings is a fire icon, and eating is the
+one thing in a training app that literally is adding fuel. The rings stay —
+`fuelViz()` picks, and Settings has the switch.
+
+**Concentric, because that is what a fire is.** An outer luminous envelope, a
+brighter body, a near-white core. Three nested layers is not a diagram
+borrowed from the rings; it is how flame is built, and it takes the ring order
+outside in — calories, protein, carbs — without either shape being bent to fit.
+
+**Not clamped to each other.** A tall protein flame inside a short calorie one
+reads as a bright core standing up through it, which is a thing fires do.
+Clamping would hide exactly the divergence the middle layer exists to show, on
+the day you have hit your protein and eaten very little else.
+
+**Never out.** Every layer has a resting height over a bed of embers and two
+logs that are always drawn. The first pass set that resting height at 26 and a
+day with nothing logged rendered a bare hearth — technically a fire, and it
+read as an empty state, which on this screen is a verdict. At 38 an unfed fire
+is plainly alight and still less than half of a fed one.
+
+**Four rounds on the silhouette, all of them decided by looking.** A
+parametric teardrop with a tuned belly is a candle. Widening it and rounding
+the crown made it a flame icon. What turned it into a campfire was two changes
+together: proportions (wide and low, not tall and narrow) and a **forked
+crown** — a main tongue and a shorter one beside it with a valley between. The
+fork is on the outer layer only; the body of a fire is smoother than its edge.
+Per-layer lean on top of that, so no layer mirrors itself and no two nest
+concentrically. Three symmetric flames inside one another draw a diagram of a
+flame.
+
+**Heat gradients in `userSpaceOnUse`, not the default.** Box-relative stops
+rescale with the path, so a small flame would show the full ramp compressed
+into 30px and look identical to a large one. Anchored to the geometry, a low
+fire is the bottom of the ramp — which is what a low fire looks like.
+
+**Absent means fire.** Only the choice to go back to rings is stored, so no
+existing save needs a migration to get the new default and the default stays
+changeable later. The mirror of the `rpe` / `restSound` problem, where absent
+had to mean ON and an explicit `false` was the only way to say otherwise.
+
+**Blazing is not a celebration.** All three reached shortens the flicker rates
+and starts three sparks. Nothing flashes, nothing bounces, no copy
+congratulates you. The fire is bigger because you fed it.
+
+**The reverts found a real hole.** Seven were run; six went red immediately.
+The seventh — `lit = mainPct >= 100`, blazing off the headline number alone —
+passed every case in the block, because there was no fixture where calories
+reached target and a macro did not. That is the only state that separates "all
+three" from "the big one", and it was missing. Added, and the revert goes red.
+The existing ring checks were rescoped rather than deleted: they now ask for
+rings explicitly, which is what keeping them as a choice actually means.

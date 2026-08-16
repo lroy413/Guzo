@@ -394,8 +394,13 @@ try {
   check('there are four meals', meals.slots === 'b,l,d,s', meals.slots);
   check('no placeholder text on Fuel', meals.bad === false);
 
+  /* The rings are a choice now, not the default — the day is drawn as a fire
+     unless you ask for them. So these checks ASK, rather than assuming: what is
+     asserted here is that the rings still work when selected, which is the
+     whole promise of keeping them. The fire has its own block below. */
   const ring = await page.evaluate(() => {
     S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.settings.fuelViz = 'rings';
     S.profile.heightCm = 183; S.profile.birthYear = 1989; S.profile.sex = 'm';
     S.profile.activity = 'mod'; S.profile.bodyweight = [{ d: today(), w: 98 }];
     const c = FOODS.find(f => /chicken breast/i.test(f.n));
@@ -415,6 +420,10 @@ try {
     return { n: arcs.length, geom,
       mid: (document.querySelector('.fuel-ring-v') || {}).textContent };
   });
+  /* Shaped so a missing ring FAILS the checks below rather than throwing out
+     of the instrument. A probe that throws has not run, and the arcs vanishing
+     entirely is exactly the regression worth catching here. */
+  if (!ring.geom.length) ring.geom = [{ r: 0, okDash: false, pct: -1, cvar: '' }];
   check('the day is drawn as three arcs', ring.n === 3, String(ring.n));
   check('...each dashed to its own circumference', ring.geom.every(g => g.okDash),
     JSON.stringify(ring.geom.map(g => g.okDash)));
@@ -427,6 +436,97 @@ try {
   check('...with the outer arc showing the day', ring.geom[0].pct > 0 && ring.geom[0].pct <= 100,
     String(ring.geom[0].pct));
   check('the middle of the ring is the number', /\d/.test(ring.mid || ''), ring.mid);
+
+  /* ---- the day as a fire ----
+     The default drawing, and the same three numbers. What has to be true:
+
+     - it is what you get without asking, so an existing save reaches it with
+       no migration — the setting only ever stores the choice to go back;
+     - every layer grows with its own target, independently. One shared
+       multiplier would draw three flames that are always the same relative
+       size, which looks completely correct and says nothing;
+     - it is never out. At nothing-logged the flames still stand above the
+       logs, because an empty state that reads as a dead fire is a verdict and
+       this screen does not pass them;
+     - it only blazes when all three are actually reached, and never off a
+       target that was never set;
+     - it says what it is showing out loud, since it prints no percentages. */
+  const fire = await page.evaluate(() => {
+    const setup = (frac, opts) => {
+      S = blank(); S.onboarded = true; S.settings.nutrition = true;
+      if (opts && opts.rings) S.settings.fuelViz = 'rings';
+      S.profile.heightCm = 178; S.profile.birthYear = 1990; S.profile.sex = 'm';
+      S.profile.activity = 'mod'; S.profile.bodyweight = [{ d: today(), w: 80 }];
+      const tg = S.nutrition.targets = (opts && opts.noTargets)
+        ? { kcal: 0, p: 0, c: 0, f: 0 } : { kcal: 2600, p: 165, c: 290, f: 80 };
+      const part = (opts && opts.part) || {};
+      S.nutrition.days[today()] = { items: frac <= 0 ? [] : [{
+        n: 'x', kcal: Math.round((tg.kcal || 2000) * (part.kcal != null ? part.kcal : frac)),
+        p: Math.round((tg.p || 150) * (part.p != null ? part.p : frac)),
+        c: Math.round((tg.c || 250) * (part.c != null ? part.c : frac)),
+        f: Math.round((tg.f || 70) * frac) }] };
+      save(true); syncNav(); go('fuel'); renderFuel();
+      const wrap = document.querySelector('#fuel-body .fuel-fire-wrap');
+      return {
+        present: !!wrap,
+        lit: !!(wrap && wrap.classList.contains('lit')),
+        rings: document.querySelectorAll('#fuel-body .fr-arc').length,
+        label: (document.querySelector('#fuel-body .fuel-fire') || {}).getAttribute
+          ? document.querySelector('#fuel-body .fuel-fire').getAttribute('aria-label') : '',
+        /* The rendered box of each flame, not the numbers that made it. */
+        h: [...document.querySelectorAll('#fuel-body .ff-flame')]
+             .map(p => Math.round(p.getBBox().height)),
+        logs: !!document.querySelector('#fuel-body .ff-logs'),
+        num: (document.querySelector('#fuel-body .fuel-fire-read .fuel-ring-v') || {}).textContent,
+      };
+    };
+    const out = { none: setup(0), part: setup(.5), full: setup(1),
+                  asked: setup(.5, { rings: true }),
+                  /* Protein at target, calories nowhere near: the middle layer
+                     has to be able to outgrow the one outside it, or the day
+                     that divergence describes cannot be seen at all. */
+                  lopsided: setup(.5, { part: { kcal: .15, p: 1, c: .1 } }),
+                  /* Nothing to hit, so nothing can be hit. */
+                  untargeted: setup(1, { noTargets: true }),
+                  /* Calories and carbs at target, protein well short. The case
+                     that separates "all three reached" from "the headline
+                     number reached" — without it, `lit = mainPct >= 100` passes
+                     every other state in this block, which is what a revert
+                     proved. */
+                  shortProtein: setup(1, { part: { kcal: 1, p: .4, c: 1 } }) };
+    S = blank(); save(true);
+    return out;
+  });
+  check('the day is a fire, without being asked for',
+    fire.part.present && fire.part.rings === 0 && fire.part.h.length === 3,
+    `present ${fire.part.present}, arcs ${fire.part.rings}, flames ${fire.part.h.length}`);
+  check('...and three rings instead, when it is',
+    fire.asked.rings === 3 && !fire.asked.present,
+    `arcs ${fire.asked.rings}, fire ${fire.asked.present}`);
+  check('...growing with what you have eaten',
+    fire.none.h.every((v, i) => v < fire.part.h[i] && fire.part.h[i] < fire.full.h[i]),
+    `${JSON.stringify(fire.none.h)} → ${JSON.stringify(fire.part.h)} → ${JSON.stringify(fire.full.h)}`);
+  /* Each layer against ITS OWN target. Driving three flames off one number
+     produces a picture that grows correctly and carries one number's worth of
+     information — and it would pass every check above. */
+  check('...each flame on its own target rather than all three on one',
+    fire.lopsided.h[1] > fire.lopsided.h[0],
+    `calories 15%, protein 100% → outer ${fire.lopsided.h[0]}, middle ${fire.lopsided.h[1]}`);
+  check('...never out, and laid on its logs, on a day you have not eaten',
+    fire.none.present && fire.none.logs && fire.none.h.every(v => v > 10),
+    `flames ${JSON.stringify(fire.none.h)}, logs ${fire.none.logs}`);
+  check('...blazing only when all three are reached',
+    fire.full.lit && !fire.part.lit && !fire.none.lit && !fire.untargeted.lit
+      && !fire.shortProtein.lit,
+    `none ${fire.none.lit}, half ${fire.part.lit}, full ${fire.full.lit},`
+      + ` no targets set ${fire.untargeted.lit},`
+      + ` calories hit but protein short ${fire.shortProtein.lit}`);
+  check('...still printing the number it is drawing',
+    /\d/.test(fire.part.num || ''), fire.part.num);
+  check('...and naming all three for a screen reader, since it prints none',
+    /calor/i.test(fire.part.label) && /protein/i.test(fire.part.label)
+      && /carb/i.test(fire.part.label) && /reached/i.test(fire.full.label),
+    fire.part.label);
 
   // ============ searching for a food with two words in it ============
   console.log('\nsearching for something with a space in its name\n');
@@ -834,6 +934,10 @@ try {
      does, because two things drawing one number is exactly where they drift. */
   const legend = await page.evaluate(() => {
     S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    /* Rings, explicitly: this check compares the legend's bars against the
+       ARCS, so it has to be looking at the drawing that has arcs in it. The
+       fire's own agreement with the legend is checked in the fire block. */
+    S.settings.fuelViz = 'rings';
     S.profile.bodyweight = [{ d: today(), w: 80 }];
     S.profile.heightCm = 180; S.profile.birthYear = 1990; S.profile.sex = 'm';
     save(true);

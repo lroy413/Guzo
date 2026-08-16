@@ -1337,6 +1337,23 @@ document.addEventListener('click', ev => {
         : 'Barcode lookup off — nothing leaves the device', true);
       break;
     }
+    /* Only the choice to go BACK to rings is stored — see fuelViz(). Writing
+       'fire' as well would work and would also mean every save carries a key
+       whose value is the default, which is how a default becomes impossible to
+       change later without a migration. */
+    case 'toggle-fuel-viz': {
+      if (fuelViz() === 'fire') S.settings.fuelViz = 'rings';
+      else delete S.settings.fuelViz;
+      save(true);
+      /* Fuel is a different screen and may not be the one behind this sheet,
+         so it is re-rendered rather than assumed. */
+      if (SCREEN === 'fuel') renderFuel();
+      sheetSettings();
+      toast(fuelViz() === 'fire'
+        ? 'Today is a fire — it grows as you eat'
+        : 'Today is three rings', true);
+      break;
+    }
     case 'qa-save': {
       const val = id => (($('#' + id) || {}).value);
       if (!quickAdd({ n: val('qa-n'), kcal: val('qa-kcal'), p: val('qa-p'),
