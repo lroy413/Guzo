@@ -3161,3 +3161,51 @@ rather than decorative.
 calibrated against the wrong surface — neither was a user-visible regression
 from the work being done.** Worth writing down because the instinct on a red
 check is to look at what just changed.
+
+---
+
+## The fire, second pass
+
+Three things, all from looking at it on a phone.
+
+**The notch.** The forked crown — a main tongue and a shorter one with a valley
+between — was the first thing anyone noticed, and not in a good way: a hard V
+bitten out of the upper right. It is a shoulder now, the right side easing out
+and flattening between roughly 60% and 75% of the height instead of dropping
+into a notch. The silhouette is still asymmetric and still not a teardrop.
+
+The lesson is about the size of the answer. The shape only needed to stop being
+symmetric; "split the crown" solved that and a great deal more that nobody had
+asked for. Measurable, which is the useful part: walking the rendered path and
+tracking how far the outline climbs back UP after its highest point gives
+**12.2% of the height with the fork, 0% with the shoulder**. Control points
+that draw a notch look no different from ones that do not, so the check walks
+the path rather than reading the numbers that made it.
+
+**Sparks at every size.** They only appeared once all three targets were hit,
+which made them a reward rather than a fire. Four now, at any level, on long
+staggered periods (9–13.5s) so one drifts up every few seconds rather than four
+pulsing together — most of each keyframe is spent at zero opacity, and that
+waiting is the point. Reaching all three shortens the periods rather than
+switching them on. They launch from the top of the outer flame rather than a
+fixed height, so they leave the fire instead of appearing in the air above a
+small one.
+
+**Which flame is which.** The three layers are `--ff-out` / `--ff-mid` /
+`--ff-core` — a red, an orange and a yellow, the natural ramp of a fire and
+also three genuinely distinct hues at 9px. Three tints of one orange would be
+handsome and carry no information.
+
+They are tokens, and the middle stop of each gradient IS the token, so the
+colour the legend shows for a macro is literally the colour of the flame it
+names. Two places writing that colour separately is how a mapping stops being
+true. Protein takes the body's colour and carbs the core's, scoped to
+`.viz-fire` so the rings keep the macro hues their arcs are drawn in. Calories
+has no legend row — it is the big number — so its key rides in front of the
+unit as a swatch rather than as a coloured label: `--ff-out` is a deep ember,
+right for the outermost flame against a dark page and under 4.5:1 as 10.5px
+uppercase text. A graphic carries the identity at 3:1 and the word stays the
+colour it was measured at.
+
+Seven reverts, one failure each — including one for the rings picking up the
+fire's colours, since a mapping that leaks is worse than none.

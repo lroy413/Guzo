@@ -95,26 +95,28 @@ function flamePath(h, w, lean) {
     + `C${n(x + w * .70)} ${n(b - h * .66)},${n(x + w * 1.14)} ${n(b - h * .32)},${n(x + w)} ${b}Z`;
 }
 
-/* The outer layer only: a main tongue and a second, shorter one beside it,
-   with a valley between them.
+/* The outer layer only: the same flame with one shoulder on its right side.
 
-   One smooth outline is a flame ICON however well its belly is tuned — that is
-   what three rounds of adjusting control points produced, and the shape was
-   never the problem. A crown that splits is the thing the eye reads as fire.
-   Only the outermost layer gets it: the body of a fire is smoother than its
-   edge, so a notched core would read as noise, and the outer envelope is the
-   only silhouette against the page anyway. */
+   A smooth outline is a flame ICON however well its belly is tuned, so this
+   layer carries the irregularity that makes it read as fire. But the first
+   version carried too much of it — a valley down to 52% of the height with a
+   second tongue rising past it, which drew a hard V bitten out of the upper
+   right and was the first thing anyone noticed about the whole gauge.
+
+   A shoulder, not a fork. The right side now eases out and flattens between
+   roughly 60% and 75% of the height instead of dropping into a notch: the
+   silhouette is still asymmetric and still not a teardrop, and nothing about
+   it reads as damage. The lesson is that the shape only needed to stop being
+   symmetric, and "split the crown" was a much bigger answer than the question. */
 function flamePathForked(h, w, lean) {
   const b = FIRE_BASE, x = FIRE_CX, n = (v) => v.toFixed(1);
   const t = x + w * (lean || 0);
   return `M${n(x - w)} ${b}`
     + `C${n(x - w * 1.22)} ${n(b - h * .26)},${n(x - w * .88)} ${n(b - h * .58)},${n(t - w * .16)} ${n(b - h * .90)}`
-    + `C${n(t - w * .06)} ${n(b - h * .98)},${n(t + w * .06)} ${n(b - h * .98)},${n(t + w * .20)} ${n(b - h * .84)}`
-    /* down into the valley between the two tongues */
-    + `C${n(x + w * .30)} ${n(b - h * .66)},${n(x + w * .26)} ${n(b - h * .58)},${n(x + w * .40)} ${n(b - h * .52)}`
-    /* and up to the shorter one */
-    + `C${n(x + w * .56)} ${n(b - h * .58)},${n(x + w * .68)} ${n(b - h * .70)},${n(x + w * .74)} ${n(b - h * .60)}`
-    + `C${n(x + w * .94)} ${n(b - h * .42)},${n(x + w * 1.16)} ${n(b - h * .22)},${n(x + w)} ${b}Z`;
+    + `C${n(t - w * .06)} ${n(b - h * .98)},${n(t + w * .09)} ${n(b - h * .97)},${n(t + w * .26)} ${n(b - h * .85)}`
+    /* the shoulder: out and along, rather than down and back up */
+    + `C${n(x + w * .50)} ${n(b - h * .76)},${n(x + w * .56)} ${n(b - h * .70)},${n(x + w * .64)} ${n(b - h * .62)}`
+    + `C${n(x + w * .84)} ${n(b - h * .48)},${n(x + w * 1.18)} ${n(b - h * .25)},${n(x + w)} ${b}Z`;
 }
 
 /* pct is 0–100 already clamped by the caller. `lit` says every layer has
@@ -136,10 +138,19 @@ function fireGaugeHTML(layers, lit, label) {
     const h = g.base + g.span * (Math.max(0, Math.min(100, l.pct)) / 100);
     return `<path class="ff-flame ff-${l.cls}" fill="url(#ff-${l.cls}-g)" d="${(g.fork ? flamePathForked : flamePath)(h, g.w, g.lean)}"/>`;
   }).join('');
-  /* Sparks only when it is going, and only three — a shower of them is a
-     celebration animation, and this is a fire that happens to be doing well. */
-  const sparks = lit ? [0, 1, 2].map(i =>
-    `<circle class="ff-spark" cx="${FIRE_CX - 12 + i * 12}" cy="${FIRE_BASE - 34}" r="${1.6 + i * .3}"/>`).join('') : '';
+  /* Sparks at every size, not only at full burn — a fire that throws none
+     until you have hit three targets is a reward, and this one is meant to be
+     a fire the whole time. Rarely, though: the durations in CSS are long and
+     staggered so one drifts up every few seconds, and reaching all three
+     shortens them rather than switching them on. Four, because a shower is a
+     celebration animation and two never overlap enough to look continuous.
+
+     Launched from the top of the OUTER flame rather than a fixed height, so
+     they leave the fire instead of appearing in the air above a small one. */
+  const top = FIRE_BASE - (GEOM[0].base + GEOM[0].span * (Math.max(0, Math.min(100, layers[0].pct)) / 100));
+  const sparks = [0, 1, 2, 3].map(i =>
+    `<circle class="ff-spark" cx="${(FIRE_CX - 15 + i * 10).toFixed(0)}"
+       cy="${(top + 6 + (i % 2) * 7).toFixed(0)}" r="${(1.5 + (i % 3) * .35).toFixed(2)}"/>`).join('');
   /* Hot at the base, its own hue at the crown. A flat fill draws a flame-shaped
      SHAPE; the vertical ramp is most of what makes it read as burning, and it
      is also what keeps three stacked layers from flattening into one silhouette
@@ -280,14 +291,17 @@ function renderFuel() {
       <div class="deck-track">
         <div class="deck-face food ${fuelFace === 'food' ? 'on' : ''}" id="deck-food" role="tabpanel"
              aria-label="Food" ${fuelFace === 'food' ? '' : 'inert'}>`
-  + `<div class="fuel-day-card">
+  + `<div class="fuel-day-card viz-${fuelViz()}">
     ${(() => {
       const protPct = pctOf(t.p, pTarget), carbPct = pctOf(t.c, cTarget);
       const headV = pOnly ? Math.round(t.p) + 'g' : String(t.kcal);
       const headK = pOnly ? 'protein' : 'kcal';
       const headT = pOnly ? pTarget : kcalTarget;
-      const read = `<div class="fuel-ring-v mono">${headV}</div>
-        <div class="fuel-ring-k">${headK}</div>
+      /* `key` is the swatch that says which flame this number is. Only the fire
+         gets one: on the rings the arc IS the key, and a dot in front of the
+         unit would be a second legend for a drawing that already has one. */
+      const read = (key) => `<div class="fuel-ring-v mono">${headV}</div>
+        <div class="fuel-ring-k">${key ? '<span class="fuel-key"></span>' : ''}${headK}</div>
         ${headT ? `<div class="fuel-ring-of">of ${pOnly ? pTarget + 'g' : kcalTarget}</div>` : ''}`;
       if (fuelViz() === 'rings') {
         return `<div class="fuel-ring-wrap">
@@ -296,7 +310,7 @@ function renderFuel() {
             ${!pOnly ? ringTrack(64) + ringArc(protPct, 64, 'prot') : ''}
             ${!pOnly ? ringTrack(50) + ringArc(carbPct, 50, 'carb') : ''}
           </svg>
-          <div class="fuel-ring-mid">${read}</div>
+          <div class="fuel-ring-mid">${read(false)}</div>
         </div>`;
       }
       /* Protein-only mode has one number, so it gets one flame. Drawing the
@@ -314,7 +328,7 @@ function renderFuel() {
         : `Calories ${Math.round(mainPct)}%, protein ${Math.round(protPct)}%, `
           + `carbs ${Math.round(carbPct)}% of target${lit ? ' — all three reached' : ''}`;
       return fireGaugeHTML(layers, lit, label)
-        + `<div class="fuel-fire-read">${read}</div>`;
+        + `<div class="fuel-fire-read">${read(true)}</div>`;
     })()}
 
     ${burned && !pOnly ? `<div class="fuel-burn-chip"><span class="mono">+${burned}</span> burned training</div>` : ''}

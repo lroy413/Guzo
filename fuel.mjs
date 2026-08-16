@@ -478,6 +478,36 @@ try {
              .map(p => Math.round(p.getBBox().height)),
         logs: !!document.querySelector('#fuel-body .ff-logs'),
         num: (document.querySelector('#fuel-body .fuel-fire-read .fuel-ring-v') || {}).textContent,
+        sparks: document.querySelectorAll('#fuel-body .ff-spark').length,
+        sparkSecs: (() => {
+          const sp = document.querySelector('#fuel-body .ff-spark');
+          return sp ? parseFloat(getComputedStyle(sp).animationDuration) || 0 : 0;
+        })(),
+        /* How far the outer silhouette climbs back UP after its crown. That is
+           what a notch IS, and walking the rendered path is the only way to
+           see it — the control points that draw one look no different from the
+           ones that do not. */
+        reascent: (() => {
+          const p = document.querySelector('#fuel-body .ff-out');
+          if (!p) return -1;
+          const len = p.getTotalLength(), pts = [];
+          for (let i = 0; i <= 400; i++) pts.push(p.getPointAtLength(len * i / 400));
+          let ti = 0;
+          for (let i = 1; i < pts.length; i++) if (pts[i].y < pts[ti].y) ti = i;
+          let worst = 0, low = pts[ti].y;
+          for (let i = ti + 1; i < pts.length; i++) {
+            if (pts[i].y > low) low = pts[i].y; else worst = Math.max(worst, low - pts[i].y);
+          }
+          return +(worst / (p.getBBox().height || 1) * 100).toFixed(1);
+        })(),
+        key: (() => { const e = document.querySelector('#fuel-body .fuel-key');
+          return e ? getComputedStyle(e).backgroundColor : ''; })(),
+        dots: ['prot', 'carb', 'fat'].map(c => {
+          const e = document.querySelector('#fuel-body .fuel-dot.' + c);
+          return e ? getComputedStyle(e).backgroundColor : '';
+        }),
+        tok: ['--ff-out', '--ff-mid', '--ff-core'].map(t =>
+          getComputedStyle(document.documentElement).getPropertyValue(t).trim()),
       };
     };
     const out = { none: setup(0), part: setup(.5), full: setup(1),
@@ -523,6 +553,39 @@ try {
       + ` calories hit but protein short ${fire.shortProtein.lit}`);
   check('...still printing the number it is drawing',
     /\d/.test(fire.part.num || ''), fire.part.num);
+  /* 12.2% before this was tuned, 0 after — the first silhouette split its
+     crown into two tongues with a valley between, which drew a hard V bitten
+     out of the upper right and was the first thing anyone noticed about the
+     whole gauge. A flame may be asymmetric; it may not have a bite in it. */
+  check('...with no notch bitten out of its crown',
+    fire.full.reascent >= 0 && fire.full.reascent < 4 && fire.part.reascent < 4,
+    `climbs back ${fire.part.reascent}% of its height at half, ${fire.full.reascent}% at full`);
+  /* Sparks at every size. They used to appear only at full burn, which made
+     them a reward rather than a fire — and the periods are long so one drifts
+     up every few seconds instead of four pulsing together. */
+  check('...throwing the odd spark whether or not it is blazing',
+    fire.none.sparks === 4 && fire.part.sparks === 4 && fire.full.sparks === 4
+      && fire.part.sparkSecs > 6 && fire.full.sparkSecs < fire.part.sparkSecs,
+    `sparks ${fire.none.sparks}/${fire.part.sparks}/${fire.full.sparks}`
+      + ` · every ${fire.part.sparkSecs}s, ${fire.full.sparkSecs}s when blazing`);
+  /* Which flame is which. The legend is the only place that says it, so the
+     colours have to BE the flames' colours — and the rings must keep their own,
+     because those are the colours of the arcs. */
+  const rgbOf = (hex) => {
+    const v = hex.replace('#', '');
+    return `rgb(${parseInt(v.slice(0,2),16)}, ${parseInt(v.slice(2,4),16)}, ${parseInt(v.slice(4,6),16)})`;
+  };
+  check('...colour-coded to the flames, so you can tell which layer is which',
+    fire.part.key === rgbOf(fire.part.tok[0])
+      && fire.part.dots[0] === rgbOf(fire.part.tok[1])
+      && fire.part.dots[1] === rgbOf(fire.part.tok[2])
+      && new Set([fire.part.key, fire.part.dots[0], fire.part.dots[1], fire.part.dots[2]]).size === 4,
+    `kcal ${fire.part.key} · protein ${fire.part.dots[0]} · carbs ${fire.part.dots[1]}`
+      + ` · fat ${fire.part.dots[2]}`);
+  check('...and the rings keeping the macro colours their arcs are drawn in',
+    fire.asked.dots[0] !== rgbOf(fire.asked.tok[1])
+      && fire.asked.dots[1] !== rgbOf(fire.asked.tok[2]) && !fire.asked.key,
+    `protein ${fire.asked.dots[0]}, carbs ${fire.asked.dots[1]}, key "${fire.asked.key}"`);
   check('...and naming all three for a screen reader, since it prints none',
     /calor/i.test(fire.part.label) && /protein/i.test(fire.part.label)
       && /carb/i.test(fire.part.label) && /reached/i.test(fire.full.label),
