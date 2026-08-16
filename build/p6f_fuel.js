@@ -120,18 +120,17 @@ function flamePathForked(h, w, lean) {
 }
 
 /* pct is 0–100 already clamped by the caller. `lit` says every layer has
-   reached its target, which is the only state that changes how this behaves
-   rather than how big it is. */
-function fireGaugeHTML(layers, lit, label) {
+   reached its target; `cold` says nothing has been logged at all, which is the
+   one state that changes what is drawn rather than how big it is. */
+function fireGaugeHTML(layers, lit, label, cold) {
   const GEOM = [
-    /* `base` is the height at nothing-logged, and it is not small change. At
-       26 the flames sat inside the logs and a day you had not eaten yet drew a
-       bare hearth — technically a fire, and it read as an empty state, which
-       on this screen is a verdict. At 38 an unfed fire is plainly alight and
-       still less than half of a fed one, which is the whole message. */
-    { base: 38, span: 60, w: 50, lean:  .14, fork: true },  // outer — headline
-    { base: 28, span: 50, w: 32, lean: -.18 },              // middle — protein
-    { base: 19, span: 37, w: 18, lean:  .10 },              // core — carbs
+    /* `base` is the height the moment ANYTHING is logged — not the height at
+       zero, which is now a different drawing entirely. So it can be small: it
+       is the first lick off a fire you have just fed, and it has embers to
+       stand on rather than a bare hearth to explain. */
+    { base: 26, span: 72, w: 50, lean:  .14, fork: true },  // outer — headline
+    { base: 19, span: 59, w: 32, lean: -.18 },              // middle — protein
+    { base: 13, span: 43, w: 18, lean:  .10 },              // core — carbs
   ];
   const flames = layers.map((l, i) => {
     const g = GEOM[i];
@@ -168,20 +167,81 @@ function fireGaugeHTML(layers, lit, label) {
       <stop offset="0" class="ff-s0"/><stop offset=".45" class="ff-s1"/>
       <stop offset="1" class="ff-s2"/></linearGradient>`;
   }).join('');
-  return `<div class="fuel-fire-wrap${lit ? ' lit' : ''}">
+  /* Nothing logged is not a small fire. It is a fire that has not been lit.
+
+     A small fire says "you are behind"; embers under a laid hearth say "this
+     is ready when you are", and that is the difference between a gauge reading
+     zero and a screen telling you off. It also gives the first thing you log
+     somewhere to arrive: the moment anything goes in, the embers take and the
+     flames appear, which is what "adding fuel to the fire" is supposed to feel
+     like and could not while there was already a fire burning on nothing.
+
+     Coals on the logs, the log ends still glowing, and smoke going up. The
+     smoke is what says recently-alive rather than never-lit — cold ash would
+     be the same verdict in a different colour. */
+  /* An ember bed is a glow the wood is silhouetted AGAINST, not dots painted
+     on it. Two passes proved that the hard way: flat discs drew four orange
+     buttons on a pair of sticks, and adding a crisp hot centre to each turned
+     them into fairy lights — evenly spaced, evenly bright, unmistakably LEDs.
+
+     So: one broad soft pool of light UNDER the logs, then the logs dark on top
+     of it, then a handful of small points glowing through the gaps and at the
+     ends. That ordering is the whole effect. The points are deliberately
+     uneven in size and spacing, because the thing that read as artificial was
+     never the brightness, it was the regularity. */
+  const bedGlow = [[-14, -1, 34, 12], [10, 2, 26, 10], [-2, -5, 18, 8]]
+    .map(([dx, dy, rx, ry], i) =>
+      `<ellipse class="ff-coal deep" cx="${FIRE_CX + dx}" cy="${FIRE_BASE + dy}"
+         rx="${rx}" ry="${ry}" fill="url(#ff-ember-g)"
+         style="animation-delay:${(i * 1.9).toFixed(2)}s"/>`).join('');
+  const point = (cx, cy, r, i, cls) =>
+    `<circle class="${cls}" cx="${cx}" cy="${cy}" r="${r}" fill="url(#ff-ember-g)"
+       style="animation-delay:${(i * 1.13).toFixed(2)}s"/>`;
+  /* The log ENDS only, and nothing along their length. Points spaced down a
+     stick are a string of lights however softly they are drawn — that was two
+     passes of this — and the ends are also where a fire genuinely burns last.
+     The far pair is dimmer than the near, so even these four are not a set. */
+  const ends = [[57, FIRE_BASE + 2, 6.8, ''], [125, FIRE_BASE + 2, 6.2, ''],
+                [123, FIRE_BASE - 9, 4.6, ' far'], [59, FIRE_BASE - 9, 4.2, ' far']]
+    .map(([cx, cy, r, extra], i) => point(cx, cy, r, i, 'ff-end' + extra)).join('');
+  /* One hot spot in the crevice where the wood crosses, which is the one place
+     a bright point does not read as decoration. */
+  const crevice = point(FIRE_CX - 1, FIRE_BASE - 4, 5.4, 2, 'ff-coal');
+  /* Rising off the hot spot rather than off the whole hearth, and starting
+     big enough to be a wisp instead of a speck — at rx 5 it read as a piece of
+     dust, which is a long way from "smoke coming off it". */
+  const smoke = [0, 1, 2].map(i =>
+    `<ellipse class="ff-smoke" cx="${FIRE_CX - 10 + i * 11}" cy="${FIRE_BASE - 14}"
+       rx="${9 + i * 1.5}" ry="${7 + i}" style="animation-delay:${(i * 2.7).toFixed(2)}s"/>`).join('');
+  const logs = `<g class="ff-logs" stroke-linecap="round" fill="none">
+        <path d="M56 ${FIRE_BASE + 2} L124 ${FIRE_BASE - 9}" stroke="#4A3222" stroke-width="12"/>
+        <path d="M58 ${FIRE_BASE - 9} L126 ${FIRE_BASE + 2}" stroke="#382514" stroke-width="12"/>
+        <path d="M56 ${FIRE_BASE + 2} L124 ${FIRE_BASE - 9}" stroke="#8A6038" stroke-width="3" opacity=".5"/>
+      </g>`;
+  return `<div class="fuel-fire-wrap${lit ? ' lit' : ''}${cold ? ' cold' : ''}">
     <div class="fuel-fire-glow" aria-hidden="true"></div>
     <svg class="fuel-fire" viewBox="0 40 180 132" role="img" aria-label="${h(label)}">
-      <defs>${grads}</defs>
+      <defs>${grads}
+        <radialGradient id="ff-smoke-g">
+          <stop offset="0" stop-color="#AEB6C2" stop-opacity=".5"/>
+          <stop offset=".55" stop-color="#9AA3AE" stop-opacity=".22"/>
+          <stop offset="1" stop-color="#9AA3AE" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="ff-ember-g">
+          <stop offset="0" stop-color="#FFB24E" stop-opacity=".95"/>
+          <stop offset=".38" stop-color="#E86A22" stop-opacity=".55"/>
+          <stop offset="1" stop-color="#C4531A" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
       ${/* Always drawn, at every value: the hearth is laid whether or not
             anything is burning on it yet. */''}
       <ellipse class="ff-bed" cx="${FIRE_CX}" cy="${FIRE_BASE + 4}" rx="46" ry="9"/>
-      ${flames}
-      ${sparks}
-      <g class="ff-logs" stroke-linecap="round" fill="none">
-        <path d="M56 ${FIRE_BASE + 2} L124 ${FIRE_BASE - 9}" stroke="#4A3222" stroke-width="9"/>
-        <path d="M58 ${FIRE_BASE - 9} L126 ${FIRE_BASE + 2}" stroke="#382514" stroke-width="9"/>
-        <path d="M56 ${FIRE_BASE + 2} L124 ${FIRE_BASE - 9}" stroke="#8A6038" stroke-width="2.6" opacity=".5"/>
-      </g>
+      ${cold ? '' : flames + sparks}
+      ${cold ? bedGlow : ''}
+      ${logs}
+      ${/* After the logs, because the ends glow where the wood is, and behind
+            the smoke, which drifts over everything. */''}
+      ${cold ? crevice + ends + smoke : ''}
     </svg>
   </div>`;
 }
@@ -323,11 +383,18 @@ function renderFuel() {
          nobody asked for. */
       const tracked = pOnly ? [headT] : [kcalTarget, pTarget, cTarget];
       const lit = tracked.every(Boolean) && layers.every(l => l.pct >= 100);
-      const label = pOnly
-        ? `Protein ${Math.round(mainPct)}% of target`
-        : `Calories ${Math.round(mainPct)}%, protein ${Math.round(protPct)}%, `
-          + `carbs ${Math.round(carbPct)}% of target${lit ? ' — all three reached' : ''}`;
-      return fireGaugeHTML(layers, lit, label)
+      /* Nothing logged, rather than nothing REACHED. Read off the day's own
+         entries and not off the percentages: a day whose targets are not set
+         has no percentages at all and is still a day you have eaten on, and a
+         day with one 4-kcal entry rounds to 0% and has plainly been started. */
+      const cold = nutDay(k).items.length === 0;
+      const label = cold
+        ? 'Nothing logged yet — the fire is laid and the embers are still in'
+        : pOnly
+          ? `Protein ${Math.round(mainPct)}% of target`
+          : `Calories ${Math.round(mainPct)}%, protein ${Math.round(protPct)}%, `
+            + `carbs ${Math.round(carbPct)}% of target${lit ? ' — all three reached' : ''}`;
+      return fireGaugeHTML(layers, lit, label, cold)
         + `<div class="fuel-fire-read">${read(true)}</div>`;
     })()}
 

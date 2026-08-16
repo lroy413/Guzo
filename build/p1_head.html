@@ -1667,6 +1667,42 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .fuel-fire-wrap{position:relative;width:180px;height:132px;margin:6px auto 0}
 .fuel-fire{position:relative;width:180px;height:132px;display:block;overflow:visible}
 .ff-bed{fill:#2A1508;opacity:.85}
+/* ---- nothing logged: a laid fire, not a small one ----
+   Coals in the bed, the log ends still glowing, and smoke going up. See
+   fireGaugeHTML() for why zero is a different drawing rather than a short
+   flame. The colours run warm and dim: an ember is a fire's lowest state, not
+   a grey one, and ash would be the same verdict a tiny flame was. */
+.ff-coal.deep{opacity:.7}
+.ff-end{opacity:.92}
+.ff-end.far{opacity:.5}
+.ff-smoke{fill:url(#ff-smoke-g);opacity:0}
+/* Darker when cold: the wood is a silhouette against the bed, and a lit
+   log reads brown while an unlit one against embers reads black. */
+.fuel-fire-wrap.cold .ff-logs path:first-child{stroke:#3A2618}
+.fuel-fire-wrap.cold .ff-logs path:nth-child(2){stroke:#2A1B10}
+/* Dimmer, and warmer, because embers do throw light — just not much. */
+.fuel-fire-wrap.cold .fuel-fire-glow{
+  background:radial-gradient(50% 50% at 50% 66%,rgba(220,110,40,.16) 0%,rgba(200,90,35,.05) 48%,rgba(200,90,35,0) 72%)}
+@media (prefers-reduced-motion: no-preference){
+  /* Coals breathe, out of step with each other. One rate would be a row of
+     lights blinking together, which is a piece of equipment rather than a
+     fire. */
+  .ff-coal{animation:ffCoal 4.6s ease-in-out infinite}
+  .ff-coal.deep{animation-duration:6.1s}
+  .ff-end{animation:ffCoal 3.7s ease-in-out infinite}
+  @keyframes ffCoal{0%,100%{opacity:.5}45%{opacity:1}}
+  /* Smoke rises, widens and goes. Long and staggered for the same reason the
+     sparks are: a wisp every few seconds reads as smoke, three on a two-second
+     loop reads as a progress indicator. */
+  .ff-smoke{transform-box:fill-box;transform-origin:50% 100%;
+    animation:ffSmoke 8s ease-out infinite}
+  @keyframes ffSmoke{
+    0%{opacity:0;transform:translateY(0) scale(.45)}
+    22%{opacity:1;transform:translateY(-14px) scale(.95) translateX(2px)}
+    68%{opacity:.4;transform:translateY(-40px) scale(1.8) translateX(6px)}
+    100%{opacity:0;transform:translateY(-60px) scale(2.5) translateX(10px)}
+  }
+}
 /* Each layer is a two-hop ramp from its own hot base to its own crown. The
    stops are classes rather than inline stop-colors so the whole palette sits
    here with the rest of the colour, and each layer's crown is the next one

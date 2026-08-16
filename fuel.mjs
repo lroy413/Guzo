@@ -477,6 +477,10 @@ try {
         h: [...document.querySelectorAll('#fuel-body .ff-flame')]
              .map(p => Math.round(p.getBBox().height)),
         logs: !!document.querySelector('#fuel-body .ff-logs'),
+        cold: !!(wrap && wrap.classList.contains('cold')),
+        embers: document.querySelectorAll('#fuel-body .ff-coal').length
+              + document.querySelectorAll('#fuel-body .ff-end').length,
+        smoke: document.querySelectorAll('#fuel-body .ff-smoke').length,
         num: (document.querySelector('#fuel-body .fuel-fire-read .fuel-ring-v') || {}).textContent,
         sparks: document.querySelectorAll('#fuel-body .ff-spark').length,
         sparkSecs: (() => {
@@ -523,7 +527,12 @@ try {
                      number reached" — without it, `lit = mainPct >= 100` passes
                      every other state in this block, which is what a revert
                      proved. */
-                  shortProtein: setup(1, { part: { kcal: 1, p: .4, c: 1 } }) };
+                  shortProtein: setup(1, { part: { kcal: 1, p: .4, c: 1 } }),
+                  /* One entry of four calories against a target of 2600 —
+                     0% to any rounding, and a day that has plainly been
+                     started. It is the case that separates "nothing logged"
+                     from "nothing reached", and they are different drawings. */
+                  tiny: setup(.0015) };
     S = blank(); save(true);
     return out;
   });
@@ -534,17 +543,33 @@ try {
     fire.asked.rings === 3 && !fire.asked.present,
     `arcs ${fire.asked.rings}, fire ${fire.asked.present}`);
   check('...growing with what you have eaten',
-    fire.none.h.every((v, i) => v < fire.part.h[i] && fire.part.h[i] < fire.full.h[i]),
-    `${JSON.stringify(fire.none.h)} → ${JSON.stringify(fire.part.h)} → ${JSON.stringify(fire.full.h)}`);
+    fire.tiny.h.length === 3
+      && fire.tiny.h.every((v, i) => v < fire.part.h[i] && fire.part.h[i] < fire.full.h[i]),
+    `${JSON.stringify(fire.tiny.h)} → ${JSON.stringify(fire.part.h)} → ${JSON.stringify(fire.full.h)}`);
   /* Each layer against ITS OWN target. Driving three flames off one number
      produces a picture that grows correctly and carries one number's worth of
      information — and it would pass every check above. */
   check('...each flame on its own target rather than all three on one',
     fire.lopsided.h[1] > fire.lopsided.h[0],
     `calories 15%, protein 100% → outer ${fire.lopsided.h[0]}, middle ${fire.lopsided.h[1]}`);
-  check('...never out, and laid on its logs, on a day you have not eaten',
-    fire.none.present && fire.none.logs && fire.none.h.every(v => v > 10),
-    `flames ${JSON.stringify(fire.none.h)}, logs ${fire.none.logs}`);
+  /* Nothing logged is a fire that has not been lit, not a small one. A small
+     fire says you are behind; embers under laid wood say this is ready when
+     you are, and the difference is whether a screen with nothing on it is
+     passing a verdict. The smoke is what makes it recently-alive rather than
+     never-lit — cold ash would be the same verdict in a different colour. */
+  check('...and on a day with nothing logged, embers and smoke rather than a fire',
+    fire.none.cold && fire.none.h.length === 0 && fire.none.logs
+      && fire.none.embers >= 4 && fire.none.smoke >= 2 && !fire.none.lit,
+    `cold ${fire.none.cold}, flames ${fire.none.h.length},`
+      + ` embers ${fire.none.embers}, smoke ${fire.none.smoke}`);
+  /* Read off the day's entries, not off the percentages: a day whose targets
+     are not set has no percentages at all and is still a day you have eaten
+     on, and four calories rounds to 0% on any target worth having. */
+  check('...taking the moment anything at all goes in',
+    !fire.tiny.cold && fire.tiny.h.length === 3 && fire.tiny.smoke === 0
+      && !fire.untargeted.cold,
+    `4 kcal → cold ${fire.tiny.cold}, flames ${fire.tiny.h.length};`
+      + ` logged with no targets set → cold ${fire.untargeted.cold}`);
   check('...blazing only when all three are reached',
     fire.full.lit && !fire.part.lit && !fire.none.lit && !fire.untargeted.lit
       && !fire.shortProtein.lit,
@@ -553,6 +578,12 @@ try {
       + ` calories hit but protein short ${fire.shortProtein.lit}`);
   check('...still printing the number it is drawing',
     /\d/.test(fire.part.num || ''), fire.part.num);
+  /* No percentage on the cold hearth, because there is nothing to be a
+     percentage of yet, and nothing that reads as a scolding. */
+  check('...and saying so kindly when there is nothing on it',
+    /nothing logged/i.test(fire.none.label) && !/%/.test(fire.none.label)
+      && !/\b(fail|missed|behind|empty)\b/i.test(fire.none.label),
+    fire.none.label);
   /* 12.2% before this was tuned, 0 after — the first silhouette split its
      crown into two tongues with a valley between, which drew a hard V bitten
      out of the upper right and was the first thing anyone noticed about the
@@ -563,10 +594,16 @@ try {
   /* Sparks at every size. They used to appear only at full burn, which made
      them a reward rather than a fire — and the periods are long so one drifts
      up every few seconds instead of four pulsing together. */
-  check('...throwing the odd spark whether or not it is blazing',
-    fire.none.sparks === 4 && fire.part.sparks === 4 && fire.full.sparks === 4
+  /* At any size of FIRE — from the first thing logged upward — rather than
+     only at full burn, which made them a reward. Not on the cold hearth: there
+     is nothing burning there to throw one, and embers that spark would undo
+     the whole point of that state. */
+  check('...throwing the odd spark at any size, and none off a cold hearth',
+    fire.tiny.sparks === 4 && fire.part.sparks === 4 && fire.full.sparks === 4
+      && fire.none.sparks === 0
       && fire.part.sparkSecs > 6 && fire.full.sparkSecs < fire.part.sparkSecs,
-    `sparks ${fire.none.sparks}/${fire.part.sparks}/${fire.full.sparks}`
+    `sparks — first thing logged ${fire.tiny.sparks}, half ${fire.part.sparks},`
+      + ` full ${fire.full.sparks}, nothing logged ${fire.none.sparks}`
       + ` · every ${fire.part.sparkSecs}s, ${fire.full.sparkSecs}s when blazing`);
   /* Which flame is which. The legend is the only place that says it, so the
      colours have to BE the flames' colours — and the rings must keep their own,

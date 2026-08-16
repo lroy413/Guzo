@@ -3209,3 +3209,53 @@ colour it was measured at.
 
 Seven reverts, one failure each — including one for the rings picking up the
 fire's colours, since a mapping that leaks is worse than none.
+
+---
+
+## Nothing logged is a fire that has not been lit
+
+*"On empty state the fire should look like embers, or the ends of the logs
+should be glowing with smoke emitting but no real fire until we log
+something."*
+
+Better than what was there, and for a reason worth keeping. A small fire says
+*you are behind*; embers under laid wood say *this is ready when you are*. That
+is the difference between a gauge reading zero and a screen passing a verdict,
+on the one screen in this app that already refuses to.
+
+It also gives the first thing you log somewhere to arrive. "Adding fuel to the
+fire" cannot land while there is already a fire burning on nothing — now the
+embers take and the flames appear, which is the whole metaphor doing its job
+at the one moment it matters.
+
+**Read off the day's entries, not off the percentage.** A day whose targets are
+not set has no percentage at all and is still a day you have eaten on, and four
+calories against 2600 rounds to 0% on any target worth having. `cold` is
+`items.length === 0` and nothing else.
+
+**Three passes on the ember bed, each one a different way of being wrong.**
+
+- Flat filled circles drew four orange buttons on a pair of sticks. An ember is
+  mostly the light it throws; the incandescent part is tiny.
+- Adding a crisp hot centre to each turned them into fairy lights — evenly
+  spaced, evenly bright, unmistakably LEDs. The problem was never the
+  brightness, it was the regularity.
+- What works is ordering: one broad, *irregular* pool of light UNDER the logs,
+  the wood dark on top of it, then a handful of points glowing through the gaps
+  and at the ends. Points spaced along a stick are a string of lights however
+  softly they are drawn. The ends are also where a fire genuinely burns last,
+  and the far pair is dimmer than the near so even those four are not a set.
+
+The logs went from 9 to 12 wide and darker in this state, because the wood now
+has to silhouette against the glow rather than float in it.
+
+**The smoke is what makes it recently-alive rather than never-lit.** Cold ash
+would be the same verdict in a different colour. It rises off the hot spot
+rather than the whole hearth, and started at rx 5 it read as a speck — a long
+way from "smoke coming off it".
+
+**One check had to change its meaning rather than its threshold.** Sparks were
+asserted at *every* size including zero; a cold hearth has nothing burning to
+throw one, and embers that spark would undo the state entirely. It is "at any
+size of fire, and none off a cold hearth" now — which is a different claim, and
+the right one. Six reverts, each red.
