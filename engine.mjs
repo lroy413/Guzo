@@ -771,6 +771,69 @@ try {
   check('...and the round number advances with it',
     circ.roundSeq.join('') === '000111', circ.roundSeq.join(''));
   check('working through it completes the session', circ.allDone === true);
+
+  /* ---- the summary over the range agrees with the screen under it ----
+     Both of these were the same bug seen twice. The strip's label and the
+     marker's position each derived "where you are" from the first movement
+     with a set left in it, which in a circuit is the FIRST movement for the
+     whole session bar the last round. The label named Dead Bug while the card
+     underneath said Hollow Hold, and the marker sat pinned to the left edge
+     through a session that was ten sets of twenty-one done — beside a count
+     reading 10/21. Two readings of one thing disagreeing is worse than either
+     being subtle.
+
+     Checked against the numbers rather than against a snapshot: the marker's
+     position has to BE the fraction of the work that is done. */
+  const strip = await page.evaluate(() => {
+    const build = (circuit, tick) => {
+      S = blank(); S.onboarded = true; save(true);
+      const names = ['Dead Bug', 'Bicycle Crunch', 'Plank', 'Hollow Hold',
+                     'Side Plank', 'Bird Dog', 'Leg Raise'];
+      S.active = { started: Date.now(), circuit, rounds: circuit ? 3 : 1, type: 'full',
+        exercises: names.map(n => ({ name: n, exId: 'mob-cat-cow', load: 'time',
+          targetR: 30, sets: [0, 1, 2].map(() => ({ done: false })) })) };
+      tick(S.active);
+      save(true); go('train'); renderTrain();
+      const A = S.active;
+      const done = A.exercises.reduce((a, it) => a + it.sets.filter(s => s.done).length, 0);
+      const total = A.exercises.reduce((a, it) => a + it.sets.length, 0);
+      return { where: trainWhere(A), lx: rangeGeom(A).lx / 320,
+               done, total, frac: done / total };
+    };
+    return {
+      /* Ten of twenty-one: round 1 complete, round 2 up to the fourth. */
+      circuit: build(true, (A) => {
+        let n = 0;
+        for (let r = 0; r < 3 && n < 10; r++)
+          for (let i = 0; i < 7 && n < 10; i++) { A.exercises[i].sets[r].done = true; n++; }
+      }),
+      /* An ordinary session worked straight through: the marker must not move
+         from where it has always been, since here the frontier and the total
+         are the same number. */
+      inOrder: build(false, (A) => {
+        A.exercises.slice(0, 3).forEach(it => it.sets.forEach(s => { s.done = true; }));
+      }),
+      /* And one worked out of order — three movements in, none of them the
+         first. The old rule called this zero. */
+      skipped: build(false, (A) => {
+        [2, 4, 5].forEach(i => A.exercises[i].sets.forEach(s => { s.done = true; }));
+      }),
+    };
+  });
+  check('the range names the movement you are actually on, in a circuit',
+    /^Hollow Hold · 4 of 7$/.test(strip.circuit.where), strip.circuit.where);
+  check('...and its marker sits at the work you have done, not at the first gap',
+    Math.abs(strip.circuit.lx - strip.circuit.frac) < .01,
+    `marker ${(strip.circuit.lx * 100).toFixed(1)}% vs ${strip.circuit.done}/${strip.circuit.total}`
+      + ` = ${(strip.circuit.frac * 100).toFixed(1)}%`);
+  check('...unchanged on an ordinary session worked straight through',
+    Math.abs(strip.inOrder.lx - strip.inOrder.frac) < .01
+      && /^Hollow Hold · 4 of 7$/.test(strip.inOrder.where),
+    `${strip.inOrder.where} · marker ${(strip.inOrder.lx * 100).toFixed(1)}%`
+      + ` vs ${(strip.inOrder.frac * 100).toFixed(1)}%`);
+  check('...and counting work done out of order rather than calling it none',
+    strip.skipped.lx > .3 && Math.abs(strip.skipped.lx - strip.skipped.frac) < .01,
+    `marker ${(strip.skipped.lx * 100).toFixed(1)}% vs ${(strip.skipped.frac * 100).toFixed(1)}%`);
   check('the minute estimate accounts for the rounds and the rest',
     circ.mins >= 3 && circ.mins <= 20, circ.mins + ' min');
 

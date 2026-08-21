@@ -3259,3 +3259,47 @@ asserted at *every* size including zero; a cold hearth has nothing burning to
 throw one, and embers that spark would undo the state entirely. It is "at any
 size of fire, and none off a cold hearth" now — which is a different claim, and
 the right one. Six reverts, each red.
+
+---
+
+## The strip over the range did not know what a circuit is
+
+Two complaints, one cause. *"It says Dead Bug 1 of 7 under it but that's not
+the exercise I was on"*, and *"how are the mountains drawing progress? it
+doesn't tell me how far along I am."*
+
+Both the label and the marker derived "where you are" from **the first movement
+with a set left in it**. In a linear session that is exactly right. A circuit
+is walked across the list and then again, so every movement is one set in and
+none is finished — which makes the first movement the answer for the entire
+session bar the last round.
+
+- The label named Dead Bug while the card directly underneath said Hollow Hold,
+  round 2 of 3.
+- `lx` — the marker — was the end of the unbroken run of *finished* slices, so
+  the run ended at the first slice and the dot sat pinned near the left edge
+  through a session that was ten sets of twenty-one done. Beside a count
+  reading `10/21`.
+
+Two readings of one thing disagreeing is worse than either being subtle, and it
+is the whole of "hard to read".
+
+**The label now asks `circuitPos()`**, which is what the card reads, rather than
+deriving a second answer — the same single-source rule as `ghostFor()`,
+`supFor()` and `rangeGeom()` itself. The one that is only a caption is the one
+nobody checks.
+
+**`lx` is the total lit width now**, wherever in the range it sits, rather than
+the frontier. Identical for a session worked in order; honest for one that is
+not. It costs the marker its meaning as a continuous edge — but the lit rects
+already say which ground is covered, and they say it better than a point could.
+An out-of-order session used to read 0%; it reads 42.9% for three of seven
+movements now.
+
+**The round came off the end of the label.** `Hollow Hold · 4 of 7 · round 2 of
+3` fitted, wrapped to two lines at phone width, and took the kcal and the clock
+beside it down with it. The card underneath already carries ROUND 2 OF 3 in its
+own eyebrow; the strip's job was the name, which is the part that was wrong.
+
+Four reverts, each red, and the first two reproduce the report exactly:
+`Dead Bug · 1 of 7`, and a marker at 9.5% against 10/21.

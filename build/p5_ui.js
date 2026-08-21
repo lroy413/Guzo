@@ -1786,17 +1786,31 @@ function rangeY(x) {
    maths. Two call sites that can disagree eventually will, and one of them
    silently repairing the other is worse than either.
 
-   `lx` is where the light has reached: the end of the run of slices that are
-   finished, which is the skyline you are standing on. */
+   `lx` is how much of the session's work is behind you — the total lit width,
+   wherever in the range it happens to sit.
+
+   It used to be the FRONTIER: the end of the unbroken run of finished slices,
+   which is the skyline you are standing on if you work straight through. In a
+   circuit nobody does. Every movement is one set in and none is finished, so
+   the run ended at the first slice and the marker sat pinned to the left edge
+   through a session that was ten sets of twenty-one done — while the count
+   beside it read 10/21. Two readings of the same thing disagreeing is worse
+   than either one being subtle, and it is what "it doesn't tell me how far
+   along I am" was.
+
+   Summing every lit slice is the same number for a session worked in order,
+   and the honest one for a session that is not. What it costs is that the
+   marker no longer marks a continuous edge — but the lit rects already say
+   which ground is covered, and they say it better than a single point could. */
 function rangeGeom(A) {
   const s = sessionShares(A);
   const rects = [];
-  let x = 0, lx = 0, run = true;
+  let x = 0, lx = 0;
   s.order.forEach(i => {
     const w = s.share[i] * RANGE_W;
     rects.push({ i, x, w: w * s.lit[i] });
     x += w;
-    if (run) { lx += w * s.lit[i]; if (s.lit[i] < 1) run = false; }
+    lx += w * s.lit[i];
   });
   return { rects, lx };
 }
@@ -1875,6 +1889,27 @@ function rangeYouStyle(lx) {
 function trainWhere(A) {
   const order = sessionOrder(A);
   if (!order.length) return 'Nothing added yet';
+  /* A circuit is walked across the list and then again, so "the first movement
+     with a set left in it" — which is the whole rule below — is the FIRST one
+     for the entire session bar the last round. It named Dead Bug while the
+     card underneath said Hollow Hold, round 2 of 3.
+
+     circuitPos() already knows where you are; it is what the card reads. This
+     asks it rather than deriving a second answer, for the same reason
+     ghostFor() and rangeGeom() are single sources: two functions computing one
+     position will eventually disagree, and the one that is only a caption is
+     the one nobody checks. */
+  if (A.circuit) {
+    const warm = A.exercises.findIndex(it => it.warmup && !isComplete(it));
+    if (warm >= 0) return A.exercises[warm].name + ' · warm-up';
+    const p = circuitPos(A);
+    if (p.finished) return 'Everything ticked';
+    /* No round on the end. It fitted, wrapped to two lines at phone width, and
+       took the kcal and the clock beside it down with it — and the card
+       directly underneath already says ROUND 2 OF 3 in its own eyebrow. The
+       strip's job is the name, which is the part that was wrong. */
+    return A.exercises[p.ei].name + ' · ' + (p.n + 1) + ' of ' + circuitItems(A).length;
+  }
   const at = order.findIndex(i => !isComplete(A.exercises[i]));
   if (at < 0) return 'Everything ticked';
   return A.exercises[order[at]].name + ' · ' + (at + 1) + ' of ' + order.length;
