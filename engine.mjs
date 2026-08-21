@@ -1914,6 +1914,125 @@ try {
   check('...and a set already done offers no button', hold.runnersAfter === 1,
     String(hold.runnersAfter));
 
+  /* ---- movements done on both sides ----
+     Thirty-eight of the catalogue's 391 movements are prescribed PER SIDE:
+     "Side Plank 30s" is thirty seconds left and thirty right. Fourteen more
+     ALTERNATE within the set, where the number is already the total. They were
+     one regex driving one badge, which is why nothing could act on either —
+     half its matches double the work and half do not.
+
+     Three things follow from telling them apart, and all three are checked
+     here: the screen says "each side" where it is true and nowhere else; a
+     minute of side plank is counted as a minute rather than as thirty seconds,
+     which fed the session estimate and the calories through it; and the clock
+     runs twice, because a hold that ticks itself after one side has recorded a
+     movement you did on one side. */
+  console.log('\nboth sides\n');
+
+  const sides = await page.evaluate(() => {
+    const kinds = {};
+    EXLIST.forEach(e => { const k = exSide(e.id); if (k) kinds[e.name] = k; });
+    const named = (n) => kinds[n] || '';
+    /* One logged 30s set, per-side against alternating. */
+    const secsFor = (exId) => {
+      const it = { name: EX[exId].name, exId, load: EX[exId].load, targetR: 30,
+                   sets: [{ done: true, r: 30 }] };
+      return exerciseSeconds(it);
+    };
+    return {
+      sidePlank: named('Side Plank'), deadBug: named('Dead Bug'),
+      bulgarian: named('Bulgarian Split Squat'), bench: named('Bench Press'),
+      /* Same movement, two prescriptions: reps alternate, the hold does not. */
+      birdDog: named('Bird Dog'), birdDogHold: named('Bird Dog Hold'),
+      /* Chest-supported with a bell in each hand, whatever the name suggests. */
+      proneRow: named('Prone Dumbbell Row'), dbRow: named('Dumbbell Row'),
+      /* A cardio block is a duration, not a count of sides. */
+      boxStepUps: named('Box Step-Ups'),
+      nSide: Object.values(kinds).filter(v => v === 'side').length,
+      nAlt: Object.values(kinds).filter(v => v === 'alt').length,
+      plankSecs: secsFor('bw-side-plank'), bugSecs: secsFor('bw-dead-bug'),
+    };
+  });
+  check('the catalogue knows which movements are done on each side',
+    sides.sidePlank === 'side' && sides.bulgarian === 'side' && sides.dbRow === 'side',
+    `side plank ${sides.sidePlank}, bulgarian ${sides.bulgarian}, db row ${sides.dbRow}`);
+  check('...and which alternate, where the count is already the total',
+    sides.deadBug === 'alt' && sides.birdDog === 'alt',
+    `dead bug ${sides.deadBug}, bird dog ${sides.birdDog}`);
+  check('...telling the two apart on one movement with both prescriptions',
+    sides.birdDog === 'alt' && sides.birdDogHold === 'side',
+    `bird dog ${sides.birdDog}, bird dog hold ${sides.birdDogHold}`);
+  check('...and leaving alone what is done with both sides at once',
+    sides.bench === '' && sides.proneRow === '' && sides.boxStepUps === '',
+    `bench "${sides.bench}", prone row "${sides.proneRow}", box step-ups "${sides.boxStepUps}"`);
+  check('...on a decent share of the catalogue rather than a handful',
+    sides.nSide >= 30 && sides.nAlt >= 10,
+    `${sides.nSide} per side, ${sides.nAlt} alternating`);
+  /* 30 + 30 + a swap, against 30 reps at 3.5s that are already both sides. */
+  check('...counting a per-side set as the work it actually is',
+    sides.plankSecs >= 60 && sides.plankSecs <= 75 && sides.bugSecs === 105,
+    `30s side plank → ${sides.plankSecs}s · 30-rep dead bug → ${sides.bugSecs}s`);
+
+  /* And it has to SAY so. Deleting sideNote() outright broke none of the
+     checks above — every one of them read the classification or the clock,
+     and the label is the part the person holding the phone actually gets. */
+  const said = await page.evaluate(() => {
+    const mk = (exId) => ({ name: EX[exId].name, exId, load: EX[exId].load, targetR: 30,
+      sets: [{ done: false }, { done: false }] });
+    S = blank(); S.onboarded = true;
+    S.active = { started: Date.now(), type: 'core', circuit: true, rounds: 2,
+      exercises: [mk('bw-side-plank'), mk('bw-dead-bug')] };
+    save(true); go('train'); renderTrain();
+    return {
+      amt: document.querySelector('#train-body .circ-amt').textContent,
+      rows: [...document.querySelectorAll('#train-body .circ-row-a')].map(e => e.textContent),
+    };
+  });
+  check('...and says "each side" where it is true',
+    /each side/i.test(said.amt), said.amt);
+  check('...and nowhere it is not',
+    /\/side/.test(said.rows[0] || '') && !/side/i.test(said.rows[1] || ''),
+    said.rows.join(' | '));
+
+  const runBoth = await page.evaluate(async () => {
+    const ex = EX['bw-side-plank'];
+    S = blank(); S.onboarded = true;
+    S.active = { date: today(), type: 'core', exercises: [{ exId: ex.id, name: ex.name,
+      load: 'time', targetR: 1, sets: [{ w: '', r: '', rpe: '', done: false }] }],
+      started: Date.now(), ended: null, dur: 0, activeMs: 0, tickAt: Date.now(), paused: false };
+    save(true); go('train'); renderTrain();
+    const wait = (ms) => new Promise(r => setTimeout(r, ms));
+    const btn = () => document.querySelector('#train-body [data-act="set-timer"]');
+    const first = btn().textContent.trim();
+    btn().click();
+    await wait(1500);
+    const st = S.active.exercises[0].sets[0];
+    const afterOne = { done: st.done, half: !!st.half, label: btn() ? btn().textContent.trim() : null };
+    if (btn()) btn().click();
+    await wait(1500);
+    const st2 = S.active.exercises[0].sets[0];
+    return { first, afterOne, done: st2.done, r: st2.r, halfCleared: !st2.half,
+             /* And unticking it must not leave the button on "other side". */
+             afterUntick: (() => {
+               const row = document.querySelector('#train-body [data-act="toggle-set"]');
+               if (row) row.click();
+               const s3 = S.active.exercises[0].sets[0];
+               return { done: s3.done, half: !!s3.half };
+             })() };
+  });
+  check('a per-side hold names the side it is about to run',
+    /first side/i.test(runBoth.first) || /\/side/.test(runBoth.first), runBoth.first);
+  check('...and one side finishing does not tick the set',
+    runBoth.afterOne.done === false && runBoth.afterOne.half === true,
+    `done ${runBoth.afterOne.done}, half ${runBoth.afterOne.half}`);
+  check('...it offers the other one instead, visibly',
+    /other/i.test(runBoth.afterOne.label || ''), runBoth.afterOne.label);
+  check('...and the second finishing ticks it',
+    runBoth.done === true && +runBoth.r === 1, `done ${runBoth.done}, recorded ${runBoth.r}`);
+  check('...with nothing half-done left on the set afterwards',
+    runBoth.halfCleared === true && runBoth.afterUntick.half === false,
+    `after finishing ${runBoth.halfCleared}, after unticking ${JSON.stringify(runBoth.afterUntick)}`);
+
   /* ---- age ----
      Asked in onboarding now rather than behind the Fuel switch, and it has to
      do something or it should not be asked. Two things, and precisely two: a

@@ -496,7 +496,52 @@ const MUSCLES = ['Chest','Back','Quads','Hamstrings','Glutes','Shoulders','Bicep
    a regex that quietly stops matching is exactly the kind of thing nothing
    notices for a year.
    ============================================================ */
-const UNILATERAL_RE = /single-arm|single-leg|one-arm|bulgarian|split squat|lunge|step-up|concentration|suitcase|pistol|side plank|oblique|figure-four|90\/90|kickback|renegade|heel tap|scissor|bird dog|dead bug|world's greatest|hip flexor|couch|pigeon|thoracic rotation/i;
+/* One-sided movements come in two kinds, and only one of them doubles.
+   ---------------------------------------------------------------------
+   PER SIDE: you do the whole set on one side and then the whole set on the
+   other. "Side Plank 30s" is 30s left and 30s right — sixty seconds of work
+   from a prescription that reads thirty. Bulgarian split squats, single-arm
+   rows, every one of the hip stretches.
+
+   ALTERNATING: you swap sides inside the set and the number is the total.
+   "Dead Bug × 20" is twenty reps, ten a side, not forty. Bird dog, scissor
+   kicks, walking lunges.
+
+   They were one regex, which is why it could only ever colour a badge: half
+   its matches double the work and half do not, so nothing downstream could
+   act on it. Split, the per-side half can drive the label, the clock and the
+   calorie estimate — and the badge still reads "Unilateral" for both, because
+   for the purpose of glancing at a session's shape they are the same thing.
+
+   PER SIDE is tested FIRST. Several stretches are lunges by name — lizard,
+   low, side — and a lunge is otherwise the archetypal alternating movement, so
+   the specific rule has to win over the general one. Same for 90/90: the hip
+   switch alternates, the forward fold does not. */
+const PER_SIDE_RE = /single-arm|single-leg|one-arm|bulgarian|split squat|pistol|concentration|suitcase|side plank|oblique crunch|kickback|figure-four|pigeon|couch stretch|hip flexor|lizard lunge|side lunge|low lunge|90\/90 forward fold|step-up|dumbbell row|bird dog hold/i;
+const ALTERNATING_RE = /dead bug|bird dog|scissor|heel tap|\blunge\b|90\/90|thoracic rotation|world's greatest|renegade/i;
+/* Names the rules above catch and should not. Matching on names means the odd
+   movement reads one-sided and is not, and one exception written down beats
+   loosening a pattern until it stops meaning anything: a prone dumbbell row is
+   chest-supported with a bell in each hand, however much it looks like the
+   single-arm one two rows above it in the catalogue. */
+const BOTH_SIDES_RE = /prone dumbbell row/i;
+
+/* '' when a movement is done with both sides at once. */
+function exSide(exOrItem) {
+  const ex = EX[exOrItem && exOrItem.exId ? exOrItem.exId : exOrItem] || {};
+  if (!ex.id) return '';
+  /* A cardio block is a duration, not a count of sides — "Box Step-Ups, 10
+     min" is ten minutes total however many legs are involved. */
+  if (ex.pattern === 'cardio' || BOTH_SIDES_RE.test(ex.name)) return '';
+  /* A bird dog for reps alternates and its count is the total; a bird dog HOLD
+     is a position you hold on one side and then the other. Same movement, two
+     prescriptions, and only the second doubles — which is why PER_SIDE is
+     tested first and carries the more specific name. */
+  if (PER_SIDE_RE.test(ex.name)) return 'side';
+  if (ALTERNATING_RE.test(ex.name)) return 'alt';
+  return '';
+}
+const UNILATERAL_RE = new RegExp(PER_SIDE_RE.source + '|' + ALTERNATING_RE.source, 'i');
 
 function exBadges(item) {
   const ex = EX[item && item.exId ? item.exId : item] || {};

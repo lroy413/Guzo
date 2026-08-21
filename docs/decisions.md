@@ -3303,3 +3303,54 @@ own eyebrow; the strip's job was the name, which is the part that was wrong.
 
 Four reverts, each red, and the first two reproduce the report exactly:
 `Dead Bug · 1 of 7`, and a marker at 9.5% against 10/21.
+
+---
+
+## Movements done on both sides
+
+Scanned the catalogue for them, and the scan itself is the finding: **there
+were two different things under one name.**
+
+- **Per side (38 movements).** The whole set on one side, then the whole set on
+  the other. "Side Plank 30s" is thirty seconds left and thirty right — sixty
+  seconds of work from a prescription that reads thirty. Bulgarian split
+  squats, single-arm rows, every one of the hip stretches.
+- **Alternating (14).** You swap inside the set and the number is the total.
+  "Dead Bug × 20" is twenty reps, ten a side, not forty.
+
+`UNILATERAL_RE` matched both, which is exactly why it could only ever colour a
+badge: half its matches double the work and half do not, so nothing downstream
+could act on it. Split into `exSide()` returning `'side' | 'alt' | ''`, and the
+badge still says "Unilateral" for both — for glancing at a session's shape they
+are the same thing.
+
+**Three consequences, and all three were wrong before.**
+
+- **The screen never said "each side".** Thirty-eight movements printed half
+  their prescription and looked complete.
+- **A per-side set was counted at half the work it is** — 30s rather than 30 +
+  30 + a swap. That fed `sessionMinsEstimate`, `exerciseKcal` through it, and
+  the totals on Progress through that.
+- **The clock ran once.** A side plank timer that ticks the set at thirty
+  seconds has recorded a movement you did on one side. It runs each side now,
+  and does *not* start the second by itself — getting over onto the other elbow
+  takes as long as it takes, and a clock that started unasked would count your
+  rearranging as work. `half` lives on the set, so it survives a reload.
+
+**Two names the rules got wrong, both found by reading the output rather than
+trusting the regex.** *Prone Dumbbell Row* is chest-supported with a bell in
+each hand, however much it looks like the single-arm row two rows above it —
+one exception written down beats loosening a pattern until it means nothing.
+And *Bird Dog* alternates for reps while *Bird Dog Hold* is held on each side:
+same movement, two prescriptions, and only the second doubles. That is why
+per-side is tested before alternating and carries the more specific name.
+
+**Seven reverts; six went red at once and the seventh is the interesting one.**
+Deleting the "each side" label entirely broke nothing — every check read the
+classification or the clock, and none read the screen. The label is the part
+the person holding the phone actually gets. Added, and it goes red.
+
+Two smaller things the reverts also caught: the run button's *visible* text did
+not change between sides (the wording was in the aria-label, where nobody
+holding the phone can see it), and `half` was set but never consumed, so a
+finished set still carried "one side to go".

@@ -777,6 +777,11 @@ document.addEventListener('click', ev => {
       const item = S.active.exercises[i];
       const st = item.sets[si];
       st.done = !st.done;
+      /* Whichever way it just went, the half-done flag is spent: ticking by
+         hand means both sides are done, and unticking means starting the set
+         over. Left behind, an untick would put the button on "other side" for
+         a set with nothing recorded against it. */
+      delete st.half;
       if (st.done) {
         /* Records exactly what the row was showing. Filling from item.target*
            here instead would mean a row whose placeholder offered last week's
@@ -890,6 +895,10 @@ document.addEventListener('click', ev => {
       /* The set is ticked by the timer finishing, not by starting it. Ticking
          up front would record work you have not done yet if you stop. */
       startRest(secs, item.name, { work: true, onDone: () => {
+        const it = S.active && S.active.exercises[i];
+        const st2 = it && it.sets[si];
+        if (!it || !st2 || st2.done) return;
+        if (firstSideDone(it, st2)) { renderTrain(); return; }
         completeCircuitEntry(i, si);
         toast('Done — next', true);
       }});
@@ -912,6 +921,8 @@ document.addEventListener('click', ev => {
         const it = S.active && S.active.exercises[i];
         const s2 = it && it.sets[si];
         if (!s2 || s2.done) return;
+        /* Half the work on a per-side hold. Re-label the button and wait. */
+        if (firstSideDone(it, s2)) { replaceExCard(i); return; }
         s2.r = target;
         s2.done = true;
         s2.pr = isPR(it, s2);
@@ -1897,6 +1908,30 @@ document.addEventListener('click', ev => {
    Rest goes after the whole round, never between movements — that is the
    difference between a circuit and an ordinary session, and it is the thing
    that was asked for. */
+/* A per-side hold is two runs of the clock with a swap between them.
+
+   The set is not ticked after the first one — you have done half the work, and
+   a side plank that ticks itself at thirty seconds has recorded a movement you
+   did on one side. `half` lives on the SET rather than in a variable, so it
+   survives a reload, a crash and putting the phone down mid-switch, which is
+   the same reason the circuit derives its position from the ticks.
+
+   It does not start the second side by itself. Getting over onto the other
+   elbow takes as long as it takes, and a clock that started without being
+   asked would be counting your rearranging as work. The button re-labels and
+   waits. Returns true when there is another side still to do. */
+function firstSideDone(item, st) {
+  if (exSide(item) !== 'side') return false;
+  /* Consumed on the way past. Leaving it set meant a finished set still
+     carrying "one side to go", which is only invisible because a done set
+     draws no run button — until something else reads the flag. */
+  if (st.half) { delete st.half; return false; }
+  st.half = true;
+  save();
+  toast('Switch sides', true);
+  return true;
+}
+
 function completeCircuitEntry(ei, round) {
   const A = S.active;
   if (!A) return;
@@ -1905,6 +1940,7 @@ function completeCircuitEntry(ei, round) {
   if (!st || st.done) return;
 
   st.done = true;
+  delete st.half;                  // both sides, however it got here
   if (st.r === '' || st.r == null) st.r = item.targetR || '';
   if ((st.w === '' || st.w == null) && item.targetW != null && item.targetW !== '') st.w = item.targetW;
   buzz();

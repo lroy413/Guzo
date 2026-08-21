@@ -41,12 +41,25 @@ function exerciseSeconds(item) {
   const done = (item.sets || []).filter(s => s.done);
   if (!done.length) return 0;
   const rest = ((ex && ex.tier <= 2) ? S.settings.restMain : S.settings.restAcc) || 90;
+  /* A per-side movement is prescribed per side, so a logged set of it is two
+     sets of work with a swap in between. Thirty seconds of side plank is a
+     minute on the mat, and every one of the thirty-eight movements this
+     applies to was being counted at half — which fed the session's minute
+     estimate, its calorie estimate, and through those the totals on Progress.
+
+     Alternating movements are NOT doubled: their count is already the total
+     across both sides. That distinction is the whole reason exSide() returns
+     three values rather than a boolean. */
+  const perSide = exSide(item) === 'side';
+  const SWAP = 5;                          // getting over onto the other side
   let secs = 0;
   done.forEach((s, i) => {
     const r = +s.r || 0;
-    if (item.load === 'min')       secs += r * 60;
-    else if (item.load === 'time') secs += r;
-    else                           secs += r * 3.5;   // ~3.5s per rep under load
+    let w;
+    if (item.load === 'min')       w = r * 60;
+    else if (item.load === 'time') w = r;
+    else                           w = r * 3.5;   // ~3.5s per rep under load
+    secs += perSide ? w * 2 + SWAP : w;
     if (i < done.length - 1) secs += rest;
   });
   return secs;

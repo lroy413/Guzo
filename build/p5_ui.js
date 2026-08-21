@@ -1412,6 +1412,20 @@ function journeyRingSVG(st, nxt) {
 function isComplete(item) {
   return item.sets.length > 0 && item.sets.every(st => st.done);
 }
+/* "each side", said once, in the three places a prescription is printed and
+   the one place it is summarised afterwards.
+
+   A per-side movement's number is per side, and until now nothing on screen
+   said so: "Side Plank 30s" read as thirty seconds of side plank, which is
+   half the work and the wrong movement. Alternating movements get nothing —
+   their count is already the total, and labelling them "each side" would be
+   the same error pointing the other way.
+
+   Two lengths, because the places differ: the long one goes where there is a
+   line to itself, the short one where it shares a row with a number. */
+function sideNote(item) { return exSide(item) === 'side' ? ' each side' : ''; }
+function sideTag(item) { return exSide(item) === 'side' ? '/side' : ''; }
+
 function setSummary(item) {
   const done = item.sets.filter(s => s.done);
   if (!done.length) return '';
@@ -1434,7 +1448,7 @@ function setSummary(item) {
     const uniq = ws.every(w => w === ws[0]);
     wTxt = ' · ' + (uniq ? fmtW(ws[0]) : fmtW(Math.min(...ws)) + '–' + fmtW(Math.max(...ws))) + unit();
   }
-  return done.length + ' × ' + repTxt + (isTime ? 's' : '') + wTxt;
+  return done.length + ' × ' + repTxt + (isTime ? 's' : '') + sideTag(item) + wTxt;
 }
 
 /* ============================================================
@@ -1481,7 +1495,7 @@ function circuitDoneCount(A) {
 
 function circuitEntryHTML(A, item, ei, round, cls) {
   const isTime = item.load === 'time' || item.load === 'min';
-  const amount = item.targetR + (item.load === 'min' ? ' min' : isTime ? 's' : ' reps');
+  const amount = item.targetR + (item.load === 'min' ? ' min' : isTime ? 's' : ' reps') + sideTag(item);
   const st = item.sets[round];
   return `<div class="circ-row ${cls}${st && st.done ? ' is-done' : ''}">
     <div class="circ-dot">${st && st.done
@@ -1526,10 +1540,11 @@ function circuitHTML(A) {
     <div class="circ-now">
       <div class="circ-eyebrow">Now</div>
       <div class="circ-name">${h(item.name)}</div>
-      <div class="circ-amt mono">${item.targetR}${item.load === 'min' ? ' min' : isTime ? 's' : ''}${isTime ? '' : ' reps'}${item.targetW != null && item.targetW !== '' ? ' · ' + fmtW(item.targetW) + unit() : ''}</div>
+      <div class="circ-amt mono">${item.targetR}${item.load === 'min' ? ' min' : isTime ? 's' : ''}${isTime ? '' : ' reps'}${h(sideNote(item))}${item.targetW != null && item.targetW !== '' ? ' · ' + fmtW(item.targetW) + unit() : ''}</div>
 
       ${isTime
-        ? `<button class="btn primary block lg mt" data-act="circ-start" data-i="${pos.ei}" data-s="${pos.round}">Start ${secs}s</button>
+        ? `<button class="btn primary block lg mt" data-act="circ-start" data-i="${pos.ei}" data-s="${pos.round}">Start ${secs}s${
+             exSide(item) === 'side' ? (item.sets[pos.round] && item.sets[pos.round].half ? ' — other side' : ' — first side') : ''}</button>
            <button class="btn quiet block" data-act="circ-done" data-i="${pos.ei}" data-s="${pos.round}">Mark it done instead</button>`
         : `<button class="btn primary block lg mt" data-act="circ-done" data-i="${pos.ei}" data-s="${pos.round}">Done &mdash; next</button>`}
 
@@ -2262,8 +2277,16 @@ function exCardHTML(item, ei) {
                 no load at all — cannot have its columns counted out in advance,
                 and every time someone tried, one combination broke. */''}
           ${isTime && !st.done ? `<button class="set-run" data-act="set-timer" data-i="${ei}" data-s="${si}"
-                  aria-label="Start ${item.targetR}${item.load === 'min' ? ' minute' : ' second'} hold, set ${si+1}">
-            ${ICO.play}<span class="set-run-t mono">${item.load === 'min' ? item.targetR + 'm' : item.targetR + 's'}</span>
+                  aria-label="Start ${item.targetR}${item.load === 'min' ? ' minute' : ' second'} hold${
+                    exSide(item) === 'side' ? (st.half ? ', other side' : ', first side') : ''}, set ${si+1}">
+            ${/* The tag has to CHANGE, not just be there. It read "30s/side" before
+                  the first side and "30s/side" after it, so the one moment the
+                  button means something different looked identical — the wording
+                  was in the aria-label, where the person holding the phone could
+                  not see it. "other" rather than "other side" because this is a
+                  40px button in a flex row next to two inputs. */''}
+            ${ICO.play}<span class="set-run-t mono">${item.load === 'min' ? item.targetR + 'm' : item.targetR + 's'}${
+              exSide(item) === 'side' ? (st.half ? ' other' : '/side') : ''}</span>
           </button>` : ''}
           ${dist ? `<label class="set-f">
             <input class="set-in" type="text" inputmode="decimal" enterkeyhint="next" autocomplete="off" aria-label="Distance, set ${si+1}" placeholder="${h(g.d === '' ? '–' : fmtDist(g.d))}" value="${st.d==null||st.d===''?'':h(st.d)}" data-set="d" data-i="${ei}" data-s="${si}">
