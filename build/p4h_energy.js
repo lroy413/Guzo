@@ -62,10 +62,32 @@ function adaptiveTdee(windowDays) {
   const w = trendedWeights(days);
 
   const logged = [];
+  let fasted = 0;
   for (let i = days - 1; i >= 0; i--) {
     const k = dk(addDays(today(), -i));
+    if (fastingOn(k)) { fasted++; continue; }
     const kcal = intakeOn(k);
     if (kcal != null && kcal > 500) logged.push({ d: k, kcal });
+  }
+  /* A fast inside the window breaks this method, and dropping the fasted days
+     from the intake mean is not enough to save it — which is exactly what the
+     `kcal > 500` filter above was already doing by accident.
+
+     The estimate is intake measured against what the scale did. Fasted days
+     leave the mean but stay in the SPAN, so the weight lost across them gets
+     attributed to the days you ate. Measured on a 21-day window with steady
+     2600 kcal: a two-day fast at the end moved the answer from 2730 to 3100.
+     The app would have told someone to eat 370 more a day, immediately after
+     a fast, and that number feeds their calorie target.
+
+     Excluding the days from the span instead would only trade one error for a
+     smaller one, because most of what a fast takes off is glycogen water and
+     it comes back. So it refuses, and says why — the same thing it already
+     does with an implausible answer. It comes back on its own once the fast is
+     far enough behind you to be out of the window. */
+  if (fasted) {
+    return { ready: false, have: logged.length, need: ADAPT_MIN_DAYS,
+             why: 'fasted', fastedDays: fasted };
   }
   if (logged.length < ADAPT_MIN_DAYS) {
     return { ready: false, have: logged.length, need: ADAPT_MIN_DAYS, noWeight: !w.length };
@@ -127,11 +149,15 @@ function weekIntake(offset) {
     const kcal = intakeOn(k);
     const d = S.nutrition.days[k];
     const p = d && d.items ? d.items.reduce((a, x) => a + (+x.p || 0), 0) : 0;
-    days.push({ d: k, kcal, p: Math.round(p), logged: kcal != null });
+    days.push({ d: k, kcal, p: Math.round(p), logged: kcal != null, fast: fastingOn(k) });
   }
-  const withData = days.filter(x => x.logged);
+  /* Fasted days are neither logged nor missing — they are accounted for. Left
+     in the "not logged" pile the week reads "5 of 7", which is what forgetting
+     looks like, on a week where nothing was forgotten. */
+  const withData = days.filter(x => x.logged && !x.fast);
   return {
     days,
+    fastedDays: days.filter(x => x.fast).length,
     loggedDays: withData.length,
     avgKcal: withData.length ? Math.round(withData.reduce((a, x) => a + x.kcal, 0) / withData.length) : null,
     avgP: withData.length ? Math.round(withData.reduce((a, x) => a + x.p, 0) / withData.length) : null
@@ -179,3 +205,108 @@ function proteinTarget() {
   return e ? e.p : Math.round(kg * 1.6);
 }
 
+
+/* ============================================================
+   FASTS
+   ------------------------------------------------------------
+   A self-imposed fast — a water fast, a 48-hour, the fasting half of 5:2.
+   Not Ramadan: that is a daily eating WINDOW rather than a run of days with
+   nothing in them, and it wants different machinery.
+
+   STORED AS RANGES, and that is the load-bearing decision. The obvious model
+   is a flag per day — `nutrition.days[k].fast` — and it falls over on the
+   second day: a fast that starts on Tuesday and ends on Thursday would need
+   Wednesday marking by something, and the only thing that runs on Wednesday is
+   a render. Renders in this app must not write to the save (see the note on
+   Today seeding its own session), so the flag would either be missing or the
+   rule would be broken. A range is written once when you start, closed once
+   when you stop, and every day inside it is derived.
+
+   `to: null` means the fast is still running. Absent `fasts` means none ever,
+   so no save needs migrating.
+
+   No streak, and there will not be one. This app keeps exactly one — water —
+   and refuses them everywhere else on purpose. A fitness app that rewards
+   consecutive days of not eating is a different and worse product, and the
+   distance between "here is where you are" and "here is a run to protect" is
+   the whole of it. Same reason nothing here congratulates a low day. */
+function fastList() {
+  if (!S.nutrition.fasts) S.nutrition.fasts = [];
+  return S.nutrition.fasts;
+}
+
+/* The one still running, or null. There can only be one: startFast closes any
+   open range before opening a new one, so two overlapping fasts cannot exist
+   to disagree about which day belongs to which. */
+function openFast() {
+  return fastList().find(f => f && f.from && !f.to) || null;
+}
+
+/* Whole days only. Everything in this app is keyed 'YYYY-MM-DD' and a fast
+   that began at 8pm still leaves the next day with nothing eaten in it, which
+   is the thing the day's numbers care about. The hours are reported separately
+   and precisely — see fastHours() — because that is the number a water fast is
+   actually measured in. */
+function fastingOn(kIn) {
+  const k = key(kIn);
+  /* Inside a range AND nothing eaten on it. Breaking a fast at six in the
+     evening makes today an eating day — a low one — rather than a fast that
+     somehow contains six hundred calories, and the days before it stay fasted
+     on their own with no special case for the one you broke it on.
+
+     It also means the flag can never contradict the food log, which is the
+     failure the first version had: end the fast, eat, and the day still drew
+     itself banked because `to` was set to today and today was still inside the
+     range. Deriving from both facts leaves nothing to keep in step. */
+  if (intakeOn(k) != null) return false;
+  return fastList().some(f => {
+    if (!f || !f.from) return false;
+    /* `today()` already returns a key; dk() takes a Date. Passing one to the
+       other is the silent-miss this codebase has a fragile-areas note about,
+       and it threw here rather than missing only because dk() reaches straight
+       for getFullYear. Both ends normalise through key(). */
+    const a = key(dk(new Date(f.from)));
+    const b = f.to ? key(dk(new Date(f.to))) : today();
+    return k >= a && k <= b;
+  });
+}
+
+function startFast(atMs) {
+  const now = atMs || Date.now();
+  const open = openFast();
+  if (open) return open;                       // already going; do not restart it
+  const f = { from: now, to: null };
+  fastList().push(f);
+  save(true);
+  return f;
+}
+
+function endFast(atMs) {
+  const open = openFast();
+  if (!open) return null;
+  open.to = atMs || Date.now();
+  save(true);
+  return open;
+}
+
+/* Hours into the fast that is running, or null. Reported plainly and never as
+   an achievement: a water fast is measured in hours and you need to know where
+   you are in it, which is a different thing from being told well done. */
+function fastHours() {
+  const f = openFast();
+  if (!f) return null;
+  return Math.max(0, (Date.now() - f.from) / 3600000);
+}
+
+/* One neutral line at the point where an extended fast stops being an ordinary
+   one. Not a warning banner and not a nudge to stop — this app does not
+   moralise and has no business having a view on someone's fast. But going
+   quiet about a genuine threshold is its own kind of dishonesty, and the note
+   is the same shape as the research notes elsewhere in Fuel: a fact, once,
+   with no verdict attached. */
+function fastNote(hours) {
+  if (hours == null) return '';
+  if (hours >= 72) return 'Past three days. Extended fasts are usually done with medical supervision.';
+  if (hours >= 48) return 'Past two days.';
+  return '';
+}

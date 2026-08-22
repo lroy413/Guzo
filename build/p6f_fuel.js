@@ -122,7 +122,12 @@ function flamePathForked(h, w, lean) {
 /* pct is 0–100 already clamped by the caller. `lit` says every layer has
    reached its target; `cold` says nothing has been logged at all, which is the
    one state that changes what is drawn rather than how big it is. */
-function fireGaugeHTML(layers, lit, label, cold) {
+function fireGaugeHTML(layers, lit, label, mode) {
+  /* '' burning · 'cold' nothing logged · 'banked' fasting on purpose. A third
+     boolean beside `lit` and `cold` would have made four states out of three,
+     one of which cannot exist. */
+  const cold = mode === 'cold' || mode === 'banked';
+  const banked = mode === 'banked';
   const GEOM = [
     /* `base` is the height the moment ANYTHING is logged — not the height at
        zero, which is now a different drawing entirely. So it can be small: it
@@ -218,7 +223,7 @@ function fireGaugeHTML(layers, lit, label, cold) {
         <path d="M58 ${FIRE_BASE - 9} L126 ${FIRE_BASE + 2}" stroke="#382514" stroke-width="12"/>
         <path d="M56 ${FIRE_BASE + 2} L124 ${FIRE_BASE - 9}" stroke="#8A6038" stroke-width="3" opacity=".5"/>
       </g>`;
-  return `<div class="fuel-fire-wrap${lit ? ' lit' : ''}${cold ? ' cold' : ''}">
+  return `<div class="fuel-fire-wrap${lit ? ' lit' : ''}${cold ? ' cold' : ''}${banked ? ' banked' : ''}">
     <div class="fuel-fire-glow" aria-hidden="true"></div>
     <svg class="fuel-fire" viewBox="0 40 180 132" role="img" aria-label="${h(label)}">
       <defs>${grads}
@@ -241,7 +246,15 @@ function fireGaugeHTML(layers, lit, label, cold) {
       ${logs}
       ${/* After the logs, because the ends glow where the wood is, and behind
             the smoke, which drifts over everything. */''}
-      ${cold ? crevice + ends + smoke : ''}
+      ${cold ? crevice + ends : ''}
+      ${/* Ash raked over the embers, which is what banking a fire IS — you
+            cover it so it keeps rather than burns. Drawn over the coals and
+            under nothing, so the glow comes through it rather than off it. */''}
+      ${banked ? `<ellipse class="ff-ash" cx="${FIRE_CX}" cy="${FIRE_BASE - 3}" rx="40" ry="11"/>` : ''}
+      ${/* No smoke on a banked fire. Smoke is what says a fire has just been
+            burning; a banked one is deliberately damped down, and the still
+            air is the whole difference between "kept" and "went out". */''}
+      ${cold && !banked ? smoke : ''}
     </svg>
   </div>`;
 }
@@ -276,7 +289,9 @@ function renderFuel() {
   html += `<div class="fuel-week">
     <div class="row between mb-s">
       <span class="eyebrow">This week</span>
-      <span class="tiny">${wk.loggedDays} of 7 days logged</span>
+      <span class="tiny">${wk.fastedDays
+        ? wk.loggedDays + ' logged · ' + wk.fastedDays + ' fasted'
+        : wk.loggedDays + ' of 7 days logged'}</span>
     </div>
     <div class="fuel-avg mono">${pOnly
       ? (wk.avgP != null ? wk.avgP + '<span class="fuel-of">g protein a day</span>' : '—')
@@ -387,15 +402,53 @@ function renderFuel() {
          entries and not off the percentages: a day whose targets are not set
          has no percentages at all and is still a day you have eaten on, and a
          day with one 4-kcal entry rounds to 0% and has plainly been started. */
-      const cold = nutDay(k).items.length === 0;
-      const label = cold
-        ? 'Nothing logged yet — the fire is laid and the embers are still in'
-        : pOnly
-          ? `Protein ${Math.round(mainPct)}% of target`
-          : `Calories ${Math.round(mainPct)}%, protein ${Math.round(protPct)}%, `
-            + `carbs ${Math.round(carbPct)}% of target${lit ? ' — all three reached' : ''}`;
-      return fireGaugeHTML(layers, lit, label, cold)
-        + `<div class="fuel-fire-read">${read(true)}</div>`;
+      /* Three states, and the middle one is the point of this whole feature.
+         Nothing logged is a hearth waiting; a FAST is a hearth banked — kept
+         deliberately, not neglected. The app could not tell them apart before,
+         so a day you chose to eat nothing on rendered as a day you had not got
+         round to, which is the closest this screen comes to a reproach. */
+      const fasting = fastingOn(k);
+      const cold = fasting || nutDay(k).items.length === 0;
+      const mode = fasting ? 'banked' : cold ? 'cold' : '';
+      const label = fasting
+        ? 'Fasting — the fire is banked'
+        : cold
+          ? 'Nothing logged yet — the fire is laid and the embers are still in'
+          : pOnly
+            ? `Protein ${Math.round(mainPct)}% of target`
+            : `Calories ${Math.round(mainPct)}%, protein ${Math.round(protPct)}%, `
+              + `carbs ${Math.round(carbPct)}% of target${lit ? ' — all three reached' : ''}`;
+      /* A fast has no target to be a fraction of, so it prints hours instead —
+         which is the number a water fast is actually measured in. Plainly:
+         where you are, not how well you are doing. */
+      const hrs = fasting ? fastHours() : null;
+      const note = fasting ? fastNote(hrs) : '';
+      const readout = fasting
+        ? `<div class="fuel-ring-v mono">${hrs == null ? '—' : Math.floor(hrs) + 'h'}</div>
+           <div class="fuel-ring-k">fasting</div>
+           ${note ? `<div class="fuel-ring-of">${h(note)}</div>`
+                  : '<div class="fuel-ring-of">no targets today</div>'}`
+        : read(true);
+      return fireGaugeHTML(layers, lit, label, mode)
+        + `<div class="fuel-fire-read${fasting ? ' fasting' : ''}">${readout}</div>`;
+    })()}
+
+    ${/* Start and stop, on the day being viewed. Deliberately a plain row and
+          not a celebrated control: this is bookkeeping the app needs in order
+          to stop drawing wrong conclusions, not an achievement to unlock. */''}
+    ${(() => {
+      const on = fastingOn(k);
+      const open = openFast();
+      if (on) {
+        const hrs = fastHours();
+        return `<button class="btn quiet block mt-s" data-act="fast-end">${
+          open ? 'End the fast' + (hrs != null ? ' — ' + Math.floor(hrs) + 'h in' : '') : 'Fasting'}</button>`;
+      }
+      /* Only offered on today. Backdating a fast is a real thing to want and a
+         different control — it has to pick a range, and doing it from the day
+         you happen to be looking at would silently start one that runs to now. */
+      if (k !== today() || nutDay(k).items.length) return '';
+      return `<button class="btn ghost block mt-s" data-act="fast-start">I'm fasting today</button>`;
     })()}
 
     ${burned && !pOnly ? `<div class="fuel-burn-chip"><span class="mono">+${burned}</span> burned training</div>` : ''}

@@ -575,12 +575,31 @@ function setEntryMeal(dateKey, entryId, m) {
 }
 
 /* ---------- logging ---------- */
+/* Eating ends a fast, and it has to be the act of eating that does it rather
+   than a render noticing afterwards — renders in this app do not write.
+
+   Three call sites push into a day's items (a logged food, a quick-added set
+   of macros, a copied day) and all three come through here first, because a
+   day that is both "fasting" and 800 kcal is a contradiction the rest of the
+   screen would have to keep resolving. It only ends a fast the day being eaten
+   on is actually inside; copying yesterday's dinner onto last Tuesday leaves a
+   fast running now well alone. */
+function eatingEndsFast(dateKey) {
+  const k = key(dateKey || today());
+  const f = openFast();
+  if (!f || !fastingOn(k)) return false;
+  endFast();
+  toast('Fast ended', true);
+  return true;
+}
+
 function logFood(foodId, qty, dateKey) {
   const food = foodById(foodId);
   if (!food) return false;
   const q = Math.max(0, parseFloat(qty) || 0);
   if (!q) return false;
   const m = scaleFood(food, q);
+  eatingEndsFast(dateKey);
   const d = nutDay(dateKey || today());
   d.items.push({
     id: 'e' + Date.now().toString(36) + d.items.length,
@@ -617,6 +636,7 @@ function quickAdd(vals, dateKey) {
   const num = v => { const n = parseFloat(v); return isNaN(n) || n < 0 ? 0 : n; };
   const kcal = Math.round(num(vals.kcal)), p = num(vals.p), c = num(vals.c), f = num(vals.f);
   if (!kcal && !p && !c && !f) return false;
+  eatingEndsFast(dateKey);
   const d = nutDay(dateKey || today());
   d.items.push({
     id: 'e' + Date.now().toString(36) + d.items.length,
@@ -660,6 +680,7 @@ function deleteEntry(dateKey, entryId) {
 function copyDay(fromKey, toKey) {
   const from = (S.nutrition.days[fromKey] || {}).items || [];
   if (!from.length) return 0;
+  eatingEndsFast(toKey);
   const to = nutDay(toKey || today());
   from.forEach((e, i) => to.items.push({ ...e, id: 'e' + Date.now().toString(36) + '_' + i, at: new Date().toISOString() }));
   save(true);

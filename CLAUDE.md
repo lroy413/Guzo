@@ -141,7 +141,7 @@ What exists instead is one JSON blob in `localStorage`.
 | `sessions` | array | completed sessions, append-only |
 | `active` | object\|null | the in-progress session |
 | `lifts` | map | exercise id → learned working weight / progression state |
-| `nutrition` | object | `{ targets:{kcal,p,c,f}, days:{ dateKey:{items:[]} }, custom:[], prefs:{...}, water:{days:{dateKey:ml}, goal, best} }` — water is always millilitres; the unit is a formatter |
+| `nutrition` | object | `{ targets:{kcal,p,c,f}, days:{ dateKey:{items:[]} }, custom:[], prefs:{...}, water:{days:{dateKey:ml}, goal, best}, fasts:[{from,to}] }` — a fast is a RANGE, never a per-day flag: a multi-day fast would need its middle days marking by something, and the only thing running on them is a render. A day is fasted when it falls in a range *and* nothing was eaten on it — water is always millilitres; the unit is a formatter |
 | `billing` | object | `{pro, plan, trialStart}` — scaffolding only, nothing enforces it |
 | `journey` | object | `{ reached:{} }` milestone flags |
 | `daily` | map | date key → `{steps, sleepH, weight, src}` |

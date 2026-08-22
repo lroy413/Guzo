@@ -1365,6 +1365,19 @@ document.addEventListener('click', ev => {
         : 'Today is three rings', true);
       break;
     }
+    case 'fast-start': {
+      startFast();
+      renderFuel();
+      toast('Fasting — targets are off until you end it', true);
+      break;
+    }
+    case 'fast-end': {
+      const f = endFast();
+      renderFuel();
+      const h2 = f ? Math.floor((f.to - f.from) / 3600000) : 0;
+      toast(h2 ? `Fast ended — ${h2}h` : 'Fast ended', true);
+      break;
+    }
     case 'qa-save': {
       const val = id => (($('#' + id) || {}).value);
       if (!quickAdd({ n: val('qa-n'), kcal: val('qa-kcal'), p: val('qa-p'),

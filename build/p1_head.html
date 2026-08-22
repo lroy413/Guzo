@@ -1676,6 +1676,20 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .ff-end{opacity:.92}
 .ff-end.far{opacity:.5}
 .ff-smoke{fill:url(#ff-smoke-g);opacity:0}
+/* Ash raked over the coals — banked, not out. Warm grey rather than the bed's
+   near-black, so the glow reads as coming THROUGH it: a fire under ash is
+   still a fire, which is the entire point of the state. */
+.ff-ash{fill:#6E6259;opacity:.42}
+.fuel-fire-wrap.banked .ff-coal{opacity:.5}
+.fuel-fire-wrap.banked .ff-end{opacity:.55}
+.fuel-fire-wrap.banked .fuel-fire-glow{
+  background:radial-gradient(50% 50% at 50% 66%,rgba(210,110,50,.10) 0%,rgba(190,90,40,.03) 48%,rgba(190,90,40,0) 72%)}
+/* Steadier and slower than a lit fire's coals. A banked fire is damped; one
+   that pulsed at the same rate would just be a small fire. */
+@media (prefers-reduced-motion: no-preference){
+  .fuel-fire-wrap.banked .ff-coal,.fuel-fire-wrap.banked .ff-end{animation-duration:9s}
+}
+.fuel-fire-read.fasting .fuel-ring-of{max-width:26ch;line-height:1.35}
 /* Darker when cold: the wood is a silhouette against the bed, and a lit
    log reads brown while an unlit one against embers reads black. */
 .fuel-fire-wrap.cold .ff-logs path:first-child{stroke:#3A2618}

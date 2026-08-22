@@ -623,6 +623,115 @@ try {
     fire.asked.dots[0] !== rgbOf(fire.asked.tok[1])
       && fire.asked.dots[1] !== rgbOf(fire.asked.tok[2]) && !fire.asked.key,
     `protein ${fire.asked.dots[0]}, carbs ${fire.asked.dots[1]}, key "${fire.asked.key}"`);
+  /* ---- fasts ----
+     A self-imposed fast — a water fast, a 48-hour. Not Ramadan, which is a
+     daily eating window and wants different machinery.
+
+     The measured harm this exists to stop: on a 21-day window of steady 2600
+     kcal, two fasted days at the end moved adaptiveTdee from 2730 to 3100. The
+     estimate is intake measured against what the scale did, and the sub-500
+     filter drops fasted days from the intake mean while leaving them in the
+     span — so the weight lost across them, most of it glycogen water, gets
+     attributed to the days you ate. The app would have told someone to eat 370
+     more a day immediately after a fast, and that number feeds their target. */
+  const fast = await page.evaluate(() => {
+    const seed = (mark) => {
+      S = blank(); S.onboarded = true; S.settings.nutrition = true;
+      S.profile.heightCm = 178; S.profile.birthYear = 1990; S.profile.sex = 'm';
+      S.profile.activity = 'mod'; S.profile.units = 'kg';
+      for (let i = 20; i >= 0; i--) {
+        const k = dk(addDays(today(), -i));
+        const fasting = i < 2;
+        let w = 82 - (20 - i) * 0.02;
+        if (fasting) w -= 1.4 * (2 - i);
+        S.profile.bodyweight.push({ d: k, w: Math.round(w * 10) / 10 });
+        S.nutrition.days[k] = { items: fasting ? [] : [{ n: 'day', kcal: 2600, p: 160, c: 280, f: 85 }] };
+      }
+      if (mark) startFast(fromKey(dk(addDays(today(), -1))).getTime());
+      save(true);
+      const a = adaptiveTdee(21);
+      return { ready: a.ready, tdee: a.tdee || null, why: a.why || '' };
+    };
+    const unmarked = seed(false);
+    const marked = seed(true);
+    /* ...and with nothing distorting it at all, for the contrast. */
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.heightCm = 178; S.profile.birthYear = 1990; S.profile.sex = 'm';
+    S.profile.activity = 'mod'; S.profile.units = 'kg';
+    for (let i = 20; i >= 0; i--) {
+      const k = dk(addDays(today(), -i));
+      S.profile.bodyweight.push({ d: k, w: Math.round((82 - (20 - i) * 0.02) * 10) / 10 });
+      S.nutrition.days[k] = { items: [{ n: 'day', kcal: 2600, p: 160, c: 280, f: 85 }] };
+    }
+    save(true);
+    const clean = adaptiveTdee(21);
+
+    /* The screen. */
+    S = blank(); S.onboarded = true; S.settings.nutrition = true;
+    S.profile.heightCm = 178; S.profile.birthYear = 1990; S.profile.sex = 'm';
+    S.profile.activity = 'mod'; S.profile.bodyweight = [{ d: today(), w: 80 }];
+    S.nutrition.targets = { kcal: 2600, p: 165, c: 290, f: 80 };
+    save(true); go('fuel'); renderFuel();
+    const offered = !!document.querySelector('[data-act="fast-start"]');
+    document.querySelector('[data-act="fast-start"]').click();
+    openFast().from = Date.now() - 30 * 3600000; save(true); renderFuel();
+    const wrap = document.querySelector('#fuel-body .fuel-fire-wrap');
+    const screen = {
+      offered,
+      banked: !!(wrap && wrap.classList.contains('banked')),
+      flames: document.querySelectorAll('#fuel-body .ff-flame').length,
+      smoke: document.querySelectorAll('#fuel-body .ff-smoke').length,
+      ash: document.querySelectorAll('#fuel-body .ff-ash').length,
+      label: (document.querySelector('#fuel-body .fuel-fire') || {}).getAttribute('aria-label') || '',
+      read: (document.querySelector('#fuel-body .fuel-fire-read') || {}).innerText || '',
+      week: (document.querySelector('#fuel-body .fuel-week .tiny') || {}).textContent || '',
+      hours: Math.round(fastHours() || 0),
+    };
+    const wasFasted = fastingOn(today());
+    logFood('f1', 1); renderFuel();
+    const after = { open: !!openFast(), fasted: fastingOn(today()),
+                    banked: !!document.querySelector('#fuel-body .fuel-fire-wrap.banked') };
+    return { clean: clean.tdee || null, unmarked, marked, screen, wasFasted, after,
+             note72: fastNote(80), note10: fastNote(10) };
+  });
+  check('an unmarked fast inflates the energy estimate, which is why this exists',
+    fast.clean && fast.unmarked.ready && fast.unmarked.tdee - fast.clean >= 200,
+    `steady ${fast.clean} → with two unmarked fasted days ${fast.unmarked.tdee}`);
+  check('...and marking it makes the estimate refuse rather than mislead',
+    fast.marked.ready === false && fast.marked.why === 'fasted',
+    `ready ${fast.marked.ready}, why "${fast.marked.why}"`);
+  check('a fast is offered on a day with nothing eaten on it', fast.screen.offered === true);
+  check('...and draws the fire banked rather than unlit',
+    fast.screen.banked && fast.screen.flames === 0 && fast.screen.ash === 1
+      && fast.screen.smoke === 0,
+    `banked ${fast.screen.banked}, flames ${fast.screen.flames},`
+      + ` ash ${fast.screen.ash}, smoke ${fast.screen.smoke}`);
+  /* Banked and unlit are different claims: one is a fire kept on purpose, the
+     other is a hearth nobody has got to yet. Smoke is what separates them —
+     it says recently-burning, which a damped fire is not. */
+  check('...saying it is banked rather than that nothing is logged',
+    /banked/i.test(fast.screen.label) && !/nothing logged/i.test(fast.screen.label),
+    fast.screen.label);
+  check('...printing the hours rather than a share of a target nobody set',
+    /30h/.test(fast.screen.read) && /fasting/i.test(fast.screen.read)
+      && !/%/.test(fast.screen.read) && fast.screen.hours === 30,
+    JSON.stringify(fast.screen.read));
+  check('...and the week counting those days as spent rather than missed',
+    /fasted/.test(fast.screen.week) && !/of 7 days logged/.test(fast.screen.week),
+    fast.screen.week);
+  /* Eating is what ends a fast, and it has to be the eating that does it —
+     a day cannot be both fasting and eight hundred calories. */
+  check('eating ends the fast, and the day stops being one',
+    fast.wasFasted === true && fast.after.open === false
+      && fast.after.fasted === false && fast.after.banked === false,
+    `was ${fast.wasFasted} → open ${fast.after.open}, fasted ${fast.after.fasted}`);
+  /* One neutral line at a real threshold, and nothing before it. The app does
+     not moralise and has no view on someone's fast — but going quiet about
+     three days is its own kind of dishonesty. */
+  check('...with a plain note past three days, and none before',
+    /supervision/i.test(fast.note72) && fast.note10 === '',
+    `at 80h "${fast.note72}" · at 10h "${fast.note10}"`);
+
   check('...and naming all three for a screen reader, since it prints none',
     /calor/i.test(fire.part.label) && /protein/i.test(fire.part.label)
       && /carb/i.test(fire.part.label) && /reached/i.test(fire.full.label),
@@ -882,6 +991,13 @@ try {
     S = blank(); S.onboarded = true; S.settings.nutrition = true;
     S.profile.units = 'kg'; S.profile.bodyweight = [{ d: today(), w: 80 }];
     S.profile.heightCm = 178; S.profile.birthYear = 1990; S.profile.sex = 'm';
+    /* Something eaten, so the food face is the ordinary one. An empty day
+       offers "I'm fasting today" and no item list, which brought the two faces
+       within seven pixels of each other and made the guard below unable to
+       prove anything — the guard caught its own fixture going degenerate,
+       which is what it is for. A day with food in it is also the state this
+       card spends its life in. */
+    logFood('f1', 2);
     save(true);
     go('fuel'); renderFuel();
 

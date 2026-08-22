@@ -3354,3 +3354,72 @@ Two smaller things the reverts also caught: the run button's *visible* text did
 not change between sides (the wording was in the aria-label, where nobody
 holding the phone can see it), and `half` was set but never consumed, so a
 finished set still carried "one side to go".
+
+---
+
+## Fasts
+
+Asked for as a brainstorm, and the brainstorm turned up a measured defect, so
+the first slice got built.
+
+**What a fast did to the app before this.** On a 21-day window of steady 2600
+kcal, two fasted days at the end moved `adaptiveTdee` from **2730 to 3100**.
+The method is intake measured against what the scale did; the `kcal > 500`
+filter dropped the fasted days from the intake mean and left them in the span,
+so the weight lost across them — most of it glycogen water — was attributed to
+the days you ate. The app would have told someone to eat 370 more a day
+immediately after a fast, and that number feeds their calorie target. Four
+smaller things too: the week read "5 of 7 logged", which is what forgetting
+looks like; the fire drew the unlit hearth, captioned *Nothing logged yet*; the
+protein target showed a miss; and there was nothing to say any of it was
+deliberate.
+
+**Three different things people mean by fasting**, and only the first is built:
+a **fasted day** (water fast, 5:2), an **eating window** (16:8, Ramadan daily —
+about *when*, not *whether*), and a **season** (Ramadan as thirty windows).
+Scoped to the first because that is the case that was actually being asked for.
+
+**Stored as ranges, and that is load-bearing.** The obvious model is a flag per
+day, and it falls over on the second day: a fast from Tuesday to Thursday needs
+Wednesday marking by *something*, and the only thing that runs on Wednesday is
+a render — which in this app must not write. A range is written once, closed
+once, and every day inside it is derived.
+
+**A day is fasted if it is inside a range AND nothing was eaten on it.** The
+first version checked only the range, and ending a fast at six in the evening
+left the day still drawn banked, because `to` was set to today and today was
+still inside it. Deriving from both facts means a day can never be both fasting
+and eight hundred calories, and the day you break it becomes an ordinary low
+day with no special case.
+
+**The fire gets a third state: banked.** Not a small fire and not the unlit
+hearth — ash raked over the coals, the glow coming through it, no smoke.
+Banking a fire is literally what you do to *keep* one, and the smoke is what
+separates the two: it says recently-burning, which a damped fire is not. The
+readout prints hours rather than a percentage, because a water fast is measured
+in hours and there is no target to be a share of.
+
+**The estimate refuses rather than patches.** Excluding fasted days from the
+span as well as the mean only trades one error for a smaller one — the water
+comes back. It returns `why: 'fasted'` and recovers on its own once the fast
+falls out of the window, which is what it already does with an implausible
+answer.
+
+**No streak, and there will not be one.** This app keeps exactly one, on water,
+and refuses them everywhere else on purpose. A fitness app that rewards
+consecutive days of not eating is a different and worse product. One neutral
+line past three days — a fact, once, with no verdict — because going quiet
+about a real threshold is its own kind of dishonesty.
+
+**A bug in the new code, caught by the runtime.** `fastingOn` compared against
+`dk(today())`, and `today()` already returns a key while `dk()` takes a Date —
+fragile area #2 in this project's own notes, written by the person who had just
+read them. It threw rather than silently missing only because `dk()` reaches
+straight for `getFullYear`.
+
+**And a check caught its own fixture going degenerate.** The deck's guard —
+"the two faces are genuinely different heights" — went red at 431 vs 424,
+because the new "I'm fasting today" button only appears on an empty day and had
+padded the food face to nearly the water face's height. The guard exists for
+exactly that; the fixture logs a food now, which is also the state that card
+spends its life in. Eight reverts on the feature itself, one failure each.

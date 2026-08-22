@@ -1676,6 +1676,20 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
 .ff-end{opacity:.92}
 .ff-end.far{opacity:.5}
 .ff-smoke{fill:url(#ff-smoke-g);opacity:0}
+/* Ash raked over the coals — banked, not out. Warm grey rather than the bed's
+   near-black, so the glow reads as coming THROUGH it: a fire under ash is
+   still a fire, which is the entire point of the state. */
+.ff-ash{fill:#6E6259;opacity:.42}
+.fuel-fire-wrap.banked .ff-coal{opacity:.5}
+.fuel-fire-wrap.banked .ff-end{opacity:.55}
+.fuel-fire-wrap.banked .fuel-fire-glow{
+  background:radial-gradient(50% 50% at 50% 66%,rgba(210,110,50,.10) 0%,rgba(190,90,40,.03) 48%,rgba(190,90,40,0) 72%)}
+/* Steadier and slower than a lit fire's coals. A banked fire is damped; one
+   that pulsed at the same rate would just be a small fire. */
+@media (prefers-reduced-motion: no-preference){
+  .fuel-fire-wrap.banked .ff-coal,.fuel-fire-wrap.banked .ff-end{animation-duration:9s}
+}
+.fuel-fire-read.fasting .fuel-ring-of{max-width:26ch;line-height:1.35}
 /* Darker when cold: the wood is a silhouette against the bed, and a lit
    log reads brown while an unlit one against embers reads black. */
 .fuel-fire-wrap.cold .ff-logs path:first-child{stroke:#3A2618}
@@ -3258,7 +3272,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+6c03baa</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+e050cd7</div>
     </div>
   </section>
 
@@ -9808,12 +9822,31 @@ function setEntryMeal(dateKey, entryId, m) {
 }
 
 /* ---------- logging ---------- */
+/* Eating ends a fast, and it has to be the act of eating that does it rather
+   than a render noticing afterwards — renders in this app do not write.
+
+   Three call sites push into a day's items (a logged food, a quick-added set
+   of macros, a copied day) and all three come through here first, because a
+   day that is both "fasting" and 800 kcal is a contradiction the rest of the
+   screen would have to keep resolving. It only ends a fast the day being eaten
+   on is actually inside; copying yesterday's dinner onto last Tuesday leaves a
+   fast running now well alone. */
+function eatingEndsFast(dateKey) {
+  const k = key(dateKey || today());
+  const f = openFast();
+  if (!f || !fastingOn(k)) return false;
+  endFast();
+  toast('Fast ended', true);
+  return true;
+}
+
 function logFood(foodId, qty, dateKey) {
   const food = foodById(foodId);
   if (!food) return false;
   const q = Math.max(0, parseFloat(qty) || 0);
   if (!q) return false;
   const m = scaleFood(food, q);
+  eatingEndsFast(dateKey);
   const d = nutDay(dateKey || today());
   d.items.push({
     id: 'e' + Date.now().toString(36) + d.items.length,
@@ -9850,6 +9883,7 @@ function quickAdd(vals, dateKey) {
   const num = v => { const n = parseFloat(v); return isNaN(n) || n < 0 ? 0 : n; };
   const kcal = Math.round(num(vals.kcal)), p = num(vals.p), c = num(vals.c), f = num(vals.f);
   if (!kcal && !p && !c && !f) return false;
+  eatingEndsFast(dateKey);
   const d = nutDay(dateKey || today());
   d.items.push({
     id: 'e' + Date.now().toString(36) + d.items.length,
@@ -9893,6 +9927,7 @@ function deleteEntry(dateKey, entryId) {
 function copyDay(fromKey, toKey) {
   const from = (S.nutrition.days[fromKey] || {}).items || [];
   if (!from.length) return 0;
+  eatingEndsFast(toKey);
   const to = nutDay(toKey || today());
   from.forEach((e, i) => to.items.push({ ...e, id: 'e' + Date.now().toString(36) + '_' + i, at: new Date().toISOString() }));
   save(true);
@@ -9983,10 +10018,32 @@ function adaptiveTdee(windowDays) {
   const w = trendedWeights(days);
 
   const logged = [];
+  let fasted = 0;
   for (let i = days - 1; i >= 0; i--) {
     const k = dk(addDays(today(), -i));
+    if (fastingOn(k)) { fasted++; continue; }
     const kcal = intakeOn(k);
     if (kcal != null && kcal > 500) logged.push({ d: k, kcal });
+  }
+  /* A fast inside the window breaks this method, and dropping the fasted days
+     from the intake mean is not enough to save it — which is exactly what the
+     `kcal > 500` filter above was already doing by accident.
+
+     The estimate is intake measured against what the scale did. Fasted days
+     leave the mean but stay in the SPAN, so the weight lost across them gets
+     attributed to the days you ate. Measured on a 21-day window with steady
+     2600 kcal: a two-day fast at the end moved the answer from 2730 to 3100.
+     The app would have told someone to eat 370 more a day, immediately after
+     a fast, and that number feeds their calorie target.
+
+     Excluding the days from the span instead would only trade one error for a
+     smaller one, because most of what a fast takes off is glycogen water and
+     it comes back. So it refuses, and says why — the same thing it already
+     does with an implausible answer. It comes back on its own once the fast is
+     far enough behind you to be out of the window. */
+  if (fasted) {
+    return { ready: false, have: logged.length, need: ADAPT_MIN_DAYS,
+             why: 'fasted', fastedDays: fasted };
   }
   if (logged.length < ADAPT_MIN_DAYS) {
     return { ready: false, have: logged.length, need: ADAPT_MIN_DAYS, noWeight: !w.length };
@@ -10048,11 +10105,15 @@ function weekIntake(offset) {
     const kcal = intakeOn(k);
     const d = S.nutrition.days[k];
     const p = d && d.items ? d.items.reduce((a, x) => a + (+x.p || 0), 0) : 0;
-    days.push({ d: k, kcal, p: Math.round(p), logged: kcal != null });
+    days.push({ d: k, kcal, p: Math.round(p), logged: kcal != null, fast: fastingOn(k) });
   }
-  const withData = days.filter(x => x.logged);
+  /* Fasted days are neither logged nor missing — they are accounted for. Left
+     in the "not logged" pile the week reads "5 of 7", which is what forgetting
+     looks like, on a week where nothing was forgotten. */
+  const withData = days.filter(x => x.logged && !x.fast);
   return {
     days,
+    fastedDays: days.filter(x => x.fast).length,
     loggedDays: withData.length,
     avgKcal: withData.length ? Math.round(withData.reduce((a, x) => a + x.kcal, 0) / withData.length) : null,
     avgP: withData.length ? Math.round(withData.reduce((a, x) => a + x.p, 0) / withData.length) : null
@@ -10100,6 +10161,111 @@ function proteinTarget() {
   return e ? e.p : Math.round(kg * 1.6);
 }
 
+
+/* ============================================================
+   FASTS
+   ------------------------------------------------------------
+   A self-imposed fast — a water fast, a 48-hour, the fasting half of 5:2.
+   Not Ramadan: that is a daily eating WINDOW rather than a run of days with
+   nothing in them, and it wants different machinery.
+
+   STORED AS RANGES, and that is the load-bearing decision. The obvious model
+   is a flag per day — `nutrition.days[k].fast` — and it falls over on the
+   second day: a fast that starts on Tuesday and ends on Thursday would need
+   Wednesday marking by something, and the only thing that runs on Wednesday is
+   a render. Renders in this app must not write to the save (see the note on
+   Today seeding its own session), so the flag would either be missing or the
+   rule would be broken. A range is written once when you start, closed once
+   when you stop, and every day inside it is derived.
+
+   `to: null` means the fast is still running. Absent `fasts` means none ever,
+   so no save needs migrating.
+
+   No streak, and there will not be one. This app keeps exactly one — water —
+   and refuses them everywhere else on purpose. A fitness app that rewards
+   consecutive days of not eating is a different and worse product, and the
+   distance between "here is where you are" and "here is a run to protect" is
+   the whole of it. Same reason nothing here congratulates a low day. */
+function fastList() {
+  if (!S.nutrition.fasts) S.nutrition.fasts = [];
+  return S.nutrition.fasts;
+}
+
+/* The one still running, or null. There can only be one: startFast closes any
+   open range before opening a new one, so two overlapping fasts cannot exist
+   to disagree about which day belongs to which. */
+function openFast() {
+  return fastList().find(f => f && f.from && !f.to) || null;
+}
+
+/* Whole days only. Everything in this app is keyed 'YYYY-MM-DD' and a fast
+   that began at 8pm still leaves the next day with nothing eaten in it, which
+   is the thing the day's numbers care about. The hours are reported separately
+   and precisely — see fastHours() — because that is the number a water fast is
+   actually measured in. */
+function fastingOn(kIn) {
+  const k = key(kIn);
+  /* Inside a range AND nothing eaten on it. Breaking a fast at six in the
+     evening makes today an eating day — a low one — rather than a fast that
+     somehow contains six hundred calories, and the days before it stay fasted
+     on their own with no special case for the one you broke it on.
+
+     It also means the flag can never contradict the food log, which is the
+     failure the first version had: end the fast, eat, and the day still drew
+     itself banked because `to` was set to today and today was still inside the
+     range. Deriving from both facts leaves nothing to keep in step. */
+  if (intakeOn(k) != null) return false;
+  return fastList().some(f => {
+    if (!f || !f.from) return false;
+    /* `today()` already returns a key; dk() takes a Date. Passing one to the
+       other is the silent-miss this codebase has a fragile-areas note about,
+       and it threw here rather than missing only because dk() reaches straight
+       for getFullYear. Both ends normalise through key(). */
+    const a = key(dk(new Date(f.from)));
+    const b = f.to ? key(dk(new Date(f.to))) : today();
+    return k >= a && k <= b;
+  });
+}
+
+function startFast(atMs) {
+  const now = atMs || Date.now();
+  const open = openFast();
+  if (open) return open;                       // already going; do not restart it
+  const f = { from: now, to: null };
+  fastList().push(f);
+  save(true);
+  return f;
+}
+
+function endFast(atMs) {
+  const open = openFast();
+  if (!open) return null;
+  open.to = atMs || Date.now();
+  save(true);
+  return open;
+}
+
+/* Hours into the fast that is running, or null. Reported plainly and never as
+   an achievement: a water fast is measured in hours and you need to know where
+   you are in it, which is a different thing from being told well done. */
+function fastHours() {
+  const f = openFast();
+  if (!f) return null;
+  return Math.max(0, (Date.now() - f.from) / 3600000);
+}
+
+/* One neutral line at the point where an extended fast stops being an ordinary
+   one. Not a warning banner and not a nudge to stop — this app does not
+   moralise and has no business having a view on someone's fast. But going
+   quiet about a genuine threshold is its own kind of dishonesty, and the note
+   is the same shape as the research notes elsewhere in Fuel: a fact, once,
+   with no verdict attached. */
+function fastNote(hours) {
+  if (hours == null) return '';
+  if (hours >= 72) return 'Past three days. Extended fasts are usually done with medical supervision.';
+  if (hours >= 48) return 'Past two days.';
+  return '';
+}
 /* ============================================================
    THE ORDER OF THE WEEK
    ------------------------------------------------------------
@@ -18638,7 +18804,12 @@ function flamePathForked(h, w, lean) {
 /* pct is 0–100 already clamped by the caller. `lit` says every layer has
    reached its target; `cold` says nothing has been logged at all, which is the
    one state that changes what is drawn rather than how big it is. */
-function fireGaugeHTML(layers, lit, label, cold) {
+function fireGaugeHTML(layers, lit, label, mode) {
+  /* '' burning · 'cold' nothing logged · 'banked' fasting on purpose. A third
+     boolean beside `lit` and `cold` would have made four states out of three,
+     one of which cannot exist. */
+  const cold = mode === 'cold' || mode === 'banked';
+  const banked = mode === 'banked';
   const GEOM = [
     /* `base` is the height the moment ANYTHING is logged — not the height at
        zero, which is now a different drawing entirely. So it can be small: it
@@ -18734,7 +18905,7 @@ function fireGaugeHTML(layers, lit, label, cold) {
         <path d="M58 ${FIRE_BASE - 9} L126 ${FIRE_BASE + 2}" stroke="#382514" stroke-width="12"/>
         <path d="M56 ${FIRE_BASE + 2} L124 ${FIRE_BASE - 9}" stroke="#8A6038" stroke-width="3" opacity=".5"/>
       </g>`;
-  return `<div class="fuel-fire-wrap${lit ? ' lit' : ''}${cold ? ' cold' : ''}">
+  return `<div class="fuel-fire-wrap${lit ? ' lit' : ''}${cold ? ' cold' : ''}${banked ? ' banked' : ''}">
     <div class="fuel-fire-glow" aria-hidden="true"></div>
     <svg class="fuel-fire" viewBox="0 40 180 132" role="img" aria-label="${h(label)}">
       <defs>${grads}
@@ -18757,7 +18928,15 @@ function fireGaugeHTML(layers, lit, label, cold) {
       ${logs}
       ${/* After the logs, because the ends glow where the wood is, and behind
             the smoke, which drifts over everything. */''}
-      ${cold ? crevice + ends + smoke : ''}
+      ${cold ? crevice + ends : ''}
+      ${/* Ash raked over the embers, which is what banking a fire IS — you
+            cover it so it keeps rather than burns. Drawn over the coals and
+            under nothing, so the glow comes through it rather than off it. */''}
+      ${banked ? `<ellipse class="ff-ash" cx="${FIRE_CX}" cy="${FIRE_BASE - 3}" rx="40" ry="11"/>` : ''}
+      ${/* No smoke on a banked fire. Smoke is what says a fire has just been
+            burning; a banked one is deliberately damped down, and the still
+            air is the whole difference between "kept" and "went out". */''}
+      ${cold && !banked ? smoke : ''}
     </svg>
   </div>`;
 }
@@ -18792,7 +18971,9 @@ function renderFuel() {
   html += `<div class="fuel-week">
     <div class="row between mb-s">
       <span class="eyebrow">This week</span>
-      <span class="tiny">${wk.loggedDays} of 7 days logged</span>
+      <span class="tiny">${wk.fastedDays
+        ? wk.loggedDays + ' logged · ' + wk.fastedDays + ' fasted'
+        : wk.loggedDays + ' of 7 days logged'}</span>
     </div>
     <div class="fuel-avg mono">${pOnly
       ? (wk.avgP != null ? wk.avgP + '<span class="fuel-of">g protein a day</span>' : '—')
@@ -18903,15 +19084,53 @@ function renderFuel() {
          entries and not off the percentages: a day whose targets are not set
          has no percentages at all and is still a day you have eaten on, and a
          day with one 4-kcal entry rounds to 0% and has plainly been started. */
-      const cold = nutDay(k).items.length === 0;
-      const label = cold
-        ? 'Nothing logged yet — the fire is laid and the embers are still in'
-        : pOnly
-          ? `Protein ${Math.round(mainPct)}% of target`
-          : `Calories ${Math.round(mainPct)}%, protein ${Math.round(protPct)}%, `
-            + `carbs ${Math.round(carbPct)}% of target${lit ? ' — all three reached' : ''}`;
-      return fireGaugeHTML(layers, lit, label, cold)
-        + `<div class="fuel-fire-read">${read(true)}</div>`;
+      /* Three states, and the middle one is the point of this whole feature.
+         Nothing logged is a hearth waiting; a FAST is a hearth banked — kept
+         deliberately, not neglected. The app could not tell them apart before,
+         so a day you chose to eat nothing on rendered as a day you had not got
+         round to, which is the closest this screen comes to a reproach. */
+      const fasting = fastingOn(k);
+      const cold = fasting || nutDay(k).items.length === 0;
+      const mode = fasting ? 'banked' : cold ? 'cold' : '';
+      const label = fasting
+        ? 'Fasting — the fire is banked'
+        : cold
+          ? 'Nothing logged yet — the fire is laid and the embers are still in'
+          : pOnly
+            ? `Protein ${Math.round(mainPct)}% of target`
+            : `Calories ${Math.round(mainPct)}%, protein ${Math.round(protPct)}%, `
+              + `carbs ${Math.round(carbPct)}% of target${lit ? ' — all three reached' : ''}`;
+      /* A fast has no target to be a fraction of, so it prints hours instead —
+         which is the number a water fast is actually measured in. Plainly:
+         where you are, not how well you are doing. */
+      const hrs = fasting ? fastHours() : null;
+      const note = fasting ? fastNote(hrs) : '';
+      const readout = fasting
+        ? `<div class="fuel-ring-v mono">${hrs == null ? '—' : Math.floor(hrs) + 'h'}</div>
+           <div class="fuel-ring-k">fasting</div>
+           ${note ? `<div class="fuel-ring-of">${h(note)}</div>`
+                  : '<div class="fuel-ring-of">no targets today</div>'}`
+        : read(true);
+      return fireGaugeHTML(layers, lit, label, mode)
+        + `<div class="fuel-fire-read${fasting ? ' fasting' : ''}">${readout}</div>`;
+    })()}
+
+    ${/* Start and stop, on the day being viewed. Deliberately a plain row and
+          not a celebrated control: this is bookkeeping the app needs in order
+          to stop drawing wrong conclusions, not an achievement to unlock. */''}
+    ${(() => {
+      const on = fastingOn(k);
+      const open = openFast();
+      if (on) {
+        const hrs = fastHours();
+        return `<button class="btn quiet block mt-s" data-act="fast-end">${
+          open ? 'End the fast' + (hrs != null ? ' — ' + Math.floor(hrs) + 'h in' : '') : 'Fasting'}</button>`;
+      }
+      /* Only offered on today. Backdating a fast is a real thing to want and a
+         different control — it has to pick a range, and doing it from the day
+         you happen to be looking at would silently start one that runs to now. */
+      if (k !== today() || nutDay(k).items.length) return '';
+      return `<button class="btn ghost block mt-s" data-act="fast-start">I'm fasting today</button>`;
     })()}
 
     ${burned && !pOnly ? `<div class="fuel-burn-chip"><span class="mono">+${burned}</span> burned training</div>` : ''}
@@ -22602,6 +22821,19 @@ document.addEventListener('click', ev => {
       toast(fuelViz() === 'fire'
         ? 'Today is a fire — it grows as you eat'
         : 'Today is three rings', true);
+      break;
+    }
+    case 'fast-start': {
+      startFast();
+      renderFuel();
+      toast('Fasting — targets are off until you end it', true);
+      break;
+    }
+    case 'fast-end': {
+      const f = endFast();
+      renderFuel();
+      const h2 = f ? Math.floor((f.to - f.from) / 3600000) : 0;
+      toast(h2 ? `Fast ended — ${h2}h` : 'Fast ended', true);
       break;
     }
     case 'qa-save': {
