@@ -1663,6 +1663,25 @@ function exBlockShown(A, ei) {
    generator decided about sequencing is lost. */
 function sessionOrder(A) {
   const list = (A && A.exercises) || [];
+  /* A ROUTINE IS AN ORDER SOMEBODY WROTE DOWN, and it is kept.
+
+     The block sort below exists to make a *generated* session readable: the
+     engine picks movements by pattern and tier and hands them over in no
+     particular arrangement, so grouping them warm-up / main / accessory / core
+     / finisher is the difference between a session and a list. A routine has
+     already been arranged, by hand, with buttons that exist for the purpose —
+     and sorting it again threw that away.
+
+     What it looked like: exBlock() calls anything with a mobility pattern a
+     warm-up, so a stretch placed at the END of a routine as a cool-down was
+     pulled to the front of the session. Nothing was wrong with the routine and
+     nothing was wrong with the sort; they were each doing their job to the
+     other's cost, and the person who had ordered the thing could not see why
+     it would not stay ordered.
+
+     The app's own generated warm-up is unshifted onto the front before this
+     ever runs, so it still opens the session. */
+  if (A && A.routineId) return list.map((_, i) => i);
   /* Superset groups move as one. A pair whose two movements sit in different
      blocks — a tier-2 press supersetted with a tier-3 raise — would otherwise
      be pulled apart by the sort, which is the one thing a superset cannot

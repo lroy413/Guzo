@@ -2106,12 +2106,29 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
   background:rgba(22,27,34,.82);backdrop-filter:blur(24px) saturate(1.5);
   -webkit-backdrop-filter:blur(24px) saturate(1.5);
   border:1px solid rgba(233,180,76,.24);
-  border-radius:18px;padding:11px 13px 12px 16px;display:none;
+  border-radius:18px;padding:8px 10px 8px 14px;display:none;
   box-shadow:var(--shadow),var(--inset);max-width:608px;margin:0 auto;
+  overflow:hidden;position:fixed;
   animation:restIn .3s cubic-bezier(.2,.9,.3,1);
 }
 .rest.on{display:block}
-.rest-row{display:flex;align-items:center;gap:13px;margin-bottom:9px}
+/* One row, not two. It was 82px tall — a slab under a 60px nav, which between
+   them took 150px off the foot of the screen for a countdown. The progress
+   bar was a second row with a 9px margin over it; moved onto the pill's own
+   bottom edge it costs nothing at all, and the padding came down with it. 82
+   into 62, with the 44px target on Skip untouched — that number is the floor
+   here, and it is what sets the row's height now.
+
+   The gap to the nav was never the problem and has not moved: 76px + half the
+   inset puts eight pixels between them, and the two readings that said
+   otherwise were both taken through the 0.3s entrance animation, which starts
+   ten pixels low. */
+.rest-row{display:flex;align-items:center;gap:12px;margin-bottom:0}
+/* On the pill's bottom edge rather than above it. Square-ended, because it is
+   the pill's own boundary now rather than a shape sitting inside it. */
+.rest .bar.thin{position:absolute;left:0;right:0;bottom:0;width:auto;
+  height:3px;border-radius:0}
+.rest .bar.thin i{border-radius:0}
 @keyframes restIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 /* The bar runs the full width now rather than sharing a row with the label —
    it is the only thing on screen that is moving, and it reads as a distance
@@ -3272,7 +3289,7 @@ textarea.input{min-height:74px;resize:vertical;line-height:1.5}
            looking at the page rather than by running it. That question cost two
            rounds of debugging when the only copy of the version lived in a JS
            constant that a fetch cannot see. -->
-      <div class="boot-note" id="boot-build">build 1.8.0+e050cd7</div>
+      <div class="boot-note" id="boot-build">build 1.8.0+3426bf7</div>
     </div>
   </section>
 
@@ -15248,6 +15265,25 @@ function exBlockShown(A, ei) {
    generator decided about sequencing is lost. */
 function sessionOrder(A) {
   const list = (A && A.exercises) || [];
+  /* A ROUTINE IS AN ORDER SOMEBODY WROTE DOWN, and it is kept.
+
+     The block sort below exists to make a *generated* session readable: the
+     engine picks movements by pattern and tier and hands them over in no
+     particular arrangement, so grouping them warm-up / main / accessory / core
+     / finisher is the difference between a session and a list. A routine has
+     already been arranged, by hand, with buttons that exist for the purpose —
+     and sorting it again threw that away.
+
+     What it looked like: exBlock() calls anything with a mobility pattern a
+     warm-up, so a stretch placed at the END of a routine as a cool-down was
+     pulled to the front of the session. Nothing was wrong with the routine and
+     nothing was wrong with the sort; they were each doing their job to the
+     other's cost, and the person who had ordered the thing could not see why
+     it would not stay ordered.
+
+     The app's own generated warm-up is unshifted onto the front before this
+     ever runs, so it still opens the session. */
+  if (A && A.routineId) return list.map((_, i) => i);
   /* Superset groups move as one. A pair whose two movements sit in different
      blocks — a tier-2 press supersetted with a tier-3 raise — would otherwise
      be pulled apart by the sort, which is the one thing a superset cannot

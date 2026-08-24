@@ -3423,3 +3423,58 @@ because the new "I'm fasting today" button only appears on an empty day and had
 padded the food face to nearly the water face's height. The guard exists for
 exactly that; the fixture logs a food now, which is also the state that card
 spends its life in. Eight reverts on the feature itself, one failure each.
+
+---
+
+## The rest bar was a slab, and a routine would not stay in order
+
+Two reports, unrelated, both real.
+
+### The bar
+
+The rest timer was **82px tall under a 60px nav** — 150px of the foot of the
+screen given to a countdown, in two rows: a clock, a label and Skip on one, a
+progress bar with a 9px margin on another. One row now, with the progress bar
+moved onto the pill's own bottom edge where it costs nothing, and the padding
+down with it. **82 into 62.** The 44px target on Skip is untouched and is what
+sets the row's height.
+
+**The gap to the nav was never the problem, and finding that out is the
+lesson.** Two separate measurements said the rest bar overlapped the nav by
+2px and the toast by 2px. Both were wrong, in the same way: each enters with a
+translate — the rest bar from 10px low, the toast from 20 — and both were read
+on the frame they appeared. A probe that measures through an entrance
+animation is measuring the animation. The real gaps are 8px and 18px, exactly
+what the arithmetic says.
+
+So the sweep that went in measures **after the animations settle**, and it is a
+sweep rather than three assertions because each of these carries its own copy
+of the nav's offset arithmetic and is one retune away from landing on it. Two
+checks: nothing pinned to the foot overlaps the nav, and none of them is taller
+than the nav it sits over.
+
+### The order
+
+`sessionOrder()` sorts a session into warm-up / main / accessory / core /
+finisher. That exists to make a **generated** session readable — the engine
+picks by pattern and tier and hands them over unarranged, so the blocks are the
+difference between a session and a list. A routine has already been arranged,
+by hand, with move-up/move-down buttons that exist for the purpose, and the
+sort threw that away.
+
+`exBlock()` calls anything with a mobility pattern a warm-up, so a stretch
+placed at the END of a routine as a cool-down was pulled to the front. Nothing
+was wrong with the routine and nothing was wrong with the sort; each was doing
+its job to the other's cost, and the person who had ordered the thing could not
+see why it would not stay ordered.
+
+A session with a `routineId` keeps its array order. The app's own generated
+warm-up is unshifted on before this runs, so it still opens the session.
+
+**The negative check was the weak one, and a revert proved it.** Removing the
+guard entirely — so *nothing* is ever sorted — passed, because the generator
+already emits its movements roughly in block order and "is this in block order"
+was true of a list nobody had sorted. The fixture reverses the generated
+session first and asserts the sort actually moved something. Four reverts now,
+each red, and the first prints the reported symptom verbatim:
+`Pigeon Stretch → Bench Press → Dumbbell Row`.

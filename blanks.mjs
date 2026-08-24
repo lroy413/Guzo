@@ -211,6 +211,52 @@ try {
   check('screens can scroll clear of it', nav.screenPadBottom >= nav.height + 10,
     `pad ${nav.screenPadBottom} vs nav ${nav.height}`);
 
+  /* ---- nothing pinned to the foot lands on the nav ----
+     The nav is a floating pill and three other things stack above it: the rest
+     timer, the toast, and whatever gets added next. Each carries its own copy
+     of the nav's offset arithmetic, so each is one retune away from sitting on
+     it — and an overlap here covers the tab you are trying to press.
+
+     MEASURED AFTER THE ANIMATIONS SETTLE, which is the whole reason this is
+     written as a sweep rather than three assertions. Both of these enter with
+     a translate — the rest bar from 10px low, the toast from 20 — and reading
+     them on the frame they appear reported a 2px overlap on each that does not
+     exist. Two wrong numbers from the same mistake, in an investigation that
+     started because something genuinely was too big. A probe that measures
+     through an entrance animation is measuring the animation. */
+  const feet = await page.evaluate(async () => {
+    const root = document.documentElement;
+    root.style.setProperty('--safe-b', '34px');
+    S = blank(); S.onboarded = true;
+    S.active = { started: Date.now(), type: 'full', exercises: [{ name: 'Plank',
+      exId: 'mob-cat-cow', load: 'time', targetR: 30, sets: [{ done: false }] }] };
+    save(true); go('train'); renderTrain();
+    startRest(45, 'Plank', { work: true });
+    toast('Something happened', true);
+    await new Promise(r => setTimeout(r, 700));
+    const box = (sel) => { const e = document.querySelector(sel); if (!e) return null;
+      const b = e.getBoundingClientRect();
+      if (!b.height || getComputedStyle(e).visibility === 'hidden') return null;
+      return { sel, top: Math.round(b.top), bottom: Math.round(b.bottom),
+               h: Math.round(b.height) }; };
+    const nav = box('#nav');
+    const others = ['#rest-bar', '#toast'].map(box).filter(Boolean);
+    stopRest();
+    root.style.removeProperty('--safe-b');
+    return { nav, others, over: others.filter(o => o.bottom > nav.top)
+      .map(o => `${o.sel} ends ${o.bottom - nav.top}px into the nav`) };
+  });
+  check('nothing pinned to the foot lands on the nav',
+    feet.nav && feet.others.length >= 2 && feet.over.length === 0,
+    feet.over.length ? feet.over.join(' · ')
+      : `nav top ${feet.nav.top} · ` + feet.others.map(o => `${o.sel} ${o.h}px ends ${o.bottom}`).join(' · '));
+  /* And none of them is a slab. The rest timer was 82px under a 60px nav —
+     150px of the foot of the screen for a countdown, which is what "too bulky
+     and squeezed in" was. The floor is the 44px target inside it. */
+  check('...and none of them is taller than the nav it sits over',
+    feet.others.every(o => o.h <= feet.nav.h + 4),
+    feet.others.map(o => `${o.sel} ${o.h}px`).join(' · ') + ` vs nav ${feet.nav.h}px`);
+
   /* ---- the home indicator is respected once, not twice ----
      Everything above measures at a zero inset, which is all a desktop browser
      reports — so "it sits above the bottom edge" passed at 10px and would have

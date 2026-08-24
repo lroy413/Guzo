@@ -1059,6 +1059,81 @@ try {
   check('the catalogue was actually large enough to be worth checking', cat.rows > 250,
     String(cat.rows));
 
+  /* ---- a routine keeps the order it was written in ----
+     The block sort exists to make a GENERATED session readable: the engine
+     picks by pattern and tier and hands them over unarranged, so grouping them
+     warm-up / main / accessory / core / finisher is the difference between a
+     session and a list. A routine has already been arranged, by hand, with
+     buttons that exist for the purpose.
+
+     What it looked like: exBlock() calls anything with a mobility pattern a
+     warm-up, so a stretch placed at the END of a routine as a cool-down was
+     pulled to the front. Nothing was wrong with the routine and nothing was
+     wrong with the sort — they were each doing their job to the other's cost.
+
+     The negative half matters as much: a generated session must STILL be
+     sorted, or this trades one complaint for a worse one. */
+  console.log('\nrouine order\n'.replace('rouine', 'routine'));
+
+  const rorder = await page.evaluate(() => {
+    const pick = (re) => (EXLIST.find(e => re.test(e.name)) || {}).id;
+    S = blank(); S.onboarded = true; S.profile.envs = ['full']; save(true);
+    const bench = pick(/^Bench Press$/), row = pick(/^Dumbbell Row$/),
+          stretch = pick(/^Pigeon Stretch$/) || pick(/^Couch Stretch$/);
+    const r1 = { id: 'r1', name: 'Push day', warmup: false, items: [
+      { exId: bench, sets: 3, reps: 8, mode: 'reps' },
+      { exId: row, sets: 3, reps: 10, mode: 'reps' },
+      { exId: stretch, sets: 1, reps: 40, mode: 'time' },
+    ]};
+    S.routines = [r1]; save(true);
+    const sess = buildRoutineSession('r1', false);
+    const authored = r1.items.map(it => EX[it.exId].name);
+    const shown = sessionOrder(sess).map(i => sess.exercises[i].name);
+    /* The mobility movement is genuinely classified as a warm-up — that is the
+       rule this order now overrides, and if it stopped being true the check
+       would be passing on a session with nothing to reorder. */
+    const stretchIsWarmup = exBlock(sess.exercises[2]) === 'warmup';
+
+    /* A routine with the app's own warm-up switched on: generated, unshifted,
+       and still first. */
+    r1.warmup = true; save(true);
+    const withWarm = buildRoutineSession('r1', false);
+    const warmFirst = !!(withWarm.exercises[0] || {}).warmup
+      && sessionOrder(withWarm)[0] === 0;
+
+    /* And a generated session, which still has to be sorted — SHUFFLED first,
+       because the generator already emits its movements roughly in block order
+       and reading it straight back proves nothing. Deleting the sort outright
+       passed this check until the shuffle went in: "is it in block order" was
+       true of a list nobody had sorted. */
+    S = blank(); S.onboarded = true; S.profile.envs = ['full'];
+    S.profile.level = 'some'; save(true); buildWeekPlan(true);
+    const gen = generateSession('full', 'full', 'full', 60);
+    let genOrdered = false, genMoved = false, genN = 0;
+    if (gen && gen.exercises.length > 2) {
+      genN = gen.exercises.length;
+      /* Deterministic, and guaranteed to disturb the order: reversed. */
+      gen.exercises.reverse();
+      gen.exercises.forEach(it => { delete it.supNext; });
+      const idx = sessionOrder(gen);
+      const ranks = idx.map(i => BLOCK_RANK[exBlock(gen.exercises[i])]);
+      genOrdered = ranks.every((v, i) => i === 0 || v >= ranks[i - 1]);
+      genMoved = idx.join() !== gen.exercises.map((_, i) => i).join();
+    }
+    return { authored, shown, stretchIsWarmup, warmFirst, genN, genOrdered, genMoved };
+  });
+  check('a routine is shown in the order it was written in',
+    rorder.authored.join('|') === rorder.shown.join('|'),
+    `${rorder.authored.join(' → ')}  vs  ${rorder.shown.join(' → ')}`);
+  check('...even though the last movement would sort as a warm-up',
+    rorder.stretchIsWarmup === true, `exBlock says ${rorder.stretchIsWarmup}`);
+  check('...with the app\'s own warm-up still opening the session',
+    rorder.warmFirst === true);
+  check('...and a generated session still sorted into blocks',
+    rorder.genN > 2 && rorder.genOrdered === true && rorder.genMoved === true,
+    `${rorder.genN} movements, in block order ${rorder.genOrdered},`
+      + ` and the sort actually moved something ${rorder.genMoved}`);
+
   // ================= 12. supersets =========================================
   console.log('\nsupersets\n');
 
